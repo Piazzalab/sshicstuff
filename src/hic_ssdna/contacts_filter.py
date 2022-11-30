@@ -100,11 +100,12 @@ def second_join(x, fragments, oligos_fragments, contacts):
     Adds the fragments file informations (=columns) for the y fragment after the first join (see first_join function)
     Only for y because the x fragments have already their information because it is the oligos_fragments.
     """
-    contacts = first_join(x, oligos_fragments, contacts)
+    new_contacts = first_join(x, oligos_fragments, contacts)
     y = frag2(x)
-    joined = contacts.join(fragments.drop("frag", axis=1), on=y,
-                           lsuffix='_' + x[-1],
-                           rsuffix='_' + y[-1], how='left')
+    joined = new_contacts.join(fragments.drop("frag", axis=1),
+                               on=y,
+                               lsuffix='_' + x[-1],
+                               rsuffix='_' + y[-1], how='left')
 
     # puts a suffix to know what fragment corresponds to an oligo
     joined.rename(columns={"type": "type_" + x[-1],
