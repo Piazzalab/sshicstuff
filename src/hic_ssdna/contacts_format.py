@@ -1,8 +1,10 @@
+#! /usr/bin/env python3
 
 import numpy as np
 import pandas as pd
 import math
 import sys
+import getopt
 from Bio.SeqIO.FastaIO import FastaIterator
 
 
@@ -146,17 +148,72 @@ def set_fragments_contacts_bins(bins_contacts_dict: dict,
     df_frequencies.to_csv(output_path+'frequencies_bins_matrix.csv')
 
 
-if __name__ == "__main__":
-    artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial_nicolas.fa"
-    filtered_contacts = "../../../contacts_format/inputs/contacts_filtered_nicolas.csv"
-    output = "../../../contacts_format/outputs/"
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        print('Please enter arguments correctly')
+        exit(0)
 
-    genome_bins_names, chr_bins_names = build_bins_from_genome(artificial_genome, 10000)
-    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts, bin_size=10000)
+    artificial_genome_path, filtered_contacts_path, output_path = ['' for _ in range(3)]
+
+    try:
+        opts, args = getopt.getopt(argv, "hg:c:o:", ["--help",
+                                                     "--genome",
+                                                     "--contacts",
+                                                     "--output"])
+    except getopt.GetoptError:
+        print('contacts filter arguments :\n'
+              '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
+              '-c <filtered_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+              '-o <output>')
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            print('contacts filter arguments :\n'
+                  '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
+                  '-c <filtered_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+                  '-o <output>')
+            sys.exit()
+        elif opt in ("-g", "--genome"):
+            artificial_genome_path = arg
+        elif opt in ("-c", "--contacts"):
+            filtered_contacts_path = arg
+        elif opt in ("-o", "--output"):
+            output_path = arg
+
+    genome_bins_names, chr_bins_names = build_bins_from_genome(artificial_genome_path, 10000)
+    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=10000)
     set_fragments_contacts_bins(bins_contacts_dict=contacts_dict,
                                 fragment_infos_dict=infos_dict,
                                 chr_bins=chr_bins_names,
                                 genome_bins=genome_bins_names,
-                                output_path=output)
+                                output_path=output_path)
+
+
+def debug(artificial_genome_path: str,
+          filtered_contacts_path: str,
+          output_path: str):
+
+    genome_bins_names, chr_bins_names = build_bins_from_genome(artificial_genome_path, 10000)
+    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=10000)
+    set_fragments_contacts_bins(bins_contacts_dict=contacts_dict,
+                                fragment_infos_dict=infos_dict,
+                                chr_bins=chr_bins_names,
+                                genome_bins=genome_bins_names,
+                                output_path=output_path)
+
+
+if __name__ == "__main__":
+    if is_debug():
+        artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial_nicolas.fa"
+        filtered_contacts = "../../../contacts_format/inputs/contacts_filtered_nicolas.csv"
+        output = "../../../contacts_format/outputs/"
+        debug(artificial_genome_path=artificial_genome,
+              filtered_contacts_path=filtered_contacts,
+              output_path=output)
+    else:
+        main(sys.argv[1:])
 
     print('--- DONE ---')
