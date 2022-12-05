@@ -36,9 +36,11 @@ def build_bins_from_genome(path_to_genome: str,
     for ii_chr, nb_bins in nb_bins_per_chr.items():
         for ii_bin in range(0, nb_bins, 1):
             start = ii_bin * bin_size
-            stop = (ii_bin + 1) * bin_size
-            chr_bins[counter] = ii_chr + '_' + str(start) + '_' + str(stop)
-            genome_bins[counter] = str(start+big_counter*bin_size) + '_' + str(stop+big_counter*bin_size)
+            # stop = (ii_bin + 1) * bin_size
+            # chr_bins[counter] = ii_chr + '_' + str(start) + '_' + str(stop)
+            # genome_bins[counter] = str(start+big_counter*bin_size) + '_' + str(stop+big_counter*bin_size)
+            chr_bins[counter] = ii_chr + '_' + str(start)
+            genome_bins[counter] = str(start+big_counter*bin_size)
             counter += 1
         big_counter += nb_bins
 
@@ -106,24 +108,34 @@ def set_fragments_contacts_bins(bins_contacts_dict: dict,
                                 fragment_infos_dict: dict,
                                 chr_bins: np.ndarray,
                                 genome_bins: np.ndarray,
-                                output: str):
+                                output_path: str):
 
-    df = pd.DataFrame({'genome_bins': genome_bins, 'chr_bins': chr_bins})
+    merged_chr_and_genome_bins = np.zeros(len(chr_bins), dtype='<U64')
+    for ii_b, (g_bin, ch_bin) in enumerate(zip(genome_bins, chr_bins)):
+        merged_chr_and_genome_bins[ii_b] = ch_bin + ' / ' + g_bin
+
+    # df = pd.DataFrame(columns=np.concatenate([['fragment', 'name', 'type'], merged_chr_and_genome_bins]))
+    df = pd.DataFrame(columns=merged_chr_and_genome_bins)
     nb_bins = len(chr_bins)
+    fragments = []
     types = []
-    name = []
+    names = []
     for f in bins_contacts_dict:
         contacts = np.zeros(nb_bins, dtype=int)
+        fragments.append(f)
         types.append(fragment_infos_dict[f]['type'])
-        name.append(fragment_infos_dict[f]['name'])
+        names.append(fragment_infos_dict[f]['name'])
         for ctc in bins_contacts_dict[f]:
             idx = np.where(chr_bins == ctc)[0]
             contacts[idx] = bins_contacts_dict[f][ctc]
-        df[f] = contacts
+        df.loc[len(df)] = contacts
 
-    new_df = df.set_index(['chr_bins', 'genome_bins'])
+    df.insert(0, 'fragments', np.asarray(fragments))
+    df.insert(1, 'names', np.asarray(names))
+    df.insert(2, 'types', np.asarray(types))
+    df.to_csv(output_path)
 
-    return new_df
+    return df
 
 
 if __name__ == "__main__":
@@ -137,6 +149,6 @@ if __name__ == "__main__":
                                 fragment_infos_dict=infos_dict,
                                 chr_bins=chr_bins_names,
                                 genome_bins=genome_bins_names,
-                                output=output)
+                                output_path=output)
 
     print('--- DONE ---')
