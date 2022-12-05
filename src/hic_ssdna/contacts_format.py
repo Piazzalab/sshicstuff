@@ -1,3 +1,4 @@
+
 import numpy as np
 import pandas as pd
 import math
@@ -76,8 +77,10 @@ def count_occurrences(df: pd.DataFrame,
 
             chr_id = df['chr_'+y][ii_f]
             start = math.floor(df['start_'+y][ii_f]/bin_size)*bin_size
-            end = start+bin_size
-            bin_id = chr_id + '_' + str(start) + '_' + str(end)
+            # end = start+bin_size
+            # bin_id = chr_id + '_' + str(start) + '_' + str(end)
+            bin_id = chr_id + '_' + str(start)
+
             if bin_id not in res1[f]:
                 res1[f][bin_id] = df['contacts'][ii_f]
             else:
@@ -115,7 +118,8 @@ def set_fragments_contacts_bins(bins_contacts_dict: dict,
         merged_chr_and_genome_bins[ii_b] = ch_bin + ' / ' + g_bin
 
     # df = pd.DataFrame(columns=np.concatenate([['fragment', 'name', 'type'], merged_chr_and_genome_bins]))
-    df = pd.DataFrame(columns=merged_chr_and_genome_bins)
+    df_contacts = pd.DataFrame(columns=merged_chr_and_genome_bins)
+    df_frequencies = df_contacts.copy(deep=True)
     nb_bins = len(chr_bins)
     fragments = []
     types = []
@@ -128,20 +132,24 @@ def set_fragments_contacts_bins(bins_contacts_dict: dict,
         for ctc in bins_contacts_dict[f]:
             idx = np.where(chr_bins == ctc)[0]
             contacts[idx] = bins_contacts_dict[f][ctc]
-        df.loc[len(df)] = contacts
+        df_contacts.loc[len(df_contacts)] = contacts
+        df_frequencies.loc[len(df_frequencies)] = contacts / np.sum(contacts)
 
-    df.insert(0, 'fragments', np.asarray(fragments))
-    df.insert(1, 'names', np.asarray(names))
-    df.insert(2, 'types', np.asarray(types))
-    df.to_csv(output_path)
+    df_contacts.insert(0, 'fragments', np.asarray(fragments))
+    df_contacts.insert(1, 'names', np.asarray(names))
+    df_contacts.insert(2, 'types', np.asarray(types))
+    df_contacts.to_csv(output_path+'contacts_bins_matrix.csv')
 
-    return df
+    df_frequencies.insert(0, 'fragments', np.asarray(fragments))
+    df_frequencies.insert(1, 'names', np.asarray(names))
+    df_frequencies.insert(2, 'types', np.asarray(types))
+    df_frequencies.to_csv(output_path+'frequencies_bins_matrix.csv')
 
 
 if __name__ == "__main__":
     artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial_nicolas.fa"
     filtered_contacts = "../../../contacts_format/inputs/contacts_filtered_nicolas.csv"
-    output = "../../../contacts_format/outputs/contacts_bins_matrix_nicolas.csv"
+    output = "../../../contacts_format/outputs/"
 
     genome_bins_names, chr_bins_names = build_bins_from_genome(artificial_genome, 10000)
     contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts, bin_size=10000)
