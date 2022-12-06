@@ -23,7 +23,6 @@ def is_debug() -> bool:
 
 def build_bins_from_genome(path_to_genome: str,
                            bin_size: int):
-
     genome = open(path_to_genome, "r")
     nb_bins_per_chr: dict = {}
     for record in FastaIterator(genome):
@@ -42,16 +41,12 @@ def build_bins_from_genome(path_to_genome: str,
     for ii_chr, nb_bins in nb_bins_per_chr.items():
         for ii_bin in range(0, nb_bins, 1):
             start = ii_bin * bin_size
-            # stop = (ii_bin + 1) * bin_size
-
             bed_array['chr'][counter] = ii_chr
             bed_array['chr_and_bins'][counter] = ii_chr + '_' + str(start)
             bed_array['bins_in_chr'][counter] = start
-            bed_array['bins_in_genome'][counter] = start + big_counter*bin_size
-
+            bed_array['bins_in_genome'][counter] = start + big_counter * bin_size
             counter += 1
         big_counter += nb_bins
-
     return bed_array
 
 
@@ -65,65 +60,81 @@ def frag2(x):
 
 def count_occurrences(df: pd.DataFrame,
                       x: str,
-                      res1: dict,
-                      res2: dict,
+                      contacts_res: dict,
+                      infos_res: dict,
+                      all_contacted_pos: dict,
                       bin_size):
-
     y = frag2(x)
-    for ii_f, f in enumerate(df['frag_'+x].values):
-        if not pd.isna(df['name_'+x][ii_f]):
-            if f not in res1:
-                res1[f] = {}
+    for ii_f, f in enumerate(df['frag_' + x].values):
+        if not pd.isna(df['name_' + x][ii_f]):
+            if f not in contacts_res:
+                contacts_res[f] = {}
 
-            if f not in res2:
-                res2[f] = {'type': df['type_'+x][ii_f],
-                           'name': df['name_'+x][ii_f],
-                           'chr': df['chr_'+x][ii_f],
-                           'start': df['start_'+x][ii_f],
-                           'end': df['end_'+x][ii_f]}
+            if f not in infos_res:
+                infos_res[f] = {'type': df['type_' + x][ii_f],
+                                'name': df['name_' + x][ii_f],
+                                'chr': df['chr_' + x][ii_f],
+                                'start': df['start_' + x][ii_f],
+                                'end': df['end_' + x][ii_f]}
 
-            chr_id = df['chr_'+y][ii_f]
-            start = math.floor(df['start_'+y][ii_f]/bin_size)*bin_size
-            # end = start+bin_size
-            # bin_id = chr_id + '_' + str(start) + '_' + str(end)
-            bin_id = chr_id + '_' + str(start)
+            chr_id = df['chr_' + y][ii_f]
+            start = df['start_' + y][ii_f]
+            chr_and_pos = chr_id + '_' + str(start)
 
-            if bin_id not in res1[f]:
-                res1[f][bin_id] = df['contacts'][ii_f]
+            if chr_id not in all_contacted_pos:
+                all_contacted_pos[chr_id] = set()
+
+            if chr_and_pos not in all_contacted_pos[chr_id]:
+                all_contacted_pos[chr_id].add(start)
+
+            if bin_size > 0:
+                start = math.floor(start / bin_size) * bin_size
+                bin_id = chr_id + '_' + str(start)
             else:
-                res1[f][bin_id] += df['contacts'][ii_f]
-    return res1, res2
+                bin_id = chr_and_pos
+
+            if bin_id not in contacts_res[f]:
+                contacts_res[f][bin_id] = df['contacts'][ii_f]
+            else:
+                contacts_res[f][bin_id] += df['contacts'][ii_f]
+
+    return contacts_res, infos_res, all_contacted_pos
 
 
 def get_fragments_dict(contacts_path: str,
                        bin_size: int):
-
     df_contacts_filtered = pd.read_csv(contacts_path, sep=',')
     fragments_contacts: dict = {}
     fragments_infos: dict = {}
-    fragments_contacts, fragments_infos = count_occurrences(df=df_contacts_filtered,
-                                                            x='a',
-                                                            res1=fragments_contacts,
-                                                            res2=fragments_infos, bin_size=bin_size)
+    all_contacted_chr_pos: dict = {}
+    fragments_contacts, fragments_infos, all_contacted_chr_pos = \
+        count_occurrences(df=df_contacts_filtered,
+                          x='a',
+                          contacts_res=fragments_contacts,
+                          infos_res=fragments_infos,
+                          all_contacted_pos=all_contacted_chr_pos,
+                          bin_size=bin_size)
 
-    fragments_contacts, fragments_infos = count_occurrences(df=df_contacts_filtered,
-                                                            x='b',
-                                                            res1=fragments_contacts,
-                                                            res2=fragments_infos, bin_size=bin_size)
+    fragments_contacts, fragments_infos, all_contacted_chr_pos = \
+        count_occurrences(df=df_contacts_filtered,
+                          x='b',
+                          contacts_res=fragments_contacts,
+                          infos_res=fragments_infos,
+                          all_contacted_pos=all_contacted_chr_pos,
+                          bin_size=bin_size)
 
-    return fragments_contacts, fragments_infos
+    return fragments_contacts, fragments_infos, all_contacted_chr_pos
 
 
 def set_fragments_contacts_bins(bed_bins: dict,
                                 bins_contacts_dict: dict,
                                 fragment_infos_dict: dict,
                                 output_path: str):
-
     chromosomes = bed_bins['chr']
     chr_and_bins = bed_bins['chr_and_bins']
     bins_in_chr = bed_bins['bins_in_chr']
     bins_in_genome = bed_bins['bins_in_genome']
-    df = pd.DataFrame({'chr': chromosomes, 'chr_bins':  bins_in_chr, 'genome_bins': bins_in_genome})
+    df = pd.DataFrame({'chr': chromosomes, 'chr_bins': bins_in_chr, 'genome_bins': bins_in_genome})
 
     nb_bins = len(bins_in_genome)
     fragments = []
@@ -142,7 +153,30 @@ def set_fragments_contacts_bins(bed_bins: dict,
         df[f] = contacts / np.sum(contacts)
         df = df.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
 
-    df.to_csv(output_path+'_frequencies_matrix.csv')
+    df.to_csv(output_path + '_frequencies_matrix.csv')
+
+
+def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
+                                  all_chr_pos: dict):
+    chr_and_pos = np.array([], dtype='<U64')
+    chromosomes = np.array([], dtype='<U16')
+    positions = np.array([], dtype='<U16')
+
+    for k, v in all_chr_pos.items():
+        all_chr_pos[k] = sorted(v)
+
+    chr_unique_list = np.concatenate([['chr' + str(i) for i in range(1, 17)],
+                                      ['2_micron', 'mitochondrion', 'chr_art']])
+
+    for chr_id in chr_unique_list:
+        if chr_id in all_chr_pos:
+            new_positions = all_chr_pos[chr_id]
+            positions = np.append(positions, new_positions)
+            chromosomes = np.append(chromosomes, np.repeat(chr_id, len(new_positions)))
+            for npos in new_positions:
+                chr_and_pos = np.append(chr_and_pos, chr_id + '_' + str(npos))
+
+    pass
 
 
 def main(argv=None):
@@ -187,7 +221,8 @@ def main(argv=None):
 
     bin_size = int(bin_size)
     bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
-    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=bin_size)
+    contacts_dict, infos_dict, all_contacted_pos_list = get_fragments_dict(contacts_path=filtered_contacts_path,
+                                                                           bin_size=bin_size)
     set_fragments_contacts_bins(bed_bins=bed_pos,
                                 bins_contacts_dict=contacts_dict,
                                 fragment_infos_dict=infos_dict,
@@ -198,13 +233,17 @@ def debug(artificial_genome_path: str,
           filtered_contacts_path: str,
           bin_size: int,
           output_path: str):
-
-    bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
-    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=bin_size)
-    set_fragments_contacts_bins(bed_bins=bed_pos,
-                                bins_contacts_dict=contacts_dict,
-                                fragment_infos_dict=infos_dict,
-                                output_path=output_path)
+    contacts_dict, infos_dict, all_contacted_pos = get_fragments_dict(contacts_path=filtered_contacts_path,
+                                                                      bin_size=bin_size)
+    if bin_size > 0:
+        bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
+        set_fragments_contacts_bins(bed_bins=bed_pos,
+                                    bins_contacts_dict=contacts_dict,
+                                    fragment_infos_dict=infos_dict,
+                                    output_path=output_path)
+    else:
+        set_fragments_contacts_no_bin(contacts_pos_dict=contacts_dict,
+                                      all_chr_pos=all_contacted_pos)
 
 
 if __name__ == "__main__":
@@ -212,9 +251,10 @@ if __name__ == "__main__":
         artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
         filtered_contacts = "../../../contacts_format/inputs/contacts_filtered_nicolas.csv"
         output = "../../../contacts_format/outputs/frequencies_per_bin_matrix.csv"
+        bin_size_value = 100000
         debug(artificial_genome_path=artificial_genome,
               filtered_contacts_path=filtered_contacts,
-              bin_size=10000,
+              bin_size=bin_size_value,
               output_path=output)
     else:
         main(sys.argv[1:])
