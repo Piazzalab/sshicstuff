@@ -141,7 +141,8 @@ def set_fragments_contacts_bins(bed_bins: dict,
             contacts[idx] = bins_contacts_dict[f][_bin]
         df[f] = contacts / np.sum(contacts)
         df = df.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
-    df.to_csv(output_path)
+
+    df.to_csv(output_path+'_frequencies_matrix.csv')
 
 
 def main(argv=None):
@@ -154,11 +155,11 @@ def main(argv=None):
     artificial_genome_path, filtered_contacts_path, output_path, bin_size = ['' for _ in range(4)]
 
     try:
-        opts, args = getopt.getopt(argv, "hg:c:o:", ["--help",
-                                                     "--genome",
-                                                     "--contacts",
-                                                     "--bin_size"
-                                                     "--output"])
+        opts, args = getopt.getopt(argv, "hg:c:b:o:", ["--help",
+                                                       "--genome",
+                                                       "--contacts",
+                                                       "--bin_size"
+                                                       "--output"])
     except getopt.GetoptError:
         print('contacts filter arguments :\n'
               '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
@@ -182,8 +183,9 @@ def main(argv=None):
         elif opt in ("-b", "--bin_size"):
             bin_size = arg
         elif opt in ("-o", "--output"):
-            output_path = arg
+            output_path = arg.split('.csv')[0]
 
+    bin_size = int(bin_size)
     bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
     contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=bin_size)
     set_fragments_contacts_bins(bed_bins=bed_pos,
