@@ -31,8 +31,11 @@ def build_bins_from_genome(path_to_genome: str,
         nb_bins_per_chr[chr_id] = len(str(record.seq)) // bin_size + 1
     genome.close()
     total_nb_bins = np.sum(list(nb_bins_per_chr.values()))
-    chr_bins = np.zeros(total_nb_bins, dtype='<U32')
-    genome_bins = np.zeros(total_nb_bins, dtype='<U32')
+    bed_array: dict = {'chr': np.zeros(total_nb_bins, dtype='<U16'),
+                       'chr_and_bins': np.zeros(total_nb_bins, dtype='<U64'),
+                       'bins_in_chr': np.zeros(total_nb_bins, dtype='<U64'),
+                       'bins_in_genome': np.zeros(total_nb_bins, dtype='<U64'),
+                       }
 
     big_counter = 0
     counter = 0
@@ -40,14 +43,16 @@ def build_bins_from_genome(path_to_genome: str,
         for ii_bin in range(0, nb_bins, 1):
             start = ii_bin * bin_size
             # stop = (ii_bin + 1) * bin_size
-            # chr_bins[counter] = ii_chr + '_' + str(start) + '_' + str(stop)
-            # genome_bins[counter] = str(start+big_counter*bin_size) + '_' + str(stop+big_counter*bin_size)
-            chr_bins[counter] = ii_chr + '_' + str(start)
-            genome_bins[counter] = str(start+big_counter*bin_size)
+
+            bed_array['chr'][counter] = ii_chr
+            bed_array['chr_and_bins'][counter] = ii_chr + '_' + str(start)
+            bed_array['bins_in_chr'][counter] = start
+            bed_array['bins_in_genome'][counter] = start + big_counter*bin_size
+
             counter += 1
         big_counter += nb_bins
 
-    return genome_bins, chr_bins
+    return bed_array
 
 
 def frag2(x):
@@ -109,43 +114,34 @@ def get_fragments_dict(contacts_path: str,
     return fragments_contacts, fragments_infos
 
 
-def set_fragments_contacts_bins(bins_contacts_dict: dict,
+def set_fragments_contacts_bins(bed_bins: dict,
+                                bins_contacts_dict: dict,
                                 fragment_infos_dict: dict,
-                                chr_bins: np.ndarray,
-                                genome_bins: np.ndarray,
                                 output_path: str):
 
-    merged_chr_and_genome_bins = np.zeros(len(chr_bins), dtype='<U64')
-    for ii_b, (g_bin, ch_bin) in enumerate(zip(genome_bins, chr_bins)):
-        merged_chr_and_genome_bins[ii_b] = ch_bin + ' / ' + g_bin
+    chromosomes = bed_bins['chr']
+    chr_and_bins = bed_bins['chr_and_bins']
+    bins_in_chr = bed_bins['bins_in_chr']
+    bins_in_genome = bed_bins['bins_in_genome']
+    df = pd.DataFrame({'chr': chromosomes, 'chr_bins':  bins_in_chr, 'genome_bins': bins_in_genome})
 
-    # df = pd.DataFrame(columns=np.concatenate([['fragment', 'name', 'type'], merged_chr_and_genome_bins]))
-    df_contacts = pd.DataFrame(columns=merged_chr_and_genome_bins)
-    df_frequencies = df_contacts.copy(deep=True)
-    nb_bins = len(chr_bins)
+    nb_bins = len(bins_in_genome)
     fragments = []
     types = []
     names = []
     for f in bins_contacts_dict:
         contacts = np.zeros(nb_bins, dtype=int)
         fragments.append(f)
-        types.append(fragment_infos_dict[f]['type'])
-        names.append(fragment_infos_dict[f]['name'])
-        for ctc in bins_contacts_dict[f]:
-            idx = np.where(chr_bins == ctc)[0]
-            contacts[idx] = bins_contacts_dict[f][ctc]
-        df_contacts.loc[len(df_contacts)] = contacts
-        df_frequencies.loc[len(df_frequencies)] = contacts / np.sum(contacts)
-
-    df_contacts.insert(0, 'fragments', np.asarray(fragments))
-    df_contacts.insert(1, 'names', np.asarray(names))
-    df_contacts.insert(2, 'types', np.asarray(types))
-    df_contacts.to_csv(output_path+'contacts_bins_matrix.csv')
-
-    df_frequencies.insert(0, 'fragments', np.asarray(fragments))
-    df_frequencies.insert(1, 'names', np.asarray(names))
-    df_frequencies.insert(2, 'types', np.asarray(types))
-    df_frequencies.to_csv(output_path+'frequencies_bins_matrix.csv')
+        t = fragment_infos_dict[f]['type']
+        n = fragment_infos_dict[f]['name']
+        types.append(t)
+        names.append(n)
+        for _bin in bins_contacts_dict[f]:
+            idx = np.where(chr_and_bins == _bin)[0]
+            contacts[idx] = bins_contacts_dict[f][_bin]
+        df[f] = contacts / np.sum(contacts)
+        df = df.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
+    df.to_csv(output_path)
 
 
 def main(argv=None):
@@ -155,18 +151,20 @@ def main(argv=None):
         print('Please enter arguments correctly')
         exit(0)
 
-    artificial_genome_path, filtered_contacts_path, output_path = ['' for _ in range(3)]
+    artificial_genome_path, filtered_contacts_path, output_path, bin_size = ['' for _ in range(4)]
 
     try:
         opts, args = getopt.getopt(argv, "hg:c:o:", ["--help",
                                                      "--genome",
                                                      "--contacts",
+                                                     "--bin_size"
                                                      "--output"])
     except getopt.GetoptError:
         print('contacts filter arguments :\n'
               '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
               '-c <filtered_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
-              '-o <output>')
+              '-b <bin_size> (size of a bin, in bp) \n'
+              '-o <output_file_name.csv>')
         sys.exit(2)
 
     for opt, arg in opts:
@@ -174,44 +172,47 @@ def main(argv=None):
             print('contacts filter arguments :\n'
                   '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
                   '-c <filtered_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
-                  '-o <output>')
+                  '-b <bin_size> (size of a bin, in bp) \n'
+                  '-o <output_file_name.csv>')
             sys.exit()
         elif opt in ("-g", "--genome"):
             artificial_genome_path = arg
         elif opt in ("-c", "--contacts"):
             filtered_contacts_path = arg
+        elif opt in ("-b", "--bin_size"):
+            bin_size = arg
         elif opt in ("-o", "--output"):
             output_path = arg
 
-    genome_bins_names, chr_bins_names = build_bins_from_genome(artificial_genome_path, 10000)
-    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=10000)
-    set_fragments_contacts_bins(bins_contacts_dict=contacts_dict,
+    bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
+    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=bin_size)
+    set_fragments_contacts_bins(bed_bins=bed_pos,
+                                bins_contacts_dict=contacts_dict,
                                 fragment_infos_dict=infos_dict,
-                                chr_bins=chr_bins_names,
-                                genome_bins=genome_bins_names,
                                 output_path=output_path)
 
 
 def debug(artificial_genome_path: str,
           filtered_contacts_path: str,
+          bin_size: int,
           output_path: str):
 
-    genome_bins_names, chr_bins_names = build_bins_from_genome(artificial_genome_path, 10000)
-    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=10000)
-    set_fragments_contacts_bins(bins_contacts_dict=contacts_dict,
+    bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
+    contacts_dict, infos_dict = get_fragments_dict(contacts_path=filtered_contacts_path, bin_size=bin_size)
+    set_fragments_contacts_bins(bed_bins=bed_pos,
+                                bins_contacts_dict=contacts_dict,
                                 fragment_infos_dict=infos_dict,
-                                chr_bins=chr_bins_names,
-                                genome_bins=genome_bins_names,
                                 output_path=output_path)
 
 
 if __name__ == "__main__":
     if is_debug():
-        artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial_nicolas.fa"
+        artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
         filtered_contacts = "../../../contacts_format/inputs/contacts_filtered_nicolas.csv"
-        output = "../../../contacts_format/outputs/"
+        output = "../../../contacts_format/outputs/frequencies_per_bin_matrix.csv"
         debug(artificial_genome_path=artificial_genome,
               filtered_contacts_path=filtered_contacts,
+              bin_size=10000,
               output_path=output)
     else:
         main(sys.argv[1:])
