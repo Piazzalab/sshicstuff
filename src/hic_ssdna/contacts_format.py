@@ -157,26 +157,39 @@ def set_fragments_contacts_bins(bed_bins: dict,
 
 
 def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
-                                  all_chr_pos: dict):
-    chr_and_pos = np.array([], dtype='<U64')
-    chromosomes = np.array([], dtype='<U16')
-    positions = np.array([], dtype='<U16')
+                                  fragment_infos_dict: dict,
+                                  all_chr_pos: dict,
+                                  output_path: str):
+    chr_and_pos = []
+    chromosomes = []
+    positions = []
 
-    for k, v in all_chr_pos.items():
-        all_chr_pos[k] = sorted(v)
+    for chr_id, pos_list in all_chr_pos.items():
+        all_chr_pos[chr_id] = sorted(pos_list)
 
     chr_unique_list = np.concatenate([['chr' + str(i) for i in range(1, 17)],
-                                      ['2_micron', 'mitochondrion', 'chr_art']])
+                                      ['2_micron', 'mitochondrion', 'chr_artificial']])
 
     for chr_id in chr_unique_list:
         if chr_id in all_chr_pos:
-            new_positions = all_chr_pos[chr_id]
-            positions = np.append(positions, new_positions)
-            chromosomes = np.append(chromosomes, np.repeat(chr_id, len(new_positions)))
-            for npos in new_positions:
-                chr_and_pos = np.append(chr_and_pos, chr_id + '_' + str(npos))
+            new_pos = all_chr_pos[chr_id]
+            positions.extend(new_pos)
+            chromosomes.extend(np.repeat(chr_id, len(new_pos)))
+            for npos in new_pos:
+                chr_and_pos.append(chr_id + '_' + str(npos))
 
-    pass
+    chr_and_pos = np.asarray(chr_and_pos)
+    df = pd.DataFrame({'chr': chromosomes, 'positions': positions})
+    for f in contacts_pos_dict:
+        contacts = np.zeros(len(chr_and_pos), dtype=int)
+        t = fragment_infos_dict[f]['type']
+        n = fragment_infos_dict[f]['name']
+        for pos in contacts_pos_dict[f]:
+            idx = np.argwhere(chr_and_pos == pos)[0]
+            contacts[idx] = contacts_pos_dict[f][pos]
+        df[f] = contacts / np.sum(contacts)
+        df = df.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
+    df.to_csv(output_path + '_frequencies_matrix.csv')
 
 
 def main(argv=None):
@@ -220,13 +233,19 @@ def main(argv=None):
             output_path = arg.split('.csv')[0]
 
     bin_size = int(bin_size)
-    bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
-    contacts_dict, infos_dict, all_contacted_pos_list = get_fragments_dict(contacts_path=filtered_contacts_path,
-                                                                           bin_size=bin_size)
-    set_fragments_contacts_bins(bed_bins=bed_pos,
-                                bins_contacts_dict=contacts_dict,
-                                fragment_infos_dict=infos_dict,
-                                output_path=output_path)
+    contacts_dict, infos_dict, all_contacted_pos = get_fragments_dict(contacts_path=filtered_contacts_path,
+                                                                      bin_size=bin_size)
+    if bin_size > 0:
+        bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
+        set_fragments_contacts_bins(bed_bins=bed_pos,
+                                    bins_contacts_dict=contacts_dict,
+                                    fragment_infos_dict=infos_dict,
+                                    output_path=output_path)
+    else:
+        set_fragments_contacts_no_bin(contacts_pos_dict=contacts_dict,
+                                      fragment_infos_dict=infos_dict,
+                                      all_chr_pos=all_contacted_pos,
+                                      output_path=output_path)
 
 
 def debug(artificial_genome_path: str,
@@ -243,7 +262,9 @@ def debug(artificial_genome_path: str,
                                     output_path=output_path)
     else:
         set_fragments_contacts_no_bin(contacts_pos_dict=contacts_dict,
-                                      all_chr_pos=all_contacted_pos)
+                                      fragment_infos_dict=infos_dict,
+                                      all_chr_pos=all_contacted_pos,
+                                      output_path=output_path)
 
 
 if __name__ == "__main__":
@@ -251,7 +272,7 @@ if __name__ == "__main__":
         artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
         filtered_contacts = "../../../contacts_format/inputs/contacts_filtered_nicolas.csv"
         output = "../../../contacts_format/outputs/frequencies_per_bin_matrix.csv"
-        bin_size_value = 100000
+        bin_size_value = 0
         debug(artificial_genome_path=artificial_genome,
               filtered_contacts_path=filtered_contacts,
               bin_size=bin_size_value,
