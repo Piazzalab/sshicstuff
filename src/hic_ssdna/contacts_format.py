@@ -67,15 +67,24 @@ def count_occurrences(df: pd.DataFrame,
     y = frag2(x)
     for ii_f, f in enumerate(df['frag_' + x].values):
         if not pd.isna(df['name_' + x][ii_f]):
-            if f not in contacts_res:
-                contacts_res[f] = {}
-
+            f_name = df['name_' + x][ii_f]
             if f not in infos_res:
-                infos_res[f] = {'type': df['type_' + x][ii_f],
-                                'name': df['name_' + x][ii_f],
-                                'chr': df['chr_' + x][ii_f],
-                                'start': df['start_' + x][ii_f],
-                                'end': df['end_' + x][ii_f]}
+                infos_res[f] = {f_name: {'type': df['type_' + x][ii_f],
+                                         'chr': df['chr_' + x][ii_f],
+                                         'start': df['start_' + x][ii_f],
+                                         'end': df['end_' + x][ii_f]}}
+            elif f in infos_res:
+                if f_name not in infos_res[f]:
+                    infos_res[f][f_name] = {'type': df['type_' + x][ii_f],
+                                            'chr': df['chr_' + x][ii_f],
+                                            'start': df['start_' + x][ii_f],
+                                            'end': df['end_' + x][ii_f]}
+
+            if f not in contacts_res:
+                contacts_res[f] = {f_name: {}}
+            elif f in contacts_res:
+                if f_name not in contacts_res[f]:
+                    contacts_res[f][f_name] = {}
 
             chr_id = df['chr_' + y][ii_f]
             start = df['start_' + y][ii_f]
@@ -93,10 +102,10 @@ def count_occurrences(df: pd.DataFrame,
             else:
                 bin_id = chr_and_pos
 
-            if bin_id not in contacts_res[f]:
-                contacts_res[f][bin_id] = df['contacts'][ii_f]
+            if bin_id not in contacts_res[f][f_name]:
+                contacts_res[f][f_name][bin_id] = df['contacts'][ii_f]
             else:
-                contacts_res[f][bin_id] += df['contacts'][ii_f]
+                contacts_res[f][f_name][bin_id] += df['contacts'][ii_f]
 
     return contacts_res, infos_res, all_contacted_pos
 
@@ -134,26 +143,24 @@ def set_fragments_contacts_bins(bed_bins: dict,
     chr_and_bins = bed_bins['chr_and_bins']
     bins_in_chr = bed_bins['bins_in_chr']
     bins_in_genome = bed_bins['bins_in_genome']
-    df = pd.DataFrame({'chr': chromosomes, 'chr_bins': bins_in_chr, 'genome_bins': bins_in_genome})
-
+    df_contc = pd.DataFrame({'chr': chromosomes, 'chr_bins': bins_in_chr, 'genome_bins': bins_in_genome})
+    df_freq = pd.DataFrame({'chr': chromosomes, 'chr_bins': bins_in_chr, 'genome_bins': bins_in_genome})
     nb_bins = len(bins_in_genome)
-    fragments = []
-    types = []
-    names = []
     for f in bins_contacts_dict:
-        contacts = np.zeros(nb_bins, dtype=int)
-        fragments.append(f)
-        t = fragment_infos_dict[f]['type']
-        n = fragment_infos_dict[f]['name']
-        types.append(t)
-        names.append(n)
-        for _bin in bins_contacts_dict[f]:
-            idx = np.where(chr_and_bins == _bin)[0]
-            contacts[idx] = bins_contacts_dict[f][_bin]
-        df[f] = contacts / np.sum(contacts)
-        df = df.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
+        for n in bins_contacts_dict[f]:
+            contacts = np.zeros(nb_bins, dtype=int)
+            t = fragment_infos_dict[f][n]['type']
+            for _bin in bins_contacts_dict[f][n]:
+                idx = np.where(chr_and_bins == _bin)[0]
+                contacts[idx] = bins_contacts_dict[f][n][_bin]
 
-    df.to_csv(output_path + '_frequencies_matrix.csv')
+            df_contc[f] = contacts
+            df_freq[f] = contacts / np.sum(contacts)
+            df_contc = df_contc.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
+            df_freq = df_freq.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
+
+    df_freq.to_csv(output_path + '_contacts_matrix.csv')
+    df_freq.to_csv(output_path + '_frequencies_matrix.csv')
 
 
 def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
@@ -179,17 +186,22 @@ def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
                 chr_and_pos.append(chr_id + '_' + str(npos))
 
     chr_and_pos = np.asarray(chr_and_pos)
-    df = pd.DataFrame({'chr': chromosomes, 'positions': positions})
+    df_contc = pd.DataFrame({'chr': chromosomes, 'positions': positions})
+    df_freq = pd.DataFrame({'chr': chromosomes, 'positions': positions})
     for f in contacts_pos_dict:
-        contacts = np.zeros(len(chr_and_pos), dtype=int)
-        t = fragment_infos_dict[f]['type']
-        n = fragment_infos_dict[f]['name']
-        for pos in contacts_pos_dict[f]:
-            idx = np.argwhere(chr_and_pos == pos)[0]
-            contacts[idx] = contacts_pos_dict[f][pos]
-        df[f] = contacts / np.sum(contacts)
-        df = df.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
-    df.to_csv(output_path + '_frequencies_matrix.csv')
+        for n in contacts_pos_dict[f]:
+            contacts = np.zeros(len(chr_and_pos), dtype=int)
+            t = fragment_infos_dict[f][n]['type']
+            for pos in contacts_pos_dict[f][n]:
+                idx = np.argwhere(chr_and_pos == pos)[0]
+                contacts[idx] = contacts_pos_dict[f][n][pos]
+
+            df_contc[f] = contacts / np.sum(contacts)
+            df_contc = df_contc.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
+            df_freq[f] = contacts / np.sum(contacts)
+            df_freq = df_freq.rename(columns={f: str(f) + '--' + str(n) + '--' + str(t)})
+    df_freq.to_csv(output_path + '_contacts_matrix.csv')
+    df_freq.to_csv(output_path + '_frequencies_matrix.csv')
 
 
 def main(argv=None):
@@ -272,7 +284,7 @@ if __name__ == "__main__":
         artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
         filtered_contacts = "../../../contacts_format/inputs/contacts_filtered_nicolas.csv"
         output = "../../../contacts_format/outputs/frequencies_per_bin_matrix.csv"
-        bin_size_value = 0
+        bin_size_value = 10000
         debug(artificial_genome_path=artificial_genome,
               filtered_contacts_path=filtered_contacts,
               bin_size=bin_size_value,
