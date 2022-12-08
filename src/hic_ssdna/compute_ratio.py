@@ -27,13 +27,24 @@ def oligos_correction(oligos_path):
     return df_oligos
 
 
+def fold_over(df_stats: pd.DataFrame):
+    ds_average = np.mean(df_stats.loc[df_stats['types'] == 'ds', 'total_contacts'].values)
+    df_stats['fold_over'] = df_stats['total_contacts'] / ds_average
+    return df_stats
+
+
 def compute_stats(oligos_path: str,
                   formated_contacts_path: str,
                   cis_range: int,
                   output_path: str):
+
     df_contacts = pd.read_csv(formated_contacts_path, sep=',', index_col=0)
     df_oligos = oligos_correction(oligos_path)
-    df_stats = pd.DataFrame(columns=['names', 'types', 'cis', 'trans', 'intra', 'inter'])
+    df_stats = pd.DataFrame(columns=['names', 'types',
+                                     'cis', 'trans',
+                                     'intra', 'inter',
+                                     'total_contacts'])
+
     for index, row in df_oligos.iterrows():
         name = row[4]
         ttype = row[3]
@@ -43,34 +54,46 @@ def compute_stats(oligos_path: str,
 
         col_idx = 0
         for idx, colname in enumerate(df_contacts.columns.values):
-            if name in colname.split('--'):
-                col_idx = idx
-                break
+            if len(colname.split('--')) > 1:
+                current_col_name = colname.split('--')[2]
+                if name in current_col_name:
+                    col_idx = idx
+                    break
 
         if col_idx == 0:
             continue
 
-        cis_contacts = df_contacts.loc[(df_contacts['positions'] > cis_left_boundary) &
-                                       (cis_right_boundary > df_contacts['positions']) &
-                                       (df_contacts['chr'] == current_chr)]
+        all_contacts = np.sum(df_contacts.iloc[:, col_idx].values)
 
-        cis_frequency = np.sum(cis_contacts.iloc[:, col_idx].values)
-        trans_frequency = 1 - cis_frequency
+        sub_df_cis_contacts = df_contacts.loc[(df_contacts['positions'] > cis_left_boundary) &
+                                              (cis_right_boundary > df_contacts['positions']) &
+                                              (df_contacts['chr'] == current_chr)]
 
-        intra_chromosome_contacts = df_contacts.loc[df_contacts['chr'] == current_chr]
-        intra_chromosome_frequency = np.sum(intra_chromosome_contacts.iloc[:, col_idx].values)
-        inter_chromosome_contacts = df_contacts.loc[df_contacts['chr'] != current_chr]
-        inter_chromosome_frequency = np.sum(inter_chromosome_contacts.iloc[:, col_idx].values)
+        cis_contacts = np.sum(sub_df_cis_contacts.iloc[:, col_idx].values)
+        trans_contacts = all_contacts - cis_contacts
+
+        sub_df_intra_chromosome_contacts = df_contacts.loc[df_contacts['chr'] == current_chr]
+        intra_chromosome_contacts = np.sum(sub_df_intra_chromosome_contacts.iloc[:, col_idx].values)
+        sub_df_inter_chromosome_contacts = df_contacts.loc[df_contacts['chr'] != current_chr]
+        inter_chromosome_contacts = np.sum(sub_df_inter_chromosome_contacts.iloc[:, col_idx].values)
+
+        cis_freq = cis_contacts / all_contacts
+        trans_freq = trans_contacts / all_contacts
+        inter_chromosome_freq = inter_chromosome_contacts / all_contacts
+        intra_chromosome_freq = intra_chromosome_contacts / all_contacts
 
         tmp_df_stats = pd.DataFrame({'names': [name], 'types': [ttype],
-                                     'cis': [cis_frequency],
-                                     'trans': [trans_frequency],
-                                     'intra': [intra_chromosome_frequency],
-                                     'inter': [inter_chromosome_frequency]})
+                                     'cis': [cis_freq],
+                                     'trans': [trans_freq],
+                                     'intra': [intra_chromosome_freq],
+                                     'inter': [inter_chromosome_freq],
+                                     'total_contacts': [all_contacts]})
 
         df_stats = pd.concat([df_stats, tmp_df_stats])
         df_stats.index = range(len(df_stats))
-    df_stats.to_csv(output_path + 'percentage_cis_trans_intra_inter.csv')
+
+    df_stats = fold_over(df_stats)
+    df_stats.to_csv(output_path + 'statistics.csv')
 
 
 def main(argv=None):
@@ -80,7 +103,7 @@ def main(argv=None):
         print('Please enter arguments correctly')
         exit(0)
 
-    cis_range, oligos_path, formated_contacts_path, output_path = ['' for _ in range(4)]
+    cis_range, oligos_path, hic_contacts_list_path, formated_contacts_path, output_path = ['' for _ in range(5)]
     try:
         opts, args = getopt.getopt(argv, "ho:c:r:O:", ["--help",
                                                        "--oligos",
@@ -110,7 +133,7 @@ def main(argv=None):
         elif opt in ("-r", "--cis_range"):
             cis_range = int(arg)
         elif opt in ("-O", "--output"):
-            output_path = arg.split('frequencies_matrix.csv')[0]
+            output_path = arg.split('contacts_matrix.csv')[0]
 
     compute_stats(cis_range=cis_range,
                   oligos_path=oligos_path,
@@ -132,7 +155,8 @@ def debug(cis_range: int,
 if __name__ == "__main__":
     if is_debug():
         oligos = "../../../compute_ratio/inputs/capture_oligo_positions.csv"
-        all_contacted_pos = "../../../compute_ratio/inputs/fragments_frequencies_no_bin_matrix.csv"
+        all_contacted_pos = "../../../compute_ratio/inputs/0kb/" \
+                            "AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30_ssHiC-filtered_frequencies_matrix.csv"
         output = "../../../compute_ratio/outputs/fragments_percentages.csv"
         cis_range_value = 50000
         debug(cis_range=cis_range_value,
