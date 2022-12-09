@@ -136,6 +136,15 @@ def get_fragments_dict(contacts_path: str,
     return fragments_contacts, fragments_infos, all_contacted_chr_pos
 
 
+def concatenate_infos_and_contacts(df1: pd.DataFrame,
+                                   df2: pd.DataFrame,
+                                   headers: list):
+    df2 = df2.T
+    df2.columns = headers
+    df3 = pd.concat([df2, df1])
+    return df3
+
+
 def set_fragments_contacts_bins(bed_bins: dict,
                                 bins_contacts_dict: dict,
                                 fragment_infos_dict: dict,
@@ -149,19 +158,35 @@ def set_fragments_contacts_bins(bed_bins: dict,
 
     nb_bins = len(bins_in_genome)
 
+    headers = list(df_contc.columns.values)
+    fragments = []
+    names = ['', '', '']
+    types = ['', '', '']
+    chrs = ['', '', '']
+    starts = ['', '', '']
+    ends = ['', '', '']
     for f in bins_contacts_dict:
         contacts = np.zeros(nb_bins, dtype=int)
-        t = fragment_infos_dict[f]['type']
-        n = fragment_infos_dict[f]['uid']
+        fragments.append(f)
+        types.append(fragment_infos_dict[f]['type'])
+        names.append(fragment_infos_dict[f]['uid'])
+        chrs.append(fragment_infos_dict[f]['chr'])
+        starts.append(fragment_infos_dict[f]['start'])
+        ends.append(fragment_infos_dict[f]['end'])
+
         for _bin in bins_contacts_dict[f]:
             idx = np.where(chr_and_bins == _bin)[0]
             contacts[idx] = bins_contacts_dict[f][_bin]
         df_contc[f] = contacts
         df_freq[f] = contacts / np.sum(contacts)
-        df_contc = df_contc.rename(columns={f: str(f) + '--' + str(t) + '--' + str(n)})
-        df_freq = df_freq.rename(columns={f: str(f) + '--' + str(t) + '--' + str(n)})
-    df_contc.to_csv(output_path + '_contacts_matrix.csv')
-    df_freq.to_csv(output_path + '_frequencies_matrix.csv')
+
+    headers.extend(fragments)
+    df_infos = pd.DataFrame(
+        {'names': names, 'types': types, 'self_chr': chrs, 'self_start': starts, 'self_end': ends})
+    df_contc = concatenate_infos_and_contacts(df1=df_contc, df2=df_infos, headers=headers)
+    df_freq = concatenate_infos_and_contacts(df1=df_freq, df2=df_infos, headers=headers)
+    df_contc.to_csv(output_path + '_contacts_matrix.csv', sep='\t')
+    df_freq.to_csv(output_path + '_frequencies_matrix.csv', sep='\t')
 
 
 def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
@@ -189,20 +214,37 @@ def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
     chr_and_pos = np.asarray(chr_and_pos)
     df_contc = pd.DataFrame({'chr': chromosomes, 'positions': positions})
     df_freq = pd.DataFrame({'chr': chromosomes, 'positions': positions})
+
+    headers = list(df_contc.columns.values)
+    fragments = []
+    names = ['', '']
+    types = ['', '']
+    chrs = ['', '']
+    starts = ['', '']
+    ends = ['', '']
     for f in contacts_pos_dict:
         contacts = np.zeros(len(chr_and_pos), dtype=int)
-        t = fragment_infos_dict[f]['type']
-        n = fragment_infos_dict[f]['uid']
+        fragments.append(f)
+        types.append(fragment_infos_dict[f]['type'])
+        names.append(fragment_infos_dict[f]['uid'])
+        chrs.append(fragment_infos_dict[f]['chr'])
+        starts.append(fragment_infos_dict[f]['start'])
+        ends.append(fragment_infos_dict[f]['end'])
+
         for pos in contacts_pos_dict[f]:
             idx = np.argwhere(chr_and_pos == pos)[0]
             contacts[idx] = contacts_pos_dict[f][pos]
 
         df_contc[f] = contacts
-        df_contc = df_contc.rename(columns={f: str(f) + '--' + str(t) + '--' + str(n)})
         df_freq[f] = contacts / np.sum(contacts)
-        df_freq = df_freq.rename(columns={f: str(f) + '--' + str(t) + '--' + str(n)})
-    df_contc.to_csv(output_path + '_contacts_matrix.csv')
-    df_freq.to_csv(output_path + '_frequencies_matrix.csv')
+
+    headers.extend(fragments)
+    df_infos = pd.DataFrame(
+        {'names': names, 'types': types, 'self_chr': chrs, 'self_start': starts, 'self_end': ends})
+    df_contc = concatenate_infos_and_contacts(df1=df_contc, df2=df_infos, headers=headers)
+    df_freq = concatenate_infos_and_contacts(df1=df_freq, df2=df_infos, headers=headers)
+    df_contc.to_csv(output_path + '_contacts_matrix.csv', sep='\t')
+    df_freq.to_csv(output_path + '_frequencies_matrix.csv', sep='\t')
 
 
 def main(argv=None):
@@ -282,10 +324,10 @@ def debug(artificial_genome_path: str,
 
 if __name__ == "__main__":
     if is_debug():
-        artificial_genome = "../../../contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
-        filtered_contacts = "../../../contacts_format/inputs/contacts_filtered_nicolas.csv"
-        output = "../../../contacts_format/outputs/frequencies_per_bin_matrix.csv"
-        bin_size_value = 0
+        artificial_genome = "../../../bash_scripts/contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
+        filtered_contacts = "../../../bash_scripts/contacts_format/inputs/contacts_filtered_nicolas.csv"
+        output = "../../../bash_scripts/contacts_format/outputs/frequencies_per_bin_matrix.csv"
+        bin_size_value = 100000
         debug(artificial_genome_path=artificial_genome,
               filtered_contacts_path=filtered_contacts,
               bin_size=bin_size_value,
