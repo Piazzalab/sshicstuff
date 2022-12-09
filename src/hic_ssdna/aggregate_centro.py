@@ -2,9 +2,11 @@
 
 import numpy as np
 import pandas as pd
-from typing import Optional
+from typing import Optional, Tuple
 from collections import Counter
+
 import sys
+import os
 import getopt
 
 
@@ -19,6 +21,14 @@ def is_debug() -> bool:
             return False
         else:
             return True
+
+
+def oligos_correction(oligos_path):
+    df_oligos = pd.read_csv(oligos_path, sep=",")
+    df_oligos.columns = [df_oligos.columns[i].lower() for i in range(len(df_oligos.columns))]
+    df_oligos.sort_values(by=['chr', 'start'], inplace=True)
+    df_oligos.reset_index(drop=True, inplace=True)
+    return df_oligos
 
 
 def find_nearest(array: list | np.ndarray,
@@ -43,7 +53,12 @@ def find_nearest(array: list | np.ndarray,
         return array[(np.abs(array - key)).argmin()]
 
 
-def contacts_focus_around_centromeres(formated_contacts_path: str, windows: int, centro_infos_path: str):
+def contacts_focus_around_centromeres(formated_contacts_path: str,
+                                      oligos_path: str,
+                                      windows: int,
+                                      centro_infos_path: str):
+
+    df_oligos = oligos_correction(oligos_path)
     df_centros = pd.read_csv(centro_infos_path, sep='\t', index_col=None)
     df_contacts = pd.read_csv(formated_contacts_path, sep=',', index_col=0)
     df_res = pd.DataFrame()
@@ -63,7 +78,7 @@ def contacts_focus_around_centromeres(formated_contacts_path: str, windows: int,
         tmp_df.index = range(len(tmp_df))
         current_centro_bin = find_nearest(tmp_df['chr_bins'].values, current_centro_pos, mode='lower')
 
-        for index2, _ in tmp_df.iterrows():
+        for index2, row2 in tmp_df.iterrows():
             tmp_df.iloc[index2, 1] -= current_centro_bin
 
         df_res = pd.concat([df_res, tmp_df])
@@ -71,7 +86,7 @@ def contacts_focus_around_centromeres(formated_contacts_path: str, windows: int,
     return df_res
 
 
-def compute_mean_per_fragment(df_centro_bins: pd.DataFrame):
+def compute_mean_per_fragment(df_centro_bins: pd.DataFrame, output_path: str):
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
     bins_counter = dict(Counter(df_centro_bins['chr_bins'].values))
@@ -84,15 +99,25 @@ def compute_mean_per_fragment(df_centro_bins: pd.DataFrame):
         tmp_std_df.index = [b]
         df_mean = pd.concat([df_mean, tmp_mean_df])
         df_std = pd.concat([df_std, tmp_std_df])
+
+        df_mean.to_csv(output_path + 'mean_on_cen.csv', sep='\t')
+        df_std.to_csv(output_path + 'std_on_cen.csv', sep='\t')
     return df_mean, df_std
 
 
-def debug(formated_contacts_path: str, windows: int, centro_infos_path: str):
+def debug(formated_contacts_path: str,
+          windows: int,
+          centro_infos_path: str,
+          output_path: str,
+          oligos_path: str):
     df_contacts_centro = contacts_focus_around_centromeres(formated_contacts_path=formated_contacts_path,
-                                                        windows=windows,
-                                                        centro_infos_path=centro_infos_path)
+                                                           windows=windows,
+                                                           centro_infos_path=centro_infos_path,
+                                                           oligos_path=oligos_path)
 
-    df_mean, df_std = compute_mean_per_fragment(df_centro_bins=df_contacts_centro)
+    df_mean, df_std = compute_mean_per_fragment(df_centro_bins=df_contacts_centro, output_path=output_path)
+    output_path_dir = '/'.join(output_path.split('/')[:-1])+'/'
+    output_path_file_prefx = output_path.split('/')[-1]
     pass
 
 
@@ -103,10 +128,17 @@ def main(argv=None):
 if __name__ == "__main__":
     if is_debug():
         centro_info = "../../../bash_scripts/aggregate_centro/inputs/S288c_chr_centro_coordinates.tsv"
-        formated_contacts = "../../../bash_scripts/aggregate_centro/inputs/formated_contacts_matrix_5kb.csv"
-        output = "../../../bash_scripts/aggregate_centro/outputs/"
+        formated_contacts = "../../../bash_scripts/aggregate_centro/inputs/" \
+                            "AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30_ssHiC-filtered_contacts_matrix.csv"
+        output = "../../../bash_scripts/aggregate_centro/outputs/" \
+                 "AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30_ssHiC-filtered_contacts_matrix.csv"
+        oligos = "../../../bash_scripts/aggregate_centro/inputs/capture_oligo_positions.csv"
         windows_range = 150000
-        debug(formated_contacts_path=formated_contacts, windows=windows_range, centro_infos_path=centro_info)
+        debug(formated_contacts_path=formated_contacts,
+              windows=windows_range,
+              centro_infos_path=centro_info,
+              output_path=output.split('_contacts_matrix.csv')[0],
+              oligos_path=oligos)
     else:
         main()
     print('--- DONE ---')
