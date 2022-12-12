@@ -25,14 +25,26 @@ def fold_over(df_stats: pd.DataFrame):
     return df_stats
 
 
+def split_formated_dataframe(df0: pd.DataFrame):
+    df0_a = df0.iloc[:5, :]
+    df0_b = df0.iloc[5:, :]
+
+    df1 = df0_a[[c for c in df0_a.columns if c not in ['chr', 'chr_bins', 'genome_bins', 'positions']]].astype(str)
+
+    df2 = pd.DataFrame()
+    df2['chr'] = df0_b.iloc[:, 0].astype(str)
+    df2[df0_b.columns[1:]] = df0_b.iloc[:, 1:].astype(int)
+
+    return df1, df2
+
+
 def compute_stats(formated_contacts_path: str,
                   cis_range: int,
                   output_path: str):
     #   low_memory because df_all contains multiple dtypes within its columns,
     #   so pandas has to avoid to guess their types
     df_all = pd.read_csv(formated_contacts_path, sep='\t', index_col=0, low_memory=False)
-    df_infos = df_all.iloc[:5, 2:]
-    df_contacts = df_all.iloc[5:, :]
+    df_infos, df_contacts = split_formated_dataframe(df_all)
     df_stats = pd.DataFrame(columns=['names', 'types', 'cis', 'trans', 'intra', 'inter', 'total_contacts'])
 
     for index, row in df_infos.T.iterrows():
@@ -40,21 +52,21 @@ def compute_stats(formated_contacts_path: str,
         cis_left_boundary = int(cis_left_boundary) - cis_range
         cis_right_boundary = int(cis_right_boundary) + cis_range
 
-        all_contacts = np.sum(np.asarray(df_contacts.loc[:, index].values, dtype=int))
+        all_contacts = np.sum(df_contacts.loc[:, index].values)
 
         sub_df_cis_contacts = df_contacts.loc[(df_contacts['positions'] > cis_left_boundary) &
                                               (cis_right_boundary > df_contacts['positions']) &
                                               (df_contacts['chr'] == current_chr)]
 
-        cis_contacts = np.sum(np.asarray(sub_df_cis_contacts.loc[:, index].values, dtype=int))
+        cis_contacts = np.sum(sub_df_cis_contacts.loc[:, index])
         trans_contacts = all_contacts - cis_contacts
 
         sub_df_intra_chromosome_contacts = df_contacts.loc[df_contacts['chr'] == current_chr]
         intra_chromosome_contacts = \
-            np.sum(np.asarray(sub_df_intra_chromosome_contacts.loc[:, index].values, dtype=int))
+            np.sum(sub_df_intra_chromosome_contacts.loc[:, index].values)
         sub_df_inter_chromosome_contacts = df_contacts.loc[df_contacts['chr'] != current_chr]
         inter_chromosome_contacts = \
-            np.sum(np.asarray(sub_df_inter_chromosome_contacts.loc[:, index].values, dtype=int))
+            np.sum(sub_df_inter_chromosome_contacts.loc[:, index].values)
 
         cis_freq = cis_contacts / all_contacts
         trans_freq = trans_contacts / all_contacts
@@ -86,7 +98,7 @@ def main(argv=None):
                                                      "--cis_range"
                                                      "--output"])
     except getopt.GetoptError:
-        print('contacts filter arguments :\n'
+        print('compute ratios arguments :\n'
               '-c <formated_contacts.csv> (contacts filtered with contacts_format.py) \n'
               '-r <bin_size> (size of a bin, in bp) \n'
               '-O <output_file_name.csv>')
@@ -94,7 +106,7 @@ def main(argv=None):
 
     for opt, arg in opts:
         if opt in ('-h', '--help'):
-            print('contacts filter arguments :\n'
+            print('compute ratios arguments :\n'
                   '-c <formated_contacts.csv> (contacts filtered with contacts_format.py) \n'
                   '-r <bin_size> (size of a bin, in bp) \n'
                   '-O <output_file_name.csv>')
@@ -123,7 +135,7 @@ def debug(cis_range: int,
 if __name__ == "__main__":
     if is_debug():
         all_contacted_pos = "../../../bash_scripts/compute_ratio/inputs/" \
-                            "AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30_ssHiC-filtered_contacts_matrix.csv"
+                            "AD162_test.csv"
         output = "../../../bash_scripts/compute_ratio/outputs/fragments_percentages.csv"
         cis_range_value = 50000
         debug(cis_range=cis_range_value,
