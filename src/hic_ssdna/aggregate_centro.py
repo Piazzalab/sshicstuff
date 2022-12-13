@@ -17,12 +17,22 @@ def contacts_focus_around_centromeres(formatted_contacts_path: str,
                                       window_size: int,
                                       centros_infos_path: str):
 
+    """
+    Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
+    centromeres and for each of the 16 chromosomes of yeast genome
+    """
+    #   dataframe containing information about location of the centromere for each chr and the length of chr.
     df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
+    #   dataframe of the formatted contacts csv file previously created,
+    #   with DTYPE=object because multiple type are present in columns
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
+    #   It needs thus to split between numeric and not numeric data
     df_infos, df_contacts = utils.split_formatted_dataframe(df_all)
 
+    #   result dataframe with bin around centromeres only
     df_res = pd.DataFrame()
 
+    #   Size of a bin in our formatted file given as input
     bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
 
     for index, row in df_centros.iterrows():
@@ -37,23 +47,39 @@ def contacts_focus_around_centromeres(formatted_contacts_path: str,
                                  (df_contacts['chr_bins'] > left_cutoff) &
                                  (df_contacts['chr_bins'] < right_cutoff)]
 
+        #   temporary dataframe containing the bins present in the windows for the current chr only
         tmp_df.index = range(len(tmp_df))
         current_centros_bin = utils.find_nearest(tmp_df['chr_bins'].values, current_centros_pos, mode='lower')
 
         for index2, row2 in tmp_df.iterrows():
+            #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
+            #   in upstream becomes positive.
             tmp_df.iloc[index2, 1] += bin_size/2 - current_centros_bin
 
+        #   We need to remove for each oligo the number of contact it mades with its own chr.
+        #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+        #   We have to set them as NaN to not bias the average
         for c in tmp_df.columns[3:]:
             self_chr = df_infos.loc['self_chr', c]
             if self_chr == current_chr:
                 tmp_df.loc[0:len(tmp_df), c] = np.nan
 
+        #   Concatenate the temporary dataframe of the current chr with
+        #   the results dataframe containing other chromosomes
         df_res = pd.concat([df_res, tmp_df])
     df_res.index = range(len(df_res))
     return df_res, df_infos
 
 
 def compute_mean_per_fragment(df_centros_bins: pd.DataFrame, output_file: str):
+    """
+    After fetching the contacts for each oligos around the centromere of the 16 chr,
+    we need to make an average (and std) of the 16 chr.
+    """
+
+    #  df_mean :  dataframe with average contacts in the centromere areas (according to the window the user gives)
+    #       for each oligo.
+    #   df_std : same but with standard deviation/error instead of mean
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
     bins_counter = dict(Counter(df_centros_bins['chr_bins'].values))
@@ -77,6 +103,11 @@ def plot_aggregated(mean_df: pd.DataFrame,
                     info_df: pd.DataFrame,
                     output_path: str):
 
+    """
+    Plot for each oligo/read a barplot of the average number of contacts
+    made around the centromeres (average on the 16 chr of yeast).
+    Gives also the standard deviation.
+    """
     x = mean_df.index.tolist()
     for ii, oligo in enumerate(mean_df.columns):
         name = info_df.loc['names', oligo]
@@ -101,9 +132,10 @@ def debug(formatted_contacts_path: str,
     if not os.path.exists(dir_res):
         os.makedirs(dir_res)
 
-    df_contacts_centros, df_infos = contacts_focus_around_centromeres(formatted_contacts_path=formatted_contacts_path,
-                                                                      window_size=window_size,
-                                                                      centros_infos_path=centros_coord_path)
+    df_contacts_centros, df_infos = \
+        contacts_focus_around_centromeres(formatted_contacts_path=formatted_contacts_path,
+                                          window_size=window_size,
+                                          centros_infos_path=centros_coord_path)
 
     output_file = dir_res + output_path.split('/')[-2]
     df_mean, df_std = compute_mean_per_fragment(df_centros_bins=df_contacts_centros, output_file=output_file)
@@ -165,7 +197,10 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    #   Go into debug function if debug mode is detected, else go for main script with sys arguments
     if utils.is_debug():
+        #   Debug is mainly used for testing function of the script
+        #   Parameters have to be declared here
         centros_coord = "../../../bash_scripts/aggregate_centro/inputs/S288c_chr_centro_coordinates.tsv"
 
         formatted_contacts = '../../../bash_scripts/aggregate_centro/inputs' \
