@@ -1,79 +1,25 @@
 #! /usr/bin/env python3
 
 import matplotlib.pyplot as plt
-
 import numpy as np
 import pandas as pd
-from typing import Optional
 from collections import Counter
-
 import sys
 import os
 import getopt
+import utils
 
+#   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
 
-def is_debug() -> bool:
-    gettrace = getattr(sys, 'gettrace', None)
 
-    if gettrace is None:
-        return False
-    else:
-        v = gettrace()
-        if v is None:
-            return False
-        else:
-            return True
+def contacts_focus_around_centromeres(formatted_contacts_path: str,
+                                      window_size: int,
+                                      centros_infos_path: str):
 
-
-def oligos_correction(oligos_path):
-    df_oligos = pd.read_csv(oligos_path, sep=",")
-    df_oligos.columns = [df_oligos.columns[i].lower() for i in range(len(df_oligos.columns))]
-    df_oligos.sort_values(by=['chr', 'start'], inplace=True)
-    df_oligos.reset_index(drop=True, inplace=True)
-    return df_oligos
-
-
-def find_nearest(array: list | np.ndarray,
-                 key: int | float,
-                 mode: str,
-                 maxi: Optional[int] = 10000,
-                 mini: Optional[int] = 0,) -> int | float:
-    array = np.asarray(array)
-    if mode == 'upper':
-        # the smallest element of array GREATER than key
-        if key >= np.max(array):
-            return maxi
-        else:
-            return array[array > key].min()
-    elif mode == 'lower':
-        # the largest element of array LESS than key
-        if key <= np.min(array):
-            return mini
-        else:
-            return array[array < key].max()
-    else:
-        return array[(np.abs(array - key)).argmin()]
-
-
-def split_formated_dataframe(df0: pd.DataFrame):
-    df0_a = df0.iloc[:5, :]
-    df0_b = df0.iloc[5:, :]
-    df1 = df0_a[[c for c in df0_a.columns if c not in ['chr', 'chr_bins', 'genome_bins', 'positions']]].astype(str)
-    df2 = pd.DataFrame()
-    df2['chr'] = df0_b.iloc[:, 0].astype(str)
-    df2[df0_b.columns[1:]] = df0_b.iloc[:, 1:].astype(int)
-
-    return df1, df2
-
-
-def contacts_focus_around_centromeres(formated_contacts_path: str,
-                                      window: int,
-                                      centro_infos_path: str):
-
-    df_centros = pd.read_csv(centro_infos_path, sep='\t', index_col=None)
-    df_all = pd.read_csv(formated_contacts_path, sep='\t', index_col=0, low_memory=False)
-    df_infos, df_contacts = split_formated_dataframe(df_all)
+    df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
+    df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
+    df_infos, df_contacts = utils.split_formatted_dataframe(df_all)
 
     df_res = pd.DataFrame()
 
@@ -81,21 +27,21 @@ def contacts_focus_around_centromeres(formated_contacts_path: str,
 
     for index, row in df_centros.iterrows():
         current_chr = row[0]
-        current_centro_pos = row[2]
+        current_centros_pos = row[2]
 
-        left_cutoff = current_centro_pos - window
+        left_cutoff = current_centros_pos - window_size
         if left_cutoff < 0:
             left_cutoff = 0
-        right_cutoff = current_centro_pos + window
+        right_cutoff = current_centros_pos + window_size
         tmp_df = df_contacts.loc[(df_contacts['chr'] == current_chr) &
                                  (df_contacts['chr_bins'] > left_cutoff) &
                                  (df_contacts['chr_bins'] < right_cutoff)]
 
         tmp_df.index = range(len(tmp_df))
-        current_centro_bin = find_nearest(tmp_df['chr_bins'].values, current_centro_pos, mode='lower')
+        current_centros_bin = utils.find_nearest(tmp_df['chr_bins'].values, current_centros_pos, mode='lower')
 
         for index2, row2 in tmp_df.iterrows():
-            tmp_df.iloc[index2, 1] += bin_size/2 - current_centro_bin
+            tmp_df.iloc[index2, 1] += bin_size/2 - current_centros_bin
 
         for c in tmp_df.columns[3:]:
             self_chr = df_infos.loc['self_chr', c]
@@ -107,12 +53,12 @@ def contacts_focus_around_centromeres(formated_contacts_path: str,
     return df_res, df_infos
 
 
-def compute_mean_per_fragment(df_centro_bins: pd.DataFrame, output_file: str):
+def compute_mean_per_fragment(df_centros_bins: pd.DataFrame, output_file: str):
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
-    bins_counter = dict(Counter(df_centro_bins['chr_bins'].values))
+    bins_counter = dict(Counter(df_centros_bins['chr_bins'].values))
     for b in bins_counter:
-        contacts_in_bin = df_centro_bins[df_centro_bins['chr_bins'] == b]
+        contacts_in_bin = df_centros_bins[df_centros_bins['chr_bins'] == b]
         tmp_df = contacts_in_bin.iloc[:, 3:]
         tmp_mean_df = pd.DataFrame(tmp_df.mean()).T
         tmp_std_df = pd.DataFrame(tmp_df.std()).T
@@ -131,8 +77,6 @@ def plot_aggregated(mean_df: pd.DataFrame,
                     info_df: pd.DataFrame,
                     output_path: str):
 
-    n = mean_df.shape[1]
-
     x = mean_df.index.tolist()
     for ii, oligo in enumerate(mean_df.columns):
         name = info_df.loc['names', oligo]
@@ -148,21 +92,21 @@ def plot_aggregated(mean_df: pd.DataFrame,
         plt.close()
 
 
-def debug(formated_contacts_path: str,
-          window: int,
-          centro_coord_path: str,
+def debug(formatted_contacts_path: str,
+          window_size: int,
+          centros_coord_path: str,
           output_path: str):
 
     dir_res = output_path
     if not os.path.exists(dir_res):
         os.makedirs(dir_res)
 
-    df_contacts_centro, df_infos = contacts_focus_around_centromeres(formated_contacts_path=formated_contacts_path,
-                                                                     window=window,
-                                                                     centro_infos_path=centro_coord_path)
+    df_contacts_centros, df_infos = contacts_focus_around_centromeres(formatted_contacts_path=formatted_contacts_path,
+                                                                      window_size=window_size,
+                                                                      centros_infos_path=centros_coord_path)
 
     output_file = dir_res + output_path.split('/')[-2]
-    df_mean, df_std = compute_mean_per_fragment(df_centro_bins=df_contacts_centro, output_file=output_file)
+    df_mean, df_std = compute_mean_per_fragment(df_centros_bins=df_contacts_centros, output_file=output_file)
     plot_aggregated(df_mean, df_std, df_infos, dir_res)
 
 
@@ -173,7 +117,7 @@ def main(argv=None):
         print('Please enter arguments correctly')
         exit(0)
 
-    formated_contacts_path, centro_coordinates_path, window_size, output_path, = ['' for _ in range(4)]
+    formatted_contacts_path, centros_coordinates_path, window_size, output_path, = ['' for _ in range(4)]
 
     try:
         opts, args = getopt.getopt(argv, "h:c:m:w:o:", ["--help",
@@ -183,8 +127,8 @@ def main(argv=None):
                                                         "--output"])
     except getopt.GetoptError:
         print('aggregate centromeres arguments :\n'
-              '-c <formated_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
-              '-m <chr_centro_coordinates.tsv>  \n'
+              '-c <formatted_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+              '-m <chr_centros_coordinates.tsv>  \n'
               '-w <window> size at both side of the centromere to look around \n' 
               '-o <output_file_name.csv>')
         sys.exit(2)
@@ -192,15 +136,15 @@ def main(argv=None):
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             print('aggregate centromeres arguments :\n'
-                  '-c <formated_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
-                  '-m <chr_centro_coordinates.tsv>  \n'
+                  '-c <formatted_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+                  '-m <chr_centros_coordinates.tsv>  \n'
                   '-w <window> size at both side of the centromere to look around \n'
                   '-o <output_file_name.csv>')
             sys.exit()
         elif opt in ("-c", "--contacts"):
-            formated_contacts_path = arg
+            formatted_contacts_path = arg
         elif opt in ("-m", "--coordinates"):
-            centro_coordinates_path = arg
+            centros_coordinates_path = arg
         elif opt in ("-w", "--window"):
             window_size = arg
         elif opt in ("-o", "--output"):
@@ -211,31 +155,31 @@ def main(argv=None):
     if not os.path.exists(dir_res):
         os.makedirs(dir_res)
 
-    df_contacts_centro, df_infos = contacts_focus_around_centromeres(formated_contacts_path=formated_contacts_path,
-                                                                     window=window_size,
-                                                                     centro_infos_path=centro_coordinates_path)
+    df_contacts_centros, df_infos = contacts_focus_around_centromeres(formatted_contacts_path=formatted_contacts_path,
+                                                                      window_size=window_size,
+                                                                      centros_infos_path=centros_coordinates_path)
 
     output_file = output_path + '/' + output_path.split('/')[-1]
-    df_mean, df_std = compute_mean_per_fragment(df_centro_bins=df_contacts_centro, output_file=output_file)
+    df_mean, df_std = compute_mean_per_fragment(df_centros_bins=df_contacts_centros, output_file=output_file)
     plot_aggregated(df_mean, df_std, df_infos, dir_res)
 
 
 if __name__ == "__main__":
-    if is_debug():
-        centro_coord = "../../../bash_scripts/aggregate_centro/inputs/S288c_chr_centro_coordinates.tsv"
+    if utils.is_debug():
+        centros_coord = "../../../bash_scripts/aggregate_centro/inputs/S288c_chr_centro_coordinates.tsv"
 
-        formated_contacts = '../../../bash_scripts/aggregate_centro/inputs' \
-                            '/AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC' \
-                            '-filtered_contacts_matrix.csv'
+        formatted_contacts = '../../../bash_scripts/aggregate_centro/inputs' \
+                             '/AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC' \
+                             '-filtered_contacts_matrix.csv'
 
         output = "../../../bash_scripts/aggregate_centro/outputs/" \
                  "AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC-filtered_contacts_matrix.csv"
 
         oligos = "../../../bash_scripts/aggregate_centro/inputs/capture_oligo_positions.csv"
         window = 150000
-        debug(formated_contacts_path=formated_contacts,
-              window=window,
-              centro_coord_path=centro_coord,
+        debug(formatted_contacts_path=formatted_contacts,
+              window_size=window,
+              centros_coord_path=centros_coord,
               output_path=output.split('_contacts_matrix.csv')[0]+'/')
     else:
         main()

@@ -2,21 +2,9 @@
 
 import numpy as np
 import pandas as pd
+import utils
 import sys
 import getopt
-
-
-def is_debug() -> bool:
-    gettrace = getattr(sys, 'gettrace', None)
-
-    if gettrace is None:
-        return False
-    else:
-        v = gettrace()
-        if v is None:
-            return False
-        else:
-            return True
 
 
 def fold_over(df_stats: pd.DataFrame):
@@ -25,26 +13,13 @@ def fold_over(df_stats: pd.DataFrame):
     return df_stats
 
 
-def split_formated_dataframe(df0: pd.DataFrame):
-    df0_a = df0.iloc[:5, :]
-    df0_b = df0.iloc[5:, :]
-
-    df1 = df0_a[[c for c in df0_a.columns if c not in ['chr', 'chr_bins', 'genome_bins', 'positions']]].astype(str)
-
-    df2 = pd.DataFrame()
-    df2['chr'] = df0_b.iloc[:, 0].astype(str)
-    df2[df0_b.columns[1:]] = df0_b.iloc[:, 1:].astype(int)
-
-    return df1, df2
-
-
 def compute_stats(formated_contacts_path: str,
                   cis_range: int,
                   output_path: str):
     #   low_memory because df_all contains multiple dtypes within its columns,
     #   so pandas has to avoid to guess their types
     df_all = pd.read_csv(formated_contacts_path, sep='\t', index_col=0, low_memory=False)
-    df_infos, df_contacts = split_formated_dataframe(df_all)
+    df_infos, df_contacts = utils.split_formatted_dataframe(df_all)
     df_stats = pd.DataFrame(columns=['names', 'types', 'cis', 'trans', 'intra', 'inter', 'total_contacts'])
 
     for index, row in df_infos.T.iterrows():
@@ -133,7 +108,7 @@ def debug(cis_range: int,
 
 
 if __name__ == "__main__":
-    if is_debug():
+    if utils.is_debug():
         all_contacted_pos = "../../../bash_scripts/compute_ratio/inputs/" \
                             "AD162_test.csv"
         output = "../../../bash_scripts/compute_ratio/outputs/fragments_percentages.csv"

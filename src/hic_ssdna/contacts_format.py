@@ -6,19 +6,7 @@ import math
 import sys
 import getopt
 from Bio.SeqIO.FastaIO import FastaIterator
-
-
-def is_debug() -> bool:
-    gettrace = getattr(sys, 'gettrace', None)
-
-    if gettrace is None:
-        return False
-    else:
-        v = gettrace()
-        if v is None:
-            return False
-        else:
-            return True
+import utils
 
 
 def build_bins_from_genome(path_to_genome: str,
@@ -323,7 +311,7 @@ def debug(artificial_genome_path: str,
 
 
 if __name__ == "__main__":
-    if is_debug():
+    if utils.is_debug():
         artificial_genome = "../../../bash_scripts/contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
         filtered_contacts = "../../../bash_scripts/contacts_format/inputs/contacts_filtered_nicolas.csv"
         output = "../../../bash_scripts/contacts_format/outputs/frequencies_per_bin_matrix.csv"
