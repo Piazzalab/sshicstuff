@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
 
 import numpy as np
 import pandas as pd
@@ -78,6 +77,8 @@ def contacts_focus_around_centromeres(formated_contacts_path: str,
 
     df_res = pd.DataFrame()
 
+    bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
+
     for index, row in df_centros.iterrows():
         current_chr = row[0]
         current_centro_pos = row[2]
@@ -94,7 +95,7 @@ def contacts_focus_around_centromeres(formated_contacts_path: str,
         current_centro_bin = find_nearest(tmp_df['chr_bins'].values, current_centro_pos, mode='lower')
 
         for index2, row2 in tmp_df.iterrows():
-            tmp_df.iloc[index2, 1] -= current_centro_bin
+            tmp_df.iloc[index2, 1] += bin_size/2 - current_centro_bin
 
         for c in tmp_df.columns[3:]:
             self_chr = df_infos.loc['self_chr', c]
@@ -131,7 +132,6 @@ def plot_aggregated(mean_df: pd.DataFrame,
                     output_path: str):
 
     n = mean_df.shape[1]
-    color_list = [colors.to_hex(colors.hsv_to_rgb([x * 1.0 / n, 1.0, 1.0])) for x in range(n)]
 
     x = mean_df.index.tolist()
     for ii, oligo in enumerate(mean_df.columns):
@@ -140,11 +140,11 @@ def plot_aggregated(mean_df: pd.DataFrame,
         yerr = std_df[oligo]
         plt.figure(figsize=(14, 12))
         plt.bar(x, y)
-        plt.errorbar(x, y, yerr=yerr, fmt="o", color=color_list[ii], capsize=5)
+        plt.errorbar(x, y, yerr=yerr, fmt="o", color='b', capsize=5)
         plt.title("Aggregated contacts for read {0} from probe {1} around chromosome's centromeres".format(oligo, name))
         plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
         plt.ylabel("Average contacts made and standard deviation")
-        plt.savefig(output_path + "{0}-centromeres-aggregated_contacts_plot.{1}".format(oligo, 'jpg'), dpi=160)
+        plt.savefig(output_path + "{0}-centromeres-aggregated_contacts_plot.{1}".format(oligo, 'jpg'), dpi=99)
         plt.close()
 
 
