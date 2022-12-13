@@ -260,7 +260,7 @@ def main(argv=None):
         opts, args = getopt.getopt(argv, "hg:c:b:o:", ["--help",
                                                        "--genome",
                                                        "--contacts",
-                                                       "--bin_size"
+                                                       "--bin_size",
                                                        "--output"])
     except getopt.GetoptError:
         print('contacts filter arguments :\n'

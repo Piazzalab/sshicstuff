@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
@@ -152,17 +153,17 @@ def debug(formated_contacts_path: str,
           centro_coord_path: str,
           output_path: str):
 
-    dir_plots = output_path
-    if not os.path.exists(dir_plots):
-        os.makedirs(dir_plots)
+    dir_res = output_path
+    if not os.path.exists(dir_res):
+        os.makedirs(dir_res)
 
     df_contacts_centro, df_infos = contacts_focus_around_centromeres(formated_contacts_path=formated_contacts_path,
                                                                      window=window,
                                                                      centro_infos_path=centro_coord_path)
 
-    output_file = output_path + output_path.split('/')[-2]
+    output_file = dir_res + output_path.split('/')[-2]
     df_mean, df_std = compute_mean_per_fragment(df_centro_bins=df_contacts_centro, output_file=output_file)
-    plot_aggregated(df_mean, df_std, df_infos, output_path)
+    plot_aggregated(df_mean, df_std, df_infos, dir_res)
 
 
 def main(argv=None):
@@ -172,49 +173,51 @@ def main(argv=None):
         print('Please enter arguments correctly')
         exit(0)
 
-    formated_contacts_path, centro_coordinates, window_size, output_path = ['' for _ in range(4)]
+    formated_contacts_path, centro_coordinates_path, window_size, output_path, = ['' for _ in range(4)]
+
     try:
-        opts, args = getopt.getopt(argv, "hc:m:w:O:", ["--help",
-                                                       "--contacts",
-                                                       "--coordinates"
-                                                       "--window"
-                                                       "--output"])
+        opts, args = getopt.getopt(argv, "h:c:m:w:o:", ["--help",
+                                                        "--contacts",
+                                                        "--coordinates",
+                                                        "--window",
+                                                        "--output"])
     except getopt.GetoptError:
-        print('aggregate centromere arguments :\n'
-              '-c <formated_contacts.csv> (contacts filtered with contacts_format.py) \n'
-              '-m <chr_centromeres_coordinates.tsv> (positions of centromeres (CEN) for each chr (1 to 16) \n'
-              '-w <window> (number of bp to look around the centromere, at both sides) \n'
-              '-O <output_file_name.csv>')
+        print('aggregate centromeres arguments :\n'
+              '-c <formated_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+              '-m <chr_centro_coordinates.tsv>  \n'
+              '-w <window> size at both side of the centromere to look around \n' 
+              '-o <output_file_name.csv>')
         sys.exit(2)
 
     for opt, arg in opts:
         if opt in ('-h', '--help'):
-            print('aggregate centromere arguments :\n'
-                  '-c <formated_contacts.csv> (contacts filtered with contacts_format.py) \n'
-                  '-m <chr_centromeres_coordinates.tsv> (positions of centromeres (CEN) for each chr (1 to 16) \n'
-                  '-w <window> (number of bp to look around the centromere, at both sides) \n'
-                  '-O <output_file_name.csv>')
+            print('aggregate centromeres arguments :\n'
+                  '-c <formated_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+                  '-m <chr_centro_coordinates.tsv>  \n'
+                  '-w <window> size at both side of the centromere to look around \n'
+                  '-o <output_file_name.csv>')
             sys.exit()
         elif opt in ("-c", "--contacts"):
             formated_contacts_path = arg
         elif opt in ("-m", "--coordinates"):
-            centro_coordinates = arg
+            centro_coordinates_path = arg
         elif opt in ("-w", "--window"):
-            window_size = int(arg)
-        elif opt in ("-O", "--output"):
-            output_path = arg.split('contacts_matrix.csv')[0]
+            window_size = arg
+        elif opt in ("-o", "--output"):
+            output_path = arg.split('-filtered_contacts_matrix.csv')[0]
 
-    dir_plots = output_path + '/'
-    if not os.path.exists(dir_plots):
-        os.makedirs(dir_plots)
+    window_size = int(window_size)
+    dir_res = output_path + '/'
+    if not os.path.exists(dir_res):
+        os.makedirs(dir_res)
 
     df_contacts_centro, df_infos = contacts_focus_around_centromeres(formated_contacts_path=formated_contacts_path,
                                                                      window=window_size,
-                                                                     centro_infos_path=centro_coordinates)
+                                                                     centro_infos_path=centro_coordinates_path)
 
-    output_file = output_path + output_path.split('/')[-2]
+    output_file = output_path + '/' + output_path.split('/')[-1]
     df_mean, df_std = compute_mean_per_fragment(df_centro_bins=df_contacts_centro, output_file=output_file)
-    plot_aggregated(df_mean, df_std, df_infos, output_path)
+    plot_aggregated(df_mean, df_std, df_infos, dir_res)
 
 
 if __name__ == "__main__":

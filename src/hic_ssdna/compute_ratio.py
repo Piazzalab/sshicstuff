@@ -95,7 +95,7 @@ def main(argv=None):
     try:
         opts, args = getopt.getopt(argv, "hc:r:O:", ["--help",
                                                      "--contacts",
-                                                     "--cis_range"
+                                                     "--cis_range",
                                                      "--output"])
     except getopt.GetoptError:
         print('compute ratios arguments :\n'
