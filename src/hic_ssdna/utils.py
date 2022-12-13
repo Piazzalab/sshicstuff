@@ -67,5 +67,15 @@ def find_nearest(array: list | np.ndarray,
         return array[(np.abs(array - key)).argmin()]
 
 
+def frag2(x):
+    """
+    if x = a get b, if x = b get a
+    """
+    if x == 'a':
+        y = 'b'
+    else:
+        y = 'a'
+    return y
+
 if __name__ == "__main__":
     pass
