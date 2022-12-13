@@ -11,6 +11,15 @@ import utils
 
 def build_bins_from_genome(path_to_genome: str,
                            bin_size: int):
+    """
+    This function aims to parse the genome, and each chromosome into bins (regular range of bp)
+    of size 'bin_size' a parameter given by the user as input.
+
+    For the chr_bins, they will start at chrX_0, chrX_(0+bin_size) ... chrX_end
+        idem for chrY, it starts again at chrX_0, and so on chrX_(0+bin_size) ... chrX_end
+    For the genome they will start at 0, 0+bin_size, 0+2*bin_size ... genome_end.
+        For the genome_bins, the positions are not reset when we go from the end of chrX to the start of chrY
+    """
     genome = open(path_to_genome, "r")
     nb_bins_per_chr: dict = {}
     for record in FastaIterator(genome):
@@ -18,12 +27,15 @@ def build_bins_from_genome(path_to_genome: str,
         nb_bins_per_chr[chr_id] = len(str(record.seq)) // bin_size + 1
     genome.close()
     total_nb_bins = np.sum(list(nb_bins_per_chr.values()))
+    #   Results are stored into a dictionary
     bed_array: dict = {'chr': np.zeros(total_nb_bins, dtype='<U16'),
                        'chr_and_bins': np.zeros(total_nb_bins, dtype='<U64'),
                        'bins_in_chr': np.zeros(total_nb_bins, dtype='<U64'),
                        'bins_in_genome': np.zeros(total_nb_bins, dtype='<U64'),
                        }
 
+    #   Two counter are set as repair for creating bins
+    #       big_counter is used as repair especially for genome_bins
     big_counter = 0
     counter = 0
     for ii_chr, nb_bins in nb_bins_per_chr.items():
@@ -38,24 +50,28 @@ def build_bins_from_genome(path_to_genome: str,
     return bed_array
 
 
-def frag2(x):
-    if x == 'a':
-        y = 'b'
-    else:
-        y = 'a'
-    return y
-
-
 def count_occurrences(df: pd.DataFrame,
                       x: str,
                       contacts_res: dict,
                       infos_res: dict,
                       all_contacted_pos: dict,
                       bin_size):
-    y = frag2(x)
+    """
+    This function will count the number of contacts for each read that comes from column 'frag_x' in each bin.
+    The results are stored in three dictionaries, given as arguments.
+        contacts_res of the form :  {oligoX : {chrX_binA : n ... } ...}
+        infos_res of the form : {oligoX : {name: "probeX", type: "ds" , chr: 'chr1, ...} ...}
+        all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
+    """
+    #   if x = a get b, if x = b get a
+    y = utils.frag2(x)
     for ii_f, f in enumerate(df['frag_' + x].values):
         if not pd.isna(df['name_' + x][ii_f]):
             if f not in infos_res:
+                #   Nota Bene : A same read or fragment may contain two oligos because they are very close
+                #       Thus for a same read we acn see two probe's names that are different
+                #       For the moment the infos_res[f][names] is an array that may contain one (in most cases)
+                #       or two probes (for two oligos in one read).
                 infos_res[f] = {'type': df['type_' + x][ii_f],
                                 'names': [df['name_' + x][ii_f]],
                                 'chr': df['chr_' + x][ii_f],
@@ -92,6 +108,8 @@ def count_occurrences(df: pd.DataFrame,
 
     for f in infos_res:
         if len(infos_res[f]['names']) > 1:
+            #   If the current fragment or read in the loop has multiple names i.e., contains two oligos
+            #   we decided to merge the probe's names in a single one : 'name1-/-name2'
             infos_res[f]['uid'] = '-/-'.join(infos_res[f]['names'])
         else:
             infos_res[f]['uid'] = infos_res[f]['names'][0]
@@ -101,10 +119,26 @@ def count_occurrences(df: pd.DataFrame,
 
 def get_fragments_dict(contacts_path: str,
                        bin_size: int):
+    """
+    From a filtered contacts file, count the number of contacts made for each read in every bin of size 'bin_size'
+
+    """
+    #   dataframe of the filtered contacts file created previously (contacts_filter)
     df_contacts_filtered = pd.read_csv(contacts_path, sep=',')
+    #   dictionary that will store for each fragment (aka read) , for each bin, the number of contacts
+    #       It will be in the form : {oligoX : {chrX_binA : n ... } ...}
     fragments_contacts: dict = {}
+    #   dictionary that will store for each fragment (aka read) , its information
+    #       It will be in the form : {oligoX : {name: "probeX", type: "ds" , chr: 'chr1, ...} ...}
     fragments_infos: dict = {}
+    #   dictionary that will store for each fragment (aka read) , all the region it contacted, so NOT BINNED
+    #       It will be in the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
     all_contacted_chr_pos: dict = {}
+
+    #   At this moment these three dict are empty.
+    #   We have to fill them with the function count_occurrences.
+
+    #   There a first passage for reads that come from the 'frag_a' column in the filtered_contacts dataframe
     fragments_contacts, fragments_infos, all_contacted_chr_pos = \
         count_occurrences(df=df_contacts_filtered,
                           x='a',
@@ -113,6 +147,7 @@ def get_fragments_dict(contacts_path: str,
                           all_contacted_pos=all_contacted_chr_pos,
                           bin_size=bin_size)
 
+    #   Then a second passage for reads that come from the 'frag_b' column in the filtered_contacts dataframe
     fragments_contacts, fragments_infos, all_contacted_chr_pos = \
         count_occurrences(df=df_contacts_filtered,
                           x='b',
@@ -127,6 +162,11 @@ def get_fragments_dict(contacts_path: str,
 def concatenate_infos_and_contacts(df1: pd.DataFrame,
                                    df2: pd.DataFrame,
                                    headers: list):
+    """
+    concatenate dataframe DF2 containing information such as probe's name, type,
+    location etc ... with the dataframe containing the amount of occurrence per bin DF1
+    """
+    #   transpose df2
     df2 = df2.T
     df2.columns = headers
     df3 = pd.concat([df2, df1])
@@ -137,6 +177,26 @@ def set_fragments_contacts_bins(bed_bins: dict,
                                 bins_contacts_dict: dict,
                                 fragment_infos_dict: dict,
                                 output_path: str):
+
+    """
+    Write a dataframe with contacts per bin, for a specified bin_size for each oligo.
+    Formatted dataframe of the form :
+    **********************************************************************************************************
+                 chr    chr_bins    genome_bins      2630                5315                   8579
+    names                                            Neg_chr2-199707     chr2-650593-MET8       chr4-64420-CDC13
+    types                                            ds_neg              ds                     ds
+    self_chr                                         chr2                chr2                   chr4
+    self_start                                       199707	             650550	                64397
+    self_end                                         199746	             650756	                64699
+    0            1         0           0             0	                 0	                    0
+    1            1         20000       20000         0                   3                      0
+    2            1         40000       40000         1                   0                      2
+    3            1         60000       60000         0                   0                      1
+    |            |         |           |             |                   |                      |
+    |            |         |           |             |                   |                      |
+    36193    chr_art       0           1227000       2                   0                      0
+    **********************************************************************************************************
+    """
     chromosomes = bed_bins['chr']
     chr_and_bins = bed_bins['chr_and_bins']
     bins_in_chr = bed_bins['bins_in_chr']
@@ -181,6 +241,26 @@ def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
                                   fragment_infos_dict: dict,
                                   all_chr_pos: dict,
                                   output_path: str):
+
+    """
+    Write a dataframe with all the contacts NOT BINNED here made for each read.
+        Formatted dataframe of the form :
+    **********************************************************************************************************
+                 chr   positions     2630                    5315                    8579
+    names                            Neg_chr2-199707        chr2-650593-MET8        chr4-64420-CDC13
+    types                            ds_neg                 ds                      ds
+    self_chr                         chr2                   chr2                    chr4
+    self_start                       199707	                650550	                64397
+    self_end                         199746	                650756	                64699
+    0            1     0             0	                    0	                    0
+    1            1     509           0                      3                       0
+    2            1     1149          1                      0                       2
+    3            1     1492          0                      0                       1
+    |            |      |            |                      |                       |
+    |            |      |            |                      |                       |
+    36193    chr_art    7224          2                     0                       0
+    **********************************************************************************************************
+    """
     chr_and_pos = []
     chromosomes = []
     positions = []
@@ -311,7 +391,10 @@ def debug(artificial_genome_path: str,
 
 
 if __name__ == "__main__":
+    #   Go into debug function if debug mode is detected, else go for main script with sys arguments
     if utils.is_debug():
+        #   Debug is mainly used for testing function of the script
+        #   Parameters have to be declared here
         artificial_genome = "../../../bash_scripts/contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
         filtered_contacts = "../../../bash_scripts/contacts_format/inputs/contacts_filtered_nicolas.csv"
         output = "../../../bash_scripts/contacts_format/outputs/frequencies_per_bin_matrix.csv"
