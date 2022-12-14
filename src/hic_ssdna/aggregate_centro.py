@@ -15,7 +15,8 @@ pd.options.mode.chained_assignment = None
 
 def contacts_focus_around_centromeres(formatted_contacts_path: str,
                                       window_size: int,
-                                      centros_infos_path: str):
+                                      centros_infos_path: str,
+                                      output_file: str):
 
     """
     Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
@@ -27,7 +28,7 @@ def contacts_focus_around_centromeres(formatted_contacts_path: str,
     #   with DTYPE=object because multiple type are present in columns
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
     #   It needs thus to split between numeric and not numeric data
-    df_infos, df_contacts = utils.split_formatted_dataframe(df_all)
+    df_info, df_contacts = utils.split_formatted_dataframe(df_all)
 
     #   result dataframe with bin around centromeres only
     df_res = pd.DataFrame()
@@ -39,7 +40,7 @@ def contacts_focus_around_centromeres(formatted_contacts_path: str,
         current_chr = row[0]
         current_centros_pos = row[2]
 
-        left_cutoff = current_centros_pos - window_size
+        left_cutoff = current_centros_pos - window_size - bin_size
         if left_cutoff < 0:
             left_cutoff = 0
         right_cutoff = current_centros_pos + window_size
@@ -60,18 +61,30 @@ def contacts_focus_around_centromeres(formatted_contacts_path: str,
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
         for c in tmp_df.columns[3:]:
-            self_chr = df_infos.loc['self_chr', c]
+            self_chr = df_info.loc['self_chr', c]
             if self_chr == current_chr:
                 tmp_df.loc[0:len(tmp_df), c] = np.nan
+
+        if current_chr == 'chr4':
+            pass
 
         #   Concatenate the temporary dataframe of the current chr with
         #   the results dataframe containing other chromosomes
         df_res = pd.concat([df_res, tmp_df])
     df_res.index = range(len(df_res))
-    return df_res, df_infos
+
+    #   Concatenate with oligo names, types, locations ...
+    df_res_with_info = pd.concat([df_all.iloc[:5, :], df_res])
+
+    #   Write to csv
+    df_res_with_info.to_csv(output_file + '_formatted_frequencies_cen.tsv', sep='\t')
+
+    return df_res, df_info
 
 
-def compute_mean_per_fragment(df_centros_bins: pd.DataFrame, output_file: str):
+def compute_mean_per_fragment(df_centros_bins: pd.DataFrame,
+                              df_info: pd.DataFrame,
+                              output_file: str):
     """
     After fetching the contacts for each oligos around the centromere of the 16 chr,
     we need to make an average (and std) of the 16 chr.
@@ -93,8 +106,17 @@ def compute_mean_per_fragment(df_centros_bins: pd.DataFrame, output_file: str):
         df_mean = pd.concat([df_mean, tmp_mean_df])
         df_std = pd.concat([df_std, tmp_std_df])
 
-    df_mean.to_csv(output_file + '_mean_on_cen.csv', sep='\t')
-    df_std.to_csv(output_file + '_std_on_cen.csv', sep='\t')
+    #   Sort the series according to index
+    df_mean = df_mean.sort_index()
+    df_std = df_std.sort_index()
+
+    #   Concatenate with oligo names, types, locations ...
+    df_mean_with_info = pd.concat([df_info, df_mean])
+    df_std_with_info = pd.concat([df_info, df_std])
+
+    #   Write to csv
+    df_mean_with_info.to_csv(output_file + '_mean_on_cen.tsv', sep='\t')
+    df_std_with_info.to_csv(output_file + '_std_on_cen.tsv', sep='\t')
     return df_mean, df_std
 
 
@@ -111,15 +133,18 @@ def plot_aggregated(mean_df: pd.DataFrame,
     x = mean_df.index.tolist()
     for ii, oligo in enumerate(mean_df.columns):
         name = info_df.loc['names', oligo]
+        if len(name.split('-/-')) > 1:
+            name = '_&_'.join(name.split('-/-'))
+
         y = mean_df[oligo]
         yerr = std_df[oligo]
         plt.figure(figsize=(14, 12))
         plt.bar(x, y)
         plt.errorbar(x, y, yerr=yerr, fmt="o", color='b', capsize=5)
-        plt.title("Aggregated contacts for read {0} from probe {1} around chromosome's centromeres".format(oligo, name))
+        plt.title("Aggregated frequencies for read {0} from probe {1} around chromosome's centromeres".format(oligo, name))
         plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
-        plt.ylabel("Average contacts made and standard deviation")
-        plt.savefig(output_path + "{0}-centromeres-aggregated_contacts_plot.{1}".format(oligo, 'jpg'), dpi=99)
+        plt.ylabel("Average frequency made and standard deviation")
+        plt.savefig(output_path + "{0}-centromeres-aggregated_frequencies_plot.{1}".format(name, 'jpg'), dpi=99)
         plt.close()
 
 
@@ -132,14 +157,17 @@ def debug(formatted_contacts_path: str,
     if not os.path.exists(dir_res):
         os.makedirs(dir_res)
 
-    df_contacts_centros, df_infos = \
+    output_file = dir_res + output_path.split('/')[-2]
+    df_contacts_centros, df_info = \
         contacts_focus_around_centromeres(formatted_contacts_path=formatted_contacts_path,
                                           window_size=window_size,
-                                          centros_infos_path=centros_coord_path)
+                                          centros_infos_path=centros_coord_path,
+                                          output_file=output_file)
 
-    output_file = dir_res + output_path.split('/')[-2]
-    df_mean, df_std = compute_mean_per_fragment(df_centros_bins=df_contacts_centros, output_file=output_file)
-    plot_aggregated(df_mean, df_std, df_infos, dir_res)
+
+    df_mean, df_std = \
+        compute_mean_per_fragment(df_centros_bins=df_contacts_centros, df_info=df_info, output_file=output_file)
+    plot_aggregated(df_mean, df_std, df_info, dir_res)
 
 
 def main(argv=None):
@@ -159,7 +187,7 @@ def main(argv=None):
                                                         "--output"])
     except getopt.GetoptError:
         print('aggregate centromeres arguments :\n'
-              '-c <formatted_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+              '-c <formatted_frequencies_input.csv> (contacts filtered with contacts_filter.py) \n'
               '-m <chr_centros_coordinates.tsv>  \n'
               '-w <window> size at both side of the centromere to look around \n' 
               '-o <output_file_name.csv>')
@@ -168,7 +196,7 @@ def main(argv=None):
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             print('aggregate centromeres arguments :\n'
-                  '-c <formatted_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+                  '-c <formatted_frequencies_input.csv> (contacts filtered with contacts_filter.py) \n'
                   '-m <chr_centros_coordinates.tsv>  \n'
                   '-w <window> size at both side of the centromere to look around \n'
                   '-o <output_file_name.csv>')
@@ -180,20 +208,23 @@ def main(argv=None):
         elif opt in ("-w", "--window"):
             window_size = arg
         elif opt in ("-o", "--output"):
-            output_path = arg.split('-filtered_contacts_matrix.csv')[0]
+            output_path = arg.split('-filtered_frequencies_matrix.csv')[0]
 
     window_size = int(window_size)
     dir_res = output_path + '/'
     if not os.path.exists(dir_res):
         os.makedirs(dir_res)
 
-    df_contacts_centros, df_infos = contacts_focus_around_centromeres(formatted_contacts_path=formatted_contacts_path,
-                                                                      window_size=window_size,
-                                                                      centros_infos_path=centros_coordinates_path)
-
     output_file = output_path + '/' + output_path.split('/')[-1]
-    df_mean, df_std = compute_mean_per_fragment(df_centros_bins=df_contacts_centros, output_file=output_file)
-    plot_aggregated(df_mean, df_std, df_infos, dir_res)
+    df_contacts_centros, df_info = \
+        contacts_focus_around_centromeres(formatted_contacts_path=formatted_contacts_path,
+                                          window_size=window_size,
+                                          centros_infos_path=centros_coordinates_path,
+                                          output_file=output_file)
+
+    df_mean, df_std = \
+        compute_mean_per_fragment(df_centros_bins=df_contacts_centros, df_info=df_info, output_file=output_file)
+    plot_aggregated(df_mean, df_std, df_info, dir_res)
 
 
 if __name__ == "__main__":
@@ -205,17 +236,17 @@ if __name__ == "__main__":
 
         formatted_contacts = '../../../bash_scripts/aggregate_centro/inputs' \
                              '/AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC' \
-                             '-filtered_contacts_matrix.csv'
+                             '-formatted_frequencies_matrix.csv'
 
         output = "../../../bash_scripts/aggregate_centro/outputs/" \
-                 "AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC-filtered_contacts_matrix.csv"
+                 "AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC-formatted_frequencies_matrix.csv"
 
         oligos = "../../../bash_scripts/aggregate_centro/inputs/capture_oligo_positions.csv"
         window = 150000
         debug(formatted_contacts_path=formatted_contacts,
               window_size=window,
               centros_coord_path=centros_coord,
-              output_path=output.split('_contacts_matrix.csv')[0]+'/')
+              output_path=output.split('_frequencies_matrix.csv')[0]+'/')
     else:
         main()
     print('--- DONE ---')
