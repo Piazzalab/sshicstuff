@@ -233,8 +233,8 @@ def set_fragments_contacts_bins(bed_bins: dict,
         {'names': names, 'types': types, 'self_chr': chrs, 'self_start': starts, 'self_end': ends})
     df_contc = concatenate_infos_and_contacts(df1=df_contc, df2=df_infos, headers=headers)
     df_freq = concatenate_infos_and_contacts(df1=df_freq, df2=df_infos, headers=headers)
-    df_contc.to_csv(output_path + '_contacts_matrix.tsv', sep='\t')
-    df_freq.to_csv(output_path + '_frequencies_matrix.tsv', sep='\t')
+    df_contc.to_csv(output_path + 'formatted_contacts_matrix.tsv', sep='\t')
+    df_freq.to_csv(output_path + 'formatted_frequencies_matrix.tsv', sep='\t')
 
 
 def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
