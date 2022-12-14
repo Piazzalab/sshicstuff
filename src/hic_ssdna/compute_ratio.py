@@ -90,7 +90,7 @@ def compute_stats(formatted_contacts_path: str,
         df_stats.index = range(len(df_stats))
 
     df_stats = fold_over(df_stats)
-    df_stats.to_csv(output_path + 'statistics.csv')
+    df_stats.to_csv(output_path + 'statistics.tsv', sep='\t')
 
 
 def main(argv=None):
@@ -125,7 +125,7 @@ def main(argv=None):
         elif opt in ("-r", "--cis_range"):
             cis_range = int(arg)
         elif opt in ("-O", "--output"):
-            output_path = arg.split('contacts_matrix.csv')[0]
+            output_path = arg.split('contacts_matrix.tsv')[0]
 
     compute_stats(cis_range=cis_range,
                   formatted_contacts_path=formatted_contacts_path,
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         #   Parameters have to be declared here
         all_contacted_pos = "../../../bash_scripts/compute_ratio/inputs/" \
                             "AD162_test.csv"
-        output = "../../../bash_scripts/compute_ratio/outputs/fragments_percentages.csv"
+        output = "../../../bash_scripts/compute_ratio/outputs/fragments_percentages.tsv"
         cis_range_value = 50000
         debug(cis_range=cis_range_value,
               formatted_contacts_path=all_contacted_pos,

@@ -233,8 +233,8 @@ def set_fragments_contacts_bins(bed_bins: dict,
         {'names': names, 'types': types, 'self_chr': chrs, 'self_start': starts, 'self_end': ends})
     df_contc = concatenate_infos_and_contacts(df1=df_contc, df2=df_infos, headers=headers)
     df_freq = concatenate_infos_and_contacts(df1=df_freq, df2=df_infos, headers=headers)
-    df_contc.to_csv(output_path + '_contacts_matrix.csv', sep='\t')
-    df_freq.to_csv(output_path + '_frequencies_matrix.csv', sep='\t')
+    df_contc.to_csv(output_path + '_contacts_matrix.tsv', sep='\t')
+    df_freq.to_csv(output_path + '_frequencies_matrix.tsv', sep='\t')
 
 
 def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
@@ -311,8 +311,8 @@ def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
         {'names': names, 'types': types, 'self_chr': chrs, 'self_start': starts, 'self_end': ends})
     df_contc = concatenate_infos_and_contacts(df1=df_contc, df2=df_infos, headers=headers)
     df_freq = concatenate_infos_and_contacts(df1=df_freq, df2=df_infos, headers=headers)
-    df_contc.to_csv(output_path + '_contacts_matrix.csv', sep='\t')
-    df_freq.to_csv(output_path + '_frequencies_matrix.csv', sep='\t')
+    df_contc.to_csv(output_path + '_formatted_contacts_matrix.tsv', sep='\t')
+    df_freq.to_csv(output_path + '_formatted_frequencies_matrix.tsv', sep='\t')
 
 
 def main(argv=None):
@@ -353,7 +353,7 @@ def main(argv=None):
         elif opt in ("-b", "--bin_size"):
             bin_size = arg
         elif opt in ("-o", "--output"):
-            output_path = arg.split('.csv')[0]
+            output_path = arg.split('-filtered.csv')[0]
 
     bin_size = int(bin_size)
     contacts_dict, infos_dict, all_contacted_pos = get_fragments_dict(contacts_path=filtered_contacts_path,
