@@ -138,7 +138,7 @@ def plot_aggregated(mean_df: pd.DataFrame,
 
         y = mean_df[oligo]
         yerr = std_df[oligo]
-        plt.figure(figsize=(14, 12))
+        plt.figure(figsize=(18, 12))
         plt.bar(x, y)
         plt.errorbar(x, y, yerr=yerr, fmt="o", color='b', capsize=5)
         plt.title("Aggregated frequencies for read {0} from probe {1} around chromosome's centromeres".format(oligo, name))
@@ -190,7 +190,7 @@ def main(argv=None):
               '-c <formatted_frequencies_input.csv> (contacts filtered with contacts_filter.py) \n'
               '-m <chr_centros_coordinates.tsv>  \n'
               '-w <window> size at both side of the centromere to look around \n' 
-              '-o <output_file_name.csv>')
+              '-o <output_file_name.tsv>')
         sys.exit(2)
 
     for opt, arg in opts:
@@ -199,7 +199,7 @@ def main(argv=None):
                   '-c <formatted_frequencies_input.csv> (contacts filtered with contacts_filter.py) \n'
                   '-m <chr_centros_coordinates.tsv>  \n'
                   '-w <window> size at both side of the centromere to look around \n'
-                  '-o <output_file_name.csv>')
+                  '-o <output_file_name.tsv>')
             sys.exit()
         elif opt in ("-c", "--contacts"):
             formatted_contacts_path = arg
@@ -208,7 +208,7 @@ def main(argv=None):
         elif opt in ("-w", "--window"):
             window_size = arg
         elif opt in ("-o", "--output"):
-            output_path = arg.split('-filtered_frequencies_matrix.csv')[0]
+            output_path = arg.split('_frequencies_matrix.tsv')[0]
 
     window_size = int(window_size)
     dir_res = output_path + '/'
@@ -236,17 +236,17 @@ if __name__ == "__main__":
 
         formatted_contacts = '../../../bash_scripts/aggregate_centro/inputs' \
                              '/AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC' \
-                             '-formatted_frequencies_matrix.csv'
+                             '-formatted_frequencies_matrix.tsv'
 
         output = "../../../bash_scripts/aggregate_centro/outputs/" \
                  "AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC-formatted_frequencies_matrix.csv"
 
-        oligos = "../../../bash_scripts/aggregate_centro/inputs/capture_oligo_positions.csv"
+        oligos = "../../../bash_scripts/aggregate_centro/inputs/capture_oligo_positions.tsv"
         window = 150000
         debug(formatted_contacts_path=formatted_contacts,
               window_size=window,
               centros_coord_path=centros_coord,
-              output_path=output.split('_frequencies_matrix.csv')[0]+'/')
+              output_path=output.split('_frequencies_matrix.tsv')[0]+'/')
     else:
         main()
     print('--- DONE ---')
