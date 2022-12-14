@@ -33,7 +33,7 @@ def split_formatted_dataframe(df0: pd.DataFrame):
     df1 = df0_a[[c for c in df0_a.columns if c not in ['chr', 'chr_bins', 'genome_bins', 'positions']]].astype(str)
     df2 = pd.DataFrame()
     df2['chr'] = df0_b.iloc[:, 0].astype(str)
-    df2[df0_b.columns[1:]] = df0_b.iloc[:, 1:].astype(int)
+    df2[df0_b.columns[1:]] = df0_b.iloc[:, 1:].astype(float)
 
     return df1, df2
 
