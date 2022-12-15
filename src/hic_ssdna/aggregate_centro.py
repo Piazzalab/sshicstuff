@@ -55,7 +55,7 @@ def contacts_focus_around_centromeres(formatted_contacts_path: str,
         for index2, row2 in tmp_df.iterrows():
             #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
             #   in upstream becomes positive.
-            tmp_df.iloc[index2, 1] += bin_size/2 - current_centros_bin
+            tmp_df.iloc[index2, 1] -= current_centros_bin
 
         #   We need to remove for each oligo the number of contact it mades with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
