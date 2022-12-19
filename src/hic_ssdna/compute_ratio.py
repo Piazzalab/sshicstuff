@@ -27,6 +27,15 @@ def compute_stats(formatted_contacts_path: str,
      (with cis range as an input value given by the user, in bp)
     """
 
+    chr_size = {'chr1': 230218, 'chr2': 813184, 'chr3': 316620, 'chr4': 1531933,
+                'chr5': 576874, 'chr6': 270161, 'chr7': 1090940, 'chr8': 562643,
+                'chr9': 439888, 'chr10': 745751, 'chr11': 666816, 'chr12': 1078177,
+                'chr13': 924431, 'chr14': 784333, 'chr15': 1091291, 'chr16': 948066,
+                'mitochondrion': 85779}
+
+    genome_size = sum(chr_size.values())
+    chr_size_normalized = {k: v/genome_size for k, v in chr_size.items()}
+
     #   dataframe of the formatted contacts csv file previously created,
     #   with DTYPE=object because multiple type are present in columns
     #   low_memory because df_all contains multiple dtypes within its columns,
@@ -34,8 +43,12 @@ def compute_stats(formatted_contacts_path: str,
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
     #   It needs thus to split between numeric and not numeric data
     df_infos, df_contacts = utils.split_formatted_dataframe(df_all)
+
     #   df_stats : results dataframe containing all the measures and calculus we want.
     df_stats = pd.DataFrame(columns=['names', 'types', 'cis', 'trans', 'intra', 'inter', 'total_contacts'])
+    #   df_chr_normalized_freq : frequencies of contact in each chr, for each oligo, normalized
+    #   by the length of the chromosome, itself normalized by the length of the genome
+    df_chr_normalized_freq = pd.DataFrame(columns=np.concatenate((['names', 'types'], list(chr_size.keys()))))
 
     #   df_infos is transposed here
     for index, row in df_infos.T.iterrows():
@@ -65,6 +78,20 @@ def compute_stats(formatted_contacts_path: str,
         intra_chromosome_contacts = \
             np.sum(sub_df_intra_chromosome_contacts.loc[:, index].values)
 
+        #   Compute the frequency of contact made with each chromosome
+        #   and normalize this frequency to the size of the chromosome
+        #   (itself normalized to the size of the genome)
+        tmp_df_chr_normalized_freq = pd.DataFrame({'names': [name], 'types': [ttype]})
+        for chrom, nrm_size in chr_size_normalized.items():
+            if chrom == current_chr:
+                continue
+            sub_df_chrom_nrm = df_contacts.loc[df_contacts['chr'] == chrom]
+            tmp_df_chr_normalized_freq[chrom] = \
+                [(np.sum(sub_df_chrom_nrm.loc[:, index].values) / all_contacts) / nrm_size]
+
+        #   Concatenated temporary dataframe with the result one
+        df_chr_normalized_freq = pd.concat([df_chr_normalized_freq, tmp_df_chr_normalized_freq])
+
         #   subset dataframe that only contains contacts made on all other chr
         #   (other than the one of the current oligo)
         sub_df_inter_chromosome_contacts = df_contacts.loc[df_contacts['chr'] != current_chr]
@@ -88,9 +115,11 @@ def compute_stats(formatted_contacts_path: str,
         df_stats = pd.concat([df_stats, tmp_df_stats])
         #   Restore the index as a range of 0 to len(df)
         df_stats.index = range(len(df_stats))
+        df_chr_normalized_freq.index = range(len(df_chr_normalized_freq))
 
     df_stats = fold_over(df_stats)
-    df_stats.to_csv(output_path + 'statistics.tsv', sep='\t')
+    df_stats.to_csv(output_path + 'global_statistics.tsv', sep='\t')
+    df_chr_normalized_freq.to_csv(output_path + 'normalized_chr_frequencies.tsv', sep='\t')
 
 
 def main(argv=None):
