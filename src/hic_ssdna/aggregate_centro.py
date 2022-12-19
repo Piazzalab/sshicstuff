@@ -95,9 +95,9 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
     return df_res, df_info
 
 
-def compute_mean_per_fragment(df_centros_bins: pd.DataFrame,
-                              df_info: pd.DataFrame,
-                              output_file: str):
+def compute_aggregate_stats(df_centros_bins: pd.DataFrame,
+                            df_info: pd.DataFrame,
+                            output_file: str):
     """
     After fetching the contacts for each oligos around the centromere of the 16 chr,
     we need to make an average (and std) of the 16 chr.
@@ -108,29 +108,36 @@ def compute_mean_per_fragment(df_centros_bins: pd.DataFrame,
     #   df_std : same but with standard deviation/error instead of mean
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
+    df_median = pd.DataFrame()
     bins_counter = dict(Counter(df_centros_bins['chr_bins'].values))
     for b in bins_counter:
         contacts_in_bin = df_centros_bins[df_centros_bins['chr_bins'] == b]
         tmp_df = contacts_in_bin.iloc[:, 3:]
         tmp_mean_df = pd.DataFrame(tmp_df.mean()).T
         tmp_std_df = pd.DataFrame(tmp_df.std()).T
+        tmp_median_df = pd.DataFrame(tmp_df.median()).T
         tmp_mean_df.index = [b]
         tmp_std_df.index = [b]
+        tmp_median_df.index = [b]
         df_mean = pd.concat([df_mean, tmp_mean_df])
         df_std = pd.concat([df_std, tmp_std_df])
+        df_median = pd.concat([df_median, tmp_median_df])
 
     #   Sort the series according to index
     df_mean = df_mean.sort_index()
     df_std = df_std.sort_index()
+    df_median = df_median.sort_index()
 
     #   Concatenate with oligo names, types, locations ...
     df_mean_with_info = pd.concat([df_info, df_mean])
     df_std_with_info = pd.concat([df_info, df_std])
+    df_median_with_info = pd.concat([df_info, df_median])
 
     #   Write to csv
     df_mean_with_info.to_csv(output_file + '_mean_on_cen.tsv', sep='\t')
     df_std_with_info.to_csv(output_file + '_std_on_cen.tsv', sep='\t')
-    return df_mean, df_std
+    df_median_with_info.to_csv(output_file + '_median_on_cen.tsv', sep='\t')
+    return df_mean, df_std, df_median
 
 
 def plot_aggregated(mean_df: pd.DataFrame,
@@ -183,9 +190,9 @@ def debug(formatted_contacts_path: str,
 
     format_centromere_freq_per_oligo(df_freq=df_contacts_centros, df_info=df_info, dir_table=dir_table)
 
-    df_mean, df_std = compute_mean_per_fragment(df_centros_bins=df_contacts_centros,
-                                                df_info=df_info,
-                                                output_file=output_file)
+    df_mean, df_std, df_median = compute_aggregate_stats(df_centros_bins=df_contacts_centros,
+                                                         df_info=df_info,
+                                                         output_file=output_file)
     plot_aggregated(df_mean, df_std, df_info, dir_plot)
 
 
@@ -249,9 +256,9 @@ def main(argv=None):
                                      df_info=df_info,
                                      dir_table=dir_table)
 
-    df_mean, df_std = compute_mean_per_fragment(df_centros_bins=df_contacts_centros,
-                                                df_info=df_info,
-                                                output_file=output_file)
+    df_mean, df_std, df_median,  = compute_aggregate_stats(df_centros_bins=df_contacts_centros,
+                                                           df_info=df_info,
+                                                           output_file=output_file)
     plot_aggregated(df_mean, df_std, df_info, dir_plot)
 
 
