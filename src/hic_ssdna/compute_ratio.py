@@ -152,7 +152,7 @@ def main(argv=None):
         elif opt in ("-r", "--cis_range"):
             cis_range = int(arg)
         elif opt in ("-O", "--output"):
-            output_path = arg.split('contacts_matrix.tsv')[0]
+            output_path = arg.split('formatted_contacts_matrix.tsv')[0]
 
     compute_stats(cis_range=cis_range,
                   formatted_contacts_path=formatted_contacts_path,

@@ -268,7 +268,7 @@ def main(argv=None):
         elif opt in ("-w", "--window"):
             window_size = arg
         elif opt in ("-o", "--output"):
-            output_path = arg.split('_frequencies_matrix.tsv')[0]
+            output_path = arg.split('formatted_frequencies_matrix.tsv')[0]
 
     window_size = int(window_size)
     dir_res = output_path + '/'
