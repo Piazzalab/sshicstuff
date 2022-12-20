@@ -31,7 +31,7 @@ def compute_stats(formatted_contacts_path: str,
                 'chr5': 576874, 'chr6': 270161, 'chr7': 1090940, 'chr8': 562643,
                 'chr9': 439888, 'chr10': 745751, 'chr11': 666816, 'chr12': 1078177,
                 'chr13': 924431, 'chr14': 784333, 'chr15': 1091291, 'chr16': 948066,
-                'mitochondrion': 85779}
+                'mitochondrion': 85779, '2_micron': 6318}
 
     genome_size = sum(chr_size.values())
     chr_size_normalized = {k: v/genome_size for k, v in chr_size.items()}
@@ -83,8 +83,6 @@ def compute_stats(formatted_contacts_path: str,
         #   (itself normalized to the size of the genome)
         tmp_df_chr_normalized_freq = pd.DataFrame({'names': [name], 'types': [ttype]})
         for chrom, nrm_size in chr_size_normalized.items():
-            if chrom == current_chr:
-                continue
             sub_df_chrom_nrm = df_contacts.loc[df_contacts['chr'] == chrom]
             tmp_df_chr_normalized_freq[chrom] = \
                 [(np.sum(sub_df_chrom_nrm.loc[:, index].values) / all_contacts) / nrm_size]
