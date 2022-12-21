@@ -135,7 +135,7 @@ def main(argv=None):
                                                      "--output"])
     except getopt.GetoptError:
         print('compute ratios arguments :\n'
-              '-c <formated_contacts.csv> (contacts filtered with contacts_format.py) \n'
+              '-c <formated_contacts.csv> (contacts filtered with contacts_binning.py) \n'
               '-r <bin_size> (size of a bin, in bp) \n'
               '-O <output_file_name.csv>')
         sys.exit(2)
@@ -143,7 +143,7 @@ def main(argv=None):
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             print('compute ratios arguments :\n'
-                  '-c <formated_contacts.csv> (contacts filtered with contacts_format.py) \n'
+                  '-c <formated_contacts.csv> (contacts filtered with contacts_binning.py) \n'
                   '-r <bin_size> (size of a bin, in bp) \n'
                   '-O <output_file_name.csv>')
             sys.exit()
