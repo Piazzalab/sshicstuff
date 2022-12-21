@@ -44,7 +44,7 @@ def compute_centromere_freq_per_oligo_per_chr(
         df_freq_cen = df_freq_cen.astype(float)
 
         #   Write to csv
-        df_freq_cen.to_csv(dir_table + probe + '_formatted_frequencies_cen.tsv', sep='\t')
+        df_freq_cen.to_csv(dir_table + probe + '_chr1-16_freq_cen.tsv', sep='\t')
 
 
 def freq_focus_around_centromeres(formatted_contacts_path: str,
@@ -368,7 +368,7 @@ def debug(formatted_contacts_path: str,
 
         plot_aggregated(df_mean, df_std, df_info, 'centromeres', dir_plot)
 
-    if cohesins_peaks_path is not None:
+    elif cohesins_peaks_path is not None:
 
         dir_table, dir_plot = mkdir(output_path=output_path, mode='cohesins')
         output_file = dir_table + output_path.split('/')[-2]
@@ -393,21 +393,20 @@ def main(argv=None):
         print('Please enter arguments correctly')
         exit(0)
 
-    formatted_contacts_path, centros_coordinates_path, \
-        cohesins_peaks_path, window_size, output_path, = [None for _ in range(5)]
+    binned_contacts_path, coordinates_path, window_size, output_path, mode = [None for _ in range(5)]
 
     try:
-        opts, args = getopt.getopt(argv, "h:c:m::p:w:o:", ["--help",
-                                                           "--contacts",
-                                                           "--coordinates",
-                                                           "--peaks",
-                                                           "--window",
-                                                           "--output"])
+        opts, args = getopt.getopt(argv, "h:b:c:m:w:o:", ["--help",
+                                                          "--binning",
+                                                          "--coordinates",
+                                                          "--mode",
+                                                          "--window",
+                                                          "--output"])
     except getopt.GetoptError:
         print('aggregate centromeres arguments :\n'
-              '-c <formatted_frequencies_input.csv> (contacts filtered with contacts_filter.py) \n'
-              '-m <chr_centros_coordinates.tsv>  \n'
-              '-p <cohesins_peaks.bed> \n'
+              '-b <binned_frequencies_matrix.csv> (contacts filtered with contacts_filter.py) \n'
+              '-c <chr_centros_coordinates.tsv> or  <chr_cohesins_peaks_coordinates.bed> \n'
+              '-m <mode> if we want to aggregate on chr centromeres or on cohesins peak positions'
               '-w <window> size at both side of the centromere to look around \n'
               '-o <output_file_name.tsv>')
         sys.exit(2)
@@ -415,32 +414,36 @@ def main(argv=None):
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             print('aggregate centromeres arguments :\n'
-                  '-c <formatted_frequencies_input.csv> (contacts filtered with contacts_filter.py) \n'
-                  '-m <chr_centros_coordinates.tsv>  \n'
-                  '-p <cohesins_peaks.bed> \n'
+                  '-b <binned_frequencies_matrix.csv> (contacts filtered with contacts_filter.py) \n'
+                  '-c <chr_centros_coordinates.tsv> or  <chr_cohesins_peaks_coordinates.bed> \n'
+                  '-m <mode> if we want to aggregate on chr centromeres or on cohesins peak positions'
                   '-w <window> size at both side of the centromere to look around \n'
                   '-o <output_file_name.tsv>')
             sys.exit()
-        elif opt in ("-c", "--contacts"):
-            formatted_contacts_path = arg
-        elif opt in ("-m", "--coordinates"):
-            centros_coordinates_path = arg
-        elif opt in ("-p", "--peaks"):
-            cohesins_peaks_path = arg
+        elif opt in ("-b", "--binning"):
+            binned_contacts_path = arg
+        elif opt in ("-c", "--coordinates"):
+            coordinates_path = arg
+        elif opt in ("-m", "--mode"):
+            mode = arg
         elif opt in ("-w", "--window"):
             window_size = int(arg)
         elif opt in ("-o", "--output"):
-            output_path = arg.split('_frequencies_matrix.tsv')[0]
+            output_path = arg
+            if 'formatted' in output_path:
+                output_path = output_path.split('formatted_frequencies_matrix.tsv')[0]
+            else:
+                output_path = output_path.split('_frequencies_matrix.tsv')[0]
 
-    if centros_coordinates_path is not None:
+    if mode == 'centromeres':
 
         dir_table, dir_plot = mkdir(output_path=output_path, mode='centromeres')
         output_file = dir_table + '/' + output_path.split('/')[-1]
 
         df_contacts_centros, df_info = freq_focus_around_centromeres(
-            formatted_contacts_path=formatted_contacts_path,
+            formatted_contacts_path=binned_contacts_path,
             window_size=window_size,
-            centros_infos_path=centros_coordinates_path)
+            centros_infos_path=coordinates_path)
 
         compute_centromere_freq_per_oligo_per_chr(
             df_freq=df_contacts_centros, df_info=df_info, dir_table=dir_table)
@@ -452,15 +455,15 @@ def main(argv=None):
 
         plot_aggregated(df_mean, df_std, df_info, 'centromeres', dir_plot)
 
-    if cohesins_peaks_path is not None:
+    elif mode == 'cohesins':
 
         dir_table, dir_plot = mkdir(output_path=output_path, mode='cohesins')
         output_file = dir_table + '/' + output_path.split('/')[-1]
 
         df_contacts_cohesins, df_info = freq_focus_around_cohsin_peaks(
-            formatted_contacts_path=formatted_contacts_path,
+            formatted_contacts_path=binned_contacts_path,
             window_size=window_size,
-            cohesins_peaks_path=cohesins_peaks_path)
+            cohesins_peaks_path=coordinates_path)
 
         df_mean, df_std = compute_aggregate_around_cohesins_peaks(
             df_cohesins_peaks_bins=df_contacts_cohesins,
