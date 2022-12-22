@@ -69,8 +69,10 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
 
     for index, row in df_centros.iterrows():
         current_chr = row[0]
-        current_centros_pos = row[2]
+        if current_chr == '2_micron' or current_chr == 'mitochondrion':
+            continue
 
+        current_centros_pos = row[2]
         left_cutoff = current_centros_pos - window_size - bin_size
         if left_cutoff < 0:
             left_cutoff = 0
@@ -241,17 +243,17 @@ if __name__ == "__main__":
     if tools.is_debug():
         #   Debug is mainly used for testing function of the script
         #   Parameters have to be declared here
-        centros_coord = "../../../bash_scripts/aggregate_contacts/inputs/S288c_chr_centro_coordinates.tsv"
+        centros_coord = "../../../../bash_scripts/aggregate_contacts/inputs/S288c_chr_centro_coordinates.tsv"
 
         formatted_contacts_10kb = \
-            '../../../bash_scripts/aggregate_contacts/inputs' \
+            '../../../../bash_scripts/aggregate_contacts/inputs' \
             '/AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC' \
             '_10kb_frequencies_matrix.tsv'
 
-        output = "../../../bash_scripts/aggregate_contacts/outputs/" \
+        output = "../../../../bash_scripts/aggregate_contacts/outputs/" \
                  "AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC"
 
-        oligos = "../../../bash_scripts/aggregate_contacts/inputs/capture_oligo_positions.tsv"
+        oligos = "../../../../bash_scripts/aggregate_contacts/inputs/capture_oligo_positions.tsv"
         window = 150000
 
         debug(formatted_contacts_path=formatted_contacts_10kb,

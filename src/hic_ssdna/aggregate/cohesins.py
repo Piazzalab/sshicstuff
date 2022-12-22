@@ -188,17 +188,17 @@ if __name__ == "__main__":
     if tools.is_debug():
         #   Debug is mainly used for testing function of the script
         #   Parameters have to be declared here
-        cohesins_peaks = "../../../bash_scripts/aggregate_contacts/inputs/HB65_reference_peaks_score50min.bed"
+        cohesins_peaks = "../../../../bash_scripts/aggregate_contacts/inputs/HB65_reference_peaks_score50min.bed"
 
         formatted_contacts_1kb = \
-            '../../../bash_scripts/aggregate_contacts/inputs' \
+            '../../../../bash_scripts/aggregate_contacts/inputs' \
             '/AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC' \
             '_1kb_frequencies_matrix.tsv'
 
-        output = "../../../bash_scripts/aggregate_contacts/outputs/" \
+        output = "../../../../bash_scripts/aggregate_contacts/outputs/" \
                  "AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC"
 
-        oligos = "../../../bash_scripts/aggregate_contacts/inputs/capture_oligo_positions.tsv"
+        oligos = "../../../../bash_scripts/aggregate_contacts/inputs/capture_oligo_positions.tsv"
         window = 15000
 
         debug(formatted_contacts_path=formatted_contacts_1kb,
