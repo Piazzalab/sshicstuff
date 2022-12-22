@@ -6,7 +6,7 @@ import math
 import sys
 import getopt
 from Bio.SeqIO.FastaIO import FastaIterator
-import utils
+from hic_ssdna.utils import tools
 
 
 def build_bins_from_genome(path_to_genome: str,
@@ -64,7 +64,7 @@ def count_occurrences(df: pd.DataFrame,
         all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
     """
     #   if x = a get b, if x = b get a
-    y = utils.frag2(x)
+    y = tools.frag2(x)
     for ii_f, f in enumerate(df['frag_' + x].values):
         if not pd.isna(df['name_' + x][ii_f]):
             if f not in infos_res:
@@ -333,7 +333,7 @@ def main(argv=None):
     except getopt.GetoptError:
         print('contacts filter arguments :\n'
               '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
-              '-c <filtered_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+              '-c <filtered_contacts_input.csv> (contacts filtered with filter.py) \n'
               '-b <bin_size> (size of a bin, in bp) \n'
               '-o <output_file_name.csv>')
         sys.exit(2)
@@ -342,7 +342,7 @@ def main(argv=None):
         if opt in ('-h', '--help'):
             print('contacts filter arguments :\n'
                   '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
-                  '-c <filtered_contacts_input.csv> (contacts filtered with contacts_filter.py) \n'
+                  '-c <filtered_contacts_input.csv> (contacts filtered with filter.py) \n'
                   '-b <bin_size> (size of a bin, in bp) \n'
                   '-o <output_file_name.csv>')
             sys.exit()
@@ -392,7 +392,7 @@ def debug(artificial_genome_path: str,
 
 if __name__ == "__main__":
     #   Go into debug function if debug mode is detected, else go for main script with sys arguments
-    if utils.is_debug():
+    if tools.is_debug():
         #   Debug is mainly used for testing function of the script
         #   Parameters have to be declared here
         artificial_genome = "../../../bash_scripts/contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"

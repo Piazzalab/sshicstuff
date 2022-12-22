@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-import utils
+from hic_ssdna.utils import tools
 import sys
 import getopt
 
@@ -42,7 +42,7 @@ def compute_stats(formatted_contacts_path: str,
     #   so pandas has to avoid to guess their types
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
     #   It needs thus to split between numeric and not numeric data
-    df_infos, df_contacts = utils.split_formatted_dataframe(df_all)
+    df_infos, df_contacts = tools.split_formatted_dataframe(df_all)
 
     #   df_stats : results dataframe containing all the measures and calculus we want.
     df_stats = pd.DataFrame(columns=['names', 'types', 'cis', 'trans', 'intra', 'inter', 'total_contacts'])
@@ -135,7 +135,7 @@ def main(argv=None):
                                                      "--output"])
     except getopt.GetoptError:
         print('compute ratios arguments :\n'
-              '-c <formated_contacts.csv> (contacts filtered with contacts_binning.py) \n'
+              '-c <formated_contacts.csv> (contacts filtered with binning.py) \n'
               '-r <bin_size> (size of a bin, in bp) \n'
               '-O <output_file_name.csv>')
         sys.exit(2)
@@ -143,7 +143,7 @@ def main(argv=None):
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             print('compute ratios arguments :\n'
-                  '-c <formated_contacts.csv> (contacts filtered with contacts_binning.py) \n'
+                  '-c <formated_contacts.csv> (contacts filtered with binning.py) \n'
                   '-r <bin_size> (size of a bin, in bp) \n'
                   '-O <output_file_name.csv>')
             sys.exit()
@@ -170,7 +170,7 @@ def debug(cis_range: int,
 
 if __name__ == "__main__":
     #   Go into debug function if debug mode is detected, else go for main script with sys arguments
-    if utils.is_debug():
+    if tools.is_debug():
         #   Debug is mainly used for testing function of the script
         #   Parameters have to be declared here
         all_contacted_pos = "../../../bash_scripts/compute_ratio/inputs/" \

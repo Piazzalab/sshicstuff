@@ -8,7 +8,8 @@ from collections import Counter
 import sys
 import os
 import getopt
-import utils
+
+from hic_ssdna.utils import tools
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -60,7 +61,7 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
     #   with DTYPE=object because multiple type are present in columns
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
     #   It needs thus to split between numeric and not numeric data
-    df_info, df_contacts = utils.split_formatted_dataframe(df_all)
+    df_info, df_contacts = tools.split_formatted_dataframe(df_all)
 
     #   result dataframe with bin around centromeres only
     df_res = pd.DataFrame()
@@ -82,7 +83,7 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
 
         #   temporary dataframe containing the bins present in the windows for the current chr only
         tmp_df.index = range(len(tmp_df))
-        current_centros_bin = utils.find_nearest(tmp_df['chr_bins'].values, current_centros_pos, mode='lower')
+        current_centros_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_centros_pos, mode='lower')
 
         for index2, row2 in tmp_df.iterrows():
             #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
@@ -165,7 +166,7 @@ def freq_focus_around_cohsin_peaks(
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
-    df_info, df_contacts = utils.split_formatted_dataframe(df_all)
+    df_info, df_contacts = tools.split_formatted_dataframe(df_all)
     df_res = pd.DataFrame()
     bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
 
@@ -184,7 +185,7 @@ def freq_focus_around_cohsin_peaks(
 
         #   temporary dataframe containing the bins present in the windows for the current chr only
         tmp_df.index = range(len(tmp_df))
-        current_cohesin_peak_bin = utils.find_nearest(tmp_df['chr_bins'].values, current_cohesin_peak, mode='lower')
+        current_cohesin_peak_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_cohesin_peak, mode='lower')
 
         for index2, row2 in tmp_df.iterrows():
             #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
@@ -404,7 +405,7 @@ def main(argv=None):
                                                           "--output"])
     except getopt.GetoptError:
         print('aggregate centromeres arguments :\n'
-              '-b <binned_frequencies_matrix.csv> (contacts filtered with contacts_filter.py) \n'
+              '-b <binned_frequencies_matrix.csv> (contacts filtered with filter.py) \n'
               '-c <chr_centros_coordinates.tsv> or  <chr_cohesins_peaks_coordinates.bed> \n'
               '-m <mode> if we want to aggregate on chr centromeres or on cohesins peak positions'
               '-w <window> size at both side of the centromere to look around \n'
@@ -414,7 +415,7 @@ def main(argv=None):
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             print('aggregate centromeres arguments :\n'
-                  '-b <binned_frequencies_matrix.csv> (contacts filtered with contacts_filter.py) \n'
+                  '-b <binned_frequencies_matrix.csv> (contacts filtered with filter.py) \n'
                   '-c <chr_centros_coordinates.tsv> or  <chr_cohesins_peaks_coordinates.bed> \n'
                   '-m <mode> if we want to aggregate on chr centromeres or on cohesins peak positions'
                   '-w <window> size at both side of the centromere to look around \n'
@@ -475,7 +476,7 @@ def main(argv=None):
 
 if __name__ == "__main__":
     #   Go into debug function if debug mode is detected, else go for main script with sys arguments
-    if utils.is_debug():
+    if tools.is_debug():
         #   Debug is mainly used for testing function of the script
         #   Parameters have to be declared here
         cohesins_peaks = "../../../bash_scripts/aggregate_contacts/inputs/HB65_reference_peaks_score50min.bed"
