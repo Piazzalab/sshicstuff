@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
+import os
 import getopt
 
 from utils import tools
-from common import mkdir, pooled_stats
 
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -102,11 +102,8 @@ def plot_aggregated(
         mean_df: pd.DataFrame,
         std_df: pd.DataFrame,
         info_df: pd.DataFrame,
-        output_path: str,
-        pooled: bool = True):
+        output_path: str):
 
-    if pooled:
-        mean_df, std_df = pooled_stats(mean_df=mean_df, std_df=std_df)
     x = mean_df.index.tolist()
     for ii, oligo in enumerate(mean_df.columns):
         probe = info_df.loc['names', oligo]
@@ -120,12 +117,37 @@ def plot_aggregated(
         plt.bar(x, y)
         plt.errorbar(x, y, yerr=yerr, fmt="o", color='b', capsize=5)
         plt.ylim((ymin, None))
-        plt.title("Aggregated frequencies for probe {0} around centromeres".format(probe))
-        plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
+        plt.title("Aggregated frequencies for probe {0} cohesins peaks".format(probe))
+        plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
         plt.xticks(rotation=45)
         plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(output_path + "{0}-centromeres-aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
+        plt.savefig(output_path + "{0}-cohesins-aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
         plt.close()
+
+
+def mkdir(output_path: str,
+          score_h: int):
+    dir_res = output_path
+    if not os.path.exists(dir_res):
+        os.makedirs(dir_res)
+
+    dir_type = dir_res + '/cohesins_peaks/'
+    if not os.path.exists(dir_type):
+        os.makedirs(dir_type)
+
+    dir_score = dir_type + '/' + str(score_h) + '/'
+    if not os.path.exists(dir_score):
+        os.makedirs(dir_score)
+
+    dir_plot = dir_score + 'plots/'
+    if not os.path.exists(dir_plot):
+        os.makedirs(dir_plot)
+
+    dir_table = dir_score + 'tables/'
+    if not os.path.exists(dir_table):
+        os.makedirs(dir_table)
+
+    return dir_table, dir_plot
 
 
 def debug(formatted_contacts_path: str,
@@ -134,7 +156,7 @@ def debug(formatted_contacts_path: str,
           cohesins_peaks_path: str,
           score_cutoff: int):
 
-    dir_table, dir_plot = mkdir(output_path=output_path, mode='cohesins')
+    dir_table, dir_plot = mkdir(output_path=output_path, score_h=score_cutoff)
     output_file = dir_table + output_path.split('/')[-2]
 
     df_contacts_cohesins, df_info = freq_focus_around_cohesin_peaks(
@@ -152,8 +174,7 @@ def debug(formatted_contacts_path: str,
         mean_df=df_mean,
         std_df=df_std,
         info_df=df_info,
-        output_path=dir_plot,
-        pooled=True)
+        output_path=dir_plot)
 
 
 def main(argv=None):
@@ -163,7 +184,7 @@ def main(argv=None):
         print('Please enter arguments correctly')
         exit(0)
 
-    binned_contacts_path, coordinates_path, window_size, output_path, score = [None for _ in range(5)]
+    binned_contacts_path, coordinates_path, window_size, output_path, score_cutoff = [None for _ in range(5)]
 
     try:
         opts, args = getopt.getopt(argv, "h:b:c:w:s:o:", ["--help",
@@ -177,6 +198,7 @@ def main(argv=None):
               '-b <binned_frequencies_matrix.csv> (contacts filtered with filter.py) \n'
               '-c <chr_cohesins_peaks_coordinates.bed> \n'
               '-w <window> size at both side of the centromere to look around \n'
+              '-s <score> select peak that have a score higher than s \n'
               '-o <output_file_name.tsv>')
         sys.exit(2)
 
@@ -186,6 +208,7 @@ def main(argv=None):
                   '-b <binned_frequencies_matrix.csv> (contacts filtered with filter.py) \n'
                   '-c <chr_cohesins_peaks_coordinates.bed> \n'
                   '-w <window> size at both side of the centromere to look around \n'
+                  '-s <score> select peak that have a score higher than s \n'
                   '-o <output_file_name.tsv>')
             sys.exit()
         elif opt in ("-b", "--binning"):
@@ -194,6 +217,8 @@ def main(argv=None):
             coordinates_path = arg
         elif opt in ("-w", "--window"):
             window_size = int(arg)
+        elif opt in ("-s", "--score"):
+            score_cutoff = int(arg)
         elif opt in ("-o", "--output"):
             output_path = arg
             if 'formatted' in output_path:
@@ -201,14 +226,14 @@ def main(argv=None):
             else:
                 output_path = output_path.split('_frequencies_matrix.tsv')[0]
 
-    dir_table, dir_plot = mkdir(output_path=output_path, mode='cohesins')
+    dir_table, dir_plot = mkdir(output_path=output_path, score_h=score_cutoff)
     output_file = dir_table + '/' + output_path.split('/')[-1]
 
     df_contacts_cohesins, df_info = freq_focus_around_cohesin_peaks(
         formatted_contacts_path=binned_contacts_path,
         window_size=window_size,
         cohesins_peaks_path=coordinates_path,
-        score_cutoff=score)
+        score_cutoff=score_cutoff)
 
     df_mean, df_std = compute_average_aggregate(
         df_cohesins_peaks_bins=df_contacts_cohesins,
@@ -219,8 +244,7 @@ def main(argv=None):
         mean_df=df_mean,
         std_df=df_std,
         info_df=df_info,
-        output_path=dir_plot,
-        pooled=True)
+        output_path=dir_plot)
 
 
 if __name__ == "__main__":

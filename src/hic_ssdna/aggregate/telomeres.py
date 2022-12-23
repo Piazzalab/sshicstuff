@@ -2,11 +2,10 @@
 
 import numpy as np
 import pandas as pd
-from collections import Counter
 import sys
+import os
 import getopt
-
-from common import plot_aggregated, mkdir
+import matplotlib.pyplot as plt
 from utils import tools
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -27,11 +26,12 @@ def compute_telomere_freq_per_oligo_per_chr(
 
     reads_array = df_info.columns.values
     chr_array = np.array(['chr'+str(i) for i in range(1, 17)])
-    bin_size = df_freq.iloc[1, 2] - df_freq.iloc[0, 2]
     bins_array = pd.unique(df_freq['chr_bins'])
 
+    res: dict = {}
     for ol in reads_array:
         probe = df_info.loc['names', ol]
+        self_chr = df_info.loc['self_chr', ol]
         if len(probe.split('-/-')) > 1:
             probe = '_&_'.join(probe.split('-/-'))
 
@@ -41,10 +41,13 @@ def compute_telomere_freq_per_oligo_per_chr(
             chr_name, bin_name = name
             df_freq_telo.loc[bin_name, chr_name] = group[ol].iloc[0]
 
-        df_freq_telo = df_freq_telo.astype(float)
+        df_freq_telo = df_freq.pivot_table(index='chr_bins', columns='chr', values=ol, fill_value=np.nan)
+        df_freq_telo[self_chr] = np.nan
+        df_freq_telo = df_freq_telo[chr_array].reindex(bins_array)
 
-        #   Write to csv
-        df_freq_telo.to_csv(dir_table + probe + '_chr1-16_freq_telo.tsv', sep='\t')
+        res[probe] = df_freq_telo
+        df_freq_telo.to_csv(dir_table + probe + '_chr1-16_freq_cen.tsv', sep='\t')
+    return res
 
 
 def freq_focus_around_centromeres(formatted_contacts_path: str,
@@ -54,26 +57,18 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
     Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
     centromeres and for each of the 16 chromosomes of yeast genome
     """
-    #   dataframe containing information about location of the centromere for each chr and the length of chr.
+
     df_centro = pd.read_csv(telomeres_coord_path, sep='\t', index_col=None)
-
-    #   dataframe containing position of telemore for each chr
-    #   i.e., pos 0 for left telomere and position length of chr for right telomere
     df_telo = pd.DataFrame({'chr': df_centro['Chr'], 'telo_l': 0, 'telo_r': df_centro['Length']})
-    #   dataframe of the formatted contacts csv file previously created,
-    #   with DTYPE=object because multiple type are present in columns
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
-    #   It needs thus to split between numeric and not numeric data
     df_info, df_contacts = tools.split_formatted_dataframe(df_all)
-
-    #   result dataframe with bin around centromeres only
     df_res = pd.DataFrame()
-
-    #   Size of a bin in our formatted file given as input
-    bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
 
     for index, row in df_telo.iterrows():
         current_chr = row[0]
+        if current_chr == '2_micron' or current_chr == 'mitochondrion':
+            continue
+
         current_telo_left = row[1]
         current_telo_right = row[2]
 
@@ -116,45 +111,103 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
     return df_res, df_info
 
 
-def compute_aggregate_around_centromeres(
-        df_centros_bins: pd.DataFrame,
-        df_info: pd.DataFrame,
+def compute_average_aggregate(
+        aggregated: dict[str: pd.DataFrame],
         output_file: str):
     """
-    After fetching the contacts for each oligos around the centromere of the 16 chr,
+    After fetching the contacts for each oligos around the telomere of the 16 chr,
     we need to make an average (and std) of the 16 chr.
     """
-
-    #  df_mean :  dataframe with average contacts in the centromere areas (according to the window the user gives)
-    #       for each oligo.
-    #  df_std : same but with standard deviation/error instead of mean
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
-    df_median = pd.DataFrame()
-    bins_counter = dict(Counter(df_centros_bins['chr_bins'].values))
-    for b in bins_counter:
-        contacts_in_bin = df_centros_bins[df_centros_bins['chr_bins'] == b]
-        tmp_df = contacts_in_bin.iloc[:, 3:]
-        tmp_mean_df = pd.DataFrame(tmp_df.mean()).T
-        tmp_std_df = pd.DataFrame(tmp_df.std()).T
-        tmp_median_df = pd.DataFrame(tmp_df.median()).T
-        tmp_mean_df.index = [b]
-        tmp_std_df.index = [b]
-        tmp_median_df.index = [b]
-        df_mean = pd.concat([df_mean, tmp_mean_df])
-        df_std = pd.concat([df_std, tmp_std_df])
-        df_median = pd.concat([df_median, tmp_median_df])
 
-    #   Concatenate with oligo names, types, locations ...
-    df_mean_with_info = pd.concat([df_info, df_mean])
-    df_std_with_info = pd.concat([df_info, df_std])
-    df_median_with_info = pd.concat([df_info, df_median])
+    for probe, df in aggregated.items():
+        df_mean[probe] = df.T.mean()
+        df_std[probe] = df.T.std()
 
     #   Write to csv
-    df_mean_with_info.to_csv(output_file + '_mean_on_cen.tsv', sep='\t')
-    df_std_with_info.to_csv(output_file + '_std_on_cen.tsv', sep='\t')
-    df_median_with_info.to_csv(output_file + '_median_on_cen.tsv', sep='\t')
-    return df_mean, df_std, df_median
+    df_mean.to_csv(output_file + '_mean_on_telo.tsv', sep='\t')
+    df_std.to_csv(output_file + '_std_on_telo.tsv', sep='\t')
+
+
+def pooled_stats(mean_df: pd.DataFrame,
+                 std_df: pd.DataFrame):
+
+    mean_df = mean_df.sort_index()
+    std_df = std_df.sort_index()
+
+    index_float = [float(str(m).split('_')[-1]) for m in mean_df.index]
+    mean_df.index = index_float
+    std_df.index = index_float
+
+    middle = np.where(mean_df.index == 0)[0][1]
+    pooled_index = mean_df.index[middle:]
+
+    #   Pool the mean dataframe
+    left_mean_df = mean_df.iloc[:middle]
+    right_mean_df = mean_df.iloc[middle:]
+
+    tmp_mean_df = pd.concat((left_mean_df, right_mean_df))
+    pooled_mean_df = pd.DataFrame(tmp_mean_df.groupby(tmp_mean_df.index).mean())
+
+    #   Pool the std dataframe
+    left_std_df = std_df.iloc[:middle]
+    right_std_df = std_df.iloc[middle:]
+    pooled_std_df = pd.DataFrame(index=pooled_index)
+    n1 = left_std_df.values
+    n2 = right_std_df.values
+    s1 = len(n1)
+    s2 = len(n2)
+    std_pooled = np.sqrt(((s1 - 1) * n1 ** 2 + (s2 - 1) * n2 ** 2) / (s1 + s2 - 2))
+    pooled_std_df[0] = std_pooled
+    return pooled_mean_df, pooled_std_df
+
+
+def plot_aggregated(
+        aggregated: dict[str: pd.DataFrame],
+        output_path: str,
+        pooled: bool = True):
+
+    for probe, df in aggregated.items():
+        mean = df.T.mean()
+        std = df.T.std()
+
+        if pooled:
+            mean, std = pooled_stats(mean_df=mean, std_df=std)
+            mean = mean.squeeze()
+            std = std.squeeze()
+
+        ymin = -np.max((mean + std)) * 0.01
+        pos = mean.index
+        plt.figure(figsize=(18, 12))
+        plt.bar(pos, mean)
+        plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
+        plt.ylim((ymin, None))
+        plt.title("Aggregated frequencies for probe {0} around telomeres".format(probe))
+        plt.xlabel("Bins around the telomeres (in kb), 5' to 3'")
+        plt.xticks(rotation=45)
+        plt.ylabel("Average frequency made and standard deviation")
+        plt.savefig(output_path + "{0}-telomeres-aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
+        plt.close()
+
+
+def mkdir(output_path: str):
+    dir_res = output_path
+    if not os.path.exists(dir_res):
+        os.makedirs(dir_res)
+
+    dir_type = dir_res + '/telomeres/'
+    if not os.path.exists(dir_type):
+        os.makedirs(dir_type)
+
+    dir_plot = dir_type + 'plots/'
+    if not os.path.exists(dir_plot):
+        os.makedirs(dir_plot)
+
+    dir_table = dir_type + 'tables/'
+    if not os.path.exists(dir_table):
+        os.makedirs(dir_table)
+    return dir_table, dir_plot
 
 
 def debug(formatted_contacts_path: str,
@@ -162,7 +215,7 @@ def debug(formatted_contacts_path: str,
           output_path: str,
           telomeres_coord_path: str):
 
-    dir_table, dir_plot = mkdir(output_path=output_path, mode='telomeres')
+    dir_table, dir_plot = mkdir(output_path=output_path)
     output_file = dir_table + output_path.split('/')[-2]
 
     df_contacts_centros, df_info = freq_focus_around_centromeres(
@@ -170,21 +223,17 @@ def debug(formatted_contacts_path: str,
         window_size=window_size,
         telomeres_coord_path=telomeres_coord_path)
 
-    compute_telomere_freq_per_oligo_per_chr(
+    chr_aggregated_dict = compute_telomere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros, df_info=df_info, dir_table=dir_table)
 
-    df_mean, df_std, df_median = compute_aggregate_around_centromeres(
-        df_centros_bins=df_contacts_centros,
-        df_info=df_info,
+    compute_average_aggregate(
+        aggregated=chr_aggregated_dict,
         output_file=output_file)
 
     plot_aggregated(
-        mean_df=df_mean,
-        std_df=df_std,
-        info_df=df_info,
-        mode='telomeres',
+        aggregated=chr_aggregated_dict,
         output_path=dir_plot,
-        pooled=False)
+        pooled=True)
 
 
 def main(argv=None):
@@ -231,7 +280,7 @@ def main(argv=None):
             else:
                 output_path = output_path.split('_frequencies_matrix.tsv')[0]
 
-    dir_table, dir_plot = mkdir(output_path=output_path, mode='telomeres')
+    dir_table, dir_plot = mkdir(output_path=output_path)
     output_file = dir_table + '/' + output_path.split('/')[-1]
 
     df_contacts_centros, df_info = freq_focus_around_centromeres(
@@ -239,15 +288,17 @@ def main(argv=None):
         window_size=window_size,
         telomeres_coord_path=coordinates_path)
 
-    compute_telomere_freq_per_oligo_per_chr(
+    chr_aggregated_dict = compute_telomere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros, df_info=df_info, dir_table=dir_table)
 
-    df_mean, df_std, df_median = compute_aggregate_around_centromeres(
-        df_centros_bins=df_contacts_centros,
-        df_info=df_info,
+    compute_average_aggregate(
+        aggregated=chr_aggregated_dict,
         output_file=output_file)
 
-    plot_aggregated(df_mean, df_std, df_info, 'telomeres', dir_plot)
+    plot_aggregated(
+        aggregated=chr_aggregated_dict,
+        output_path=dir_plot,
+        pooled=True)
 
 
 if __name__ == "__main__":
