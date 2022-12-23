@@ -31,21 +31,16 @@ def compute_centromere_freq_per_oligo_per_chr(
     res: dict = {}
     for ol in reads_array:
         probe = df_info.loc['names', ol]
+        self_chr = df_info.loc['self_chr', ol]
         if len(probe.split('-/-')) > 1:
             probe = '_&_'.join(probe.split('-/-'))
 
-        df_freq_cen = pd.DataFrame(columns=chr_array, index=bins_array)
-        grouped = df_freq.groupby(['chr', 'chr_bins'])
-        for name, group in grouped:
-            chr_name, bin_name = name
-            df_freq_cen.loc[bin_name, chr_name] = group[ol].iloc[0]
-
-        df_freq_cen = df_freq_cen.astype(float)
+        df_freq_cen = df_freq.pivot_table(index='chr_bins', columns='chr', values=ol, fill_value=np.nan)
+        df_freq_cen[self_chr] = np.nan
+        df_freq_cen = df_freq_cen[chr_array].reindex(bins_array)
 
         res[probe] = df_freq_cen
-        #   Write to csv
         df_freq_cen.to_csv(dir_table + probe + '_chr1-16_freq_cen.tsv', sep='\t')
-
     return res
 
 
@@ -56,54 +51,42 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
     Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
     centromeres and for each of the 16 chromosomes of yeast genome
     """
-    #   dataframe containing information about location of the centromere for each chr and the length of chr.
+
     df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
-    #   dataframe of the formatted contacts csv file previously created,
-    #   with DTYPE=object because multiple type are present in columns
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
-    #   It needs thus to split between numeric and not numeric data
     df_info, df_contacts = tools.split_formatted_dataframe(df_all)
-
-    #   result dataframe with bin around centromeres only
     df_res = pd.DataFrame()
-
-    #   Size of a bin in our formatted file given as input
     bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
 
-    for index, row in df_centros.iterrows():
+    def process_row(row):
         current_chr = row[0]
         if current_chr == '2_micron' or current_chr == 'mitochondrion':
-            continue
+            return pd.DataFrame()
 
         current_centros_pos = row[2]
         left_cutoff = current_centros_pos - window_size - bin_size
         if left_cutoff < 0:
             left_cutoff = 0
         right_cutoff = current_centros_pos + window_size
-        tmp_df = df_contacts.loc[(df_contacts['chr'] == current_chr) &
-                                 (df_contacts['chr_bins'] > left_cutoff) &
-                                 (df_contacts['chr_bins'] < right_cutoff)]
+        tmp_df = df_contacts.query("chr == @current_chr and chr_bins > @left_cutoff and chr_bins < @right_cutoff")
 
         #   temporary dataframe containing the bins present in the windows for the current chr only
         tmp_df.index = range(len(tmp_df))
         current_centros_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_centros_pos, mode='lower')
 
-        for index2, row2 in tmp_df.iterrows():
-            #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
-            #   in upstream becomes positive.
-            tmp_df.iloc[index2, 1] -= current_centros_bin
+        tmp_df.iloc[:, 1] -= current_centros_bin
 
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        for c in tmp_df.columns[3:]:
-            self_chr = df_info.loc['self_chr', c]
-            if self_chr == current_chr:
-                tmp_df.loc[0:len(tmp_df), c] = np.nan
+        df_res.loc[:, df_res.columns[3:]] = \
+            df_res.loc[:, df_res.columns[3:]].apply(
+                lambda x: x.map(lambda y: np.nan if df_info.loc['self_chr', x.name].isin([current_chr]) else y)
+            )
 
-        #   Concatenate the temporary dataframe of the current chr with
-        #   the results dataframe containing other chromosomes
-        df_res = pd.concat([df_res, tmp_df])
+        return tmp_df
+
+    df_res = pd.concat([process_row(row) for _, row in df_centros.iterrows()])
     df_res.index = range(len(df_res))
     return df_res, df_info
 

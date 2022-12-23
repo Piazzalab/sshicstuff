@@ -81,11 +81,11 @@ def mkdir(output_path: str,
 
     dir_type = ''
     if mode == 'centromeres':
-        dir_type = dir_res + 'centromeres/'
+        dir_type = dir_res + '/centromeres/'
     if mode == 'cohesins':
-        dir_type = dir_res + 'cohesins_peaks/'
+        dir_type = dir_res + '/cohesins_peaks/'
     if mode == 'telomeres':
-        dir_type = dir_res + 'telomeres/'
+        dir_type = dir_res + '/telomeres/'
 
     if not os.path.exists(dir_type):
         os.makedirs(dir_type)
