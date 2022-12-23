@@ -91,8 +91,8 @@ def compute_average_aggregate(
     df_mean.columns = probes
     df_std.columns = probes
 
-    df_mean.to_csv(output_file + '_mean_on_cohesins_peaks.tsv', sep='\t')
-    df_std.to_csv(output_file + '_std_on_cohesins_peaks.tsv', sep='\t')
+    df_mean.to_csv(output_file + '_mean_on_cohesins.tsv', sep='\t')
+    df_std.to_csv(output_file + '_std_on_cohesins.tsv', sep='\t')
 
     return df_mean, df_std
 
@@ -100,27 +100,27 @@ def compute_average_aggregate(
 def plot_aggregated(
         mean_df: pd.DataFrame,
         std_df: pd.DataFrame,
-        info_df: pd.DataFrame,
         output_path: str):
 
     x = mean_df.index.tolist()
-    for ii, oligo in enumerate(mean_df.columns):
-        probe = info_df.loc['names', oligo]
+    for ii, probe in enumerate(mean_df.columns):
         if len(probe.split('-/-')) > 1:
-            probe = '_&_'.join(probe.split('-/-'))
+            name = '_&_'.join(probe.split('-/-'))
+        else:
+            name = probe
 
-        y = mean_df[oligo]
-        yerr = std_df[oligo]
-        ymin = -np.max((mean_df[oligo] + std_df[oligo])) * 0.01
+        y = mean_df[probe]
+        yerr = std_df[probe]
+        ymin = -np.max((mean_df[probe] + std_df[probe])) * 0.01
         plt.figure(figsize=(18, 12))
         plt.bar(x, y)
         plt.errorbar(x, y, yerr=yerr, fmt="o", color='b', capsize=5)
         plt.ylim((ymin, None))
-        plt.title("Aggregated frequencies for probe {0} cohesins peaks".format(probe))
+        plt.title("Aggregated frequencies for probe {0} cohesins peaks".format(name))
         plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
         plt.xticks(rotation=45)
         plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(output_path + "{0}-cohesins-aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
+        plt.savefig(output_path + "{0}-cohesins-aggregated_frequencies_plot.{1}".format(name, 'jpg'), dpi=99)
         plt.close()
 
 
@@ -172,7 +172,6 @@ def debug(formatted_contacts_path: str,
     plot_aggregated(
         mean_df=df_mean,
         std_df=df_std,
-        info_df=df_info,
         output_path=dir_plot)
 
 
@@ -242,7 +241,6 @@ def main(argv=None):
     plot_aggregated(
         mean_df=df_mean,
         std_df=df_std,
-        info_df=df_info,
         output_path=dir_plot)
 
 
