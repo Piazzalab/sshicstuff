@@ -1,5 +1,4 @@
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
@@ -44,34 +43,6 @@ def pooled_stats(mean_df: pd.DataFrame,
 
     return pooled_mean_df, pooled_std_df
 
-
-def plot_aggregated(
-        aggregated: dict[str: pd.DataFrame],
-        mode: str,
-        output_path: str,
-        pooled: bool = True):
-
-    for probe, df in aggregated.items():
-        mean = df.T.mean()
-        std = df.T.std()
-
-        if pooled:
-            mean, std = pooled_stats(mean_df=pd.DataFrame(mean), std_df=pd.DataFrame(std))
-            mean = mean.squeeze()
-            std = std.squeeze()
-
-        pos = mean.index
-        plt.figure(figsize=(18, 12))
-        plt.bar(pos, mean)
-        plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
-        plt.ylim((-0.0001, None))
-        plt.title(
-            "Aggregated frequencies for probe {0} around {1}".format(probe, mode))
-        plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
-        plt.xticks(rotation=45)
-        plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(output_path + "{0}-centromeres-aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
-        plt.close()
 
 def mkdir(output_path: str,
           mode: str):

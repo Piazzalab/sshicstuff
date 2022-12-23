@@ -2,10 +2,11 @@
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import sys
 import getopt
 
-from common import plot_aggregated,  mkdir
+from common import pooled_stats,  mkdir
 from utils import tools
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -118,6 +119,34 @@ def compute_average_aggregate(
     df_median.to_csv(output_file + '_median_on_cen.tsv', sep='\t')
 
 
+def plot_aggregated(
+        aggregated: dict[str: pd.DataFrame],
+        output_path: str,
+        pooled: bool = True):
+
+    for probe, df in aggregated.items():
+        mean = df.T.mean()
+        std = df.T.std()
+
+        if pooled:
+            mean, std = pooled_stats(mean_df=pd.DataFrame(mean), std_df=pd.DataFrame(std))
+            mean = mean.squeeze()
+            std = std.squeeze()
+
+        ymin = -np.max((mean + std)) * 0.01
+        pos = mean.index
+        plt.figure(figsize=(18, 12))
+        plt.bar(pos, mean)
+        plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
+        plt.ylim((ymin, None))
+        plt.title("Aggregated frequencies for probe {0} around centromeres".format(probe))
+        plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
+        plt.xticks(rotation=45)
+        plt.ylabel("Average frequency made and standard deviation")
+        plt.savefig(output_path + "{0}-centromeres-aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
+        plt.close()
+
+
 def debug(formatted_contacts_path: str,
           window_size: int,
           output_path: str,
@@ -140,7 +169,6 @@ def debug(formatted_contacts_path: str,
 
     plot_aggregated(
         aggregated=chr_aggregated_dict,
-        mode='centromeres',
         output_path=dir_plot,
         pooled=True)
 
@@ -206,7 +234,6 @@ def main(argv=None):
 
     plot_aggregated(
         aggregated=chr_aggregated_dict,
-        mode='centromeres',
         output_path=dir_plot,
         pooled=True)
 

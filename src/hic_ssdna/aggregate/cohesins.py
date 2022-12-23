@@ -2,12 +2,12 @@
 
 import numpy as np
 import pandas as pd
-from collections import Counter
+import matplotlib.pyplot as plt
 import sys
 import getopt
 
 from utils import tools
-from common import plot_aggregated, mkdir
+from common import mkdir, pooled_stats
 
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -24,69 +24,64 @@ pd.options.mode.chained_assignment = None
 def freq_focus_around_cohesin_peaks(
         formatted_contacts_path: str,
         window_size: int,
-        cohesins_peaks_path: str):
+        cohesins_peaks_path: str,
+        score_cutoff: int):
 
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
+    df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
     df_info, df_contacts = tools.split_formatted_dataframe(df_all)
     df_res = pd.DataFrame()
     bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
 
-    for index, row in df_peaks.iterrows():
-        current_cohesin_chr = row[0]
-        current_cohesin_peak = row[1]
-        current_cohesin_score = row[4]
+    def process_row(row):
+        current_chr = row[0]
+        current_peak = row[1]
 
-        left_cutoff = current_cohesin_peak - window_size - bin_size
+        left_cutoff = current_peak - window_size - bin_size
         if left_cutoff < 0:
             left_cutoff = 0
-        right_cutoff = current_cohesin_peak + window_size
-        tmp_df = df_contacts.loc[(df_contacts['chr'] == current_cohesin_chr) &
-                                 (df_contacts['chr_bins'] > left_cutoff) &
-                                 (df_contacts['chr_bins'] < right_cutoff)]
-
+        right_cutoff = current_peak + window_size
+        tmp_df = df_contacts.query("chr == @current_chr and chr_bins > @left_cutoff and chr_bins < @right_cutoff")
         #   temporary dataframe containing the bins present in the windows for the current chr only
         tmp_df.index = range(len(tmp_df))
-        current_cohesin_peak_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_cohesin_peak, mode='lower')
+        current_cohesin_peak_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_peak, mode='lower')
 
-        for index2, row2 in tmp_df.iterrows():
-            #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
-            #   in upstream becomes positive.
-            tmp_df.iloc[index2, 1] -= current_cohesin_peak_bin
+        #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
+        #   in upstream becomes positive.
+        tmp_df.iloc[:, 1] -= current_cohesin_peak_bin
 
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        for c in tmp_df.columns[3:]:
-            self_chr = df_info.loc['self_chr', c]
-            if self_chr == current_cohesin_chr:
-                tmp_df.loc[0:len(tmp_df), c] = np.nan
+        df_res.loc[:, df_res.columns[3:]] = \
+            df_res.loc[:, df_res.columns[3:]].apply(
+                lambda x: x.map(lambda y: np.nan if df_info.loc['self_chr', x.name].isin([current_chr]) else y)
+            )
 
-        #   Concatenate the temporary dataframe of the current chr with
-        #   the results dataframe containing other chromosomes
-        df_res = pd.concat([df_res, tmp_df])
+        return tmp_df
+    df_res = pd.concat([process_row(row) for _, row in df_peaks.iterrows()])
     df_res.index = range(len(df_res))
     return df_res, df_info
 
 
-def compute_aggregate_around_cohesins_peaks(
+def compute_average_aggregate(
         df_cohesins_peaks_bins: pd.DataFrame,
         df_info: pd.DataFrame,
         output_file: str):
+    def process_bin(group):
+        sub_group = group.iloc[:, 3:]
+        tmp_mean_df = pd.DataFrame(sub_group.mean()).T
+        tmp_std_df = pd.DataFrame(sub_group.std()).T
+        tmp_mean_df.index = [group.name]
+        tmp_std_df.index = [group.name]
+        return tmp_mean_df, tmp_std_df
 
-    df_mean = pd.DataFrame()
-    df_std = pd.DataFrame()
-    bins_counter = dict(Counter(df_cohesins_peaks_bins['chr_bins'].values))
-    for b in bins_counter:
-        contacts_in_bin = df_cohesins_peaks_bins[df_cohesins_peaks_bins['chr_bins'] == b]
-        tmp_df = contacts_in_bin.iloc[:, 3:]
-        tmp_mean_df = pd.DataFrame(tmp_df.mean()).T
-        tmp_std_df = pd.DataFrame(tmp_df.std()).T
-        tmp_mean_df.index = [b]
-        tmp_std_df.index = [b]
-        df_mean = pd.concat([df_mean, tmp_mean_df])
-        df_std = pd.concat([df_std, tmp_std_df])
+    df_cohesins_peaks_bins_grouped = df_cohesins_peaks_bins.groupby('chr_bins')
+    df_mean, df_std = zip(*df_cohesins_peaks_bins_grouped.apply(process_bin))
+    df_mean = pd.concat(df_mean)
+    df_std = pd.concat(df_std)
 
     #   Sort the series according to index
     df_mean = df_mean.sort_index()
@@ -99,13 +94,45 @@ def compute_aggregate_around_cohesins_peaks(
     #   Write to csv
     df_mean_with_info.to_csv(output_file + '_mean_on_cohesins_peaks.tsv', sep='\t')
     df_std_with_info.to_csv(output_file + '_std_on_cohesins_peaks.tsv', sep='\t')
+
     return df_mean, df_std
+
+
+def plot_aggregated(
+        mean_df: pd.DataFrame,
+        std_df: pd.DataFrame,
+        info_df: pd.DataFrame,
+        output_path: str,
+        pooled: bool = True):
+
+    if pooled:
+        mean_df, std_df = pooled_stats(mean_df=mean_df, std_df=std_df)
+    x = mean_df.index.tolist()
+    for ii, oligo in enumerate(mean_df.columns):
+        probe = info_df.loc['names', oligo]
+        if len(probe.split('-/-')) > 1:
+            probe = '_&_'.join(probe.split('-/-'))
+
+        y = mean_df[oligo]
+        yerr = std_df[oligo]
+        ymin = -np.max((mean_df[oligo] + std_df[oligo])) * 0.01
+        plt.figure(figsize=(18, 12))
+        plt.bar(x, y)
+        plt.errorbar(x, y, yerr=yerr, fmt="o", color='b', capsize=5)
+        plt.ylim((ymin, None))
+        plt.title("Aggregated frequencies for probe {0} around centromeres".format(probe))
+        plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
+        plt.xticks(rotation=45)
+        plt.ylabel("Average frequency made and standard deviation")
+        plt.savefig(output_path + "{0}-centromeres-aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
+        plt.close()
 
 
 def debug(formatted_contacts_path: str,
           window_size: int,
           output_path: str,
-          cohesins_peaks_path: str):
+          cohesins_peaks_path: str,
+          score_cutoff: int):
 
     dir_table, dir_plot = mkdir(output_path=output_path, mode='cohesins')
     output_file = dir_table + output_path.split('/')[-2]
@@ -113,14 +140,20 @@ def debug(formatted_contacts_path: str,
     df_contacts_cohesins, df_info = freq_focus_around_cohesin_peaks(
         formatted_contacts_path=formatted_contacts_path,
         window_size=window_size,
-        cohesins_peaks_path=cohesins_peaks_path)
+        cohesins_peaks_path=cohesins_peaks_path,
+        score_cutoff=score_cutoff)
 
-    df_mean, df_std = compute_aggregate_around_cohesins_peaks(
+    df_mean, df_std = compute_average_aggregate(
         df_cohesins_peaks_bins=df_contacts_cohesins,
         df_info=df_info,
         output_file=output_file)
 
-    plot_aggregated(df_mean, df_std, df_info, 'cohesins', dir_plot)
+    plot_aggregated(
+        mean_df=df_mean,
+        std_df=df_std,
+        info_df=df_info,
+        output_path=dir_plot,
+        pooled=True)
 
 
 def main(argv=None):
@@ -130,14 +163,15 @@ def main(argv=None):
         print('Please enter arguments correctly')
         exit(0)
 
-    binned_contacts_path, coordinates_path, window_size, output_path = [None for _ in range(4)]
+    binned_contacts_path, coordinates_path, window_size, output_path, score = [None for _ in range(5)]
 
     try:
-        opts, args = getopt.getopt(argv, "h:b:c:w:o:", ["--help",
-                                                        "--binning",
-                                                        "--coordinates",
-                                                        "--window",
-                                                        "--output"])
+        opts, args = getopt.getopt(argv, "h:b:c:w:s:o:", ["--help",
+                                                          "--binning",
+                                                          "--coordinates",
+                                                          "--window",
+                                                          "--score",
+                                                          "--output"])
     except getopt.GetoptError:
         print('aggregate centromeres arguments :\n'
               '-b <binned_frequencies_matrix.csv> (contacts filtered with filter.py) \n'
@@ -173,14 +207,20 @@ def main(argv=None):
     df_contacts_cohesins, df_info = freq_focus_around_cohesin_peaks(
         formatted_contacts_path=binned_contacts_path,
         window_size=window_size,
-        cohesins_peaks_path=coordinates_path)
+        cohesins_peaks_path=coordinates_path,
+        score_cutoff=score)
 
-    df_mean, df_std = compute_aggregate_around_cohesins_peaks(
+    df_mean, df_std = compute_average_aggregate(
         df_cohesins_peaks_bins=df_contacts_cohesins,
         df_info=df_info,
         output_file=output_file)
 
-    plot_aggregated(df_mean, df_std, df_info, 'cohesins', dir_plot)
+    plot_aggregated(
+        mean_df=df_mean,
+        std_df=df_std,
+        info_df=df_info,
+        output_path=dir_plot,
+        pooled=True)
 
 
 if __name__ == "__main__":
@@ -200,11 +240,13 @@ if __name__ == "__main__":
 
         oligos = "../../../../bash_scripts/aggregate_contacts/inputs/capture_oligo_positions.tsv"
         window = 15000
+        score = 1000
 
         debug(formatted_contacts_path=formatted_contacts_1kb,
               window_size=window,
               output_path=output.split('_frequencies_matrix.tsv')[0] + '/',
-              cohesins_peaks_path=cohesins_peaks)
+              cohesins_peaks_path=cohesins_peaks,
+              score_cutoff=score)
 
     else:
         main()
