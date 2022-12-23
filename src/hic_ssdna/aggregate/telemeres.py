@@ -20,30 +20,31 @@ pd.options.mode.chained_assignment = None
 """
 
 
-def compute_centromere_freq_per_oligo_per_chr(
+def compute_telomere_freq_per_oligo_per_chr(
         df_freq: pd.DataFrame,
         df_info: pd.DataFrame,
         dir_table: str):
 
     reads_array = df_info.columns.values
     chr_array = np.array(['chr'+str(i) for i in range(1, 17)])
-    bins_array = np.unique(df_freq['chr_bins'])
+    bin_size = df_freq.iloc[1, 2] - df_freq.iloc[0, 2]
+    bins_array = pd.unique(df_freq['chr_bins'])
 
     for ol in reads_array:
         probe = df_info.loc['names', ol]
         if len(probe.split('-/-')) > 1:
             probe = '_&_'.join(probe.split('-/-'))
 
-        df_freq_cen = pd.DataFrame(columns=chr_array, index=bins_array)
+        df_freq_telo = pd.DataFrame(columns=chr_array, index=bins_array)
         grouped = df_freq.groupby(['chr', 'chr_bins'])
         for name, group in grouped:
             chr_name, bin_name = name
-            df_freq_cen.loc[bin_name, chr_name] = group[ol].iloc[0]
+            df_freq_telo.loc[bin_name, chr_name] = group[ol].iloc[0]
 
-        df_freq_cen = df_freq_cen.astype(float)
+        df_freq_telo = df_freq_telo.astype(float)
 
         #   Write to csv
-        df_freq_cen.to_csv(dir_table + probe + '_chr1-16_freq_telo.tsv', sep='\t')
+        df_freq_telo.to_csv(dir_table + probe + '_chr1-16_freq_telo.tsv', sep='\t')
 
 
 def freq_focus_around_centromeres(formatted_contacts_path: str,
@@ -84,25 +85,21 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
                                        (df_contacts['chr_bins'] > current_telo_right - window_size) &
                                        (df_contacts['chr_bins'] < current_telo_right)]
 
-        right_telo_bin =  tools.find_nearest(tmp_df_right['chr_bins'].values, current_telo_right, mode='lower')
-        for index2, row2 in tmp_df_right.iterrows():
-            #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
+        right_telo_bin = tools.find_nearest(tmp_df_right['chr_bins'].values, current_telo_right, mode='lower')
+        for index_r, row_r in tmp_df_right.iterrows():
+            #   Indices shifting : bin of telomere becomes 0, bins in downstream becomes negative and bins
             #   in upstream becomes positive.
-            tmp_df_right.loc[index2, 'chr_bins'] -= right_telo_bin
+            tmp_df_right.loc[index_r, 'chr_bins'] = \
+                "3'_" + str(abs(tmp_df_right.loc[index_r, 'chr_bins'] - right_telo_bin))
+
+        for index_l, row_l in tmp_df_left.iterrows():
+            #   Indices shifting : bin of telomere becomes 0, bins in downstream becomes negative and bins
+            #   in upstream becomes positive.
+            tmp_df_left.loc[index_l, 'chr_bins'] = \
+                "5'_" + str(tmp_df_left.loc[index_l, 'chr_bins'])
 
         tmp_df = pd.concat((tmp_df_left, tmp_df_right))
         tmp_df.index = range(len(tmp_df))
-
-        ###############################################
-
-        #   temporary dataframe containing the bins present in the windows for the current chr only
-
-        current_centros_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_centros_pos, mode='lower')
-
-        for index2, row2 in tmp_df.iterrows():
-            #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
-            #   in upstream becomes positive.
-            tmp_df.iloc[index2, 1] -= current_centros_bin
 
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
@@ -130,7 +127,7 @@ def compute_aggregate_around_centromeres(
 
     #  df_mean :  dataframe with average contacts in the centromere areas (according to the window the user gives)
     #       for each oligo.
-    #   df_std : same but with standard deviation/error instead of mean
+    #  df_std : same but with standard deviation/error instead of mean
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
     df_median = pd.DataFrame()
@@ -147,11 +144,6 @@ def compute_aggregate_around_centromeres(
         df_mean = pd.concat([df_mean, tmp_mean_df])
         df_std = pd.concat([df_std, tmp_std_df])
         df_median = pd.concat([df_median, tmp_median_df])
-
-    #   Sort the series according to index
-    df_mean = df_mean.sort_index()
-    df_std = df_std.sort_index()
-    df_median = df_median.sort_index()
 
     #   Concatenate with oligo names, types, locations ...
     df_mean_with_info = pd.concat([df_info, df_mean])
@@ -178,7 +170,7 @@ def debug(formatted_contacts_path: str,
         window_size=window_size,
         telomeres_coord_path=telomeres_coord_path)
 
-    compute_centromere_freq_per_oligo_per_chr(
+    compute_telomere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros, df_info=df_info, dir_table=dir_table)
 
     df_mean, df_std, df_median = compute_aggregate_around_centromeres(
@@ -186,7 +178,13 @@ def debug(formatted_contacts_path: str,
         df_info=df_info,
         output_file=output_file)
 
-    plot_aggregated(df_mean, df_std, df_info, 'telomeres', dir_plot)
+    plot_aggregated(
+        mean_df=df_mean,
+        std_df=df_std,
+        info_df=df_info,
+        mode='telomeres',
+        output_path=dir_plot,
+        pooled=False)
 
 
 def main(argv=None):
@@ -241,7 +239,7 @@ def main(argv=None):
         window_size=window_size,
         telomeres_coord_path=coordinates_path)
 
-    compute_centromere_freq_per_oligo_per_chr(
+    compute_telomere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros, df_info=df_info, dir_table=dir_table)
 
     df_mean, df_std, df_median = compute_aggregate_around_centromeres(
