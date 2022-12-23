@@ -235,7 +235,14 @@ def main(argv=None):
         df_info=df_info,
         output_file=output_file)
 
-    plot_aggregated(df_mean, df_std, df_info, 'centromeres', dir_plot)
+    plot_aggregated(
+        mean_df=df_mean,
+        std_df=df_std,
+        info_df=df_info,
+        mode='centromeres',
+        output_path=dir_plot,
+        pooled=False)
+
 
 
 if __name__ == "__main__":
