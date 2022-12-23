@@ -87,13 +87,12 @@ def compute_average_aggregate(
     df_mean = df_mean.sort_index()
     df_std = df_std.sort_index()
 
-    #   Concatenate with oligo names, types, locations ...
-    df_mean_with_info = pd.concat([df_info, df_mean])
-    df_std_with_info = pd.concat([df_info, df_std])
+    probes = df_info.loc['names', :].values
+    df_mean.columns = probes
+    df_std.columns = probes
 
-    #   Write to csv
-    df_mean_with_info.to_csv(output_file + '_mean_on_cohesins_peaks.tsv', sep='\t')
-    df_std_with_info.to_csv(output_file + '_std_on_cohesins_peaks.tsv', sep='\t')
+    df_mean.to_csv(output_file + '_mean_on_cohesins_peaks.tsv', sep='\t')
+    df_std.to_csv(output_file + '_std_on_cohesins_peaks.tsv', sep='\t')
 
     return df_mean, df_std
 
