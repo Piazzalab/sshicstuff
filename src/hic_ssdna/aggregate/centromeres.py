@@ -79,10 +79,10 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        df_res.loc[:, df_res.columns[3:]] = \
-            df_res.loc[:, df_res.columns[3:]].apply(
-                lambda x: x.map(lambda y: np.nan if df_info.loc['self_chr', x.name].isin([current_chr]) else y)
-            )
+        for c in tmp_df.columns[3:]:
+            self_chr = df_info.loc['self_chr', c]
+            if self_chr == current_chr:
+                tmp_df.loc[:, c] = np.nan
 
         return tmp_df
 

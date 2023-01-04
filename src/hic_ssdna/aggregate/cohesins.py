@@ -34,7 +34,7 @@ def freq_focus_around_cohesin_peaks(
     df_info, df_contacts = tools.split_formatted_dataframe(df_all)
     df_res = pd.DataFrame()
     bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
-
+    excluded_chr = ['chr2', 'chr3']
     def process_row(row):
         current_chr = row[0]
         current_peak = row[1]
@@ -55,13 +55,15 @@ def freq_focus_around_cohesin_peaks(
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        df_res.loc[:, df_res.columns[3:]] = \
-            df_res.loc[:, df_res.columns[3:]].apply(
-                lambda x: x.map(lambda y: np.nan if df_info.loc['self_chr', x.name].isin([current_chr]) else y)
-            )
+        for c in tmp_df.columns[3:]:
+            self_chr = df_info.loc['self_chr', c]
+            if self_chr == current_chr:
+                tmp_df.loc[:, c] = np.nan
 
         return tmp_df
     df_res = pd.concat([process_row(row) for _, row in df_peaks.iterrows()])
+    df_res = df_res[~df_res['chr'].isin(excluded_chr)]
+
     df_res.index = range(len(df_res))
     return df_res, df_info
 
