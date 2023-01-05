@@ -2,6 +2,8 @@
 
 import numpy as np
 import pandas as pd
+import os
+import re
 import math
 import sys
 import getopt
@@ -233,8 +235,8 @@ def set_fragments_contacts_bins(bed_bins: dict,
         {'names': names, 'types': types, 'self_chr': chrs, 'self_start': starts, 'self_end': ends})
     df_contc = concatenate_infos_and_contacts(df1=df_contc, df2=df_infos, headers=headers)
     df_freq = concatenate_infos_and_contacts(df1=df_freq, df2=df_infos, headers=headers)
-    df_contc.to_csv(output_path + 'formatted_contacts_matrix.tsv', sep='\t')
-    df_freq.to_csv(output_path + 'formatted_frequencies_matrix.tsv', sep='\t')
+    df_contc.to_csv(output_path + '_contacts.tsv', sep='\t')
+    df_freq.to_csv(output_path + '_frequencies.tsv', sep='\t')
 
 
 def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
@@ -311,8 +313,8 @@ def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
         {'names': names, 'types': types, 'self_chr': chrs, 'self_start': starts, 'self_end': ends})
     df_contc = concatenate_infos_and_contacts(df1=df_contc, df2=df_infos, headers=headers)
     df_freq = concatenate_infos_and_contacts(df1=df_freq, df2=df_infos, headers=headers)
-    df_contc.to_csv(output_path + '_formatted_contacts_matrix.tsv', sep='\t')
-    df_freq.to_csv(output_path + '_formatted_frequencies_matrix.tsv', sep='\t')
+    df_contc.to_csv(output_path + '_contacts.tsv', sep='\t')
+    df_freq.to_csv(output_path + '_frequencies.tsv', sep='\t')
 
 
 def main(argv=None):
@@ -356,6 +358,12 @@ def main(argv=None):
             output_path = arg.split('-filtered.csv')[0]
 
     bin_size = int(bin_size)
+    sample_id = re.search(r"AD\d+", filtered_contacts_path).group()
+    dir_output = output_path + str(bin_size // 1000) + 'kb/'
+    if not os.path.exists(dir_output):
+        os.makedirs(dir_output)
+    full_path_output = dir_output + sample_id + '_' + str(bin_size // 1000) + 'kb'
+
     contacts_dict, infos_dict, all_contacted_pos = get_fragments_dict(contacts_path=filtered_contacts_path,
                                                                       bin_size=bin_size)
     if bin_size > 0:
@@ -363,12 +371,12 @@ def main(argv=None):
         set_fragments_contacts_bins(bed_bins=bed_pos,
                                     bins_contacts_dict=contacts_dict,
                                     fragment_infos_dict=infos_dict,
-                                    output_path=output_path)
+                                    output_path=full_path_output)
     else:
         set_fragments_contacts_no_bin(contacts_pos_dict=contacts_dict,
                                       fragment_infos_dict=infos_dict,
                                       all_chr_pos=all_contacted_pos,
-                                      output_path=output_path)
+                                      output_path=full_path_output)
 
 
 def debug(artificial_genome_path: str,
@@ -395,14 +403,24 @@ if __name__ == "__main__":
     if tools.is_debug():
         #   Debug is mainly used for testing function of the script
         #   Parameters have to be declared here
-        artificial_genome = "../../../bash_scripts/contacts_format/inputs/S288c_DSB_LY_capture_artificial.fa"
-        filtered_contacts = "../../../bash_scripts/contacts_format/inputs/contacts_filtered_nicolas.csv"
-        output = "../../../bash_scripts/contacts_format/outputs/frequencies_per_bin_matrix.csv"
+        artificial_genome = "/home/nicolas/Documents/Projects/ssHiC/bash_scripts/contacts_binning/inputs/" \
+                            "S288c_DSB_LY_capture_artificial.fa"
+        filtered_contacts = "/home/nicolas/Documents/Projects/ssHiC/bash_scripts/contacts_binning/inputs/" \
+                            "ssHiC_filtered/AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30_ssHiC-filtered.csv"
+        output = "/home/nicolas/Documents/Projects/ssHiC/bash_scripts/contacts_binning/outputs/"
+
         bin_size_value = 100000
+        samp_name = re.search(r"AD\d+", filtered_contacts).group()
+        output_dir = output + str(bin_size_value // 1000) + 'kb/'
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        full_output_path = output_dir + samp_name + '_' + str(bin_size_value // 1000) + 'kb'
+
         debug(artificial_genome_path=artificial_genome,
               filtered_contacts_path=filtered_contacts,
               bin_size=bin_size_value,
-              output_path=output)
+              output_path=full_output_path)
     else:
         main(sys.argv[1:])
 
