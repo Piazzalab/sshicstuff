@@ -116,71 +116,15 @@ def compute_stats(formatted_contacts_path: str,
         df_chr_normalized_freq.index = range(len(df_chr_normalized_freq))
 
     df_stats = fold_over(df_stats)
-    df_stats.to_csv(output_path + 'global_statistics.tsv', sep='\t')
-    df_chr_normalized_freq.to_csv(output_path + 'normalized_chr_frequencies.tsv', sep='\t')
+    df_stats.to_csv(output_path + '_global_statistics.tsv', sep='\t')
+    df_chr_normalized_freq.to_csv(output_path + '_normalized_chr_freq.tsv', sep='\t')
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-    if not argv:
-        print('Please enter arguments correctly')
-        exit(0)
-
-    cis_range, oligos_path, hic_contacts_list_path, formatted_contacts_path, output_path = ['' for _ in range(5)]
-    try:
-        opts, args = getopt.getopt(argv, "hc:r:O:", ["--help",
-                                                     "--contacts",
-                                                     "--cis_range",
-                                                     "--output"])
-    except getopt.GetoptError:
-        print('compute ratios arguments :\n'
-              '-c <formated_contacts.csv> (contacts filtered with binning.py) \n'
-              '-r <bin_size> (size of a bin, in bp) \n'
-              '-O <output_file_name.csv>')
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print('compute ratios arguments :\n'
-                  '-c <formated_contacts.csv> (contacts filtered with binning.py) \n'
-                  '-r <bin_size> (size of a bin, in bp) \n'
-                  '-O <output_file_name.csv>')
-            sys.exit()
-        elif opt in ("-c", "--contacts"):
-            formatted_contacts_path = arg
-        elif opt in ("-r", "--cis_range"):
-            cis_range = int(arg)
-        elif opt in ("-O", "--output"):
-            output_path = arg.split('formatted_contacts_matrix.tsv')[0]
+def run(
+        cis_range: int,
+        binned_contacts_path: str,
+        output_path: str):
 
     compute_stats(cis_range=cis_range,
-                  formatted_contacts_path=formatted_contacts_path,
+                  formatted_contacts_path=binned_contacts_path,
                   output_path=output_path)
-
-
-def debug(cis_range: int,
-          formatted_contacts_path: str,
-          output_path: str):
-
-    compute_stats(cis_range=cis_range,
-                  formatted_contacts_path=formatted_contacts_path,
-                  output_path=output_path)
-
-
-if __name__ == "__main__":
-    #   Go into debug function if debug mode is detected, else go for main script with sys arguments
-    if tools.is_debug():
-        #   Debug is mainly used for testing function of the script
-        #   Parameters have to be declared here
-        all_contacted_pos = "../../../bash_scripts/compute_ratio/inputs/" \
-                            "AD162_test.csv"
-        output = "../../../bash_scripts/compute_ratio/outputs/fragments_percentages.tsv"
-        cis_range_value = 50000
-        debug(cis_range=cis_range_value,
-              formatted_contacts_path=all_contacted_pos,
-              output_path=output)
-    else:
-        main()
-
-    print('--- DONE ---')

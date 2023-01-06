@@ -2,11 +2,7 @@
 
 import numpy as np
 import pandas as pd
-import os
-import re
 import math
-import sys
-import getopt
 from Bio.SeqIO.FastaIO import FastaIterator
 from utils import tools
 
@@ -317,72 +313,12 @@ def set_fragments_contacts_no_bin(contacts_pos_dict: dict,
     df_freq.to_csv(output_path + '_frequencies.tsv', sep='\t')
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-    if not argv:
-        print('Please enter arguments correctly')
-        exit(0)
+def run(
+        artificial_genome_path: str,
+        filtered_contacts_path: str,
+        bin_size: int,
+        output_path: str):
 
-    artificial_genome_path, filtered_contacts_path, output_path, bin_size = ['' for _ in range(4)]
-
-    try:
-        opts, args = getopt.getopt(argv, "hg:c:b:o:", ["--help",
-                                                       "--genome",
-                                                       "--contacts",
-                                                       "--bin_size",
-                                                       "--output"])
-    except getopt.GetoptError:
-        print('contacts filter arguments :\n'
-              '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
-              '-c <filtered_contacts_input.csv> (contacts filtered with filter.py) \n'
-              '-b <bin_size> (size of a bin, in bp) \n'
-              '-o <output_file_name.csv>')
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print('contacts filter arguments :\n'
-                  '-g <fasta_genome_input> (artificially generated with oligos_replacement.py) \n'
-                  '-c <filtered_contacts_input.csv> (contacts filtered with filter.py) \n'
-                  '-b <bin_size> (size of a bin, in bp) \n'
-                  '-o <output_file_name.csv>')
-            sys.exit()
-        elif opt in ("-g", "--genome"):
-            artificial_genome_path = arg
-        elif opt in ("-c", "--contacts"):
-            filtered_contacts_path = arg
-        elif opt in ("-b", "--bin_size"):
-            bin_size = arg
-        elif opt in ("-o", "--output"):
-            output_path = arg.split('-filtered.csv')[0]
-
-    bin_size = int(bin_size)
-    sample_id = re.search(r"AD\d+", filtered_contacts_path).group()
-    dir_output = output_path + str(bin_size // 1000) + 'kb/'
-    if not os.path.exists(dir_output):
-        os.makedirs(dir_output)
-    full_path_output = dir_output + sample_id + '_' + str(bin_size // 1000) + 'kb'
-
-    contacts_dict, infos_dict, all_contacted_pos = get_fragments_dict(contacts_path=filtered_contacts_path,
-                                                                      bin_size=bin_size)
-    if bin_size > 0:
-        bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
-        set_fragments_contacts_bins(bed_bins=bed_pos,
-                                    bins_contacts_dict=contacts_dict,
-                                    fragment_infos_dict=infos_dict,
-                                    output_path=full_path_output)
-    else:
-        set_fragments_contacts_no_bin(contacts_pos_dict=contacts_dict,
-                                      fragment_infos_dict=infos_dict,
-                                      all_chr_pos=all_contacted_pos,
-                                      output_path=full_path_output)
-
-
-def debug(artificial_genome_path: str,
-          filtered_contacts_path: str,
-          bin_size: int,
-          output_path: str):
     contacts_dict, infos_dict, all_contacted_pos = get_fragments_dict(contacts_path=filtered_contacts_path,
                                                                       bin_size=bin_size)
     if bin_size > 0:
@@ -397,31 +333,3 @@ def debug(artificial_genome_path: str,
                                       all_chr_pos=all_contacted_pos,
                                       output_path=output_path)
 
-
-if __name__ == "__main__":
-    #   Go into debug function if debug mode is detected, else go for main script with sys arguments
-    if tools.is_debug():
-        #   Debug is mainly used for testing function of the script
-        #   Parameters have to be declared here
-        artificial_genome = "/home/nicolas/Documents/Projects/ssHiC/bash_scripts/contacts_binning/inputs/" \
-                            "S288c_DSB_LY_capture_artificial.fa"
-        filtered_contacts = "/home/nicolas/Documents/Projects/ssHiC/bash_scripts/contacts_binning/inputs/" \
-                            "ssHiC_filtered/AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30_ssHiC-filtered.csv"
-        output = "/home/nicolas/Documents/Projects/ssHiC/bash_scripts/contacts_binning/outputs/"
-
-        bin_size_value = 100000
-        samp_name = re.search(r"AD\d+", filtered_contacts).group()
-        output_dir = output + str(bin_size_value // 1000) + 'kb/'
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        full_output_path = output_dir + samp_name + '_' + str(bin_size_value // 1000) + 'kb'
-
-        debug(artificial_genome_path=artificial_genome,
-              filtered_contacts_path=filtered_contacts,
-              bin_size=bin_size_value,
-              output_path=full_output_path)
-    else:
-        main(sys.argv[1:])
-
-    print('--- DONE ---')
