@@ -202,6 +202,7 @@ def debug(formatted_contacts_path: str,
           centros_coord_path: str):
 
     dir_table, dir_plot = mkdir(output_path=output_path)
+    sample_name = re.search(r"AD\d+", output_path).group()
     output_file = dir_table + output_path.split('/')[-2]
 
     df_contacts_centros, df_info = freq_focus_around_centromeres(
@@ -210,7 +211,10 @@ def debug(formatted_contacts_path: str,
         centros_infos_path=centros_coord_path)
 
     chr_aggregated_dict = compute_centromere_freq_per_oligo_per_chr(
-        df_freq=df_contacts_centros, df_info=df_info, dir_table=dir_table)
+        df_freq=df_contacts_centros,
+        df_info=df_info,
+        dir_table=dir_table,
+        sample_id=sample_name)
 
     compute_average_aggregate(
         aggregated=chr_aggregated_dict,
@@ -218,7 +222,8 @@ def debug(formatted_contacts_path: str,
 
     plot_aggregated(
         aggregated=chr_aggregated_dict,
-        output_path=dir_plot,
+        dir_plot=dir_plot,
+        sample_id=sample_name,
         pooled=True)
 
 
