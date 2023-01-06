@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -22,7 +23,8 @@ pd.options.mode.chained_assignment = None
 def compute_centromere_freq_per_oligo_per_chr(
         df_freq: pd.DataFrame,
         df_info: pd.DataFrame,
-        dir_table: str):
+        dir_table: str,
+        sample_id: str):
 
     reads_array = df_info.columns.values
     chr_array = np.array(['chr'+str(i) for i in range(1, 17)])
@@ -40,7 +42,7 @@ def compute_centromere_freq_per_oligo_per_chr(
         df_freq_cen = df_freq_cen[chr_array].reindex(bins_array)
 
         res[probe] = df_freq_cen
-        df_freq_cen.to_csv(dir_table + probe + '_chr1-16_freq_cen.tsv', sep='\t')
+        df_freq_cen.to_csv(dir_table + sample_id + '_' + probe + '_chr1-16_freq_cen.tsv', sep='\t')
     return res
 
 
@@ -146,7 +148,8 @@ def pooled_stats(mean_df: pd.DataFrame,
 
 def plot_aggregated(
         aggregated: dict[str: pd.DataFrame],
-        output_path: str,
+        dir_plot: str,
+        sample_id: str,
         pooled: bool = True):
 
     for probe, df in aggregated.items():
@@ -168,8 +171,9 @@ def plot_aggregated(
         plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
         plt.xticks(rotation=45)
         plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(output_path + "{0}-centromeres-aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
+        plt.savefig(dir_plot + sample_id + '_' + "{0}_centromeres_aggregated_freq_plot.{1}".format(probe, 'jpg'), dpi=99)
         plt.close()
+
 
 def mkdir(output_path: str):
     dir_res = output_path
@@ -190,6 +194,7 @@ def mkdir(output_path: str):
         os.makedirs(dir_table)
 
     return dir_table, dir_plot
+
 
 def debug(formatted_contacts_path: str,
           window_size: int,
@@ -256,13 +261,13 @@ def main(argv=None):
             window_size = int(arg)
         elif opt in ("-o", "--output"):
             output_path = arg
-            if 'formatted' in output_path:
-                output_path = output_path.split('formatted_frequencies_matrix.tsv')[0]
-            else:
-                output_path = output_path.split('_frequencies_matrix.tsv')[0]
+
+    print(output_path)
+    sample_id = re.search(r"AD\d+", binned_contacts_path).group()
+    output_path += sample_id + '/'
 
     dir_table, dir_plot = mkdir(output_path=output_path)
-    output_file = dir_table + '/' + output_path.split('/')[-1]
+    output_file = dir_table + '/' + sample_id
 
     df_contacts_centros, df_info = freq_focus_around_centromeres(
         formatted_contacts_path=binned_contacts_path,
@@ -270,7 +275,10 @@ def main(argv=None):
         centros_infos_path=coordinates_path)
 
     chr_aggregated_dict = compute_centromere_freq_per_oligo_per_chr(
-        df_freq=df_contacts_centros, df_info=df_info, dir_table=dir_table)
+        df_freq=df_contacts_centros,
+        df_info=df_info,
+        dir_table=dir_table,
+        sample_id=sample_id)
 
     compute_average_aggregate(
         aggregated=chr_aggregated_dict,
@@ -278,7 +286,8 @@ def main(argv=None):
 
     plot_aggregated(
         aggregated=chr_aggregated_dict,
-        output_path=dir_plot,
+        dir_plot=dir_plot,
+        sample_id=sample_id,
         pooled=True)
 
 
@@ -289,20 +298,22 @@ if __name__ == "__main__":
         #   Parameters have to be declared here
         centros_coord = "../../../../bash_scripts/aggregate_contacts/inputs/S288c_chr_centro_coordinates.tsv"
 
-        formatted_contacts_10kb = \
+        formatted_contacts = \
             '../../../../bash_scripts/aggregate_contacts/inputs' \
             '/AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC' \
             '_10kb_frequencies_matrix.tsv'
 
-        output = "../../../../bash_scripts/aggregate_contacts/outputs/" \
-                 "AD162_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30_ssHiC"
+        output = "/home/nicolas/Documents/Projects/ssHiC/bash_scripts/aggregated_contacts/outputs/"
 
         oligos = "../../../../bash_scripts/aggregate_contacts/inputs/capture_oligo_positions.tsv"
         window = 150000
 
-        debug(formatted_contacts_path=formatted_contacts_10kb,
+        samp_name = re.search(r"AD\d+", formatted_contacts).group()
+        full_output_path = output + samp_name + '_aggregated'
+
+        debug(formatted_contacts_path=formatted_contacts,
               window_size=window,
-              output_path=output.split('_frequencies_matrix.tsv')[0] + '/',
+              output_path=full_output_path,
               centros_coord_path=centros_coord)
 
     else:
