@@ -33,6 +33,7 @@ def freq_focus_around_cohesin_peaks(
     df_res = pd.DataFrame()
     bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
     excluded_chr = ['chr2', 'chr3']
+
     def process_row(row):
         current_chr = row[0]
         current_peak = row[1]
