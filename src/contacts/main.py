@@ -38,7 +38,7 @@ def do_binning(parallel: bool = True):
                 print('bin of size: ', bs)
                 samples = os.listdir(samples_dir)
                 p.starmap(binning.run, [(artificial_genome,
-                                         samples_dir + samp,
+                                         samples_dir+samp,
                                          bs,
                                          output_dir) for samp in samples])
     else:
@@ -54,7 +54,7 @@ def do_binning(parallel: bool = True):
                 )
 
 
-def do_stats():
+def do_stats(parallel: bool = True):
     cis_range = 50000
     samples_dir = "../../data/outputs/binning/sshic/0kb/"
     output_dir = "../../data/outputs/statistics/sshic/"
@@ -62,17 +62,24 @@ def do_stats():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     samples = os.listdir(samples_dir)
-    for samp in samples:
-        samp_id = re.search(r"AD\d+", samp).group()
-        statistics.run(
-            cis_range=cis_range,
-            binned_contacts_path=samples_dir + samp,
-            output_path=output_dir+samp_id
-        )
+
+    if parallel:
+        with mp.Pool(mp.cpu_count()) as p:
+            p.starmap(statistics.run, [(cis_range,
+                                        samples_dir+samp,
+                                        output_dir) for samp in samples])
+
+    else:
+        for samp in samples:
+            statistics.run(
+                cis_range=cis_range,
+                binned_contacts_path=samples_dir+samp,
+                output_dir=output_dir
+            )
 
 
 if __name__ == "__main__":
-    modes = ['binning']
+    modes = ['statistics']
     if 'filter' in modes:
         do_filter()
     if 'binning' in modes:

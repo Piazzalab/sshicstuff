@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import re
 import numpy as np
 import pandas as pd
 from utils import tools
@@ -120,8 +121,13 @@ def compute_stats(formatted_contacts_path: str,
 def run(
         cis_range: int,
         binned_contacts_path: str,
-        output_path: str):
+        output_dir: str):
 
+    sample_id = re.search(r"AD\d+", binned_contacts_path).group()
+    output_path = output_dir + sample_id
     compute_stats(cis_range=cis_range,
                   formatted_contacts_path=binned_contacts_path,
                   output_path=output_path)
+
+    print('DONE: ', sample_id)
+
