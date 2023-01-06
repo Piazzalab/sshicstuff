@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from hic_ssdna.utils import tools
+from utils import tools
 import sys
 import getopt
 

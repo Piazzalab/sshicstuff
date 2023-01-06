@@ -8,7 +8,7 @@ import math
 import sys
 import getopt
 from Bio.SeqIO.FastaIO import FastaIterator
-from hic_ssdna.utils import tools
+from utils import tools
 
 
 def build_bins_from_genome(path_to_genome: str,
