@@ -26,19 +26,25 @@ def do_centro(parallel: bool = True):
             )
 
 
-def do_telo():
+def do_telo(parallel: bool = True):
     span = 100000
     telomeres_coordinates = "../../data/inputs/S288c_chr_centro_coordinates.tsv"
     samples = os.listdir(samples_dir + '10kb/')
-    for samp in samples:
-        samp_id = re.search(r"AD\d+", samp).group()
-        telomeres.run(
-            formatted_contacts_path=samples_dir+'10kb/'+samp,
-            window_size=span,
-            output_path=output_dir,
-            sample_name=samp_id,
-            telomeres_coord_path=telomeres_coordinates
-        )
+
+    if parallel:
+        with mp.Pool(mp.cpu_count()) as p:
+            p.starmap(telomeres.run, [(samples_dir+'10kb/'+samp,
+                                       span,
+                                       output_dir,
+                                       telomeres_coordinates) for samp in samples])
+    else:
+        for samp in samples:
+            telomeres.run(
+                formatted_contacts_path=samples_dir+'10kb/'+samp,
+                window_size=span,
+                output_path=output_dir,
+                telomeres_coord_path=telomeres_coordinates
+            )
 
 
 def do_cohesins():
@@ -64,7 +70,7 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    modes = ['centromeres']
+    modes = ['telomeres']
 
     if 'centromeres' in modes:
         do_centro()

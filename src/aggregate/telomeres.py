@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import os
+import re
 import matplotlib.pyplot as plt
 from utils import tools
 
@@ -212,9 +213,9 @@ def run(
         formatted_contacts_path: str,
         window_size: int,
         output_path: str,
-        sample_name: str,
         telomeres_coord_path: str):
 
+    sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
     dir_table, dir_plot = mkdir(output_path=output_path+sample_name)
 
     df_contacts_centros, df_info = freq_focus_around_centromeres(
@@ -236,3 +237,4 @@ def run(
         plot_path=dir_plot+sample_name,
         pooled=True)
 
+    print('DONE: ', sample_name)
