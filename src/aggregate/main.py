@@ -35,19 +35,20 @@ def do_telo():
 
 
 def do_cohesins():
-    score = 1000
-    span = 15000
-    cohesins_peaks = "../../data/inputs/HB65_reference_peaks_score50min.bed"
-    samples = os.listdir(samples_dir + '1kb/')
-    for samp in samples:
-        samp_id = re.search(r"AD\d+", samp).group()
-        cohesins.run(
-            formatted_contacts_path=samples_dir+'1kb/'+samp,
-            window_size=span,
-            output_path=output_dir,
-            sample_name=samp_id,
-            cohesins_peaks_path=cohesins_peaks,
-            score_cutoff=score)
+    scores_list = [50, 100, 200, 600, 1000, 2000]
+    for sc in scores_list:
+        span = 15000
+        cohesins_peaks = "../../data/inputs/HB65_reference_peaks_score50min.bed"
+        samples = os.listdir(samples_dir + '1kb/')
+        for samp in samples:
+            samp_id = re.search(r"AD\d+", samp).group()
+            cohesins.run(
+                formatted_contacts_path=samples_dir+'1kb/'+samp,
+                window_size=span,
+                output_path=output_dir,
+                sample_name=samp_id,
+                cohesins_peaks_path=cohesins_peaks,
+                score_cutoff=sc)
 
 
 if __name__ == "__main__":
