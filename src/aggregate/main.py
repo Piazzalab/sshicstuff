@@ -52,8 +52,8 @@ def do_cohesins():
 
 
 if __name__ == "__main__":
-    samples_dir = "../../data/outputs/binning/ssHiC_filtered/"
-    output_dir = "../../data/outputs/aggregated/ssHiC_filtered/"
+    samples_dir = "../../data/outputs/binning/sshic/"
+    output_dir = "../../data/outputs/aggregated/sshic/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
