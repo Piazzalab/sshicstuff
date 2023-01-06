@@ -1,5 +1,7 @@
 #! /usr/bin/env python3
 
+import re
+import os
 import numpy as np
 import pandas as pd
 import math
@@ -317,19 +319,27 @@ def run(
         artificial_genome_path: str,
         filtered_contacts_path: str,
         bin_size: int,
-        output_path: str):
+        output_dir: str):
 
-    contacts_dict, infos_dict, all_contacted_pos = get_fragments_dict(contacts_path=filtered_contacts_path,
-                                                                      bin_size=bin_size)
+    sample_id = re.search(r"AD\d+", filtered_contacts_path).group()
+    output_path = output_dir + str(bin_size // 1000) + 'kb/'
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    contacts_dict, infos_dict, all_contacted_pos = get_fragments_dict(
+        contacts_path=filtered_contacts_path,
+        bin_size=bin_size)
+
     if bin_size > 0:
         bed_pos = build_bins_from_genome(artificial_genome_path, bin_size=bin_size)
         set_fragments_contacts_bins(bed_bins=bed_pos,
                                     bins_contacts_dict=contacts_dict,
                                     fragment_infos_dict=infos_dict,
-                                    output_path=output_path)
+                                    output_path=output_path+sample_id)
     else:
         set_fragments_contacts_no_bin(contacts_pos_dict=contacts_dict,
                                       fragment_infos_dict=infos_dict,
                                       all_chr_pos=all_contacted_pos,
-                                      output_path=output_path)
+                                      output_path=output_path+sample_id)
 
+    print('DONE: ', sample_id)
