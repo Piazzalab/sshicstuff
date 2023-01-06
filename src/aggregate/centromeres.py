@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import re
 from utils import tools
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -141,6 +142,7 @@ def pooled_stats(mean_df: pd.DataFrame,
 
     return pooled_mean_df, pooled_std_df
 
+
 def plot_aggregated(
         aggregated: dict[str: pd.DataFrame],
         plot_path: str,
@@ -194,9 +196,9 @@ def run(
         formatted_contacts_path: str,
         window_size: int,
         output_path: str,
-        sample_name: str,
         centros_coord_path: str):
 
+    sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
     dir_table, dir_plot = mkdir(output_path=output_path+sample_name)
 
     df_contacts_centros, df_info = freq_focus_around_centromeres(
@@ -217,3 +219,5 @@ def run(
         aggregated=chr_aggregated_dict,
         plot_path=dir_plot+sample_name,
         pooled=True)
+
+    print('DONE: ', sample_name)

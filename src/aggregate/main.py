@@ -1,22 +1,29 @@
 import os
 import re
+import multiprocessing as mp
 
 from aggregate import centromeres, telomeres, cohesins
 
 
-def do_centro():
+def do_centro(parallel: bool = True):
     span = 150000
     centromeres_coordinates = "../../data/inputs/S288c_chr_centro_coordinates.tsv"
     samples = os.listdir(samples_dir + '10kb/')
-    for samp in samples:
-        samp_id = re.search(r"AD\d+", samp).group()
-        centromeres.run(
-            formatted_contacts_path=samples_dir+'10kb/'+samp,
-            window_size=span,
-            output_path=output_dir,
-            sample_name=samp_id,
-            centros_coord_path=centromeres_coordinates
-        )
+
+    if parallel:
+        with mp.Pool(mp.cpu_count()) as p:
+            p.starmap(centromeres.run, [(samples_dir+'10kb/'+samp,
+                                         span,
+                                         output_dir,
+                                         centromeres_coordinates) for samp in samples])
+    else:
+        for samp in samples:
+            centromeres.run(
+                formatted_contacts_path=samples_dir+'10kb/'+samp,
+                window_size=span,
+                output_path=output_dir,
+                centros_coord_path=centromeres_coordinates
+            )
 
 
 def do_telo():
@@ -57,7 +64,7 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    modes = ['cohesins']
+    modes = ['centromeres']
 
     if 'centromeres' in modes:
         do_centro()
