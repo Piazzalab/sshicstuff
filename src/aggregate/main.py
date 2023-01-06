@@ -6,7 +6,6 @@ from aggregate import centromeres, telomeres, cohesins
 
 def do_centro(parallel: bool = True):
     span = 150000
-    centromeres_coordinates = "../../data/inputs/S288c_chr_centro_coordinates.tsv"
     samples = os.listdir(samples_dir+'10kb/')
 
     if parallel:
@@ -27,7 +26,6 @@ def do_centro(parallel: bool = True):
 
 def do_telo(parallel: bool = True):
     span = 100000
-    telomeres_coordinates = "../../data/inputs/S288c_chr_centro_coordinates.tsv"
     samples = os.listdir(samples_dir+'10kb/')
 
     if parallel:
@@ -35,14 +33,14 @@ def do_telo(parallel: bool = True):
             p.starmap(telomeres.run, [(samples_dir + '10kb/'+samp,
                                        span,
                                        output_dir,
-                                       telomeres_coordinates) for samp in samples])
+                                       centromeres_coordinates) for samp in samples])
     else:
         for samp in samples:
             telomeres.run(
                 formatted_contacts_path=samples_dir+'10kb/'+samp,
                 window_size=span,
                 output_path=output_dir,
-                telomeres_coord_path=telomeres_coordinates
+                telomeres_coord_path=centromeres_coordinates
             )
 
 
@@ -75,6 +73,7 @@ def do_cohesins(parallel: bool = True):
 if __name__ == "__main__":
     samples_dir = "../../data/outputs/binning/sshic/"
     output_dir = "../../data/outputs/aggregated/sshic/"
+    centromeres_coordinates = "../../data/inputs/S288c_chr_centro_coordinates.tsv"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
