@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import re
 from utils import tools
 
 
@@ -119,7 +120,7 @@ def plot_aggregated(
         plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
         plt.xticks(rotation=45)
         plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(plot_path + "{0}_cohesins_aggregated_frequencies_plot.{1}".format(name, 'jpg'), dpi=99)
+        plt.savefig(plot_path + "_{0}_cohesins_aggregated_frequencies_plot.{1}".format(name, 'jpg'), dpi=99)
         plt.close()
 
 
@@ -151,12 +152,12 @@ def mkdir(output_path: str,
 def run(
         formatted_contacts_path: str,
         window_size: int,
-        output_path: str,
-        sample_name: str,
+        output_dir: str,
         cohesins_peaks_path: str,
         score_cutoff: int):
 
-    dir_table, dir_plot = mkdir(output_path=output_path+sample_name, score_h=score_cutoff)
+    sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
+    dir_table, dir_plot = mkdir(output_path=output_dir+sample_name, score_h=score_cutoff)
 
     df_contacts_cohesins, df_info = freq_focus_around_cohesin_peaks(
         formatted_contacts_path=formatted_contacts_path,
@@ -174,3 +175,4 @@ def run(
         std_df=df_std,
         plot_path=dir_plot+sample_name)
 
+    print('DONE: ', sample_name)
