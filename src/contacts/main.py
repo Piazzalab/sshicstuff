@@ -23,7 +23,7 @@ def do_binning():
                 artificial_genome_path=artificial_genome,
                 filtered_contacts_path=samples_dir + samp,
                 bin_size=bs,
-                output_path=output_dir + samp_id
+                output_path=output_dir+samp_id
             )
 
 
@@ -40,7 +40,7 @@ def do_stats():
         statistics.run(
             cis_range=cis_range,
             binned_contacts_path=samples_dir + samp,
-            output_path=output_dir + samp_id
+            output_path=output_dir+samp_id
         )
 
 
