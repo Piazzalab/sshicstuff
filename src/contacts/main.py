@@ -4,6 +4,7 @@ import re
 from contacts import binning, statistics
 
 if __name__ == "__main__":
+
     mode = 'statistics'
 
     if mode == 'binning':
@@ -30,8 +31,8 @@ if __name__ == "__main__":
 
     if mode == 'statistics':
         cis_range = 50000
-        samples_dir = "../../data/outputs/binning/ssHiC_filtered/0kb/"
-        output_dir = "../../data/outputs/statistics/ssHiC_filtered/"
+        samples_dir = "../../data/outputs/binning/ssHiC_filtered_PCRduplicateskept/0kb/"
+        output_dir = "../../data/outputs/statistics/ssHiC_filtered_PCRduplicateskept/"
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -43,6 +44,5 @@ if __name__ == "__main__":
                 binned_contacts_path=samples_dir+samp,
                 output_path=output_dir+samp_id
             )
-
 
     print('--- DONE ---')

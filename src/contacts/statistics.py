@@ -3,9 +3,6 @@
 import numpy as np
 import pandas as pd
 from utils import tools
-import sys
-import getopt
-
 
 def fold_over(df_stats: pd.DataFrame):
     """
