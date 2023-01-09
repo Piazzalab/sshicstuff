@@ -128,9 +128,12 @@ def compute_average_aggregate(
     df_mean.to_csv(table_path + '_mean_on_telo.tsv', sep='\t')
     df_std.to_csv(table_path + '_std_on_telo.tsv', sep='\t')
 
+    return df_mean, df_std
+
 
 def pooled_stats(mean_df: pd.DataFrame,
-                 std_df: pd.DataFrame):
+                 std_df: pd.DataFrame,
+                 table_path: str):
 
     mean_df = mean_df.sort_index()
     std_df = std_df.sort_index()
@@ -139,7 +142,7 @@ def pooled_stats(mean_df: pd.DataFrame,
     mean_df.index = index_float
     std_df.index = index_float
 
-    middle = np.where(mean_df.index == 0)[0][1]
+    middle = int(len(mean_df) / 2)
     pooled_index = mean_df.index[middle:]
 
     #   Pool the mean dataframe
@@ -153,28 +156,26 @@ def pooled_stats(mean_df: pd.DataFrame,
     left_std_df = std_df.iloc[:middle]
     right_std_df = std_df.iloc[middle:]
     pooled_std_df = pd.DataFrame(index=pooled_index)
-    n1 = left_std_df.values
-    n2 = right_std_df.values
-    s1 = len(n1)
-    s2 = len(n2)
-    std_pooled = np.sqrt(((s1 - 1) * n1 ** 2 + (s2 - 1) * n2 ** 2) / (s1 + s2 - 2))
-    pooled_std_df[0] = std_pooled
+    for col in left_std_df.columns:
+        n1 = left_std_df[col].shape[0]
+        n2 = right_std_df[col].shape[0]
+        std_pooled = np.sqrt(((n1 - 1) * left_std_df[col] ** 2 + (n2 - 1) * right_std_df[col] ** 2) / (n1 + n2 - 2))
+        pooled_std_df[col] = std_pooled
+
+    pooled_mean_df.to_csv(table_path + '_pooled_mean_on_telo.tsv', sep='\t')
+    pooled_mean_df.to_csv(table_path + '_pooled_std_on_telo.tsv', sep='\t')
+
     return pooled_mean_df, pooled_std_df
 
 
 def plot_aggregated(
-        aggregated: dict[str: pd.DataFrame],
-        plot_path: str,
-        pooled: bool = True):
+        mean_df: pd.DataFrame,
+        std_df: pd.DataFrame,
+        plot_path: str):
 
-    for probe, df in aggregated.items():
-        mean = df.T.mean()
-        std = df.T.std()
-
-        if pooled:
-            mean, std = pooled_stats(mean_df=mean, std_df=std)
-            mean = mean.squeeze()
-            std = std.squeeze()
+    for probe in mean_df.columns.values:
+        mean = mean_df[probe]
+        std = std_df[probe]
 
         ymin = -np.max((mean + std)) * 0.01
         pos = mean.index
@@ -228,13 +229,18 @@ def run(
         df_info=df_info,
         table_path=dir_table+sample_name)
 
-    compute_average_aggregate(
+    df_mean, df_std = compute_average_aggregate(
         aggregated=chr_aggregated_dict,
         table_path=dir_table+sample_name)
 
+    df_mean_pooled, df_std_pooled = pooled_stats(
+        mean_df=df_mean,
+        std_df=df_std,
+        table_path=dir_table+sample_name)
+
     plot_aggregated(
-        aggregated=chr_aggregated_dict,
-        plot_path=dir_plot+sample_name,
-        pooled=True)
+        mean_df=df_mean_pooled,
+        std_df=df_std_pooled,
+        plot_path=dir_plot+sample_name)
 
     print('DONE: ', sample_name)
