@@ -42,6 +42,9 @@ def freq_focus_around_cohesin_peaks(
         current_chr = row[0]
         current_peak = row[1]
 
+        if current_chr in excluded_chr:
+            return None
+
         left_cutoff = current_peak - window_size - bin_size
         if left_cutoff < 0:
             left_cutoff = 0
@@ -51,15 +54,18 @@ def freq_focus_around_cohesin_peaks(
         tmp_df.index = range(len(tmp_df))
         current_cohesin_peak_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_peak, mode='lower')
 
-        filtered_tmp_df = filter_peaks_around_centromeres(
-            df_centros=df_centros,
-            df_contacts_peaks=tmp_df,
-            filter_range=filter_range,
-            filter_mode=filter_mode,
-            bin_size=bin_size)
+        if filter_mode is not None:
+            filtered_tmp_df = filter_peaks_around_centromeres(
+                df_centros=df_centros,
+                df_contacts_peaks=tmp_df,
+                filter_range=filter_range,
+                filter_mode=filter_mode,
+                bin_size=bin_size)
 
-        if filtered_tmp_df.shape[0] == 0:
-            return filtered_tmp_df
+            if filtered_tmp_df.shape[0] == 0:
+                return None
+        else:
+            filtered_tmp_df = tmp_df
 
         #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
         #   in upstream becomes positive.
@@ -76,8 +82,6 @@ def freq_focus_around_cohesin_peaks(
         return filtered_tmp_df
 
     df_res = pd.concat([process_row(row) for _, row in df_peaks.iterrows()])
-    df_res = df_res[~df_res['chr'].isin(excluded_chr)]
-
     df_res.index = range(len(df_res))
     return df_res, df_info
 
