@@ -111,9 +111,12 @@ def compute_average_aggregate(
     df_std.to_csv(table_path + '_std_on_cen.tsv', sep='\t')
     df_median.to_csv(table_path + '_median_on_cen.tsv', sep='\t')
 
+    return df_mean, df_std, df_median
+
 
 def pooled_stats(mean_df: pd.DataFrame,
-                 std_df: pd.DataFrame):
+                 std_df: pd.DataFrame,
+                 table_path: str):
 
     middle = int(np.where(mean_df.index.values == 0)[0])
     pooled_index = mean_df.index[middle:].values
@@ -140,22 +143,20 @@ def pooled_stats(mean_df: pd.DataFrame,
         std_pooled = np.sqrt(((n1 - 1) * left_std_df[col] ** 2 + (n2 - 1) * right_std_df[col] ** 2) / (n1 + n2 - 2))
         pooled_std_df[col] = std_pooled
 
+    pooled_mean_df.to_csv(table_path + '_pooled_mean_on_cen.tsv', sep='\t')
+    pooled_mean_df.to_csv(table_path + '_pooled_std_on_cen.tsv', sep='\t')
+
     return pooled_mean_df, pooled_std_df
 
 
 def plot_aggregated(
-        aggregated: dict[str: pd.DataFrame],
-        plot_path: str,
-        pooled: bool = True):
+        mean_df: pd.DataFrame,
+        std_df: pd.DataFrame,
+        plot_path: str):
 
-    for probe, df in aggregated.items():
-        mean = df.T.mean()
-        std = df.T.std()
-
-        if pooled:
-            mean, std = pooled_stats(mean_df=pd.DataFrame(mean), std_df=pd.DataFrame(std))
-            mean = mean.squeeze()
-            std = std.squeeze()
+    for probe in mean_df.columns.values:
+        mean = mean_df[probe]
+        std = std_df[probe]
 
         ymin = -np.max((mean + std)) * 0.01
         pos = mean.index
@@ -211,13 +212,18 @@ def run(
         df_info=df_info,
         table_path=dir_table+sample_name)
 
-    compute_average_aggregate(
+    df_mean, df_std, df_median = compute_average_aggregate(
         aggregated=chr_aggregated_dict,
         table_path=dir_table+sample_name)
 
+    df_mean_pooled, df_std_pooled = pooled_stats(
+        mean_df=df_mean,
+        std_df=df_std,
+        table_path=dir_table+sample_name)
+
     plot_aggregated(
-        aggregated=chr_aggregated_dict,
-        plot_path=dir_plot+sample_name,
-        pooled=True)
+        mean_df=df_mean_pooled,
+        std_df=df_std_pooled,
+        plot_path=dir_plot+sample_name)
 
     print('DONE: ', sample_name)
