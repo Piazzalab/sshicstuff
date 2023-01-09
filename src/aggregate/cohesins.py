@@ -34,7 +34,6 @@ def freq_focus_around_cohesin_peaks(
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
     df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
     df_info, df_contacts = tools.split_formatted_dataframe(df_all)
-    df_res = pd.DataFrame()
     bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
     excluded_chr = ['chr2', 'chr3']
 
