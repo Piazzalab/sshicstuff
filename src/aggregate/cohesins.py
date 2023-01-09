@@ -21,10 +21,14 @@ pd.options.mode.chained_assignment = None
 
 def freq_focus_around_cohesin_peaks(
         formatted_contacts_path: str,
+        centros_info_path: str,
         window_size: int,
         cohesins_peaks_path: str,
-        score_cutoff: int):
+        score_cutoff: int,
+        filter_range: int,
+        filter_mode: str | None):
 
+    df_centros = pd.read_csv(centros_info_path, sep='\t', index_col=None)
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
@@ -47,24 +51,57 @@ def freq_focus_around_cohesin_peaks(
         tmp_df.index = range(len(tmp_df))
         current_cohesin_peak_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_peak, mode='lower')
 
+        filtered_tmp_df = filter_peaks_around_centromeres(
+            df_centros=df_centros,
+            df_contacts_peaks=tmp_df,
+            filter_range=filter_range,
+            filter_mode=filter_mode,
+            bin_size=bin_size)
+
+        if filtered_tmp_df.shape[0] == 0:
+            return filtered_tmp_df
+
         #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
         #   in upstream becomes positive.
-        tmp_df.iloc[:, 1] -= current_cohesin_peak_bin
-
+        filtered_tmp_df.iloc[:, 1] -= current_cohesin_peak_bin
+        filtered_tmp_df.index = range(len(filtered_tmp_df))
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        for c in tmp_df.columns[3:]:
+        for c in filtered_tmp_df.columns[3:]:
             self_chr = df_info.loc['self_chr', c]
             if self_chr == current_chr:
-                tmp_df.loc[:, c] = np.nan
+                filtered_tmp_df.loc[:, c] = np.nan
 
-        return tmp_df
+        return filtered_tmp_df
+
     df_res = pd.concat([process_row(row) for _, row in df_peaks.iterrows()])
     df_res = df_res[~df_res['chr'].isin(excluded_chr)]
 
     df_res.index = range(len(df_res))
     return df_res, df_info
+
+
+def filter_peaks_around_centromeres(
+        df_centros: pd.DataFrame,
+        df_contacts_peaks: pd.DataFrame,
+        filter_range: int,
+        filter_mode: str | None,
+        bin_size: int):
+
+    current_chr = pd.unique(df_contacts_peaks['chr'])[0]
+    current_chr_cen = df_centros.loc[df_centros['Chr'] == current_chr, 'Left_arm_length'].values[0]
+    left_cutoff = current_chr_cen - filter_range - bin_size
+    right_cutoff = current_chr_cen + filter_range
+
+    if filter_mode == 'outer':
+        return df_contacts_peaks.query(
+            "chr == @current_chr and (chr_bins < @left_cutoff or chr_bins > @right_cutoff)")
+    elif filter_mode == 'inner':
+        return df_contacts_peaks.query(
+            "chr == @current_chr and chr_bins > @left_cutoff and chr_bins < @right_cutoff")
+    elif filter_mode is None:
+        return df_contacts_peaks
 
 
 def compute_average_aggregate(
@@ -161,7 +198,10 @@ def plot_aggregated(
 
 
 def mkdir(output_path: str,
-          score_h: int):
+          score_h: int,
+          filter_mode: None | str,
+          filter_span: int):
+
     dir_res = output_path
     if not os.path.exists(dir_res):
         os.makedirs(dir_res)
@@ -170,7 +210,14 @@ def mkdir(output_path: str,
     if not os.path.exists(dir_type):
         os.makedirs(dir_type)
 
-    dir_score = dir_type + '/' + str(score_h) + '/'
+    if filter_mode is None:
+        dir_mode = dir_type + '/all/'
+    else:
+        dir_mode = dir_type + '/' + filter_mode + '_' + str(filter_span // 1000) + 'kb' + '/'
+    if not os.path.exists(dir_mode):
+        os.makedirs(dir_mode)
+
+    dir_score = dir_mode + '/' + str(score_h) + '/'
     if not os.path.exists(dir_score):
         os.makedirs(dir_score)
 
@@ -190,16 +237,26 @@ def run(
         window_size: int,
         output_dir: str,
         cohesins_peaks_path: str,
-        score_cutoff: int):
+        centromere_info_path: str,
+        score_cutoff: int,
+        cen_filter_span: int,
+        cen_filter_mode: str | None):
 
     sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
-    dir_table, dir_plot = mkdir(output_path=output_dir+sample_name, score_h=score_cutoff)
+    dir_table, dir_plot = mkdir(
+        output_path=output_dir+sample_name,
+        score_h=score_cutoff,
+        filter_mode=cen_filter_mode,
+        filter_span=cen_filter_span)
 
     df_contacts_cohesins, df_info = freq_focus_around_cohesin_peaks(
         formatted_contacts_path=formatted_contacts_path,
+        centros_info_path=centromere_info_path,
         window_size=window_size,
         cohesins_peaks_path=cohesins_peaks_path,
-        score_cutoff=score_cutoff)
+        score_cutoff=score_cutoff,
+        filter_range=cen_filter_span,
+        filter_mode=cen_filter_mode)
 
     df_mean, df_std = compute_average_aggregate(
         df_cohesins_peaks_bins=df_contacts_cohesins,

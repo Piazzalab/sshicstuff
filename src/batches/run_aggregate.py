@@ -45,29 +45,39 @@ def do_telo(parallel: bool = True):
 
 
 def do_cohesins(parallel: bool = True):
-    scores_list = [50, 100, 200, 600, 1000, 2000]
+    scores_list = [100, 200, 600, 1000, 2000]
     span = 15000
+    cen_filter_window = 40000
+    cen_filter_mode = ['inner', 'outer', None]
     cohesins_peaks = "../../data/inputs/HB65_reference_peaks_score50min.bed"
     samples = os.listdir(samples_dir + '1kb/')
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
-            for sc in scores_list:
-                print('score higher than: ', sc)
-                p.starmap(cohesins.run, [(samples_dir+'1kb/'+samp,
-                                          span,
-                                          output_dir,
-                                          cohesins_peaks,
-                                          sc) for samp in samples])
+            for m in cen_filter_mode:
+                for sc in scores_list:
+                    print('score higher than: ', sc)
+                    p.starmap(cohesins.run, [(samples_dir+'1kb/'+samp,
+                                              span,
+                                              output_dir,
+                                              cohesins_peaks,
+                                              centromeres_coordinates,
+                                              sc,
+                                              cen_filter_window,
+                                              m) for samp in samples])
     else:
-        for sc in scores_list:
-            for samp in samples:
-                cohesins.run(
-                    formatted_contacts_path=samples_dir + '1kb/'+samp,
-                    window_size=span,
-                    output_dir=output_dir,
-                    cohesins_peaks_path=cohesins_peaks,
-                    score_cutoff=sc)
+        for m in cen_filter_mode:
+            for sc in scores_list:
+                for samp in samples:
+                    cohesins.run(
+                        formatted_contacts_path=samples_dir + '1kb/'+samp,
+                        window_size=span,
+                        output_dir=output_dir,
+                        cohesins_peaks_path=cohesins_peaks,
+                        centromere_info_path=centromeres_coordinates,
+                        score_cutoff=sc,
+                        cen_filter_span=cen_filter_window,
+                        cen_filter_mode=m)
 
 
 if __name__ == "__main__":
