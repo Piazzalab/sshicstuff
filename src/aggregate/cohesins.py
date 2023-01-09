@@ -98,6 +98,41 @@ def compute_average_aggregate(
     return df_mean, df_std
 
 
+def pooled_stats(mean_df: pd.DataFrame,
+                 std_df: pd.DataFrame,
+                 table_path: str):
+
+    middle = int(len(mean_df) / 2)
+    pooled_index = mean_df.index[middle:].values
+
+    #   Pool the mean dataframe
+    left_mean_df = mean_df.iloc[:middle+1]
+    left_mean_df.index = pooled_index[::-1]
+    left_mean_df = left_mean_df.sort_index()
+    right_mean_df = mean_df.iloc[middle:]
+
+    tmp_mean_df = pd.concat((left_mean_df, right_mean_df))
+    pooled_mean_df = tmp_mean_df.groupby(tmp_mean_df.index).mean()
+
+    #   Pool the std dataframe
+    left_std_df = std_df.iloc[:middle + 1]
+    left_std_df.index = pooled_index[::-1]
+    left_std_df = left_std_df.sort_index()
+    right_std_df = std_df.iloc[middle:]
+    pooled_std_df = pd.DataFrame()
+
+    for col in left_std_df.columns:
+        n1 = left_std_df[col].shape[0]
+        n2 = right_std_df[col].shape[0]
+        std_pooled = np.sqrt(((n1 - 1) * left_std_df[col] ** 2 + (n2 - 1) * right_std_df[col] ** 2) / (n1 + n2 - 2))
+        pooled_std_df[col] = std_pooled
+
+    pooled_mean_df.to_csv(table_path + '_pooled_mean_on_cohesins.tsv', sep='\t')
+    pooled_mean_df.to_csv(table_path + '_pooled_std_on_cohesins.tsv', sep='\t')
+
+    return pooled_mean_df, pooled_std_df
+
+
 def plot_aggregated(
         mean_df: pd.DataFrame,
         std_df: pd.DataFrame,
@@ -171,9 +206,14 @@ def run(
         df_info=df_info,
         table_path=dir_table+sample_name)
 
-    plot_aggregated(
+    df_mean_pooled, df_std_pooled = pooled_stats(
         mean_df=df_mean,
         std_df=df_std,
+        table_path=dir_table+sample_name)
+
+    plot_aggregated(
+        mean_df=df_mean_pooled,
+        std_df=df_std_pooled,
         plot_path=dir_plot+sample_name)
 
     print('DONE: ', sample_name)

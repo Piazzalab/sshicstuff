@@ -77,7 +77,7 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    modes = ['centromeres']
+    modes = ['cohesins']
 
     if 'centromeres' in modes:
         do_centro()
