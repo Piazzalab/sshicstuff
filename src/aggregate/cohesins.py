@@ -214,13 +214,13 @@ def mkdir(output_path: str,
         os.makedirs(dir_type)
 
     if filter_mode is None:
-        dir_mode = dir_type + '/all/'
+        dir_mode = dir_type + 'all/'
     else:
-        dir_mode = dir_type + '/' + filter_mode + '_' + str(filter_span // 1000) + 'kb' + '/'
+        dir_mode = dir_type + filter_mode + '_' + str(filter_span // 1000) + 'kb' + '/'
     if not os.path.exists(dir_mode):
         os.makedirs(dir_mode)
 
-    dir_score = dir_mode + '/' + str(score_h) + '/'
+    dir_score = dir_mode + str(score_h) + '/'
     if not os.path.exists(dir_score):
         os.makedirs(dir_score)
 
