@@ -1,0 +1,136 @@
+import re
+import numpy as np
+import pandas as pd
+from utils import tools
+
+
+def fragments_to_oligos(
+        df: pd.DataFrame,
+        output_path: str):
+
+    df_frag2oligo = pd.DataFrame()
+    res: dict = {}
+    for x in ['a', 'b']:
+        
+        #   res of the form : {oligoX : {name: "probeX", type: "ds" , chr: 'chr1, ...} ...}
+        for ii_f, frag in enumerate(df['frag_' + x].values):
+            if not pd.isna(df['name_' + x][ii_f]):
+                if frag not in res:
+                    #   Nota Bene : A same read or fragment may contain two oligos because they are very close
+                    #       Thus for a same read we acn see two probe's names that are different
+                    #       For the moment the infos_res[f][names] is an array that may contain one (in most cases)
+                    #       or two probes (for two oligos in one read).
+                    res[frag] = {'type': df['type_' + x][ii_f],
+                                 'oligos': [df['name_' + x][ii_f]],
+                                 'chr': df['chr_' + x][ii_f],
+                                 'start': df['start_' + x][ii_f],
+                                 'end': df['end_' + x][ii_f]}
+    
+                elif frag in res:
+                    if df['name_' + x][ii_f] not in res[frag]['oligos']:
+                        res[frag]['oligos'].append(df['name_' + x][ii_f])
+    
+        for f in res:
+            if len(res[f]['oligos']) > 1:
+                #   If the current fragment or read in the loop has multiple names i.e., contains two oligos
+                #   we decided to merge the probe's names in a single one : 'probe1_&_probe2'
+                res[f]['uid'] = '_&_'.join(res[f]['oligos'])
+            else:
+                res[f]['uid'] = res[f]['oligos'][0]
+
+    df_frag2oligo.index = ['oligo', 'type', 'frag_chr', 'frag_start', 'frag_end']
+    for frag, val in res.items():
+        df_frag2oligo[frag] = np.array([val['uid'], val['type'], val['chr'], val['start'], val['end']])
+
+    df_frag2oligo.to_csv(output_path + '_frag_to_prob.tsv', sep='\t')
+    return res
+
+
+def format_fragments_contacts(
+        df: pd.DataFrame,
+        output_path: str):
+
+    """
+    This function will count the number of contacts for each read that comes from column 'frag_x' in each bin.
+    The results are stored in three dictionaries, given as arguments.
+        contacts_res of the form :  {oligoX : {chrX_binA : n ... } ...}
+        all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
+    """
+    contacted_pos_per_chr: dict = {}
+    contacts_count_per_chr_pos: dict = {}
+    
+    for x in ['a', 'b']:
+        #   if x = a get b, if x = b get a
+        y = tools.frag2(x)
+        for ii_f, f in enumerate(df['frag_' + x].values):
+            if not pd.isna(df['name_' + x][ii_f]):
+                chr_id = df['chr_' + y][ii_f]
+                start = df['start_' + y][ii_f]
+                chr_and_pos = chr_id + '_' + str(start)
+
+                if f not in contacts_count_per_chr_pos:
+                    contacts_count_per_chr_pos[f] = {}
+
+                if chr_id not in contacted_pos_per_chr:
+                    contacted_pos_per_chr[chr_id] = set()
+
+                if chr_and_pos not in contacted_pos_per_chr[chr_id]:
+                    contacted_pos_per_chr[chr_id].add(start)
+
+                bin_id = chr_and_pos
+
+                if bin_id not in contacts_count_per_chr_pos[f]:
+                    contacts_count_per_chr_pos[f][bin_id] = df['contacts'][ii_f]
+                else:
+                    contacts_count_per_chr_pos[f][bin_id] += df['contacts'][ii_f]
+
+    for chr_id, pos_list in contacted_pos_per_chr.items():
+        contacted_pos_per_chr[chr_id] = sorted(pos_list)
+
+    chr_unique_list = np.concatenate([['chr' + str(i) for i in range(1, 17)],
+                                      ['2_micron', 'mitochondrion', 'chr_artificial']])
+
+    chr_and_pos = []
+    chromosomes = []
+    positions = []
+    for chr_id in chr_unique_list:
+        if chr_id in contacted_pos_per_chr:
+            new_pos = contacted_pos_per_chr[chr_id]
+            positions.extend(new_pos)
+            chromosomes.extend(np.repeat(chr_id, len(new_pos)))
+            for npos in new_pos:
+                chr_and_pos.append(chr_id + '_' + str(npos))
+
+    chr_and_pos = np.asarray(chr_and_pos)
+    df_formatted_contacts = pd.DataFrame({'chr': chromosomes, 'positions': positions})
+    df_formatted_frequencies = pd.DataFrame({'chr': chromosomes, 'positions': positions})
+
+    for f in contacts_count_per_chr_pos:
+        contacts = np.zeros(len(chr_and_pos), dtype=int)
+        for pos in contacts_count_per_chr_pos[f]:
+            idx = np.argwhere(chr_and_pos == pos)[0]
+            contacts[idx] = contacts_count_per_chr_pos[f][pos]
+
+        df_formatted_contacts[f] = contacts
+        df_formatted_frequencies[f] = contacts / np.sum(contacts)
+
+    df_formatted_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
+    df_formatted_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+
+
+def run(
+        filtered_contacts_path: str,
+        output_dir: str):
+
+    sample_id = re.search(r"AD\d+", filtered_contacts_path).group()
+    df_contacts_filtered = pd.read_csv(filtered_contacts_path, sep=',')
+
+    fragments_to_oligos(
+        df=df_contacts_filtered,
+        output_path=output_dir+sample_id)
+
+    format_fragments_contacts(
+        df=df_contacts_filtered,
+        output_path=output_dir+sample_id)
+
+    print('DONE: ', sample_id)
