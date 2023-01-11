@@ -3,7 +3,7 @@
 import re
 import numpy as np
 import pandas as pd
-from utils import tools
+
 
 def fold_over(df_stats: pd.DataFrame):
     """
@@ -16,6 +16,7 @@ def fold_over(df_stats: pd.DataFrame):
 
 
 def compute_stats(formatted_contacts_path: str,
+                  fragments_to_oligos_path: str,
                   cis_range: int,
                   output_path: str):
     """
@@ -34,13 +35,10 @@ def compute_stats(formatted_contacts_path: str,
     genome_size = sum(chr_size.values())
     chr_size_normalized = {k: v/genome_size for k, v in chr_size.items()}
 
-    #   dataframe of the formatted contacts csv file previously created,
-    #   with DTYPE=object because multiple type are present in columns
-    #   low_memory because df_all contains multiple dtypes within its columns,
-    #   so pandas has to avoid to guess their types
-    df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
-    #   It needs thus to split between numeric and not numeric data
-    df_infos, df_contacts = tools.split_formatted_dataframe(df_all)
+
+    #   dataframe of the formatted contacts tsv file previously created
+    df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
+    df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
 
     #   df_stats : results dataframe containing all the measures and calculus we want.
     df_stats = pd.DataFrame(columns=['names', 'types', 'cis', 'trans', 'intra', 'inter', 'total_contacts'])
@@ -49,7 +47,7 @@ def compute_stats(formatted_contacts_path: str,
     df_chr_normalized_freq = pd.DataFrame(columns=np.concatenate((['names', 'types'], list(chr_size.keys()))))
 
     #   df_infos is transposed here
-    for index, row in df_infos.T.iterrows():
+    for index, row in df_info.T.iterrows():
         name, ttype, current_chr, cis_left_boundary, cis_right_boundary = row
         #   set the cis position in downstream of the oligo/read : start position of the read - cis_range
         cis_left_boundary = int(cis_left_boundary) - cis_range
@@ -57,12 +55,13 @@ def compute_stats(formatted_contacts_path: str,
         cis_right_boundary = int(cis_right_boundary) + cis_range
 
         #   Sum all contact made by the current oligo to get the total number of contacts
-        all_contacts = np.sum(df_contacts.loc[:, index].values)
+        all_contacts = np.sum(df_formatted_contacts.loc[:, index].values)
 
         #   subset dataframe that only contains the contacts made by the current oligo with the cis region
-        sub_df_cis_contacts = df_contacts.loc[(df_contacts['positions'] > cis_left_boundary) &
-                                              (cis_right_boundary > df_contacts['positions']) &
-                                              (df_contacts['chr'] == current_chr)]
+        sub_df_cis_contacts = df_formatted_contacts.loc[
+            (df_formatted_contacts['positions'] > cis_left_boundary) &
+            (cis_right_boundary > df_formatted_contacts['positions']) &
+            (df_formatted_contacts['chr'] == current_chr)]
 
         #   Get the total amount of contacts made in cis region
         cis_contacts = np.sum(sub_df_cis_contacts.loc[:, index])
@@ -71,7 +70,7 @@ def compute_stats(formatted_contacts_path: str,
         trans_contacts = all_contacts - cis_contacts
 
         #   subset dataframe that only contains contacts made on the same chr (chr of the  current oligo)
-        sub_df_intra_chromosome_contacts = df_contacts.loc[df_contacts['chr'] == current_chr]
+        sub_df_intra_chromosome_contacts = df_formatted_contacts.loc[df_formatted_contacts['chr'] == current_chr]
         #   get total amount
         intra_chromosome_contacts = \
             np.sum(sub_df_intra_chromosome_contacts.loc[:, index].values)
@@ -81,7 +80,7 @@ def compute_stats(formatted_contacts_path: str,
         #   (itself normalized to the size of the genome)
         tmp_df_chr_normalized_freq = pd.DataFrame({'names': [name], 'types': [ttype]})
         for chrom, nrm_size in chr_size_normalized.items():
-            sub_df_chrom_nrm = df_contacts.loc[df_contacts['chr'] == chrom]
+            sub_df_chrom_nrm = df_formatted_contacts.loc[df_formatted_contacts['chr'] == chrom]
             tmp_df_chr_normalized_freq[chrom] = \
                 [(np.sum(sub_df_chrom_nrm.loc[:, index].values) / all_contacts) / nrm_size]
 
@@ -90,7 +89,7 @@ def compute_stats(formatted_contacts_path: str,
 
         #   subset dataframe that only contains contacts made on all other chr
         #   (other than the one of the current oligo)
-        sub_df_inter_chromosome_contacts = df_contacts.loc[df_contacts['chr'] != current_chr]
+        sub_df_inter_chromosome_contacts = df_formatted_contacts.loc[df_formatted_contacts['chr'] != current_chr]
         inter_chromosome_contacts = \
             np.sum(sub_df_inter_chromosome_contacts.loc[:, index].values)
 
@@ -120,13 +119,15 @@ def compute_stats(formatted_contacts_path: str,
 
 def run(
         cis_range: int,
-        binned_contacts_path: str,
+        formatted_contacts_path: str,
+        fragments_to_oligos_path: str,
         output_dir: str):
 
-    sample_id = re.search(r"AD\d+", binned_contacts_path).group()
+    sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
     output_path = output_dir + sample_id
     compute_stats(cis_range=cis_range,
-                  formatted_contacts_path=binned_contacts_path,
+                  formatted_contacts_path=formatted_contacts_path,
+                  fragments_to_oligos_path=fragments_to_oligos_path,
                   output_path=output_path)
 
     print('DONE: ', sample_id)

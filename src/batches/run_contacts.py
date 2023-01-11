@@ -25,8 +25,8 @@ def do_filter():
 
 
 def do_format(parallel: bool = True):
-    samples_dir = "../../data/outputs/filtered/sshic/"
-    output_dir = "../../data/outputs/formatted/sshic/"
+    samples_dir = "../../data/outputs/filtered/sshic_pcrdupkept/"
+    output_dir = "../../data/outputs/formatted/sshic_pcrdupkept/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -49,8 +49,8 @@ def do_binning(parallel: bool = True):
     bin_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000, 10**9]
 
     artificial_genome = "../../data/inputs/S288c_DSB_LY_capture_artificial.fa"
-    samples_dir = "../../data/outputs/formatted/sshic/"
-    output_dir = "../../data/outputs/binning/sshic/"
+    samples_dir = "../../data/outputs/formatted/sshic_pcrdupkept/"
+    output_dir = "../../data/outputs/binning/sshic_pcrdupkept/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -86,30 +86,33 @@ def do_binning(parallel: bool = True):
 
 def do_stats(parallel: bool = True):
     cis_range = 50000
-    samples_dir = "../../data/outputs/binning/sshic/0kb/"
-    output_dir = "../../data/outputs/statistics/sshic/"
+    samples_dir = "../../data/outputs/formatted/sshic_pcrdupkept/"
+    output_dir = "../../data/outputs/statistics/sshic_pcrdupkept/"
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    samples = os.listdir(samples_dir)
+
+    samples = np.unique([re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(statistics.run, [(cis_range,
-                                        samples_dir+samp,
+                                        samples_dir+samp+'_contacts.tsv',
+                                        samples_dir + samp + '_frag_to_prob.tsv',
                                         output_dir) for samp in samples])
 
     else:
         for samp in samples:
             statistics.run(
                 cis_range=cis_range,
-                binned_contacts_path=samples_dir+samp,
+                formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
+                fragments_to_oligos_path=samples_dir+samp+'_frag_to_prob.tsv',
                 output_dir=output_dir
             )
 
 
 if __name__ == "__main__":
-    modes = ['binning']
+    modes = ['statistics']
     if 'filter' in modes:
         do_filter()
     if 'format' in modes:
