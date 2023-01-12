@@ -23,43 +23,46 @@ def compute_centromere_freq_per_oligo_per_chr(
         table_path: str):
 
     reads_array = df_info.columns.values
-    chr_array = np.array(['chr'+str(i) for i in range(1, 17)])
+    unique_chr = pd.unique(df_freq['chr'])
     bins_array = np.unique(df_freq['chr_bins'])
 
     res: dict = {}
     for ol in reads_array:
-        probe = df_info.loc['names', ol]
-        self_chr = df_info.loc['self_chr', ol]
+        probe = df_info.loc['oligo', ol]
+        self_chr = df_info.loc['frag_chr', ol]
         if len(probe.split('-/-')) > 1:
             probe = '_&_'.join(probe.split('-/-'))
 
         df_freq_cen = df_freq.pivot_table(index='chr_bins', columns='chr', values=ol, fill_value=np.nan)
         df_freq_cen[self_chr] = np.nan
-        df_freq_cen = df_freq_cen[chr_array].reindex(bins_array)
+        df_freq_cen = df_freq_cen[unique_chr].reindex(bins_array)
 
         res[probe] = df_freq_cen
         df_freq_cen.to_csv(table_path + '_' + probe + '_chr1-16_freq_cen.tsv', sep='\t')
     return res
 
 
-def freq_focus_around_centromeres(formatted_contacts_path: str,
-                                  window_size: int,
-                                  centros_infos_path: str):
+def freq_focus_around_centromeres(
+        formatted_contacts_path: str,
+        fragments_to_oligos_path: str,
+        window_size: int,
+        bin_size: int,
+        centros_infos_path: str):
     """
     Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
     centromeres and for each of the 16 chromosomes of yeast genome
     """
 
     df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
-    df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
-    df_info, df_contacts = tools.split_formatted_dataframe(df_all)
-    df_res = pd.DataFrame()
-    bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
+    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
+    df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
+    excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion']
 
     def process_row(row):
         current_chr = row[0]
-        if current_chr == '2_micron' or current_chr == 'mitochondrion':
-            return pd.DataFrame()
+
+        if current_chr in excluded_chr:
+            return None
 
         current_centros_pos = row[2]
         left_cutoff = current_centros_pos - window_size - bin_size
@@ -78,7 +81,7 @@ def freq_focus_around_centromeres(formatted_contacts_path: str,
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
         for c in tmp_df.columns[3:]:
-            self_chr = df_info.loc['self_chr', c]
+            self_chr = df_info.loc['frag_chr', c]
             if self_chr == current_chr:
                 tmp_df.loc[:, c] = np.nan
 
@@ -195,6 +198,7 @@ def mkdir(output_path: str):
 
 def run(
         formatted_contacts_path: str,
+        fragments_to_oligos_path: str,
         window_size: int,
         output_path: str,
         centros_coord_path: str):
@@ -204,7 +208,9 @@ def run(
 
     df_contacts_centros, df_info = freq_focus_around_centromeres(
         formatted_contacts_path=formatted_contacts_path,
+        fragments_to_oligos_path=fragments_to_oligos_path,
         window_size=window_size,
+        bin_size=10000,
         centros_infos_path=centros_coord_path)
 
     chr_aggregated_dict = compute_centromere_freq_per_oligo_per_chr(

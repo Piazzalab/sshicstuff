@@ -21,8 +21,10 @@ pd.options.mode.chained_assignment = None
 
 def freq_focus_around_cohesin_peaks(
         formatted_contacts_path: str,
+        fragments_to_oligos_path: str,
         centros_info_path: str,
         window_size: int,
+        bin_size: int,
         cohesins_peaks_path: str,
         score_cutoff: int,
         filter_range: int,
@@ -32,9 +34,8 @@ def freq_focus_around_cohesin_peaks(
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
-    df_all = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0, low_memory=False)
-    df_info, df_contacts = tools.split_formatted_dataframe(df_all)
-    bin_size = df_contacts.iloc[1, 1] - df_contacts.iloc[0, 1]
+    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
+    df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
     excluded_chr = ['chr2', 'chr3']
 
     def process_row(row):
@@ -74,7 +75,7 @@ def freq_focus_around_cohesin_peaks(
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
         for c in filtered_tmp_df.columns[3:]:
-            self_chr = df_info.loc['self_chr', c]
+            self_chr = df_info.loc['frag_chr', c]
             if self_chr == current_chr:
                 filtered_tmp_df.loc[:, c] = np.nan
 
@@ -128,7 +129,7 @@ def compute_average_aggregate(
     df_mean = df_mean.sort_index()
     df_std = df_std.sort_index()
 
-    probes = df_info.loc['names', :].values
+    probes = df_info.loc['oligo', :].values
     df_mean.columns = probes
     df_std.columns = probes
 
@@ -237,6 +238,7 @@ def mkdir(output_path: str,
 
 def run(
         formatted_contacts_path: str,
+        fragments_to_oligos_path: str,
         window_size: int,
         output_dir: str,
         cohesins_peaks_path: str,
@@ -254,8 +256,10 @@ def run(
 
     df_contacts_cohesins, df_info = freq_focus_around_cohesin_peaks(
         formatted_contacts_path=formatted_contacts_path,
+        fragments_to_oligos_path=fragments_to_oligos_path,
         centros_info_path=centromere_info_path,
         window_size=window_size,
+        bin_size=1000,
         cohesins_peaks_path=cohesins_peaks_path,
         score_cutoff=score_cutoff,
         filter_range=cen_filter_span,
