@@ -63,3 +63,5 @@ def run(
         table_path=output_path
     )
 
+    print('DONE: ', sample_id)
+

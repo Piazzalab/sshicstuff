@@ -2,7 +2,7 @@ import os
 import re
 import multiprocessing as mp
 import numpy as np
-from contacts import filter, format, binning, statistics
+from contacts import filter, format, binning, statistics, nucleosomes
 import utils.tools as tools
 
 
@@ -33,7 +33,7 @@ def do_format(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    samples = os.listdir(samples_dir)
+    samples = np.unique(os.listdir(samples_dir))
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
@@ -58,7 +58,8 @@ def do_binning(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    samples = np.unique([f for f in os.listdir(samples_dir) if '_frequencies.tsv' in f])
+    samples = np.unique(
+        [f for f in os.listdir(samples_dir) if '_frequencies.tsv' in f])
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
@@ -97,7 +98,8 @@ def do_stats(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    samples = np.unique([re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
+    samples = np.unique(
+        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
@@ -116,9 +118,36 @@ def do_stats(
             )
 
 
+def do_nucleo(
+        samples_dir: str,
+        nucleosomes_path: str,
+        output_dir: str,
+        parallel: bool = True):
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    samples = np.unique(
+        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
+
+    if parallel:
+        with mp.Pool(mp.cpu_count()) as p:
+            p.starmap(nucleosomes.run, [(samples_dir+samp+'_contacts.tsv',
+                                         nucleosomes_path,
+                                         output_dir) for samp in samples])
+
+    else:
+        for samp in samples:
+            nucleosomes.run(
+                formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
+                nucleosomes_path=nucleosomes_path,
+                output_dir=output_dir
+            )
+
+
 if __name__ == "__main__":
     sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
-    modes = ['format', 'binning', 'statistics']
+    modes = ['nucleosomes']
 
     for hicd in sshic_dir:
         print(hicd)
@@ -128,11 +157,13 @@ if __name__ == "__main__":
         fragments_list = "../../data/inputs/fragments_list.txt"
         artificial_genome_fa = "../../data/inputs/S288c_DSB_LY_capture_artificial.fa"
         oligos_positions = "../../data/inputs/capture_oligo_positions.csv"
+        nucleosomes_free_regions = "../../data/inputs/Chereji_Henikoff_genome_research_NFR.bed"
         hicstuff_dir = "../../data/outputs/hicstuff/" + hicd
         filter_output_dir = "../../data/outputs/filtered/" + hicd
         format_output_dir = "../../data/outputs/formatted/" + hicd
         binning_output_dir = "../../data/outputs/binning/" + hicd
         statistics_output_dir = "../../data/outputs/statistics/" + hicd
+        nfr_output_dir = "../../data/outputs/nucleosomes/" + hicd
 
         parallel_state: bool = True
         if tools.is_debug():
@@ -171,6 +202,15 @@ if __name__ == "__main__":
                 samples_dir=format_output_dir,
                 output_dir=statistics_output_dir,
                 cis_span=50000,
+                parallel=parallel_state
+            )
+
+        if 'nucleosomes' in modes:
+            print('nucleosomes')
+            do_nucleo(
+                samples_dir=format_output_dir,
+                nucleosomes_path=nucleosomes_free_regions,
+                output_dir=nfr_output_dir,
                 parallel=parallel_state
             )
 
