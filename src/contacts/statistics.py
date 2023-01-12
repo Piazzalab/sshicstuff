@@ -36,7 +36,7 @@ def compute_stats(formatted_contacts_path: str,
     chr_size_normalized = {k: v/genome_size for k, v in chr_size.items()}
 
     #   dataframe of the formatted contacts tsv file previously created
-    df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
+    df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
     df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
 
     #   df_stats : results dataframe containing all the measures and calculus we want.
