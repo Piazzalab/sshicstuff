@@ -21,9 +21,7 @@ def is_debug() -> bool:
 
 def find_nearest(array: list | np.ndarray,
                  key: int | float,
-                 mode: str,
-                 maxi: Optional[int] = 10000,
-                 mini: Optional[int] = 0,) -> int | float:
+                 mode: Optional[str] = None) -> int | float:
     """
     Find the nearest element from key into a list of numerics (integer or float).
     Possibility to specify if we want the nearest element in upstream or downstream from the key.
@@ -35,13 +33,13 @@ def find_nearest(array: list | np.ndarray,
     if mode == 'upper':
         # the smallest element of array GREATER than key
         if key >= np.max(array):
-            return maxi
+            return np.max(array)
         else:
             return array[array > key].min()
     elif mode == 'lower':
         # the largest element of array LESS than key
         if key <= np.min(array):
-            return mini
+            return np.min(array)
         else:
             return array[array < key].max()
     else:
