@@ -61,26 +61,26 @@ def do_binning(parallel: bool = True):
             for bs in bin_sizes_list:
                 print('bin of size: ', bs)
 
-                output_dir += str(bs // 1000) + 'kb/'
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
+                new_output_dir = output_dir + str(bs // 1000) + 'kb/'
+                if not os.path.exists(new_output_dir):
+                    os.makedirs(new_output_dir)
 
                 p.starmap(binning.run, [(artificial_genome,
                                          samples_dir+samp,
                                          bs,
-                                         output_dir) for samp in samples])
+                                         new_output_dir) for samp in samples])
     else:
         for bs in bin_sizes_list:
             print('bin of size: ', bs)
-            output_dir += str(bs // 1000) + 'kb/'
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+            new_output_dir = output_dir + str(bs // 1000) + 'kb/'
+            if not os.path.exists(new_output_dir):
+                os.makedirs(new_output_dir)
             for samp in samples:
                 binning.run(
                     artificial_genome_path=artificial_genome,
                     formatted_contacts_path=samples_dir+samp,
                     bin_size=bs,
-                    output_dir=output_dir
+                    output_dir=new_output_dir
                 )
 
 
@@ -112,11 +112,11 @@ def do_stats(parallel: bool = True):
 
 
 if __name__ == "__main__":
-    modes = ['statistics']
+    modes = ['format']
     if 'filter' in modes:
         do_filter()
     if 'format' in modes:
-        do_format()
+        do_format(parallel=False)
     if 'binning' in modes:
         do_binning()
     if 'statistics' in modes:

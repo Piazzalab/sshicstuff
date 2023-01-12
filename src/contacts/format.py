@@ -57,7 +57,7 @@ def format_fragments_contacts(
         all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
     """
     contacted_pos_per_chr: dict = {}
-    contacts_count_per_chr_pos: dict = {}
+    contacted_bins_count_per_frag: dict = {}
     
     for x in ['a', 'b']:
         #   if x = a get b, if x = b get a
@@ -68,8 +68,8 @@ def format_fragments_contacts(
                 start = df['start_' + y][ii_f]
                 chr_and_pos = chr_id + '_' + str(start)
 
-                if f not in contacts_count_per_chr_pos:
-                    contacts_count_per_chr_pos[f] = {}
+                if f not in contacted_bins_count_per_frag:
+                    contacted_bins_count_per_frag[f] = {}
 
                 if chr_id not in contacted_pos_per_chr:
                     contacted_pos_per_chr[chr_id] = set()
@@ -79,10 +79,10 @@ def format_fragments_contacts(
 
                 bin_id = chr_and_pos
 
-                if bin_id not in contacts_count_per_chr_pos[f]:
-                    contacts_count_per_chr_pos[f][bin_id] = df['contacts'][ii_f]
+                if bin_id not in contacted_bins_count_per_frag[f]:
+                    contacted_bins_count_per_frag[f][bin_id] = df['contacts'][ii_f]
                 else:
-                    contacts_count_per_chr_pos[f][bin_id] += df['contacts'][ii_f]
+                    contacted_bins_count_per_frag[f][bin_id] += df['contacts'][ii_f]
 
     for chr_id, pos_list in contacted_pos_per_chr.items():
         contacted_pos_per_chr[chr_id] = sorted(pos_list)
@@ -105,11 +105,11 @@ def format_fragments_contacts(
     df_formatted_contacts = pd.DataFrame({'chr': chromosomes, 'positions': positions})
     df_formatted_frequencies = pd.DataFrame({'chr': chromosomes, 'positions': positions})
 
-    for f in contacts_count_per_chr_pos:
+    for f in contacted_bins_count_per_frag:
         contacts = np.zeros(len(chr_and_pos), dtype=int)
-        for pos in contacts_count_per_chr_pos[f]:
+        for pos in contacted_bins_count_per_frag[f]:
             idx = np.argwhere(chr_and_pos == pos)[0]
-            contacts[idx] = contacts_count_per_chr_pos[f][pos]
+            contacts[idx] = contacted_bins_count_per_frag[f][pos]
 
         df_formatted_contacts[f] = contacts
         df_formatted_frequencies[f] = contacts / np.sum(contacts)

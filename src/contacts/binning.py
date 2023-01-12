@@ -87,8 +87,8 @@ def get_contacts_per_bin(
 
         df_binned_frequencies[frag] = df_binned_contacts[frag] / sum(df_binned_contacts[frag])
 
-        df_binned_contacts.to_csv(output_path + '_' + str(bin_size // 1000) + 'kb_contacts.tsv', sep='\t')
-        df_binned_frequencies.to_csv(output_path + '_' + str(bin_size // 1000) + 'kb_frequencies.tsv', sep='\t')
+        df_binned_contacts.to_csv(output_path + '_contacts.tsv', sep='\t')
+        df_binned_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t')
 
 
 def run(
