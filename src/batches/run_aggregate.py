@@ -110,7 +110,7 @@ if __name__ == "__main__":
     sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
     modes = ['centromeres', 'telomeres', 'cohesins']
     for hicd in sshic_dir:
-
+        print(hicd)
         #  ARGUMENTS
         #######################################################
         centromeres_positions = "../../data/inputs/S288c_chr_centro_coordinates.tsv"
@@ -132,6 +132,7 @@ if __name__ == "__main__":
             os.makedirs(aggregated_output_dir)
 
         if 'centromeres' in modes:
+            print('Centromeres')
             do_centro(
                 centromeres_coordinates=centromeres_positions,
                 samples_dir=binned_contacts,
@@ -142,6 +143,7 @@ if __name__ == "__main__":
             )
 
         if 'telomeres' in modes:
+            print('Telomeres')
             do_telo(
                 centromeres_coordinates=centromeres_positions,
                 samples_dir=binned_contacts,
@@ -152,6 +154,7 @@ if __name__ == "__main__":
             )
 
         if 'cohesins' in modes:
+            print('Cohesins Peaks')
             do_cohesins(
                 samples_dir=binned_contacts,
                 frag2prob_dir=fragments_to_probes_table,
