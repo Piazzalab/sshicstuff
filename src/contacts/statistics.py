@@ -22,6 +22,7 @@ def compute_stats(formatted_contacts_path: str,
         'chr7': 1090940, 'chr8': 562643, 'chr9': 439888, 'chr10': 745751, 'chr11': 666816, 'chr12': 1078177,
         'chr13': 924431, 'chr14': 784333, 'chr15': 1091291, 'chr16': 948066, 'mitochondrion': 85779, '2_micron': 6318}
 
+    unique_chr = list(chr_size.keys())
     genome_size = sum(chr_size.values())
     chr_size_normalized = {k: v/genome_size for k, v in chr_size.items()}
     df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
@@ -36,7 +37,9 @@ def compute_stats(formatted_contacts_path: str,
     intra_chr_contacts = []
     inter_chr_contacts = []
     total_contacts = []
+
     chr_contacts_nrm = {k: [] for k in chr_size}
+    chr_inter_only_contacts_nrm = {k: [] for k in chr_size}
 
     for ii_f, frag in enumerate(fragments):
         sub_df = df_formatted_contacts[['chr', 'positions', frag]]
@@ -62,6 +65,10 @@ def compute_stats(formatted_contacts_path: str,
                 (np.sum(sub_df.query("chr == @chrom")[frag].values) / total_contacts[ii_f]) / size
             )
 
+            chr_inter_only_contacts_nrm[chrom].append(
+                (np.sum(sub_df.query("chr == @chrom and chr != @frag_chr ")[frag].values) / total_contacts[ii_f]) / size
+            )
+
     df_global = pd.DataFrame({'fragments': fragments, 'probes': probes, 'types': types, 'total': total_contacts,
                               'cis': cis_contacts, 'trans': trans_contacts, 'intra_chr': intra_chr_contacts,
                               'inter_chr': inter_chr_contacts})
@@ -72,11 +79,15 @@ def compute_stats(formatted_contacts_path: str,
         df_global.loc[:, 'total'] / np.mean(df_global.loc[df_global['types'] == 'ds', 'total'].values)
 
     df_chr_nrm = pd.DataFrame({'fragments': fragments, 'probes': probes, 'types': types})
-    for chr_id, freqs in chr_contacts_nrm.items():
-        df_chr_nrm[chr_id] = freqs
+    df_chr_inter_only_nrm = pd.DataFrame({'fragments': fragments, 'probes': probes, 'types': types})
+
+    for chr_id in unique_chr:
+        df_chr_nrm[chr_id] = chr_contacts_nrm[chr_id]
+        df_chr_inter_only_nrm[chr_id] = chr_inter_only_contacts_nrm[chr_id]
 
     df_global.to_csv(output_path + '_global_statistics.tsv', sep='\t')
     df_chr_nrm.to_csv(output_path + '_normalized_chr_freq.tsv', sep='\t')
+    df_chr_inter_only_nrm.to_csv(output_path + '_normalized_inter_chr_only_freq.tsv', sep='\t')
 
 
 def run(
