@@ -20,13 +20,14 @@ def fragments_to_oligos(
             #       Thus for a same read we acn see two probe's names that are different
             #       For the moment the infos_res[f][names] is an array that may contain one (in most cases)
             #       or two probes (for two oligos in one read).
-            res[frag] = {
-                'probes': pd.unique(sub_df.loc[sub_df['frag_'+x] == frag, 'name_'+x]),
-                'type': sub_df.loc[sub_df['frag_'+x] == frag, 'type_'+x].values[0],
-                'frag_chr': sub_df.loc[sub_df['frag_'+x] == frag, 'chr_'+x].values[0],
-                'frag_start': sub_df.loc[sub_df['frag_' + x] == frag, 'start_' + x].values[0],
-                'frag_end': sub_df.loc[sub_df['frag_' + x] == frag, 'end_' + x].values[0]
-            }
+            if frag not in res:
+                res[frag] = {
+                    'probes': pd.unique(sub_df.loc[sub_df['frag_'+x] == frag, 'name_'+x]),
+                    'type': sub_df.loc[sub_df['frag_'+x] == frag, 'type_'+x].values[0],
+                    'frag_chr': sub_df.loc[sub_df['frag_'+x] == frag, 'chr_'+x].values[0],
+                    'frag_start': sub_df.loc[sub_df['frag_' + x] == frag, 'start_' + x].values[0],
+                    'frag_end': sub_df.loc[sub_df['frag_' + x] == frag, 'end_' + x].values[0]
+                }
 
         for frag, val in res.items():
             if len(val['probes']) > 1:
