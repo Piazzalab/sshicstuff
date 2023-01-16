@@ -133,6 +133,7 @@ def do_nucleo(
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(nucleosomes.run, [(samples_dir+samp+'_contacts.tsv',
+                                         samples_dir + samp + '_frag_to_prob.tsv',
                                          nucleosomes_path,
                                          output_dir) for samp in samples])
 
@@ -140,6 +141,7 @@ def do_nucleo(
         for samp in samples:
             nucleosomes.run(
                 formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
+                fragments_to_probes_path=samples_dir+samp+'_frag_to_prob.tsv',
                 nucleosomes_path=nucleosomes_path,
                 output_dir=output_dir
             )

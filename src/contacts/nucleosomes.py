@@ -2,8 +2,18 @@
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import stats
 import re
 import os
+
+
+def get_fragments_sizes(fragments_to_probes_path: str):
+    df_frag2oligo = pd.read_csv(fragments_to_probes_path, sep='\t', index_col=0)
+    fragments_sizes = {}
+    for frag in df_frag2oligo.columns.values:
+        fragments_sizes[frag] = int(df_frag2oligo.loc['frag_end', frag]) - int(df_frag2oligo.loc['frag_start', frag])
+    return fragments_sizes
 
 
 def get_nfr_contacts(
@@ -66,19 +76,60 @@ def mkdir(output_path: str):
     return dir_table, dir_plot
 
 
+def plot_size_distribution(
+        df_contacts: pd.DataFrame,
+        dict_sizes: dict,
+        mode: str,
+        plot_path: str):
+
+    x = []
+    for frag, size in dict_sizes.items():
+        x.append([size]*sum(df_contacts[frag].values))
+    x = np.concatenate(x)
+    xx = np.linspace(min(x), max(x), 1000)
+    kde = stats.gaussian_kde(x)
+
+    fig, ax = plt.subplots(figsize=(16, 14), dpi=300)
+    ax.hist(x, density=True, bins=100, alpha=0.3, linewidth=1.2, edgecolor='black')
+    ax.plot(xx, kde(xx))
+    plt.xlabel('Sizes of fragments')
+    plt.ylabel('Numbers of contacts')
+    plt.title("Distribution of fragment sizes {0} NFR".format(mode))
+    plt.savefig(plot_path + '_fragment_size_{0}_nfr_distribution.jpg'.format(mode), dpi=300)
+    # plt.show()
+    plt.close()
+
+
 def run(
         formatted_contacts_path: str,
+        fragments_to_probes_path: str,
         nucleosomes_path,
         output_dir: str):
 
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
     output_path = output_dir + sample_id
 
+    frag_sizes = get_fragments_sizes(fragments_to_probes_path=fragments_to_probes_path)
+
     dir_table, dir_plot = mkdir(output_path=output_path)
     df_contacts_in_nfr, df_contacts_out_nfr = get_nfr_contacts(
         formatted_contacts_path=formatted_contacts_path,
         nucleosomes_path=nucleosomes_path,
         table_path=dir_table+sample_id
+    )
+
+    plot_size_distribution(
+        df_contacts=df_contacts_in_nfr,
+        dict_sizes=frag_sizes,
+        mode='inside',
+        plot_path=dir_plot+sample_id
+    )
+
+    plot_size_distribution(
+        df_contacts=df_contacts_out_nfr,
+        dict_sizes=frag_sizes,
+        mode='outside',
+        plot_path=dir_plot+sample_id
     )
 
     print('DONE: ', sample_id)
