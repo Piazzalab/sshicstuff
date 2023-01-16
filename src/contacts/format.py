@@ -9,41 +9,41 @@ def fragments_to_oligos(
         output_path: str):
 
     df_frag2oligo = pd.DataFrame()
+    df_frag2oligo.index = ['oligo', 'type', 'frag_chr', 'frag_start', 'frag_end']
+    #   res of the form : {oligoX : {name: "probeX", type: "ds" , chr: 'chr1, ...} ...}
     res: dict = {}
     for x in ['a', 'b']:
-        
-        #   res of the form : {oligoX : {name: "probeX", type: "ds" , chr: 'chr1, ...} ...}
-        for ii_f, frag in enumerate(df['frag_' + x].values):
-            if not pd.isna(df['name_' + x][ii_f]):
-                if frag not in res:
-                    #   Nota Bene : A same read or fragment may contain two oligos because they are very close
-                    #       Thus for a same read we acn see two probe's names that are different
-                    #       For the moment the infos_res[f][names] is an array that may contain one (in most cases)
-                    #       or two probes (for two oligos in one read).
-                    res[frag] = {'type': df['type_' + x][ii_f],
-                                 'oligos': [df['name_' + x][ii_f]],
-                                 'chr': df['chr_' + x][ii_f],
-                                 'start': df['start_' + x][ii_f],
-                                 'end': df['end_' + x][ii_f]}
-    
-                elif frag in res:
-                    if df['name_' + x][ii_f] not in res[frag]['oligos']:
-                        res[frag]['oligos'].append(df['name_' + x][ii_f])
-    
-        for f in res:
-            if len(res[f]['oligos']) > 1:
+        sub_df = df[~pd.isna(df['name_' + x])]
+        unique_frag = pd.unique(sub_df['frag_'+x])
+        for frag in unique_frag:
+            #   Nota Bene : A same read or fragment may contain two oligos because they are very close
+            #       Thus for a same read we acn see two probe's names that are different
+            #       For the moment the infos_res[f][names] is an array that may contain one (in most cases)
+            #       or two probes (for two oligos in one read).
+            res[frag] = {
+                'probes': pd.unique(sub_df.loc[sub_df['frag_'+x] == frag, 'name_'+x]),
+                'type': sub_df.loc[sub_df['frag_'+x] == frag, 'type_'+x].values[0],
+                'frag_chr': sub_df.loc[sub_df['frag_'+x] == frag, 'chr_'+x].values[0],
+                'frag_start': sub_df.loc[sub_df['frag_' + x] == frag, 'start_' + x].values[0],
+                'frag_end': sub_df.loc[sub_df['frag_' + x] == frag, 'end_' + x].values[0]
+            }
+
+        for frag, val in res.items():
+            if len(val['probes']) > 1:
                 #   If the current fragment or read in the loop has multiple names i.e., contains two oligos
                 #   we decided to merge the probe's names in a single one : 'probe1_&_probe2'
-                res[f]['uid'] = '_&_'.join(res[f]['oligos'])
+                uid = '_&_'.join(res[frag]['probes'])
             else:
-                res[f]['uid'] = res[f]['oligos'][0]
+                uid = res[frag]['probes'][0]
 
-    df_frag2oligo.index = ['oligo', 'type', 'frag_chr', 'frag_start', 'frag_end']
-    for frag, val in res.items():
-        df_frag2oligo[frag] = np.array([val['uid'], val['type'], val['chr'], val['start'], val['end']])
+            df_frag2oligo[frag] = np.array([uid,
+                                           val['type'],
+                                           val['frag_chr'],
+                                           val['frag_start'],
+                                           val['frag_end']])
 
-    df_frag2oligo.to_csv(output_path + '_frag_to_prob.tsv', sep='\t')
-    return res
+        df_frag2oligo.to_csv(output_path + '_frag_to_prob.tsv', sep='\t')
+        return res
 
 
 def format_fragments_contacts(
