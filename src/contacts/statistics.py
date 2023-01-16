@@ -37,6 +37,7 @@ def compute_stats(formatted_contacts_path: str,
     intra_chr_contacts = []
     inter_chr_contacts = []
     total_contacts = []
+    total_contacts_inter = []
 
     chr_contacts_nrm = {k: [] for k in chr_size}
     chr_inter_only_contacts_nrm = {k: [] for k in chr_size}
@@ -46,6 +47,10 @@ def compute_stats(formatted_contacts_path: str,
         cis_limits = [int(df_info.loc['frag_start', frag]) - cis_range, int(df_info.loc['frag_end', frag]) + cis_range]
         frag_chr = df_info.loc['frag_chr', frag]
         total_contacts.append(np.sum(sub_df[frag].values))
+        total_contacts_inter.append(np.sum(sub_df.query("chr != @frag_chr")[frag].values))
+
+        if 0 in total_contacts_inter:
+            pass
         cis_contacts.append(
             np.sum(
                 sub_df.query(
@@ -61,13 +66,19 @@ def compute_stats(formatted_contacts_path: str,
         )
 
         for chrom, size in chr_size_normalized.items():
-            chr_contacts_nrm[chrom].append(
-                (np.sum(sub_df.query("chr == @chrom")[frag].values) / total_contacts[ii_f]) / size
-            )
+            n1 = np.sum(sub_df.query("chr == @chrom")[frag].values)
+            d1 = total_contacts[ii_f] / size
+            if d1 == 0:
+                chr_contacts_nrm[chrom].append(0)
+            else:
+                chr_contacts_nrm[chrom].append(n1/d1)
 
-            chr_inter_only_contacts_nrm[chrom].append(
-                (np.sum(sub_df.query("chr == @chrom and chr != @frag_chr ")[frag].values) / total_contacts[ii_f]) / size
-            )
+            n2 = np.sum(sub_df.query("chr == @chrom and chr != @frag_chr ")[frag].values)
+            d2 = total_contacts_inter[ii_f] / size
+            if d2 == 0:
+                chr_inter_only_contacts_nrm[chrom].append(0)
+            else:
+                chr_inter_only_contacts_nrm[chrom].append(n2/d2)
 
     df_global = pd.DataFrame({'fragments': fragments, 'probes': probes, 'types': types, 'total': total_contacts,
                               'cis': cis_contacts, 'trans': trans_contacts, 'intra_chr': intra_chr_contacts,
