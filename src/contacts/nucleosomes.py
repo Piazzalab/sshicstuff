@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import re
+import os
 
 
 def get_nfr_contacts(
@@ -49,6 +50,21 @@ def get_nfr_contacts(
     df_contacts_in_nfr.to_csv(table_path + '_contacts_in_nfr.tsv', sep='\t')
     df_contacts_out_nfr.to_csv(table_path + '_contacts_out_nfr.tsv', sep='\t')
 
+    return df_contacts_in_nfr, df_contacts_out_nfr
+
+
+def mkdir(output_path: str):
+    dir_res = output_path
+    if not os.path.exists(dir_res):
+        os.makedirs(dir_res)
+    dir_plot = dir_res + '/plots/'
+    if not os.path.exists(dir_plot):
+        os.makedirs(dir_plot)
+    dir_table = dir_res + '/tables/'
+    if not os.path.exists(dir_table):
+        os.makedirs(dir_table)
+    return dir_table, dir_plot
+
 
 def run(
         formatted_contacts_path: str,
@@ -57,11 +73,12 @@ def run(
 
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
     output_path = output_dir + sample_id
-    get_nfr_contacts(
+
+    dir_table, dir_plot = mkdir(output_path=output_path)
+    df_contacts_in_nfr, df_contacts_out_nfr = get_nfr_contacts(
         formatted_contacts_path=formatted_contacts_path,
         nucleosomes_path=nucleosomes_path,
-        table_path=output_path
+        table_path=dir_table+sample_id
     )
 
     print('DONE: ', sample_id)
-
