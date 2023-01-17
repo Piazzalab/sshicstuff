@@ -8,19 +8,13 @@ import re
 import os
 
 
-def get_fragments_sizes(fragments_to_probes_path: str):
-    df_frag2oligo = pd.read_csv(fragments_to_probes_path, sep='\t', index_col=0)
-    fragments_sizes = {}
-    for frag in df_frag2oligo.columns.values:
-        fragments_sizes[frag] = int(df_frag2oligo.loc['frag_end', frag]) - int(df_frag2oligo.loc['frag_start', frag])
-    return fragments_sizes
-
-
 def get_nfr_contacts(
         formatted_contacts_path: str,
+        fragments_path: str,
         nucleosomes_path: str,
         table_path: str):
 
+    df_fragments = pd.read_csv(fragments_path, sep='\t')
     df_nucleosomes_raw = pd.read_csv(nucleosomes_path, sep='\t')
     df_nucleosomes = df_nucleosomes_raw.drop_duplicates(keep='first')
     del df_nucleosomes_raw
@@ -57,9 +51,6 @@ def get_nfr_contacts(
     df_contacts_out_nfr.index = range(len(df_contacts_out_nfr))
     df_contacts_in_nfr.index = range(len(df_contacts_in_nfr))
 
-    df_contacts_in_nfr.to_csv(table_path + '_contacts_in_nfr.tsv', sep='\t')
-    df_contacts_out_nfr.to_csv(table_path + '_contacts_out_nfr.tsv', sep='\t')
-
     return df_contacts_in_nfr, df_contacts_out_nfr
 
 
@@ -76,58 +67,80 @@ def mkdir(output_path: str):
     return dir_table, dir_plot
 
 
+def fetch_fragments_sizes(
+        df_fragments: pd.DataFrame,
+        df_contacts: pd.DataFrame):
+
+    chr_pos_fragments = (df_fragments['chrom'].astype(str) + '_' + df_fragments['start_pos'].astype(str)).to_numpy()
+    chr_pos_contacts = (df_contacts['chr'].astype(str) + '_' + df_contacts['positions'].astype(str)).to_numpy()
+    index_to_keep = np.where(np.isin(chr_pos_fragments, chr_pos_contacts))[0]
+    df_fragments_filtered = df_fragments.iloc[index_to_keep]
+    df_contacts.insert(2, 'size', df_fragments_filtered['size'].values)
+
+
 def plot_size_distribution(
         df_contacts: pd.DataFrame,
-        dict_sizes: dict,
         mode: str,
         plot_path: str):
 
-    x = []
-    for frag, size in dict_sizes.items():
-        x.append([size]*sum(df_contacts[frag].values))
-    x = np.concatenate(x)
-    xx = np.linspace(min(x), max(x), 1000)
-    kde = stats.gaussian_kde(x)
+    x = df_contacts['size'].values
 
+    #   Freedman-Diaconis rule for optimal binning
+    q1 = np.quantile(x, 0.25)
+    q3 = np.quantile(x, 0.75)
+    iqr = q3 - q1
+    bin_width = (2 * iqr) / (len(x) ** (1 / 3))
+    bin_count = int(np.ceil((x.max() - x.min()) / bin_width))
+
+    xx = np.linspace(min(x), max(x), 10000)
+    kde = stats.gaussian_kde(x)
     fig, ax = plt.subplots(figsize=(16, 14), dpi=300)
-    ax.hist(x, density=True, bins=100, alpha=0.3, linewidth=1.2, edgecolor='black')
+    ax.hist(x, density=True, bins=bin_count, alpha=0.3, linewidth=1.2, edgecolor='black')
     ax.plot(xx, kde(xx))
     plt.xlabel('Sizes of fragments')
     plt.ylabel('Numbers of contacts')
-    plt.title("Distribution of fragment sizes {0} NFR".format(mode))
-    plt.savefig(plot_path + '_fragment_size_{0}_nfr_distribution.jpg'.format(mode), dpi=300)
+    plt.title("Distribution of fragments sizes {0} NFR".format(mode))
+    plt.savefig(plot_path + '_fragments_sizes_{0}_nfr_distribution.jpg'.format(mode), dpi=300)
     # plt.show()
     plt.close()
 
 
 def run(
         formatted_contacts_path: str,
-        fragments_to_probes_path: str,
+        fragments_list_path: str,
         nucleosomes_path,
         output_dir: str):
 
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
     output_path = output_dir + sample_id
 
-    frag_sizes = get_fragments_sizes(fragments_to_probes_path=fragments_to_probes_path)
-
+    df_fragments = pd.read_csv(fragments_list_path, sep='\t')
     dir_table, dir_plot = mkdir(output_path=output_path)
     df_contacts_in_nfr, df_contacts_out_nfr = get_nfr_contacts(
         formatted_contacts_path=formatted_contacts_path,
+        fragments_path=fragments_list_path,
         nucleosomes_path=nucleosomes_path,
         table_path=dir_table+sample_id
     )
 
+    fetch_fragments_sizes(
+        df_fragments=df_fragments,
+        df_contacts=df_contacts_in_nfr
+    )
+
+    fetch_fragments_sizes(
+        df_fragments=df_fragments,
+        df_contacts=df_contacts_out_nfr
+    )
+
     plot_size_distribution(
         df_contacts=df_contacts_in_nfr,
-        dict_sizes=frag_sizes,
         mode='inside',
         plot_path=dir_plot+sample_id
     )
 
     plot_size_distribution(
         df_contacts=df_contacts_out_nfr,
-        dict_sizes=frag_sizes,
         mode='outside',
         plot_path=dir_plot+sample_id
     )
