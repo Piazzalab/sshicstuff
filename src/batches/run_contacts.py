@@ -120,6 +120,8 @@ def do_stats(
 
 def do_nucleo(
         samples_dir: str,
+        fragments: str,
+        statistics_dir: str,
         nucleosomes_path: str,
         output_dir: str,
         parallel: bool = True):
@@ -133,7 +135,8 @@ def do_nucleo(
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(nucleosomes.run, [(samples_dir+samp+'_contacts.tsv',
-                                         samples_dir + samp + '_frag_to_prob.tsv',
+                                         statistics_dir+samp+'_global_statistics.tsv',
+                                         fragments,
                                          nucleosomes_path,
                                          output_dir) for samp in samples])
 
@@ -141,7 +144,8 @@ def do_nucleo(
         for samp in samples:
             nucleosomes.run(
                 formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
-                fragments_to_probes_path=samples_dir+samp+'_frag_to_prob.tsv',
+                statistics_path=statistics_dir+samp+'_global_statistics.tsv',
+                fragments_list_path=fragments,
                 nucleosomes_path=nucleosomes_path,
                 output_dir=output_dir
             )
@@ -149,7 +153,7 @@ def do_nucleo(
 
 if __name__ == "__main__":
     sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
-    modes = ['statistics']
+    modes = ['nucleosomes']
 
     for hicd in sshic_dir:
         print(hicd)
@@ -211,6 +215,8 @@ if __name__ == "__main__":
             print('nucleosomes')
             do_nucleo(
                 samples_dir=format_output_dir,
+                fragments=fragments_list,
+                statistics_dir=statistics_output_dir,
                 nucleosomes_path=nucleosomes_free_regions,
                 output_dir=nfr_output_dir,
                 parallel=parallel_state

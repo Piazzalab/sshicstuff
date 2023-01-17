@@ -67,6 +67,36 @@ def mkdir(output_path: str):
     return dir_table, dir_plot
 
 
+def nfr_statistics(
+        df_contacts_in: pd.DataFrame,
+        df_contacts_out: pd.DataFrame,
+        output_file_name: str):
+
+    if not os.path.exists(output_file_name):
+        print("Please make sure that you already have run the statistics script")
+        return None
+
+    df_global_stats = pd.read_csv(output_file_name, sep='\t', index_col=0)
+    fragments = df_global_stats['fragments'].astype(str).values
+
+    nfr_in = []
+    nfr_out = []
+    nb_reads_in = df_contacts_in.shape[0]
+    nb_reads_out = df_contacts_out.shape[0]
+    for frag in fragments:
+        nfr_in.append(
+            np.sum(df_contacts_in[frag].values) / nb_reads_in
+        )
+
+        nfr_out.append(
+            np.sum(df_contacts_out[frag].values) / nb_reads_out
+        )
+
+    df_global_stats['frac_nfr_in'] = nfr_in
+    df_global_stats['frac_nfr_out'] = nfr_out
+
+
+
 def fetch_fragments_sizes(
         df_fragments: pd.DataFrame,
         df_contacts: pd.DataFrame):
@@ -107,6 +137,7 @@ def plot_size_distribution(
 
 def run(
         formatted_contacts_path: str,
+        statistics_path: str,
         fragments_list_path: str,
         nucleosomes_path,
         output_dir: str):
@@ -123,26 +154,34 @@ def run(
         table_path=dir_table+sample_id
     )
 
-    fetch_fragments_sizes(
-        df_fragments=df_fragments,
-        df_contacts=df_contacts_in_nfr
+    nfr_statistics(
+        df_contacts_in=df_contacts_in_nfr,
+        df_contacts_out=df_contacts_out_nfr,
+        output_file_name=statistics_path
     )
 
-    fetch_fragments_sizes(
-        df_fragments=df_fragments,
-        df_contacts=df_contacts_out_nfr
-    )
 
-    plot_size_distribution(
-        df_contacts=df_contacts_in_nfr,
-        mode='inside',
-        plot_path=dir_plot+sample_id
-    )
 
-    plot_size_distribution(
-        df_contacts=df_contacts_out_nfr,
-        mode='outside',
-        plot_path=dir_plot+sample_id
-    )
+    # fetch_fragments_sizes(
+    #     df_fragments=df_fragments,
+    #     df_contacts=df_contacts_in_nfr
+    # )
+    #
+    # fetch_fragments_sizes(
+    #     df_fragments=df_fragments,
+    #     df_contacts=df_contacts_out_nfr
+    # )
+    #
+    # plot_size_distribution(
+    #     df_contacts=df_contacts_in_nfr,
+    #     mode='inside',
+    #     plot_path=dir_plot+sample_id
+    # )
+    #
+    # plot_size_distribution(
+    #     df_contacts=df_contacts_out_nfr,
+    #     mode='outside',
+    #     plot_path=dir_plot+sample_id
+    # )
 
     print('DONE: ', sample_id)
