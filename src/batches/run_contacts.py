@@ -149,7 +149,7 @@ def do_nucleo(
 
 if __name__ == "__main__":
     sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
-    modes = ['nucleosomes']
+    modes = ['statistics']
 
     for hicd in sshic_dir:
         print(hicd)
