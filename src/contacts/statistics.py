@@ -17,14 +17,12 @@ def compute_stats(formatted_contacts_path: str,
      (with cis range as an input value given by the user, in bp)
     """
 
-    chr_size = {
+    chr_size_dict = {
         'chr1': 230218, 'chr2': 813184, 'chr3': 316620, 'chr4': 1531933, 'chr5': 576874, 'chr6': 270161,
         'chr7': 1090940, 'chr8': 562643, 'chr9': 439888, 'chr10': 745751, 'chr11': 666816, 'chr12': 1078177,
         'chr13': 924431, 'chr14': 784333, 'chr15': 1091291, 'chr16': 948066, 'mitochondrion': 85779, '2_micron': 6318}
 
-    unique_chr = list(chr_size.keys())
-    genome_size = sum(chr_size.values())
-    chr_size_normalized = {k: v/genome_size for k, v in chr_size.items()}
+    unique_chr = list(chr_size_dict.keys())
     df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
     df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
 
@@ -39,8 +37,8 @@ def compute_stats(formatted_contacts_path: str,
     total_contacts = []
     total_contacts_inter = []
 
-    chr_contacts_nrm = {k: [] for k in chr_size}
-    chr_inter_only_contacts_nrm = {k: [] for k in chr_size}
+    chr_contacts_nrm = {k: [] for k in chr_size_dict}
+    chr_inter_only_contacts_nrm = {k: [] for k in chr_size_dict}
 
     for ii_f, frag in enumerate(fragments):
         sub_df = df_formatted_contacts[['chr', 'positions', frag]]
@@ -49,8 +47,6 @@ def compute_stats(formatted_contacts_path: str,
         total_contacts.append(np.sum(sub_df[frag].values))
         total_contacts_inter.append(np.sum(sub_df.query("chr != @frag_chr")[frag].values))
 
-        if 0 in total_contacts_inter:
-            pass
         cis_contacts.append(
             np.sum(
                 sub_df.query(
@@ -65,20 +61,33 @@ def compute_stats(formatted_contacts_path: str,
             np.sum(sub_df.query("chr != @frag_chr")[frag].values) / total_contacts[ii_f]
         )
 
-        for chrom, size in chr_size_normalized.items():
+        for chrom in chr_size_dict:
+
+            #   n1: sum contacts chr_i
+            #   d1: sum contacts all chr
+            #   chrom_size: chr_i's size
+            #   genome_size: sum of sizes for all chr except frag_chr
+            #   c1 : normalized contacts on chr_i for frag_j
+            chrom_size = chr_size_dict[chrom]
+            genome_size = sum([s for c, s in chr_size_dict.items() if c != frag_chr])
             n1 = np.sum(sub_df.query("chr == @chrom")[frag].values)
-            d1 = total_contacts[ii_f] / size
-            if d1 == 0:
+            if n1 == 0:
                 chr_contacts_nrm[chrom].append(0)
             else:
-                chr_contacts_nrm[chrom].append(n1/d1)
+                d1 = total_contacts[ii_f]
+                c1 = (n1/d1) / (chrom_size/genome_size)
+                chr_contacts_nrm[chrom].append(c1)
 
-            n2 = np.sum(sub_df.query("chr == @chrom and chr != @frag_chr ")[frag].values)
-            d2 = total_contacts_inter[ii_f] / size
-            if d2 == 0:
+            #   n2: n1: sum contacts chr_i if chr_i != frag_chr
+            #   d2: sum contacts all inter chr (exclude the frag_chr)
+            #   c2 : normalized inter chr contacts on chr_i for frag_j
+            n2 = np.sum(sub_df.query("chr == @chrom and chr != @frag_chr")[frag].values)
+            if n2 == 0:
                 chr_inter_only_contacts_nrm[chrom].append(0)
             else:
-                chr_inter_only_contacts_nrm[chrom].append(n2/d2)
+                d2 = total_contacts_inter[ii_f]
+                c2 = (n2 / d2) / (chrom_size / genome_size)
+                chr_inter_only_contacts_nrm[chrom].append(c2)
 
     df_global = pd.DataFrame({'fragments': fragments, 'probes': probes, 'types': types, 'total': total_contacts,
                               'cis': cis_contacts, 'trans': trans_contacts, 'intra_chr': intra_chr_contacts,
