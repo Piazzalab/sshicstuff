@@ -121,7 +121,6 @@ def do_stats(
 def do_nucleo(
         samples_dir: str,
         fragments: str,
-        statistics_dir: str,
         nucleosomes_path: str,
         output_dir: str,
         parallel: bool = True):
@@ -135,7 +134,6 @@ def do_nucleo(
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(nucleosomes.run, [(samples_dir+samp+'_contacts.tsv',
-                                         statistics_dir+samp+'_global_statistics.tsv',
                                          fragments,
                                          nucleosomes_path,
                                          output_dir) for samp in samples])
@@ -144,7 +142,6 @@ def do_nucleo(
         for samp in samples:
             nucleosomes.run(
                 formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
-                statistics_path=statistics_dir+samp+'_global_statistics.tsv',
                 fragments_list_path=fragments,
                 nucleosomes_path=nucleosomes_path,
                 output_dir=output_dir
@@ -152,29 +149,28 @@ def do_nucleo(
 
 
 if __name__ == "__main__":
+
+    fragments_list = "../../data/inputs/fragments_list.txt"
+    artificial_genome_fa = "../../data/inputs/S288c_DSB_LY_capture_artificial.fa"
+    oligos_positions = "../../data/inputs/capture_oligo_positions.csv"
+    nucleosomes_free_regions = "../../data/inputs/Chereji_Henikoff_genome_research_NFR.bed"
+    nfr_output_dir = "../../data/outputs/nucleosomes/"
+
     sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
     modes = ['nucleosomes']
 
     for hicd in sshic_dir:
         print(hicd)
 
-        #  ARGUMENTS
-        #######################################################
-        fragments_list = "../../data/inputs/fragments_list.txt"
-        artificial_genome_fa = "../../data/inputs/S288c_DSB_LY_capture_artificial.fa"
-        oligos_positions = "../../data/inputs/capture_oligo_positions.csv"
-        nucleosomes_free_regions = "../../data/inputs/Chereji_Henikoff_genome_research_NFR.bed"
         hicstuff_dir = "../../data/outputs/hicstuff/" + hicd
         filter_output_dir = "../../data/outputs/filtered/" + hicd
         format_output_dir = "../../data/outputs/formatted/" + hicd
         binning_output_dir = "../../data/outputs/binning/" + hicd
         statistics_output_dir = "../../data/outputs/statistics/" + hicd
-        nfr_output_dir = "../../data/outputs/nucleosomes/" + hicd
 
         parallel_state: bool = True
         if tools.is_debug():
             parallel_state = False
-        #######################################################
 
         if 'filter' in modes:
             print('Filtering')
@@ -216,7 +212,6 @@ if __name__ == "__main__":
             do_nucleo(
                 samples_dir=format_output_dir,
                 fragments=fragments_list,
-                statistics_dir=statistics_output_dir,
                 nucleosomes_path=nucleosomes_free_regions,
                 output_dir=nfr_output_dir,
                 parallel=parallel_state

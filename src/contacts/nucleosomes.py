@@ -4,86 +4,57 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats
-import re
+from utils.tools import find_nearest
 import os
 
 
 def get_nfr_contacts(
-        formatted_contacts_path: str,
         fragments_path: str,
         nucleosomes_path: str,
-        table_path: str):
+        output_path: str):
 
     df_fragments = pd.read_csv(fragments_path, sep='\t')
-    df_nucleosomes_raw = pd.read_csv(nucleosomes_path, sep='\t')
-    df_nucleosomes = df_nucleosomes_raw.drop_duplicates(keep='first')
-    del df_nucleosomes_raw
+    df_nucleosomes = pd.read_csv(nucleosomes_path, sep='\t')
+    df_nucleosomes.drop_duplicates(keep='first', inplace=True)
     df_nucleosomes.index = range(len(df_nucleosomes))
+    excluded_chr = ['2_micron', 'mitochondrion', 'chr_artificial']
+    df_fragments = df_fragments[~df_fragments['chrom'].isin(excluded_chr)]
 
-    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=False)
-    unique_chr = pd.unique(df_contacts['chr'])
-    excluded_chr = ['2_micron', 'mitochondrion']
-    contacts_in_nfr: dict = {}
-    df_contacts_in_nfr = pd.DataFrame()
-
-    for chrom in unique_chr:
+    fragments_in_nfr_index = []
+    for index, row in df_fragments.iterrows():
+        _, chrom, start, end, size, gc = row
         if chrom in excluded_chr:
             continue
-        contacts_in_nfr[chrom] = []
-        positions = np.array(df_contacts.loc[df_contacts['chr'] == chrom, 'positions'])
-        nucleosomes_starts = np.array(df_nucleosomes.loc[df_nucleosomes['chrom'] == chrom, 'start'])
-        nucleosomes_ends = np.array(df_nucleosomes.loc[df_nucleosomes['chrom'] == chrom, 'end'])
+        sub_df_nucleosomes = df_nucleosomes[df_nucleosomes['chrom'] == chrom]
+        nearest_nfr_start = find_nearest(sub_df_nucleosomes['start'], start, mode='lower')
+        nearest_nfr_end = sub_df_nucleosomes[sub_df_nucleosomes['start'] == nearest_nfr_start]['end'].values[0]
+        if nearest_nfr_start <= start < nearest_nfr_end:
+            fragments_in_nfr_index.append(index)
 
-        for pos in positions:
-            for (start, end) in zip(nucleosomes_starts, nucleosomes_ends):
-                if start < pos < end:
-                    contacts_in_nfr[chrom].append(pos)
-                    break
+    df_fragments_in_nfr = df_fragments.iloc[fragments_in_nfr_index]
+    df_fragments_out_nfr = df_fragments.drop(fragments_in_nfr_index)
 
-        df_contacts_in_nfr = pd.concat(
-            [df_contacts_in_nfr, df_contacts[(
-                    (df_contacts['positions'].isin(contacts_in_nfr[chrom])) &
-                    (df_contacts['chr'] == chrom))]])
+    df_fragments_in_nfr.to_csv(output_path+'fragments_list_in_nfr.tsv', sep='\t', index_label='fragments')
+    df_fragments_out_nfr.to_csv(output_path + 'fragments_list_out_nfr.tsv', sep='\t', index_label='fragments')
 
-    df_contacts_out_nfr = df_contacts.merge(df_contacts_in_nfr, how='left', indicator=True)
-    df_contacts_out_nfr = df_contacts_out_nfr[df_contacts_out_nfr['_merge'] == 'left_only']
-    df_contacts_out_nfr = df_contacts_out_nfr.iloc[:, :-1]
-    df_contacts_out_nfr.index = range(len(df_contacts_out_nfr))
-    df_contacts_in_nfr.index = range(len(df_contacts_in_nfr))
-
-    return df_contacts_in_nfr, df_contacts_out_nfr
-
-
-def mkdir(output_path: str):
-    dir_res = output_path
-    if not os.path.exists(dir_res):
-        os.makedirs(dir_res)
-    dir_plot = dir_res + '/plots/'
-    if not os.path.exists(dir_plot):
-        os.makedirs(dir_plot)
-    dir_table = dir_res + '/tables/'
-    if not os.path.exists(dir_table):
-        os.makedirs(dir_table)
-    return dir_table, dir_plot
+    return df_fragments_in_nfr, df_fragments_out_nfr
 
 
 def nfr_statistics(
-        df_contacts_in: pd.DataFrame,
-        df_contacts_out: pd.DataFrame,
-        output_file_name: str):
+        df_contacts: pd.DataFrame,
+        df_fragments_in: pd.DataFrame,
+        df_fragments_out: pd.DataFrame,
+        output_path: str):
 
-    if not os.path.exists(output_file_name):
-        print("Please make sure that you already have run the statistics script")
-        return None
-
-    df_global_stats = pd.read_csv(output_file_name, sep='\t', index_col=0)
-    probes = df_global_stats['fragments'].astype(str).values
-
+    df_contacts_in = df_contacts[df_contacts['positions'].isin(df_fragments_in['start_pos'])]
+    df_contacts_out = df_contacts[df_contacts['positions'].isin(df_fragments_out['start_pos'])]
+    probes = [p for p in df_contacts.columns.values if p.isdigit()]
     nfr_in = []
     nfr_out = []
-    total_sizes_in = sum(df_contacts_in['size'].values)
-    total_sizes_out = sum(df_contacts_out['size'].values)
+    total_sizes_in = sum(df_fragments_in['size'].values)
+    total_sizes_out = sum(df_fragments_out['size'].values)
     total_sizes_all = total_sizes_in + total_sizes_out
+    df_stats = pd.DataFrame()
     for p in probes:
         #   cts_in:  sum of contacts made by the probe inside nfr
         #   cts_out: sum of contacts made by the probe outside nfr
@@ -98,27 +69,15 @@ def nfr_statistics(
             (cts_out / (cts_in + cts_out)) / (total_sizes_out / total_sizes_all)
         )
 
-    df_global_stats['frac_nfr_in'] = nfr_in
-    df_global_stats['frac_nfr_out'] = nfr_out
-
-
-def fetch_fragments_sizes(
-        df_fragments: pd.DataFrame,
-        df_contacts: pd.DataFrame):
-
-    chr_pos_fragments = (df_fragments['chrom'].astype(str) + '_' + df_fragments['start_pos'].astype(str)).to_numpy()
-    chr_pos_contacts = (df_contacts['chr'].astype(str) + '_' + df_contacts['positions'].astype(str)).to_numpy()
-    index_to_keep = np.where(np.isin(chr_pos_fragments, chr_pos_contacts))[0]
-    df_fragments_filtered = df_fragments.iloc[index_to_keep]
-    df_contacts.insert(2, 'size', df_fragments_filtered['size'].values)
+    pass
 
 
 def plot_size_distribution(
-        df_contacts: pd.DataFrame,
+        df_fragments: pd.DataFrame,
         mode: str,
-        plot_path: str):
+        output_path: str):
 
-    x = df_contacts['size'].values
+    x = df_fragments['size'].values
 
     #   Freedman-Diaconis rule for optimal binning
     q1 = np.quantile(x, 0.25)
@@ -135,44 +94,36 @@ def plot_size_distribution(
     plt.xlabel('Sizes of fragments')
     plt.ylabel('Numbers of contacts')
     plt.title("Distribution of fragments sizes {0} NFR".format(mode))
-    plt.savefig(plot_path + '_fragments_sizes_{0}_nfr_distribution.jpg'.format(mode), dpi=300)
+    plt.savefig(output_path + '_fragments_sizes_{0}_nfr_distribution.jpg'.format(mode), dpi=300)
     # plt.show()
     plt.close()
 
 
 def run(
         formatted_contacts_path: str,
-        statistics_path: str,
         fragments_list_path: str,
         nucleosomes_path,
         output_dir: str):
 
-    sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
-    output_path = output_dir + sample_id
-
-    df_fragments = pd.read_csv(fragments_list_path, sep='\t')
-    dir_table, dir_plot = mkdir(output_path=output_path)
-    df_contacts_in_nfr, df_contacts_out_nfr = get_nfr_contacts(
-        formatted_contacts_path=formatted_contacts_path,
-        fragments_path=fragments_list_path,
-        nucleosomes_path=nucleosomes_path,
-        table_path=dir_table+sample_id
-    )
-
-    fetch_fragments_sizes(
-        df_fragments=df_fragments,
-        df_contacts=df_contacts_in_nfr
-    )
-
-    fetch_fragments_sizes(
-        df_fragments=df_fragments,
-        df_contacts=df_contacts_out_nfr
-    )
+    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=False)
+    files = [f for f in os.listdir(output_dir)]
+    nfr_in = 'fragments_list_in_nfr.tsv'
+    nfr_out = 'fragments_list_out_nfr.tsv'
+    if np.sum(np.isin([nfr_in, nfr_out], files)) == 2:
+        df_fragments_in_nfr = pd.read_csv(output_dir+nfr_in, sep='\t', index_col=0)
+        df_fragments_out_nfr = pd.read_csv(output_dir+nfr_out, sep='\t', index_col=0)
+    else:
+        df_fragments_in_nfr, df_fragments_out_nfr = get_nfr_contacts(
+            fragments_path=fragments_list_path,
+            nucleosomes_path=nucleosomes_path,
+            output_path=output_dir
+        )
 
     nfr_statistics(
-        df_contacts_in=df_contacts_in_nfr,
-        df_contacts_out=df_contacts_out_nfr,
-        output_file_name=statistics_path
+        df_contacts=df_contacts,
+        df_fragments_in=df_fragments_in_nfr,
+        df_fragments_out=df_fragments_out_nfr,
+        output_path=output_dir
     )
 
     # plot_size_distribution(
@@ -187,4 +138,4 @@ def run(
     #     plot_path=dir_plot+sample_id
     # )
 
-    print('DONE: ', sample_id)
+    print('DONE')
