@@ -47,76 +47,116 @@ def fragments_to_oligos(
         return res
 
 
+# def format_fragments_contacts(
+#         df: pd.DataFrame,
+#         output_path: str):
+#
+#     """
+#     This function will count the number of contacts for each read that comes from column 'frag_x' in each bin.
+#     The results are stored in three dictionaries, given as arguments.
+#         contacts_res of the form :  {oligoX : {chrX_binA : n ... } ...}
+#         all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
+#     """
+#     contacted_pos_per_chr: dict = {}
+#     contacted_bins_count_per_frag: dict = {}
+#
+#     for x in ['a', 'b']:
+#         #   if x = a get b, if x = b get a
+#         y = tools.frag2(x)
+#         for ii_f, f in enumerate(df['frag_' + x].values):
+#             if not pd.isna(df['name_' + x][ii_f]):
+#                 chr_id = df['chr_' + y][ii_f]
+#                 start = df['start_' + y][ii_f]
+#                 chr_and_pos = chr_id + '_' + str(start)
+#
+#                 if f not in contacted_bins_count_per_frag:
+#                     contacted_bins_count_per_frag[f] = {}
+#
+#                 if chr_id not in contacted_pos_per_chr:
+#                     contacted_pos_per_chr[chr_id] = set()
+#
+#                 if chr_and_pos not in contacted_pos_per_chr[chr_id]:
+#                     contacted_pos_per_chr[chr_id].add(start)
+#
+#                 bin_id = chr_and_pos
+#
+#                 if bin_id not in contacted_bins_count_per_frag[f]:
+#                     contacted_bins_count_per_frag[f][bin_id] = df['contacts'][ii_f]
+#                 else:
+#                     contacted_bins_count_per_frag[f][bin_id] += df['contacts'][ii_f]
+#
+#     for chr_id, pos_list in contacted_pos_per_chr.items():
+#         contacted_pos_per_chr[chr_id] = sorted(pos_list)
+#
+#     chr_unique_list = np.concatenate([['chr' + str(i) for i in range(1, 17)],
+#                                       ['2_micron', 'mitochondrion', 'chr_artificial']])
+#
+#     chr_and_pos = []
+#     chromosomes = []
+#     positions = []
+#     for chr_id in chr_unique_list:
+#         if chr_id in contacted_pos_per_chr:
+#             new_pos = contacted_pos_per_chr[chr_id]
+#             positions.extend(new_pos)
+#             chromosomes.extend(np.repeat(chr_id, len(new_pos)))
+#             for npos in new_pos:
+#                 chr_and_pos.append(chr_id + '_' + str(npos))
+#
+#     chr_and_pos = np.asarray(chr_and_pos)
+#     df_formatted_contacts = pd.DataFrame({'chr': chromosomes, 'positions': positions})
+#     df_formatted_frequencies = pd.DataFrame({'chr': chromosomes, 'positions': positions})
+#
+#     for f in contacted_bins_count_per_frag:
+#         contacts = np.zeros(len(chr_and_pos), dtype=int)
+#         for pos in contacted_bins_count_per_frag[f]:
+#             idx = np.argwhere(chr_and_pos == pos)[0]
+#             contacts[idx] = contacted_bins_count_per_frag[f][pos]
+#
+#         df_formatted_contacts[f] = contacts
+#         df_formatted_frequencies[f] = contacts / np.sum(contacts)
+#
+#     df_formatted_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
+#     df_formatted_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+
+
 def format_fragments_contacts(
         df: pd.DataFrame,
         output_path: str):
-
     """
     This function will count the number of contacts for each read that comes from column 'frag_x' in each bin.
     The results are stored in three dictionaries, given as arguments.
         contacts_res of the form :  {oligoX : {chrX_binA : n ... } ...}
         all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
     """
-    contacted_pos_per_chr: dict = {}
-    contacted_bins_count_per_frag: dict = {}
-    
+    contacts = pd.DataFrame(columns=['chr', 'positions', 'sizes'])
+    contacts = contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
+    frequencies = contacts.copy(deep=True)
+
     for x in ['a', 'b']:
         #   if x = a get b, if x = b get a
         y = tools.frag2(x)
-        for ii_f, f in enumerate(df['frag_' + x].values):
-            if not pd.isna(df['name_' + x][ii_f]):
-                chr_id = df['chr_' + y][ii_f]
-                start = df['start_' + y][ii_f]
-                chr_and_pos = chr_id + '_' + str(start)
+        df2 = df[~pd.isna(df['name_' + x])]
+        unique_frag = pd.unique(df2['frag_'+x])
+        for frag in unique_frag:
+            df3 = df2[df2['frag_'+x] == frag]
 
-                if f not in contacted_bins_count_per_frag:
-                    contacted_bins_count_per_frag[f] = {}
+            tmp_c = pd.DataFrame({'chr': df3['chr_'+y], 'positions': df3['start_'+y],
+                                'sizes': df3['size_'+y], frag: df3['contacts']})
 
-                if chr_id not in contacted_pos_per_chr:
-                    contacted_pos_per_chr[chr_id] = set()
+            tmp_f = tmp_c.copy(deep=True)
+            tmp_f[frag] /= np.sum(tmp_f[frag])
 
-                if chr_and_pos not in contacted_pos_per_chr[chr_id]:
-                    contacted_pos_per_chr[chr_id].add(start)
+            contacts = pd.concat([contacts, tmp_c])
+            frequencies = pd.concat([frequencies, tmp_f])
 
-                bin_id = chr_and_pos
+    group_c = contacts.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
+    group_f = frequencies.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
 
-                if bin_id not in contacted_bins_count_per_frag[f]:
-                    contacted_bins_count_per_frag[f][bin_id] = df['contacts'][ii_f]
-                else:
-                    contacted_bins_count_per_frag[f][bin_id] += df['contacts'][ii_f]
+    res_c = group_c.sum()
+    res_f = group_f.sum()
 
-    for chr_id, pos_list in contacted_pos_per_chr.items():
-        contacted_pos_per_chr[chr_id] = sorted(pos_list)
-
-    chr_unique_list = np.concatenate([['chr' + str(i) for i in range(1, 17)],
-                                      ['2_micron', 'mitochondrion', 'chr_artificial']])
-
-    chr_and_pos = []
-    chromosomes = []
-    positions = []
-    for chr_id in chr_unique_list:
-        if chr_id in contacted_pos_per_chr:
-            new_pos = contacted_pos_per_chr[chr_id]
-            positions.extend(new_pos)
-            chromosomes.extend(np.repeat(chr_id, len(new_pos)))
-            for npos in new_pos:
-                chr_and_pos.append(chr_id + '_' + str(npos))
-
-    chr_and_pos = np.asarray(chr_and_pos)
-    df_formatted_contacts = pd.DataFrame({'chr': chromosomes, 'positions': positions})
-    df_formatted_frequencies = pd.DataFrame({'chr': chromosomes, 'positions': positions})
-
-    for f in contacted_bins_count_per_frag:
-        contacts = np.zeros(len(chr_and_pos), dtype=int)
-        for pos in contacted_bins_count_per_frag[f]:
-            idx = np.argwhere(chr_and_pos == pos)[0]
-            contacts[idx] = contacted_bins_count_per_frag[f][pos]
-
-        df_formatted_contacts[f] = contacts
-        df_formatted_frequencies[f] = contacts / np.sum(contacts)
-
-    df_formatted_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
-    df_formatted_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+    res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
+    res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
 
 
 def run(
