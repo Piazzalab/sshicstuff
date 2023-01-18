@@ -77,24 +77,29 @@ def nfr_statistics(
         return None
 
     df_global_stats = pd.read_csv(output_file_name, sep='\t', index_col=0)
-    fragments = df_global_stats['fragments'].astype(str).values
+    probes = df_global_stats['fragments'].astype(str).values
 
     nfr_in = []
     nfr_out = []
-    nb_reads_in = df_contacts_in.shape[0]
-    nb_reads_out = df_contacts_out.shape[0]
-    for frag in fragments:
+    total_sizes_in = sum(df_contacts_in['size'].values)
+    total_sizes_out = sum(df_contacts_out['size'].values)
+    total_sizes_all = total_sizes_in + total_sizes_out
+    for p in probes:
+        #   cts_in:  sum of contacts made by the probe inside nfr
+        #   cts_out: sum of contacts made by the probe outside nfr
+        cts_in = np.sum(df_contacts_in[p].values)
+        cts_out = np.sum(df_contacts_out[p].values)
+
         nfr_in.append(
-            np.sum(df_contacts_in[frag].values) / nb_reads_in
+            (cts_in / (cts_in + cts_out)) / (total_sizes_in / total_sizes_all)
         )
 
         nfr_out.append(
-            np.sum(df_contacts_out[frag].values) / nb_reads_out
+            (cts_out / (cts_in + cts_out)) / (total_sizes_out / total_sizes_all)
         )
 
     df_global_stats['frac_nfr_in'] = nfr_in
     df_global_stats['frac_nfr_out'] = nfr_out
-
 
 
 def fetch_fragments_sizes(
@@ -154,24 +159,22 @@ def run(
         table_path=dir_table+sample_id
     )
 
+    fetch_fragments_sizes(
+        df_fragments=df_fragments,
+        df_contacts=df_contacts_in_nfr
+    )
+
+    fetch_fragments_sizes(
+        df_fragments=df_fragments,
+        df_contacts=df_contacts_out_nfr
+    )
+
     nfr_statistics(
         df_contacts_in=df_contacts_in_nfr,
         df_contacts_out=df_contacts_out_nfr,
         output_file_name=statistics_path
     )
 
-
-
-    # fetch_fragments_sizes(
-    #     df_fragments=df_fragments,
-    #     df_contacts=df_contacts_in_nfr
-    # )
-    #
-    # fetch_fragments_sizes(
-    #     df_fragments=df_fragments,
-    #     df_contacts=df_contacts_out_nfr
-    # )
-    #
     # plot_size_distribution(
     #     df_contacts=df_contacts_in_nfr,
     #     mode='inside',
