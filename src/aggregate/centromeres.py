@@ -19,21 +19,21 @@ pd.options.mode.chained_assignment = None
 
 def compute_centromere_freq_per_oligo_per_chr(
         df_freq: pd.DataFrame,
-        df_info: pd.DataFrame,
+        df_probes: pd.DataFrame,
         table_path: str):
 
-    reads_array = df_info.columns.values
+    all_probes = df_probes.columns.values
     unique_chr = pd.unique(df_freq['chr'])
     bins_array = np.unique(df_freq['chr_bins'])
 
     res: dict = {}
-    for ol in reads_array:
-        probe = df_info.loc['oligo', ol]
-        self_chr = df_info.loc['frag_chr', ol]
-        if len(probe.split('-/-')) > 1:
-            probe = '_&_'.join(probe.split('-/-'))
+    for probe in all_probes:
+        fragment = df_probes.loc['frag_id', probe]
+        self_chr = df_probes.loc['chr', probe]
+        if fragment not in df_freq.columns:
+            continue
 
-        df_freq_cen = df_freq.pivot_table(index='chr_bins', columns='chr', values=ol, fill_value=np.nan)
+        df_freq_cen = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
         df_freq_cen[self_chr] = np.nan
         df_freq_cen = df_freq_cen[unique_chr].reindex(bins_array)
 
@@ -55,8 +55,10 @@ def freq_focus_around_centromeres(
 
     df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
-    df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
+    df_probes = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
+    df_probes_t = df_probes.transpose()
     excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion']
+    unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
     def process_row(row):
         current_chr = row[0]
@@ -80,16 +82,17 @@ def freq_focus_around_centromeres(
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        for c in tmp_df.columns[3:]:
-            self_chr = df_info.loc['frag_chr', c]
+
+        for f in unique_fragments:
+            self_chr = df_probes_t.loc[df_probes_t['frag_id'] == f]['chr'][0]
             if self_chr == current_chr:
-                tmp_df.loc[:, c] = np.nan
+                tmp_df.loc[:, f] = np.nan
 
         return tmp_df
 
     df_res = pd.concat([process_row(row) for _, row in df_centros.iterrows()])
     df_res.index = range(len(df_res))
-    return df_res, df_info
+    return df_res, df_probes
 
 
 def compute_average_aggregate(
@@ -198,7 +201,7 @@ def mkdir(output_path: str):
 
 def run(
         formatted_contacts_path: str,
-        fragments_to_oligos_path: str,
+        probes_to_fragments_path: str,
         window_size: int,
         output_path: str,
         centros_coord_path: str):
@@ -206,16 +209,16 @@ def run(
     sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
     dir_table, dir_plot = mkdir(output_path=output_path+sample_name)
 
-    df_contacts_centros, df_info = freq_focus_around_centromeres(
+    df_contacts_centros, df_probes = freq_focus_around_centromeres(
         formatted_contacts_path=formatted_contacts_path,
-        fragments_to_oligos_path=fragments_to_oligos_path,
+        fragments_to_oligos_path=probes_to_fragments_path,
         window_size=window_size,
         bin_size=10000,
         centros_infos_path=centros_coord_path)
 
     chr_aggregated_dict = compute_centromere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros,
-        df_info=df_info,
+        df_probes=df_probes,
         table_path=dir_table+sample_name)
 
     df_mean, df_std, df_median = compute_average_aggregate(

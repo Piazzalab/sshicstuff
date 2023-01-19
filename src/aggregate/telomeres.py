@@ -20,27 +20,27 @@ pd.options.mode.chained_assignment = None
 
 def compute_telomere_freq_per_oligo_per_chr(
         df_freq: pd.DataFrame,
-        df_info: pd.DataFrame,
+        df_probes: pd.DataFrame,
         table_path: str):
 
-    reads_array = df_info.columns.values
+    all_probes = df_probes.columns.values
     unique_chr = pd.unique(df_freq['chr'])
-    bins_array = pd.unique(df_freq['chr_bins'])
+    bins_array = np.unique(df_freq['chr_bins'])
 
     res: dict = {}
-    for ol in reads_array:
-        probe = df_info.loc['oligo', ol]
-        self_chr = df_info.loc['frag_chr', ol]
-        if len(probe.split('-/-')) > 1:
-            probe = '_&_'.join(probe.split('-/-'))
+    for probe in all_probes:
+        fragment = df_probes.loc['frag_id', probe]
+        self_chr = df_probes.loc['chr', probe]
+        if fragment not in df_freq.columns:
+            continue
 
         df_freq_telo = pd.DataFrame(columns=unique_chr, index=bins_array)
-        grouped = df_freq.groupby(['chr', 'chr_bins'])
+        grouped = df_freq.groupby(['chr', 'chr_bins'], as_index=False)
         for name, group in grouped:
             chr_name, bin_name = name
-            df_freq_telo.loc[bin_name, chr_name] = group[ol].iloc[0]
+            df_freq_telo.loc[bin_name, chr_name] = group[fragment].iloc[0]
 
-        df_freq_telo = df_freq.pivot_table(index='chr_bins', columns='chr', values=ol, fill_value=np.nan)
+        df_freq_telo = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
         df_freq_telo[self_chr] = np.nan
         df_freq_telo = df_freq_telo[unique_chr].reindex(bins_array)
 
@@ -49,9 +49,9 @@ def compute_telomere_freq_per_oligo_per_chr(
     return res
 
 
-def freq_focus_around_centromeres(
+def freq_focus_around_telomeres(
         formatted_contacts_path: str,
-        fragments_to_oligos_path: str,
+        probes_to_fragments_path: str,
         window_size: int,
         telomeres_coord_path: str):
     """
@@ -62,7 +62,9 @@ def freq_focus_around_centromeres(
     df_centro = pd.read_csv(telomeres_coord_path, sep='\t', index_col=None)
     df_telo = pd.DataFrame({'chr': df_centro['Chr'], 'telo_l': 0, 'telo_r': df_centro['Length']})
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
-    df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    df_probes_t = df_probes.transpose()
+    unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
     excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion']
 
     def process_row(row):
@@ -81,33 +83,22 @@ def freq_focus_around_centromeres(
             "chr == @current_chr and chr_bins > @telo_right_boundaries[0] and chr_bins < @telo_right_boundaries[1]")
 
         right_telo_bin = tools.find_nearest(tmp_df_right['chr_bins'].values, current_telo_right, mode='lower')
-        for index_r, row_r in tmp_df_right.iterrows():
-            #   Indices shifting : bin of telomere becomes 0, bins in downstream becomes negative and bins
-            #   in upstream becomes positive.
-            tmp_df_right.loc[index_r, 'chr_bins'] = \
-                "3'_" + str(abs(tmp_df_right.loc[index_r, 'chr_bins'] - right_telo_bin))
 
-        for index_l, row_l in tmp_df_left.iterrows():
-            #   Indices shifting : bin of telomere becomes 0, bins in downstream becomes negative and bins
-            #   in upstream becomes positive.
-            tmp_df_left.loc[index_l, 'chr_bins'] = \
-                "5'_" + str(tmp_df_left.loc[index_l, 'chr_bins'])
-
-        tmp_df = pd.concat((tmp_df_left, tmp_df_right))
-        tmp_df.index = range(len(tmp_df))
+        tmp_df_right['chr_bins'] = abs(tmp_df_right['chr_bins'] - right_telo_bin)
+        tmp_df = pd.concat((tmp_df_left, tmp_df_right)).groupby(['chr', 'chr_bins'], as_index=False).mean()
 
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        for c in tmp_df.columns[3:]:
-            self_chr = df_info.loc['frag_chr', c]
+        for f in unique_fragments:
+            self_chr = df_probes_t.loc[df_probes_t['frag_id'] == f]['chr'][0]
             if self_chr == current_chr:
-                tmp_df.loc[0:len(tmp_df), c] = np.nan
+                tmp_df.loc[:, f] = np.nan
 
         return tmp_df
     df_res = pd.concat([process_row(row) for _, row in df_telo.iterrows()])
     df_res.index = range(len(df_res))
-    return df_res, df_info
+    return df_res, df_probes
 
 
 def compute_average_aggregate(
@@ -129,43 +120,6 @@ def compute_average_aggregate(
     df_std.to_csv(table_path + '_std_on_telo.tsv', sep='\t')
 
     return df_mean, df_std
-
-
-def pooled_stats(mean_df: pd.DataFrame,
-                 std_df: pd.DataFrame,
-                 table_path: str):
-
-    mean_df = mean_df.sort_index()
-    std_df = std_df.sort_index()
-
-    index_float = [float(str(m).split('_')[-1]) for m in mean_df.index]
-    mean_df.index = index_float
-    std_df.index = index_float
-
-    middle = int(len(mean_df) / 2)
-    pooled_index = mean_df.index[middle:]
-
-    #   Pool the mean dataframe
-    left_mean_df = mean_df.iloc[:middle]
-    right_mean_df = mean_df.iloc[middle:]
-
-    tmp_mean_df = pd.concat((left_mean_df, right_mean_df))
-    pooled_mean_df = pd.DataFrame(tmp_mean_df.groupby(tmp_mean_df.index).mean())
-
-    #   Pool the std dataframe
-    left_std_df = std_df.iloc[:middle]
-    right_std_df = std_df.iloc[middle:]
-    pooled_std_df = pd.DataFrame(index=pooled_index)
-    for col in left_std_df.columns:
-        n1 = left_std_df[col].shape[0]
-        n2 = right_std_df[col].shape[0]
-        std_pooled = np.sqrt(((n1 - 1) * left_std_df[col] ** 2 + (n2 - 1) * right_std_df[col] ** 2) / (n1 + n2 - 2))
-        pooled_std_df[col] = std_pooled
-
-    pooled_mean_df.to_csv(table_path + '_pooled_mean_on_telo.tsv', sep='\t')
-    pooled_mean_df.to_csv(table_path + '_pooled_std_on_telo.tsv', sep='\t')
-
-    return pooled_mean_df, pooled_std_df
 
 
 def plot_aggregated(
@@ -212,7 +166,7 @@ def mkdir(output_path: str):
 
 def run(
         formatted_contacts_path: str,
-        fragments_to_oligos_path: str,
+        probes_to_fragments_path: str,
         window_size: int,
         output_path: str,
         telomeres_coord_path: str):
@@ -220,29 +174,25 @@ def run(
     sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
     dir_table, dir_plot = mkdir(output_path=output_path+sample_name)
 
-    df_contacts_centros, df_info = freq_focus_around_centromeres(
+    df_contacts_centros, df_probes = freq_focus_around_telomeres(
         formatted_contacts_path=formatted_contacts_path,
-        fragments_to_oligos_path=fragments_to_oligos_path,
+        probes_to_fragments_path=probes_to_fragments_path,
         window_size=window_size,
         telomeres_coord_path=telomeres_coord_path)
 
     chr_aggregated_dict = compute_telomere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros,
-        df_info=df_info,
+        df_probes=df_probes,
         table_path=dir_table+sample_name)
 
     df_mean, df_std = compute_average_aggregate(
         aggregated=chr_aggregated_dict,
         table_path=dir_table+sample_name)
 
-    df_mean_pooled, df_std_pooled = pooled_stats(
-        mean_df=df_mean,
-        std_df=df_std,
-        table_path=dir_table+sample_name)
 
     plot_aggregated(
-        mean_df=df_mean_pooled,
-        std_df=df_std_pooled,
+        mean_df=df_mean,
+        std_df=df_std,
         plot_path=dir_plot+sample_name)
 
     print('DONE: ', sample_name)
