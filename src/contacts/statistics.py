@@ -6,7 +6,7 @@ import pandas as pd
 
 
 def compute_stats(formatted_contacts_path: str,
-                  fragments_to_oligos_path: str,
+                  probes_to_fragments_path: str,
                   cis_range: int,
                   output_path: str):
 
@@ -24,12 +24,12 @@ def compute_stats(formatted_contacts_path: str,
 
     unique_chr = list(chr_size_dict.keys())
     df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
-    df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    all_probes = np.asarray(df_probes.columns.values, dtype='<U64')
 
-    fragments = [f for f in df_formatted_contacts.columns.values if re.search(r"\d+", f) is not None]
-    probes = np.asarray(df_info.loc['oligo', :].values, dtype='<U64')
-    types = np.asarray(df_info.loc['type', :].values, dtype='<U8')
-
+    probes = []
+    fragments = []
+    types = []
     cis_contacts = []
     trans_contacts = []
     intra_chr_contacts = []
@@ -40,25 +40,33 @@ def compute_stats(formatted_contacts_path: str,
     chr_contacts_nrm = {k: [] for k in chr_size_dict}
     chr_inter_only_contacts_nrm = {k: [] for k in chr_size_dict}
 
-    for ii_f, frag in enumerate(fragments):
-        sub_df = df_formatted_contacts[['chr', 'positions', frag]]
-        cis_limits = [int(df_info.loc['frag_start', frag]) - cis_range, int(df_info.loc['frag_end', frag]) + cis_range]
-        frag_chr = df_info.loc['frag_chr', frag]
-        total_contacts.append(np.sum(sub_df[frag].values))
-        total_contacts_inter.append(np.sum(sub_df.query("chr != @frag_chr")[frag].values))
+    ii_probe = 0
+    for probe in all_probes:
+        probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = df_probes[probe].tolist()
+        if frag_id not in df_formatted_contacts.columns.tolist():
+            continue
+
+        probes.append(probe)
+        fragments.append(frag_id)
+        types.append(probe_type)
+        sub_df = df_formatted_contacts[['chr', 'positions', frag_id]]
+        cis_limits = \
+            [int(df_probes.loc['probe_start', probe]) - cis_range, int(df_probes.loc['probe_end', probe]) + cis_range]
+        total_contacts.append(np.sum(sub_df[frag_id].values))
+        total_contacts_inter.append(np.sum(sub_df.query("chr != @probe_chr")[frag_id].values))
 
         cis_contacts.append(
             np.sum(
                 sub_df.query(
-                    "chr == @frag_chr and positions > @cis_limits[0] and positions <@cis_limits[1]")[frag].values) /
-            total_contacts[ii_f]
+                    "chr == @probe_chr and positions > @cis_limits[0] and positions <@cis_limits[1]")[frag_id].values) /
+            total_contacts[ii_probe]
         )
-        trans_contacts.append(1 - cis_contacts[ii_f])
+        trans_contacts.append(1 - cis_contacts[ii_probe])
         intra_chr_contacts.append(
-            np.sum(sub_df.query("chr == @frag_chr")[frag].values) / total_contacts[ii_f]
+            np.sum(sub_df.query("chr == @probe_chr")[frag_id].values) / total_contacts[ii_probe]
         )
         inter_chr_contacts.append(
-            np.sum(sub_df.query("chr != @frag_chr")[frag].values) / total_contacts[ii_f]
+            np.sum(sub_df.query("chr != @probe_chr")[frag_id].values) / total_contacts[ii_probe]
         )
 
         for chrom in chr_size_dict:
@@ -69,27 +77,28 @@ def compute_stats(formatted_contacts_path: str,
             #   genome_size: sum of sizes for all chr except frag_chr
             #   c1 : normalized contacts on chr_i for frag_j
             chrom_size = chr_size_dict[chrom]
-            genome_size = sum([s for c, s in chr_size_dict.items() if c != frag_chr])
-            n1 = np.sum(sub_df.query("chr == @chrom")[frag].values)
+            genome_size = sum([s for c, s in chr_size_dict.items() if c != probe_chr])
+            n1 = np.sum(sub_df.query("chr == @chrom")[frag_id].values)
             if n1 == 0:
                 chr_contacts_nrm[chrom].append(0)
             else:
-                d1 = total_contacts[ii_f]
+                d1 = total_contacts[ii_probe]
                 c1 = (n1/d1) / (chrom_size/genome_size)
                 chr_contacts_nrm[chrom].append(c1)
 
             #   n2: n1: sum contacts chr_i if chr_i != frag_chr
             #   d2: sum contacts all inter chr (exclude the frag_chr)
             #   c2 : normalized inter chr contacts on chr_i for frag_j
-            n2 = np.sum(sub_df.query("chr == @chrom and chr != @frag_chr")[frag].values)
+            n2 = np.sum(sub_df.query("chr == @chrom and chr != @probe_chr")[frag_id].values)
             if n2 == 0:
                 chr_inter_only_contacts_nrm[chrom].append(0)
             else:
-                d2 = total_contacts_inter[ii_f]
+                d2 = total_contacts_inter[ii_probe]
                 c2 = (n2 / d2) / (chrom_size / genome_size)
                 chr_inter_only_contacts_nrm[chrom].append(c2)
+        ii_probe += 1
 
-    df_global = pd.DataFrame({'fragments': fragments, 'probes': probes, 'types': types, 'total': total_contacts,
+    df_global = pd.DataFrame({'probes': probes, 'fragments': fragments, 'types': types, 'total': total_contacts,
                               'cis': cis_contacts, 'trans': trans_contacts, 'intra_chr': intra_chr_contacts,
                               'inter_chr': inter_chr_contacts})
 
@@ -98,8 +107,8 @@ def compute_stats(formatted_contacts_path: str,
     df_global['fold_over'] = \
         df_global.loc[:, 'total'] / np.mean(df_global.loc[df_global['types'] == 'ds', 'total'].values)
 
-    df_chr_nrm = pd.DataFrame({'fragments': fragments, 'probes': probes, 'types': types})
-    df_chr_inter_only_nrm = pd.DataFrame({'fragments': fragments, 'probes': probes, 'types': types})
+    df_chr_nrm = pd.DataFrame({'probes': probes, 'fragments': fragments, 'types': types})
+    df_chr_inter_only_nrm = df_chr_nrm.copy(deep=True)
 
     for chr_id in unique_chr:
         df_chr_nrm[chr_id] = chr_contacts_nrm[chr_id]
@@ -113,7 +122,7 @@ def compute_stats(formatted_contacts_path: str,
 def run(
         cis_range: int,
         formatted_contacts_path: str,
-        fragments_to_oligos_path: str,
+        probes_to_fragments_path: str,
         output_dir: str):
 
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
@@ -121,8 +130,7 @@ def run(
     compute_stats(
         cis_range=cis_range,
         formatted_contacts_path=formatted_contacts_path,
-        fragments_to_oligos_path=fragments_to_oligos_path,
+        probes_to_fragments_path=probes_to_fragments_path,
         output_path=output_path)
 
     print('DONE: ', sample_id)
-
