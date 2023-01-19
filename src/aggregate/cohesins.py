@@ -21,7 +21,7 @@ pd.options.mode.chained_assignment = None
 
 def freq_focus_around_cohesin_peaks(
         formatted_contacts_path: str,
-        fragments_to_oligos_path: str,
+        probes_to_fragments_path: str,
         centros_info_path: str,
         window_size: int,
         bin_size: int,
@@ -35,7 +35,7 @@ def freq_focus_around_cohesin_peaks(
                            names=['chr', 'start', 'end', 'uid', 'score'])
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
-    df_info = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     excluded_chr = ['chr2', 'chr3']
 
     def process_row(row):
@@ -75,7 +75,7 @@ def freq_focus_around_cohesin_peaks(
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
         for c in filtered_tmp_df.columns[3:]:
-            self_chr = df_info.loc['frag_chr', c]
+            self_chr = df_probes.loc['frag_chr', c]
             if self_chr == current_chr:
                 filtered_tmp_df.loc[:, c] = np.nan
 
@@ -83,7 +83,7 @@ def freq_focus_around_cohesin_peaks(
 
     df_res = pd.concat([process_row(row) for _, row in df_peaks.iterrows()])
     df_res.index = range(len(df_res))
-    return df_res, df_info
+    return df_res, df_probes
 
 
 def filter_peaks_around_centromeres(
@@ -110,7 +110,7 @@ def filter_peaks_around_centromeres(
 
 def compute_average_aggregate(
         df_cohesins_peaks_bins: pd.DataFrame,
-        df_info: pd.DataFrame,
+        df_probes: pd.DataFrame,
         table_path: str):
     def process_bin(group):
         sub_group = group.iloc[:, 3:]
@@ -129,7 +129,7 @@ def compute_average_aggregate(
     df_mean = df_mean.sort_index()
     df_std = df_std.sort_index()
 
-    probes = df_info.loc['oligo', :].values
+    probes = df_probes.loc['oligo', :].values
     df_mean.columns = probes
     df_std.columns = probes
 
@@ -238,7 +238,7 @@ def mkdir(output_path: str,
 
 def run(
         formatted_contacts_path: str,
-        fragments_to_oligos_path: str,
+        probes_to_fragments_path: str,
         window_size: int,
         output_dir: str,
         cohesins_peaks_path: str,
@@ -254,9 +254,9 @@ def run(
         filter_mode=cen_filter_mode,
         filter_span=cen_filter_span)
 
-    df_contacts_cohesins, df_info = freq_focus_around_cohesin_peaks(
+    df_contacts_cohesins, df_probes = freq_focus_around_cohesin_peaks(
         formatted_contacts_path=formatted_contacts_path,
-        fragments_to_oligos_path=fragments_to_oligos_path,
+        probes_to_fragments_path=probes_to_fragments_path,
         centros_info_path=centromere_info_path,
         window_size=window_size,
         bin_size=1000,
@@ -267,7 +267,7 @@ def run(
 
     df_mean, df_std = compute_average_aggregate(
         df_cohesins_peaks_bins=df_contacts_cohesins,
-        df_info=df_info,
+        df_probes=df_probes,
         table_path=dir_table+sample_name)
 
     df_mean_pooled, df_std_pooled = pooled_stats(
