@@ -26,9 +26,19 @@ def do_filter(
 
 
 def do_format(
+        fragments: str,
+        oligos: str,
+        probes2frag: str,
         samples_dir: str,
         output_dir: str,
         parallel: bool = True):
+
+    if not os.path.exists(probes2frag):
+        format.fragments_to_oligos(
+            fragments_list_path=fragments,
+            oligos_capture_path=oligos,
+            output_path=probes2frag
+        )
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -91,6 +101,7 @@ def do_binning(
 
 def do_stats(
         samples_dir: str,
+        probes2frag: str,
         output_dir: str,
         cis_span: int,
         parallel: bool = True):
@@ -105,7 +116,7 @@ def do_stats(
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(statistics.run, [(cis_span,
                                         samples_dir+samp+'_contacts.tsv',
-                                        samples_dir + samp + '_frag_to_prob.tsv',
+                                        probes2frag,
                                         output_dir) for samp in samples])
 
     else:
@@ -113,7 +124,7 @@ def do_stats(
             statistics.run(
                 cis_range=cis_span,
                 formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
-                fragments_to_oligos_path=samples_dir+samp+'_frag_to_prob.tsv',
+                probes_to_fragments_path=probes2frag,
                 output_dir=output_dir
             )
 
@@ -151,13 +162,14 @@ def do_nucleo(
 if __name__ == "__main__":
 
     fragments_list = "../../data/inputs/fragments_list.txt"
+    probes_and_fragments = "../../data/inputs/probes_to_fragments.tsv"
     artificial_genome_fa = "../../data/inputs/S288c_DSB_LY_capture_artificial.fa"
     oligos_positions = "../../data/inputs/capture_oligo_positions.csv"
     nucleosomes_free_regions = "../../data/inputs/Chereji_Henikoff_genome_research_NFR.bed"
     nfr_output_dir = "../../data/outputs/nucleosomes/"
 
     sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
-    modes = ['nucleosomes']
+    modes = ['statistics']
 
     for hicd in sshic_dir:
         print(hicd)
@@ -184,6 +196,9 @@ if __name__ == "__main__":
         if 'format' in modes:
             print('Formatting')
             do_format(
+                fragments=fragments_list,
+                oligos=oligos_positions,
+                probes2frag=probes_and_fragments,
                 samples_dir=filter_output_dir,
                 output_dir=format_output_dir,
                 parallel=parallel_state
@@ -202,6 +217,7 @@ if __name__ == "__main__":
             print('Statistics')
             do_stats(
                 samples_dir=format_output_dir,
+                probes2frag=probes_and_fragments,
                 output_dir=statistics_output_dir,
                 cis_span=50000,
                 parallel=parallel_state
