@@ -28,16 +28,22 @@ def freq_focus_around_cohesin_peaks(
         cohesins_peaks_path: str,
         score_cutoff: int,
         filter_range: int,
-        filter_mode: str | None):
+        filter_mode: str | None,
+        pooled: bool):
 
-    df_centros = pd.read_csv(centros_info_path, sep='\t', index_col=None)
+    excluded_chr = ['chr2', 'chr3']
+
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
+    df_peaks.sort_values(by='score', ascending=False, inplace=True)
+    df_peaks.reset_index(drop=True, inplace=True)
+    df_peaks = df_peaks.query("score > @score_cutoff and chr not in @excluded_chr")
+
+    df_centros = pd.read_csv(centros_info_path, sep='\t', index_col=None)
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     df_probes_t = df_probes.transpose()
-    excluded_chr = ['chr2', 'chr3']
     unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
     def process_row(row):
@@ -71,12 +77,16 @@ def freq_focus_around_cohesin_peaks(
 
         #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
         #   in upstream becomes positive.
-        filtered_tmp_df.iloc[:, 1] -= current_cohesin_peak_bin
-        filtered_tmp_df.index = range(len(filtered_tmp_df))
+
+        if pooled:
+            filtered_tmp_df.loc[:, 'chr_bins'] = abs(filtered_tmp_df.loc[:, 'chr_bins'] - current_cohesin_peak_bin)
+            filtered_tmp_df = filtered_tmp_df.groupby(['chr', 'chr_bins'], as_index=False).mean()
+        else:
+            filtered_tmp_df.loc[:, 'chr_bins'] -= current_cohesin_peak_bin
+
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-
         for f in unique_fragments:
             self_chr = df_probes_t.loc[df_probes_t['frag_id'] == f]['chr'][0]
             if self_chr == current_chr:
@@ -100,7 +110,6 @@ def filter_peaks_around_centromeres(
     current_chr_cen = df_centros.loc[df_centros['Chr'] == current_chr, 'Left_arm_length'].values[0]
     left_cutoff = current_chr_cen - filter_range - bin_size
     right_cutoff = current_chr_cen + filter_range
-
     if filter_mode == 'outer':
         return df_contacts_peaks.query(
             "chr == @current_chr and (chr_bins < @left_cutoff or chr_bins > @right_cutoff)")
@@ -147,41 +156,6 @@ def compute_average_aggregate(
     return df_mean, df_std
 
 
-def pooled_stats(mean_df: pd.DataFrame,
-                 std_df: pd.DataFrame,
-                 table_path: str):
-
-    middle = int(len(mean_df) / 2)
-    pooled_index = mean_df.index[middle:].values
-
-    #   Pool the mean dataframe
-    left_mean_df = mean_df.iloc[:middle+1]
-    left_mean_df.index = pooled_index[::-1]
-    left_mean_df = left_mean_df.sort_index()
-    right_mean_df = mean_df.iloc[middle:]
-
-    tmp_mean_df = pd.concat((left_mean_df, right_mean_df))
-    pooled_mean_df = tmp_mean_df.groupby(tmp_mean_df.index).mean()
-
-    #   Pool the std dataframe
-    left_std_df = std_df.iloc[:middle + 1]
-    left_std_df.index = pooled_index[::-1]
-    left_std_df = left_std_df.sort_index()
-    right_std_df = std_df.iloc[middle:]
-    pooled_std_df = pd.DataFrame()
-
-    for col in left_std_df.columns:
-        n1 = left_std_df[col].shape[0]
-        n2 = right_std_df[col].shape[0]
-        std_pooled = np.sqrt(((n1 - 1) * left_std_df[col] ** 2 + (n2 - 1) * right_std_df[col] ** 2) / (n1 + n2 - 2))
-        pooled_std_df[col] = std_pooled
-
-    pooled_mean_df.to_csv(table_path + '_pooled_mean_on_cohesins.tsv', sep='\t')
-    pooled_mean_df.to_csv(table_path + '_pooled_std_on_cohesins.tsv', sep='\t')
-
-    return pooled_mean_df, pooled_std_df
-
-
 def plot_aggregated(
         mean_df: pd.DataFrame,
         std_df: pd.DataFrame,
@@ -205,7 +179,7 @@ def plot_aggregated(
         plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
         plt.xticks(rotation=45)
         plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(plot_path + "_{0}_cohesins_aggregated_frequencies_plot.{1}".format(name, 'jpg'), dpi=99)
+        plt.savefig(plot_path + "{0}_cohesins_aggregated_frequencies_plot.{1}".format(name, 'jpg'), dpi=99)
         plt.close()
 
 
@@ -271,21 +245,17 @@ def run(
         cohesins_peaks_path=cohesins_peaks_path,
         score_cutoff=score_cutoff,
         filter_range=cen_filter_span,
-        filter_mode=cen_filter_mode)
+        filter_mode=cen_filter_mode,
+        pooled=True)
 
     df_mean, df_std = compute_average_aggregate(
         df_cohesins_peaks_bins=df_contacts_cohesins,
         df_probes=df_probes,
-        table_path=dir_table+sample_name)
-
-    df_mean_pooled, df_std_pooled = pooled_stats(
-        mean_df=df_mean,
-        std_df=df_std,
-        table_path=dir_table+sample_name)
+        table_path=dir_table)
 
     plot_aggregated(
-        mean_df=df_mean_pooled,
-        std_df=df_std_pooled,
-        plot_path=dir_plot+sample_name)
+        mean_df=df_mean,
+        std_df=df_std,
+        plot_path=dir_plot)
 
     print('DONE: ', sample_name)
