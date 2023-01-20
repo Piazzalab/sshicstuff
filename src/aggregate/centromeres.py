@@ -47,7 +47,8 @@ def freq_focus_around_centromeres(
         fragments_to_oligos_path: str,
         window_size: int,
         bin_size: int,
-        centros_infos_path: str):
+        centros_infos_path: str,
+        pooled: bool):
     """
     Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
     centromeres and for each of the 16 chromosomes of yeast genome
@@ -77,12 +78,17 @@ def freq_focus_around_centromeres(
         tmp_df.index = range(len(tmp_df))
         current_centros_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_centros_pos, mode='lower')
 
-        tmp_df.iloc[:, 1] -= current_centros_bin
+        tmp_df.loc[:, 'chr_bins'] = abs(tmp_df.loc[:, 'chr_bins'] - current_centros_bin)
+
+        if pooled:
+            tmp_df.loc[:, 'chr_bins'] = abs(tmp_df.loc[:, 'chr_bins'] - current_centros_bin)
+            tmp_df = tmp_df.groupby(['chr', 'chr_bins'], as_index=False).mean()
+        else:
+            tmp_df.loc[:, 'chr_bins'] -= current_centros_bin
 
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-
         for f in unique_fragments:
             self_chr = df_probes_t.loc[df_probes_t['frag_id'] == f]['chr'][0]
             if self_chr == current_chr:
@@ -113,46 +119,11 @@ def compute_average_aggregate(
         df_median[probe] = df.T.median()
 
     #   Write to csv
-    df_mean.to_csv(table_path + '_mean_on_cen.tsv', sep='\t')
-    df_std.to_csv(table_path + '_std_on_cen.tsv', sep='\t')
-    df_median.to_csv(table_path + '_median_on_cen.tsv', sep='\t')
+    df_mean.to_csv(table_path + 'mean_on_cen.tsv', sep='\t')
+    df_std.to_csv(table_path + 'std_on_cen.tsv', sep='\t')
+    df_median.to_csv(table_path + 'median_on_cen.tsv', sep='\t')
 
     return df_mean, df_std, df_median
-
-
-def pooled_stats(mean_df: pd.DataFrame,
-                 std_df: pd.DataFrame,
-                 table_path: str):
-
-    middle = int(np.where(mean_df.index.values == 0)[0])
-    pooled_index = mean_df.index[middle:].values
-
-    #   Pool the mean dataframe
-    left_mean_df = mean_df.iloc[:middle+1]
-    left_mean_df.index = pooled_index[::-1]
-    left_mean_df = left_mean_df.sort_index()
-    right_mean_df = mean_df.iloc[middle:]
-
-    tmp_mean_df = pd.concat((left_mean_df, right_mean_df))
-    pooled_mean_df = tmp_mean_df.groupby(tmp_mean_df.index).mean()
-
-    #   Pool the std dataframe
-    left_std_df = std_df.iloc[:middle + 1]
-    left_std_df.index = pooled_index[::-1]
-    left_std_df = left_std_df.sort_index()
-    right_std_df = std_df.iloc[middle:]
-    pooled_std_df = pd.DataFrame()
-
-    for col in left_std_df.columns:
-        n1 = left_std_df[col].shape[0]
-        n2 = right_std_df[col].shape[0]
-        std_pooled = np.sqrt(((n1 - 1) * left_std_df[col] ** 2 + (n2 - 1) * right_std_df[col] ** 2) / (n1 + n2 - 2))
-        pooled_std_df[col] = std_pooled
-
-    pooled_mean_df.to_csv(table_path + '_pooled_mean_on_cen.tsv', sep='\t')
-    pooled_mean_df.to_csv(table_path + '_pooled_std_on_cen.tsv', sep='\t')
-
-    return pooled_mean_df, pooled_std_df
 
 
 def plot_aggregated(
@@ -174,7 +145,7 @@ def plot_aggregated(
         plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
         plt.xticks(rotation=45)
         plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(plot_path + '_' + "{0}_centromeres_aggregated_freq_plot.{1}".format(probe, 'jpg'), dpi=99)
+        plt.savefig(plot_path + "{0}_centromeres_aggregated_freq_plot.{1}".format(probe, 'jpg'), dpi=99)
         plt.close()
 
 
@@ -214,25 +185,21 @@ def run(
         fragments_to_oligos_path=probes_to_fragments_path,
         window_size=window_size,
         bin_size=10000,
-        centros_infos_path=centros_coord_path)
+        centros_infos_path=centros_coord_path,
+        pooled=True)
 
     chr_aggregated_dict = compute_centromere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros,
         df_probes=df_probes,
-        table_path=dir_table+sample_name)
+        table_path=dir_table)
 
     df_mean, df_std, df_median = compute_average_aggregate(
         aggregated=chr_aggregated_dict,
-        table_path=dir_table+sample_name)
-
-    df_mean_pooled, df_std_pooled = pooled_stats(
-        mean_df=df_mean,
-        std_df=df_std,
-        table_path=dir_table+sample_name)
+        table_path=dir_table)
 
     plot_aggregated(
-        mean_df=df_mean_pooled,
-        std_df=df_std_pooled,
-        plot_path=dir_plot+sample_name)
+        mean_df=df_mean,
+        std_df=df_std,
+        plot_path=dir_plot)
 
     print('DONE: ', sample_name)

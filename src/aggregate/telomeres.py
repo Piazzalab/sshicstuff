@@ -53,7 +53,8 @@ def freq_focus_around_telomeres(
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
         window_size: int,
-        telomeres_coord_path: str):
+        telomeres_coord_path: str,
+        pooled: bool):
     """
     Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
     centromeres and for each of the 16 chromosomes of yeast genome
@@ -84,8 +85,12 @@ def freq_focus_around_telomeres(
 
         right_telo_bin = tools.find_nearest(tmp_df_right['chr_bins'].values, current_telo_right, mode='lower')
 
-        tmp_df_right['chr_bins'] = abs(tmp_df_right['chr_bins'] - right_telo_bin)
-        tmp_df = pd.concat((tmp_df_left, tmp_df_right)).groupby(['chr', 'chr_bins'], as_index=False).mean()
+        if pooled:
+            tmp_df_right['chr_bins'] = abs(tmp_df_right['chr_bins'] - right_telo_bin)
+            tmp_df = pd.concat((tmp_df_left, tmp_df_right)).groupby(['chr', 'chr_bins'], as_index=False).mean()
+        else:
+            tmp_df_right['chr_bins'] -= right_telo_bin
+            tmp_df = pd.concat((tmp_df_left, tmp_df_right))
 
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
@@ -178,7 +183,8 @@ def run(
         formatted_contacts_path=formatted_contacts_path,
         probes_to_fragments_path=probes_to_fragments_path,
         window_size=window_size,
-        telomeres_coord_path=telomeres_coord_path)
+        telomeres_coord_path=telomeres_coord_path,
+        pooled=True)
 
     chr_aggregated_dict = compute_telomere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros,
