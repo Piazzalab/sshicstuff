@@ -132,6 +132,7 @@ def do_stats(
 def do_nucleo(
         samples_dir: str,
         fragments: str,
+        probe2frag: str,
         nucleosomes_path: str,
         output_dir: str,
         parallel: bool = True):
@@ -146,6 +147,7 @@ def do_nucleo(
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(nucleosomes.run, [(samples_dir+samp+'_contacts.tsv',
                                          fragments,
+                                         probe2frag,
                                          nucleosomes_path,
                                          output_dir) for samp in samples])
 
@@ -154,6 +156,7 @@ def do_nucleo(
             nucleosomes.run(
                 formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
                 fragments_list_path=fragments,
+                probes_to_fragments_path=probe2frag,
                 nucleosomes_path=nucleosomes_path,
                 output_dir=output_dir
             )
@@ -169,7 +172,7 @@ if __name__ == "__main__":
     nfr_output_dir = "../../data/outputs/nucleosomes/"
 
     sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
-    modes = ['statistics']
+    modes = ['nucleosomes']
 
     for hicd in sshic_dir:
         print(hicd)
@@ -179,6 +182,7 @@ if __name__ == "__main__":
         format_output_dir = "../../data/outputs/formatted/" + hicd
         binning_output_dir = "../../data/outputs/binning/" + hicd
         statistics_output_dir = "../../data/outputs/statistics/" + hicd
+        nfr_output_dir = "../../data/outputs/nucleosomes/" + hicd
 
         parallel_state: bool = True
         if tools.is_debug():
@@ -228,6 +232,7 @@ if __name__ == "__main__":
             do_nucleo(
                 samples_dir=format_output_dir,
                 fragments=fragments_list,
+                probe2frag=probes_and_fragments,
                 nucleosomes_path=nucleosomes_free_regions,
                 output_dir=nfr_output_dir,
                 parallel=parallel_state
