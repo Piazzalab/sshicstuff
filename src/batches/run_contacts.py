@@ -137,6 +137,9 @@ def do_nucleo(
         output_dir: str,
         parallel: bool = True):
 
+    #   TODO: CHECK IF THE fragments_{in, out}_nfr.tsv have been created here
+    #   Avoid to use too much RAM/CPU ressources
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
