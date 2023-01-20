@@ -120,7 +120,7 @@ if __name__ == "__main__":
         parallel_state = False
 
     sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
-    modes = ['telomeres']
+    modes = ['cohesins']
 
     for hicd in sshic_dir:
         print(hicd)

@@ -36,7 +36,9 @@ def freq_focus_around_cohesin_peaks(
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    df_probes_t = df_probes.transpose()
     excluded_chr = ['chr2', 'chr3']
+    unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
     def process_row(row):
         current_chr = row[0]
@@ -74,10 +76,11 @@ def freq_focus_around_cohesin_peaks(
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        for c in filtered_tmp_df.columns[3:]:
-            self_chr = df_probes.loc['frag_chr', c]
+
+        for f in unique_fragments:
+            self_chr = df_probes_t.loc[df_probes_t['frag_id'] == f]['chr'][0]
             if self_chr == current_chr:
-                filtered_tmp_df.loc[:, c] = np.nan
+                tmp_df.loc[:, f] = np.nan
 
         return filtered_tmp_df
 
@@ -112,26 +115,31 @@ def compute_average_aggregate(
         df_cohesins_peaks_bins: pd.DataFrame,
         df_probes: pd.DataFrame,
         table_path: str):
-    def process_bin(group):
-        sub_group = group.iloc[:, 3:]
-        tmp_mean_df = pd.DataFrame(sub_group.mean()).T
-        tmp_std_df = pd.DataFrame(sub_group.std()).T
-        tmp_mean_df.index = [group.name]
-        tmp_std_df.index = [group.name]
-        return tmp_mean_df, tmp_std_df
 
-    df_cohesins_peaks_bins_grouped = df_cohesins_peaks_bins.groupby('chr_bins')
-    df_mean, df_std = zip(*df_cohesins_peaks_bins_grouped.apply(process_bin))
-    df_mean = pd.concat(df_mean)
-    df_std = pd.concat(df_std)
+    all_probes = df_probes.columns.values
+    unique_chr = pd.unique(df_cohesins_peaks_bins['chr'])
+    bins_array = np.unique(df_cohesins_peaks_bins['chr_bins'])
 
-    #   Sort the series according to index
-    df_mean = df_mean.sort_index()
-    df_std = df_std.sort_index()
+    res: dict = {}
+    for probe in all_probes:
+        fragment = df_probes.loc['frag_id', probe]
+        self_chr = df_probes.loc['chr', probe]
+        if fragment not in df_cohesins_peaks_bins.columns:
+            continue
 
-    probes = df_probes.loc['oligo', :].values
-    df_mean.columns = probes
-    df_std.columns = probes
+        df_freq_cen = df_cohesins_peaks_bins.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
+        df_freq_cen[self_chr] = np.nan
+        df_freq_cen = df_freq_cen[unique_chr].reindex(bins_array)
+
+        res[probe] = df_freq_cen
+        df_freq_cen.to_csv(table_path + '_' + probe + '_chr1-16_freq_cen.tsv', sep='\t')
+
+    df_mean = pd.DataFrame()
+    df_std = pd.DataFrame()
+
+    for probe, df in res.items():
+        df_mean[probe] = df.T.mean()
+        df_std[probe] = df.T.std()
 
     df_mean.to_csv(table_path + '_mean_on_cohesins.tsv', sep='\t')
     df_std.to_csv(table_path + '_std_on_cohesins.tsv', sep='\t')
