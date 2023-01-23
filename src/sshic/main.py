@@ -111,7 +111,7 @@ if __name__ == "__main__":
                 probes2frag=probes_and_fragments,
                 samples_dir=binning_dir+hicd,
                 span=150000,
-                output_dir=centromeres_dir,
+                output_dir=centromeres_dir+hicd,
                 parallel=parallel_state
             )
 
