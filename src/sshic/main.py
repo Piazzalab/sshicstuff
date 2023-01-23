@@ -12,17 +12,17 @@ if __name__ == "__main__":
     inputs_dir = data_dir + 'inputs/'
     outputs_dir = data_dir + 'outputs/'
 
-    sshic_dir = ['sshic_pcrdupkept/']
+    sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
 
     operations = {
         'filter': 0,
-        'format': 1,
-        'binning': 1,
-        'statistics': 1,
-        'nucleosomes': 1,
+        'format': 0,
+        'binning': 0,
+        'statistics': 0,
+        'nucleosomes': 0,
         'centromeres': 0,
         'telomeres': 0,
-        'cohesins': 0
+        'cohesins': 1
     }
 
     #   INPUTS

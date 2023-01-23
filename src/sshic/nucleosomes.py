@@ -7,7 +7,11 @@ from scipy import stats
 import re
 
 
-def get_nfr_contacts(fragments_path: str, nucleosomes_path: str, output_path: str):
+def get_nfr_contacts(
+        fragments_path: str,
+        nucleosomes_path: str,
+        output_path: str):
+
     df_fragments = pd.read_csv(fragments_path, sep='\t')
     df_fragments.insert(0, 'uid', df_fragments.index)
     df_nucleosomes = pd.read_csv(nucleosomes_path, sep='\t')

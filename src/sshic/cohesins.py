@@ -140,7 +140,7 @@ def compute_average_aggregate(
         df_freq_cen = df_freq_cen[unique_chr].reindex(bins_array)
 
         res[probe] = df_freq_cen
-        df_freq_cen.to_csv(table_path + '_' + probe + '_chr1-16_freq_cen.tsv', sep='\t')
+        df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cen.tsv', sep='\t')
 
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
