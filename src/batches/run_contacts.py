@@ -137,8 +137,17 @@ def do_nucleo(
         output_dir: str,
         parallel: bool = True):
 
-    #   TODO: CHECK IF THE fragments_{in, out}_nfr.tsv have been created here
-    #   Avoid to use too much RAM/CPU ressources
+    output_parent_dir = os.path.dirname(os.path.dirname(output_dir))+'/'
+    files = os.listdir(output_parent_dir)
+    nfr_in = 'fragments_list_in_nfr.tsv'
+    nfr_out = 'fragments_list_out_nfr.tsv'
+
+    if np.sum(np.isin([nfr_in, nfr_out], files)) != 2:
+        nucleosomes.preprocess(
+            fragments_list_path=fragments,
+            nucleosomes_path=nucleosomes_path,
+            output_dir=output_parent_dir
+        )
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -149,18 +158,18 @@ def do_nucleo(
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(nucleosomes.run, [(samples_dir+samp+'_contacts.tsv',
-                                         fragments,
                                          probe2frag,
-                                         nucleosomes_path,
+                                         output_parent_dir+nfr_in,
+                                         output_parent_dir+nfr_out,
                                          output_dir) for samp in samples])
 
     else:
         for samp in samples:
             nucleosomes.run(
                 formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
-                fragments_list_path=fragments,
                 probes_to_fragments_path=probe2frag,
-                nucleosomes_path=nucleosomes_path,
+                fragments_in_nfr_path=output_parent_dir+nfr_in,
+                fragments_out_nfr_path=output_parent_dir+nfr_out,
                 output_dir=output_dir
             )
 
