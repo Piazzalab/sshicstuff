@@ -1,7 +1,7 @@
 import re
 import numpy as np
 import pandas as pd
-from utils import tools
+from sshic import tools
 
 
 def fragments_to_oligos(

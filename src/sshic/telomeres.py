@@ -5,7 +5,7 @@ import pandas as pd
 import os
 import re
 import matplotlib.pyplot as plt
-from utils import tools
+from sshic import tools
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -151,19 +151,15 @@ def plot_aggregated(
 
 
 def mkdir(output_path: str):
-    dir_res = output_path
+    dir_res = output_path + '/'
     if not os.path.exists(dir_res):
         os.makedirs(dir_res)
 
-    dir_type = dir_res + '/telomeres/'
-    if not os.path.exists(dir_type):
-        os.makedirs(dir_type)
-
-    dir_plot = dir_type + 'plots/'
+    dir_plot = dir_res + 'plots/'
     if not os.path.exists(dir_plot):
         os.makedirs(dir_plot)
 
-    dir_table = dir_type + 'tables/'
+    dir_table = dir_res + 'tables/'
     if not os.path.exists(dir_table):
         os.makedirs(dir_table)
     return dir_table, dir_plot

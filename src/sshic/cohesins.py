@@ -5,8 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import re
-from utils import tools
-
+from sshic import tools
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -188,18 +187,14 @@ def mkdir(output_path: str,
           filter_mode: None | str,
           filter_span: int):
 
-    dir_res = output_path
+    dir_res = output_path + '/'
     if not os.path.exists(dir_res):
         os.makedirs(dir_res)
 
-    dir_type = dir_res + '/cohesins_peaks/'
-    if not os.path.exists(dir_type):
-        os.makedirs(dir_type)
-
     if filter_mode is None:
-        dir_mode = dir_type + 'all/'
+        dir_mode = dir_res + 'all/'
     else:
-        dir_mode = dir_type + filter_mode + '_' + str(filter_span // 1000) + 'kb' + '/'
+        dir_mode = dir_res + filter_mode + '_' + str(filter_span // 1000) + 'kb' + '/'
     if not os.path.exists(dir_mode):
         os.makedirs(dir_mode)
 

@@ -2,8 +2,7 @@ import os
 import re
 import multiprocessing as mp
 import numpy as np
-from contacts import filter, format, binning, statistics, nucleosomes
-import utils.tools as tools
+from sshic import binning, nucleosomes, statistics, filter, format, telomeres, centromeres, cohesins
 
 
 def do_filter(
@@ -47,7 +46,7 @@ def do_format(
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
-            p.starmap(format.run, [(samples_dir+samp,
+            p.starmap(format.run, [(samples_dir + samp,
                                     output_dir) for samp in samples])
 
     else:
@@ -81,7 +80,7 @@ def do_binning(
                     os.makedirs(new_output_dir)
 
                 p.starmap(binning.run, [(artificial_genome,
-                                         samples_dir+samp,
+                                         samples_dir + samp,
                                          bs,
                                          new_output_dir) for samp in samples])
     else:
@@ -115,7 +114,7 @@ def do_stats(
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(statistics.run, [(cis_span,
-                                        samples_dir+samp+'_contacts.tsv',
+                                        samples_dir + samp +'_contacts.tsv',
                                         probes2frag,
                                         output_dir) for samp in samples])
 
@@ -137,6 +136,9 @@ def do_nucleo(
         output_dir: str,
         parallel: bool = True):
 
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     output_parent_dir = os.path.dirname(os.path.dirname(output_dir))+'/'
     files = os.listdir(output_parent_dir)
     nfr_in = 'fragments_list_in_nfr.tsv'
@@ -149,18 +151,15 @@ def do_nucleo(
             output_dir=output_parent_dir
         )
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
     samples = np.unique(
         [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
-            p.starmap(nucleosomes.run, [(samples_dir+samp+'_contacts.tsv',
+            p.starmap(nucleosomes.run, [(samples_dir + samp + '_contacts.tsv',
                                          probe2frag,
-                                         output_parent_dir+nfr_in,
-                                         output_parent_dir+nfr_out,
+                                         output_parent_dir + nfr_in,
+                                         output_parent_dir + nfr_out,
                                          output_dir) for samp in samples])
 
     else:
@@ -174,80 +173,101 @@ def do_nucleo(
             )
 
 
-if __name__ == "__main__":
+def do_centro(
+        centromeres_coordinates: str,
+        probes2frag: str,
+        samples_dir: str,
+        output_dir: str,
+        span: int,
+        parallel: bool = True):
 
-    fragments_list = "../../data/inputs/fragments_list.txt"
-    probes_and_fragments = "../../data/inputs/probes_to_fragments.tsv"
-    artificial_genome_fa = "../../data/inputs/S288c_DSB_LY_capture_artificial.fa"
-    oligos_positions = "../../data/inputs/capture_oligo_positions.csv"
-    nucleosomes_free_regions = "../../data/inputs/Chereji_Henikoff_genome_research_NFR.bed"
-    nfr_output_dir = "../../data/outputs/nucleosomes/"
-
-    sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
-    modes = ['nucleosomes']
-
-    for hicd in sshic_dir:
-        print(hicd)
-
-        hicstuff_dir = "../../data/outputs/hicstuff/" + hicd
-        filter_output_dir = "../../data/outputs/filtered/" + hicd
-        format_output_dir = "../../data/outputs/formatted/" + hicd
-        binning_output_dir = "../../data/outputs/binning/" + hicd
-        statistics_output_dir = "../../data/outputs/statistics/" + hicd
-        nfr_output_dir = "../../data/outputs/nucleosomes/" + hicd
-
-        parallel_state: bool = True
-        if tools.is_debug():
-            parallel_state = False
-
-        if 'filter' in modes:
-            print('Filtering')
-            do_filter(
-                fragments=fragments_list,
-                oligos=oligos_positions,
-                samples_dir=hicstuff_dir,
-                output_dir=filter_output_dir
+    samples = np.unique(
+        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir+'10kb/')])
+    if parallel:
+        with mp.Pool(mp.cpu_count()) as p:
+            p.starmap(centromeres.run, [(samples_dir + '10kb/' + samp + '_frequencies.tsv',
+                                         probes2frag,
+                                         span,
+                                         output_dir,
+                                         centromeres_coordinates) for samp in samples])
+    else:
+        for samp in samples:
+            centromeres.run(
+                formatted_contacts_path=samples_dir + '10kb/' + samp + '_frequencies.tsv',
+                probes_to_fragments_path=probes2frag,
+                window_size=span,
+                output_path=output_dir,
+                centros_coord_path=centromeres_coordinates
             )
 
-        if 'format' in modes:
-            print('Formatting')
-            do_format(
-                fragments=fragments_list,
-                oligos=oligos_positions,
-                probes2frag=probes_and_fragments,
-                samples_dir=filter_output_dir,
-                output_dir=format_output_dir,
-                parallel=parallel_state
+
+def do_telo(
+        centromeres_coordinates: str,
+        probes2frag: str,
+        samples_dir: str,
+        output_dir: str,
+        span: int,
+        parallel: bool = True):
+
+    samples = np.unique(
+        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir+'10kb/')])
+    if parallel:
+        with mp.Pool(mp.cpu_count()) as p:
+            p.starmap(telomeres.run, [(samples_dir + '10kb/' + samp + '_frequencies.tsv',
+                                       probes2frag,
+                                       span,
+                                       output_dir,
+                                       centromeres_coordinates) for samp in samples])
+    else:
+        for samp in samples:
+            telomeres.run(
+                formatted_contacts_path=samples_dir + '10kb/' + samp + '_frequencies.tsv',
+                probes_to_fragments_path=probes2frag,
+                window_size=span,
+                output_path=output_dir,
+                telomeres_coord_path=centromeres_coordinates
             )
 
-        if 'binning' in modes:
-            print('Binning')
-            do_binning(
-                artificial_genome=artificial_genome_fa,
-                samples_dir=format_output_dir,
-                output_dir=binning_output_dir,
-                parallel=parallel_state
-            )
 
-        if 'statistics' in modes:
-            print('Statistics')
-            do_stats(
-                samples_dir=format_output_dir,
-                probes2frag=probes_and_fragments,
-                output_dir=statistics_output_dir,
-                cis_span=50000,
-                parallel=parallel_state
-            )
+def do_cohesins(
+        samples_dir: str,
+        centromeres_coordinates: str,
+        probes2frag: str,
+        cohesins_peaks: str,
+        output_dir: str,
+        span: int,
+        cen_filter_operations: list[str | None],
+        cen_filter_span: int,
+        scores: list[int],
+        parallel: bool = True):
 
-        if 'nucleosomes' in modes:
-            print('nucleosomes')
-            do_nucleo(
-                samples_dir=format_output_dir,
-                fragments=fragments_list,
-                probe2frag=probes_and_fragments,
-                nucleosomes_path=nucleosomes_free_regions,
-                output_dir=nfr_output_dir,
-                parallel=parallel_state
-            )
-
-    print('--- DONE ---')
+    samples = np.unique(
+        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir+'1kb/')])
+    if parallel:
+        with mp.Pool(mp.cpu_count()) as p:
+            for m in cen_filter_operations:
+                for sc in scores:
+                    print('score higher than: ', sc)
+                    p.starmap(cohesins.run, [(samples_dir + '1kb/' + samp + '_frequencies.tsv',
+                                              probes2frag,
+                                              span,
+                                              output_dir,
+                                              cohesins_peaks,
+                                              centromeres_coordinates,
+                                              sc,
+                                              cen_filter_span,
+                                              m) for samp in samples])
+    else:
+        for m in cen_filter_operations:
+            for sc in scores:
+                for samp in samples:
+                    cohesins.run(
+                        formatted_contacts_path=samples_dir + '1kb/' + samp + '_frequencies.tsv',
+                        probes_to_fragments_path=probes2frag,
+                        window_size=span,
+                        output_dir=output_dir,
+                        cohesins_peaks_path=cohesins_peaks,
+                        centromere_info_path=centromeres_coordinates,
+                        score_cutoff=sc,
+                        cen_filter_span=cen_filter_span,
+                        cen_filter_mode=m)
