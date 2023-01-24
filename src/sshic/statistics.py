@@ -1,14 +1,18 @@
 #! /usr/bin/env python3
 
+import os
 import re
 import numpy as np
 import pandas as pd
+from typing import Optional
 
 
-def compute_stats(formatted_contacts_path: str,
-                  probes_to_fragments_path: str,
-                  cis_range: int,
-                  output_path: str):
+def compute_stats(
+        wt_references_dir: Optional[str],
+        formatted_contacts_path: str,
+        probes_to_fragments_path: str,
+        cis_range: int,
+        output_path: str):
 
     """
     After having formatted the contacts of each oligos in the genome (file with bin_size=0)
@@ -69,6 +73,12 @@ def compute_stats(formatted_contacts_path: str,
             np.sum(sub_df.query("chr != @probe_chr")[frag_id].values) / total_contacts[ii_probe]
         )
 
+        pondered_dsdna_mut = np.array([], dtype=int)
+        pondered_dsdna_wt = np.array([], dtype=int)
+        if os.path.exists(wt_references_dir) and os.listdir(wt_references_dir) is not None:
+            ref_wt: dict = \
+                {k.lower(): pd.read_csv(wt_references_dir + k, sep='\t') for k in os.listdir(wt_references_dir)}
+
         for chrom in chr_size_dict:
 
             #   n1: sum contacts chr_i
@@ -121,6 +131,7 @@ def compute_stats(formatted_contacts_path: str,
 
 def run(
         cis_range: int,
+        wt_references_dir: Optional[str],
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
         output_dir: str):
@@ -129,6 +140,7 @@ def run(
     output_path = output_dir + sample_id
     compute_stats(
         cis_range=cis_range,
+        wt_references_dir=wt_references_dir,
         formatted_contacts_path=formatted_contacts_path,
         probes_to_fragments_path=probes_to_fragments_path,
         output_path=output_path)

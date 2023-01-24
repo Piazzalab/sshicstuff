@@ -16,13 +16,14 @@ if __name__ == "__main__":
 
     operations = {
         'filter': 0,
+        'ponder': 0,
         'format': 0,
         'binning': 0,
-        'statistics': 0,
+        'statistics': 1,
         'nucleosomes': 0,
         'centromeres': 0,
         'telomeres': 0,
-        'cohesins': 1
+        'cohesins': 0
     }
 
     #   INPUTS
@@ -33,10 +34,12 @@ if __name__ == "__main__":
     centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
     cohesins_peaks_bed = inputs_dir + "HB65_reference_peaks_score50min.bed"
     nucleosomes_free_regions = inputs_dir + "Chereji_Henikoff_genome_research_NFR.bed"
+    ref_wt_dir = inputs_dir + "capture_efficiencies/"
 
     #   OUTPUTS
     hicstuff_dir = outputs_dir + "hicstuff/"
     filter_dir = outputs_dir + "filtered/"
+    pondered_dir = outputs_dir + "pondered/"
     format_dir = outputs_dir + "formatted/"
     binning_dir = outputs_dir + "binning/"
     statistics_dir = outputs_dir + "statistics/"
@@ -63,6 +66,16 @@ if __name__ == "__main__":
                 output_dir=filter_dir+hicd
             )
 
+        if operations['ponder'] == 1:
+            print('Pondering Mutants')
+            pip.do_ponder(
+                probes2frag=probes_and_fragments,
+                capture_efficiencies_dir=ref_wt_dir,
+                hicstuff_contacts_dir=hicstuff_dir+hicd,
+                binned_contacts_dir=binning_dir+hicd,
+                statistics_contacts_dir=statistics_dir+hicd,
+                output_dir=pondered_dir)
+
         if operations['format'] == 1:
             print('Formatting')
             pip.do_format(
@@ -87,6 +100,7 @@ if __name__ == "__main__":
             print('Statistics')
             pip.do_stats(
                 samples_dir=format_dir+hicd,
+                wt_references=ref_wt_dir,
                 probes2frag=probes_and_fragments,
                 output_dir=statistics_dir+hicd,
                 cis_span=50000,

@@ -1,8 +1,10 @@
 import os
 import re
+from typing import Optional
 import multiprocessing as mp
 import numpy as np
-from sshic import binning, nucleosomes, statistics, filter, format, telomeres, centromeres, cohesins
+from sshic import binning, nucleosomes, statistics, filter, format, \
+    ponder_mutants, telomeres, centromeres, cohesins
 
 
 def do_filter(
@@ -22,6 +24,38 @@ def do_filter(
             fragments_input_path=fragments,
             contacts_input=samples_dir+samp,
             output_path=output_dir+samp_id)
+
+
+def do_ponder(
+        probes2frag: str,
+        capture_efficiencies_dir: str,
+        hicstuff_contacts_dir: str,
+        binned_contacts_dir: str,
+        statistics_contacts_dir: str,
+        output_dir: str):
+
+    sparse_mat_list = sorted(os.listdir(hicstuff_contacts_dir))
+    bins_dir_list = os.listdir(binned_contacts_dir)
+    statistics_contacts_list = sorted(os.listdir(statistics_contacts_dir))
+    samples_id = sorted([re.search(r"AD\d+", f).group() for f in sparse_mat_list])
+
+    for bin_dir in bins_dir_list:
+        bin_dir += '/'
+        binned_contacts_list = [f for f in sorted(os.listdir(binned_contacts_dir + bin_dir)) if 'contacts' in f]
+        for ii_samp, samp in enumerate(samples_id):
+            sparse_mat = sparse_mat_list[ii_samp]
+            binned_contacts = binned_contacts_list[ii_samp]
+            stats_contacts = statistics_contacts_list[ii_samp]
+
+            ponder_mutants.run(
+                probes_to_fragments_path=probes2frag,
+                samples_names=samples_id,
+                wt_capture_eff_dir=capture_efficiencies_dir,
+                sparse_mat_path=hicstuff_contacts_dir+sparse_mat,
+                binned_contacts_path=binned_contacts_dir+bin_dir+binned_contacts,
+                statistics_path=statistics_contacts_dir+stats_contacts,
+                output_dir=output_dir,
+            )
 
 
 def do_format(
@@ -101,6 +135,7 @@ def do_binning(
 def do_stats(
         samples_dir: str,
         probes2frag: str,
+        wt_references: Optional[str],
         output_dir: str,
         cis_span: int,
         parallel: bool = True):
@@ -113,15 +148,18 @@ def do_stats(
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
-            p.starmap(statistics.run, [(cis_span,
-                                        samples_dir + samp +'_contacts.tsv',
-                                        probes2frag,
-                                        output_dir) for samp in samples])
+            p.starmap(statistics.run, [(
+                wt_references,
+                cis_span,
+                samples_dir + samp +'_contacts.tsv',
+                probes2frag,
+                output_dir) for samp in samples])
 
     else:
         for samp in samples:
             statistics.run(
                 cis_range=cis_span,
+                wt_references_dir=wt_references,
                 formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
                 probes_to_fragments_path=probes2frag,
                 output_dir=output_dir
