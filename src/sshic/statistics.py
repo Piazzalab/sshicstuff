@@ -8,6 +8,7 @@ from typing import Optional
 
 
 def compute_stats(
+        sparse_matrix_path: Optional[str],
         wt_references_dir: Optional[str],
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
@@ -28,8 +29,21 @@ def compute_stats(
 
     unique_chr = list(chr_size_dict.keys())
     df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
-    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    all_probes = np.asarray(df_probes.columns.values, dtype='<U64')
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0).T
+    all_probes = np.asarray(df_probes.index, dtype='<U64')
+
+    df_sparse_mat = pd.read_csv(sparse_matrix_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
+    #   from sparse_matrix (hicstuff results): get total contacts from which probes enrichment is calculated
+    total_sparse_contacts = sum(df_sparse_mat["contacts"])
+
+    wt_capture_ref = False
+    if os.path.exists(wt_references_dir) and os.listdir(wt_references_dir) is not None:
+        wt_capture_ref = True
+        ref_wt: dict = \
+            {k.lower().split('.')[0]: pd.read_csv(wt_references_dir + k, sep='\t')
+             for k in os.listdir(wt_references_dir)}
+    else:
+        ref_wt: dict = {}
 
     probes = []
     fragments = []
@@ -45,8 +59,9 @@ def compute_stats(
     chr_inter_only_contacts_nrm = {k: [] for k in chr_size_dict}
 
     ii_probe = 0
+    dsdna_counter = 0
     for probe in all_probes:
-        probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = df_probes[probe].tolist()
+        probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = df_probes.loc[probe].tolist()
         if frag_id not in df_formatted_contacts.columns.tolist():
             continue
 
@@ -55,8 +70,9 @@ def compute_stats(
         types.append(probe_type)
         sub_df = df_formatted_contacts[['chr', 'positions', frag_id]]
         cis_limits = \
-            [int(df_probes.loc['probe_start', probe]) - cis_range, int(df_probes.loc['probe_end', probe]) + cis_range]
-        total_contacts.append(np.sum(sub_df[frag_id].values))
+            [int(df_probes.loc[probe, 'probe_start']) - cis_range, int(df_probes.loc[probe, 'probe_end']) + cis_range]
+        probe_contacts = np.sum(sub_df[frag_id].values)
+        total_contacts.append(probe_contacts)
         total_contacts_inter.append(np.sum(sub_df.query("chr != @probe_chr")[frag_id].values))
 
         cis_contacts.append(
@@ -72,12 +88,6 @@ def compute_stats(
         inter_chr_contacts.append(
             np.sum(sub_df.query("chr != @probe_chr")[frag_id].values) / total_contacts[ii_probe]
         )
-
-        pondered_dsdna_mut = np.array([], dtype=int)
-        pondered_dsdna_wt = np.array([], dtype=int)
-        if os.path.exists(wt_references_dir) and os.listdir(wt_references_dir) is not None:
-            ref_wt: dict = \
-                {k.lower(): pd.read_csv(wt_references_dir + k, sep='\t') for k in os.listdir(wt_references_dir)}
 
         for chrom in chr_size_dict:
 
@@ -108,14 +118,26 @@ def compute_stats(
                 chr_inter_only_contacts_nrm[chrom].append(c2)
         ii_probe += 1
 
-    df_global = pd.DataFrame({'probes': probes, 'fragments': fragments, 'types': types, 'total': total_contacts,
-                              'cis': cis_contacts, 'trans': trans_contacts, 'intra_chr': intra_chr_contacts,
-                              'inter_chr': inter_chr_contacts})
+    df_global = pd.DataFrame({'probes': probes, 'fragments': fragments, 'types': types,
+                              'total_contacts': total_contacts, 'cis': cis_contacts, 'trans': trans_contacts,
+                              'intra_chr': intra_chr_contacts, 'inter_chr': inter_chr_contacts})
 
-    #  fold over : number of contact for one oligo divided by the mean (or median)
-    #  of all other 'ds' oligos in the genome
-    df_global['fold_over'] = \
-        df_global.loc[:, 'total'] / np.mean(df_global.loc[df_global['types'] == 'ds', 'total'].values)
+    df_global['total_contacts_pondered'] = df_global['total_contacts'] / total_sparse_contacts
+
+    if wt_capture_ref:
+        #  dsdna_norm_capture_efficiency : number of contact for one oligo divided by the mean (or median)
+        #  of all other 'ds' oligos in the genome
+        df_global['dsdna_norm_capture_efficiency'] = \
+            df_global.loc[:, 'total_contacts'] / np.mean(df_global.loc[df_global['types'] == 'ds',
+                                                                       'total_contacts'].values)
+
+        #   capture_efficiency_norm_'+wt : divide the dsDNA-normalized contacts to
+        #   the WT_capture efficiency for each probe to get the correction factor for each probe
+        for wt in ref_wt:
+            wt_capture_eff_values = \
+                df_global.merge(ref_wt[wt], on='probes')['Capture_efficiency_WT'].values
+            df_global['capture_efficiency_norm_'+wt] = \
+                df_global['dsdna_norm_capture_efficiency'] / wt_capture_eff_values
 
     df_chr_nrm = pd.DataFrame({'probes': probes, 'fragments': fragments, 'types': types})
     df_chr_inter_only_nrm = df_chr_nrm.copy(deep=True)
@@ -131,6 +153,7 @@ def compute_stats(
 
 def run(
         cis_range: int,
+        sparse_mat_path: Optional[str],
         wt_references_dir: Optional[str],
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
@@ -140,6 +163,7 @@ def run(
     output_path = output_dir + sample_id
     compute_stats(
         cis_range=cis_range,
+        sparse_matrix_path=sparse_mat_path,
         wt_references_dir=wt_references_dir,
         formatted_contacts_path=formatted_contacts_path,
         probes_to_fragments_path=probes_to_fragments_path,

@@ -99,6 +99,7 @@ if __name__ == "__main__":
         if operations['statistics'] == 1:
             print('Statistics')
             pip.do_stats(
+                hicstuff_dir=hicstuff_dir+hicd,
                 samples_dir=format_dir+hicd,
                 wt_references=ref_wt_dir,
                 probes2frag=probes_and_fragments,

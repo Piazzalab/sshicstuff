@@ -133,6 +133,7 @@ def do_binning(
 
 
 def do_stats(
+        hicstuff_dir: str,
         samples_dir: str,
         probes2frag: str,
         wt_references: Optional[str],
@@ -143,24 +144,27 @@ def do_stats(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    samples = np.unique(
-        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
+    sparse_mat_list = sorted(os.listdir(hicstuff_dir))
+    formatted_contacts_list = [f for f in sorted(os.listdir(samples_dir)) if '_contacts' in f]
+    samples_id = sorted([re.search(r"AD\d+", f).group() for f in sparse_mat_list])
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
             p.starmap(statistics.run, [(
-                wt_references,
                 cis_span,
-                samples_dir + samp +'_contacts.tsv',
+                hicstuff_dir + sparse_mat_list[ii_samp],
+                wt_references,
+                samples_dir+formatted_contacts_list[ii_samp],
                 probes2frag,
-                output_dir) for samp in samples])
+                output_dir) for ii_samp, samp in enumerate(samples_id)])
 
     else:
-        for samp in samples:
+        for ii_samp, samp in enumerate(samples_id):
             statistics.run(
                 cis_range=cis_span,
+                sparse_mat_path=hicstuff_dir+sparse_mat_list[ii_samp],
                 wt_references_dir=wt_references,
-                formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
+                formatted_contacts_path=samples_dir+formatted_contacts_list[ii_samp],
                 probes_to_fragments_path=probes2frag,
                 output_dir=output_dir
             )
