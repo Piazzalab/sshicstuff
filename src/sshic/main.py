@@ -16,10 +16,10 @@ if __name__ == "__main__":
 
     operations = {
         'filter': 0,
-        'ponder': 0,
         'format': 0,
         'binning': 0,
-        'statistics': 1,
+        'statistics': 0,
+        'ponder': 1,
         'nucleosomes': 0,
         'centromeres': 0,
         'telomeres': 0,
@@ -66,16 +66,6 @@ if __name__ == "__main__":
                 output_dir=filter_dir+hicd
             )
 
-        if operations['ponder'] == 1:
-            print('Pondering Mutants')
-            pip.do_ponder(
-                probes2frag=probes_and_fragments,
-                capture_efficiencies_dir=ref_wt_dir,
-                hicstuff_contacts_dir=hicstuff_dir+hicd,
-                binned_contacts_dir=binning_dir+hicd,
-                statistics_contacts_dir=statistics_dir+hicd,
-                output_dir=pondered_dir)
-
         if operations['format'] == 1:
             print('Formatting')
             pip.do_format(
@@ -107,6 +97,14 @@ if __name__ == "__main__":
                 cis_span=50000,
                 parallel=parallel_state
             )
+
+        if operations['ponder'] == 1:
+            print('Pondering Mutants')
+            pip.do_ponder(
+                probes2frag=probes_and_fragments,
+                binned_contacts_dir=binning_dir+hicd,
+                statistics_contacts_dir=statistics_dir+hicd,
+                output_dir=pondered_dir)
 
         if operations['nucleosomes'] == 1:
             print('nucleosomes')
