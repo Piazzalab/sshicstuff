@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+import os.path
 
 import numpy as np
 import pandas as pd
@@ -183,6 +184,9 @@ def run(
 
     df_fragments_in_nfr = pd.read_csv(fragments_in_nfr_path, sep='\t', index_col=0)
     df_fragments_out_nfr = pd.read_csv(fragments_out_nfr_path, sep='\t', index_col=0)
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     nfr_statistics(
         df_contacts=df_contacts,

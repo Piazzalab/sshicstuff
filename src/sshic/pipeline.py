@@ -219,27 +219,36 @@ def do_nucleo(
                 nucleosomes_path=nucleosomes_path,
                 output_dir=new_output_dir
             )
+        else:
+            continue
 
     samples = np.unique(
         [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
-            p.starmap(nucleosomes.run, [(samples_dir + samp + '_contacts.tsv',
-                                         probe2frag,
-                                         output_parent_dir + nfr_in,
-                                         output_parent_dir + nfr_out,
-                                         output_dir) for samp in samples])
+            for f_filter in fragments_nfr_filter_list:
+                print(f_filter)
+                f_filter += '/'
+                p.starmap(
+                    nucleosomes.run, [(samples_dir + samp + '_contacts.tsv',
+                                       probe2frag,
+                                       output_parent_dir + f_filter + nfr_in,
+                                       output_parent_dir + f_filter + nfr_out,
+                                       output_dir+f_filter) for samp in samples])
 
     else:
         for samp in samples:
-            nucleosomes.run(
-                formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
-                probes_to_fragments_path=probe2frag,
-                fragments_in_nfr_path=output_parent_dir+nfr_in,
-                fragments_out_nfr_path=output_parent_dir+nfr_out,
-                output_dir=output_dir
-            )
+            for f_filter in fragments_nfr_filter_list:
+                print(f_filter)
+                f_filter += '/'
+                nucleosomes.run(
+                    formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
+                    probes_to_fragments_path=probe2frag,
+                    fragments_in_nfr_path=output_parent_dir+f_filter+nfr_in,
+                    fragments_out_nfr_path=output_parent_dir+f_filter+nfr_out,
+                    output_dir=output_dir+f_filter
+                )
 
 
 def do_centro(
