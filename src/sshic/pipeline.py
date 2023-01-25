@@ -1,6 +1,7 @@
 import os
 import re
 from typing import Optional
+from itertools import chain
 import multiprocessing as mp
 import numpy as np
 from sshic import binning, nucleosomes, statistics, filter, format, \
@@ -24,31 +25,6 @@ def do_filter(
             fragments_input_path=fragments,
             contacts_input=samples_dir+samp,
             output_path=output_dir+samp_id)
-
-
-def do_ponder(
-        probes2frag: str,
-        binned_contacts_dir: str,
-        statistics_contacts_dir: str,
-        output_dir: str):
-
-    bins_dir_list = os.listdir(binned_contacts_dir)
-    statistics_contacts_list = sorted(os.listdir(statistics_contacts_dir))
-    samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_contacts_list])
-
-    for bin_dir in bins_dir_list:
-        bin_dir += '/'
-        binned_contacts_list = [f for f in sorted(os.listdir(binned_contacts_dir + bin_dir)) if 'contacts' in f]
-        for ii_samp, samp in enumerate(samples_id):
-            binned_contacts = binned_contacts_list[ii_samp]
-            stats_contacts = statistics_contacts_list[ii_samp]
-
-            ponder_mutants.run(
-                probes_to_fragments_path=probes2frag,
-                binned_contacts_path=binned_contacts_dir+bin_dir+binned_contacts,
-                statistics_path=statistics_contacts_dir+stats_contacts,
-                output_dir=output_dir,
-            )
 
 
 def do_format(
@@ -89,7 +65,7 @@ def do_binning(
         samples_dir: str,
         output_dir: str,
         parallel: bool = True):
-    bin_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000, 10**9]
+    bin_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -130,6 +106,7 @@ def do_stats(
         samples_dir: str,
         probes2frag: str,
         wt_references: Optional[str],
+        samples_vs_wt: Optional[dict],
         output_dir: str,
         cis_span: int,
         parallel: bool = True):
@@ -147,6 +124,7 @@ def do_stats(
                 cis_span,
                 hicstuff_dir + sparse_mat_list[ii_samp],
                 wt_references,
+                samples_vs_wt,
                 samples_dir+formatted_contacts_list[ii_samp],
                 probes2frag,
                 output_dir) for ii_samp, samp in enumerate(samples_id)])
@@ -157,10 +135,65 @@ def do_stats(
                 cis_range=cis_span,
                 sparse_mat_path=hicstuff_dir+sparse_mat_list[ii_samp],
                 wt_references_dir=wt_references,
+                samples_vs_wt=samples_vs_wt,
                 formatted_contacts_path=samples_dir+formatted_contacts_list[ii_samp],
                 probes_to_fragments_path=probes2frag,
                 output_dir=output_dir
             )
+
+
+def do_ponder(
+        samples_vs_wt: dict,
+        binned_contacts_dir: str,
+        statistics_contacts_dir: str,
+        output_dir: str,
+        parallel: bool = True):
+
+    bins_dir_list = os.listdir(binned_contacts_dir)
+    statistics_contacts_list = [s for s in sorted(os.listdir(statistics_contacts_dir)) if 'global' in s]
+    samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_contacts_list])
+
+    if parallel:
+        with mp.Pool(mp.cpu_count()) as p:
+            for bin_dir in bins_dir_list:
+                print('bin of size: ', bin_dir)
+                bin_dir += '/'
+                binned_contacts_list = \
+                    [f for f in sorted(os.listdir(binned_contacts_dir + bin_dir)) if 'frequencies' in f]
+
+                new_output_dir = output_dir + bin_dir
+                if not os.path.exists(new_output_dir):
+                    os.makedirs(new_output_dir)
+
+                p.starmap(ponder_mutants.run, [
+                    (samples_vs_wt,
+                     binned_contacts_dir+bin_dir+binned_contacts_list[ii_samp],
+                     statistics_contacts_dir+statistics_contacts_list[ii_samp],
+                     new_output_dir) for ii_samp, samp in enumerate(samples_id)])
+
+    else:
+        for bin_dir in bins_dir_list:
+            bin_dir += '/'
+            binned_contacts_list = \
+                [f for f in sorted(os.listdir(binned_contacts_dir + bin_dir)) if 'frequencies' in f]
+
+            new_output_dir = output_dir + bin_dir
+            if not os.path.exists(new_output_dir):
+                os.makedirs(new_output_dir)
+
+            for ii_samp, samp in enumerate(samples_id):
+                if samp not in list(chain(*samples_vs_wt.values())):
+                    continue
+                else:
+                    binned_contacts = binned_contacts_list[ii_samp]
+                    stats_contacts = statistics_contacts_list[ii_samp]
+
+                    ponder_mutants.run(
+                        samples_vs_wt=samples_vs_wt,
+                        binned_contacts_path=binned_contacts_dir+bin_dir+binned_contacts,
+                        statistics_path=statistics_contacts_dir+stats_contacts,
+                        output_dir=new_output_dir,
+                    )
 
 
 def do_nucleo(

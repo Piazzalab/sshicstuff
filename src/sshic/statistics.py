@@ -8,8 +8,10 @@ from typing import Optional
 
 
 def compute_stats(
+        sample_id: str | int,
         sparse_matrix_path: Optional[str],
         wt_references_dir: Optional[str],
+        samples_vs_wt: Optional[dict],
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
         cis_range: int,
@@ -134,10 +136,13 @@ def compute_stats(
         #   capture_efficiency_norm_'+wt : divide the dsDNA-normalized contacts to
         #   the WT_capture efficiency for each probe to get the correction factor for each probe
         for wt in ref_wt:
-            wt_capture_eff_values = \
-                df_global.merge(ref_wt[wt], on='probes')['Capture_efficiency_WT'].values
-            df_global['capture_efficiency_norm_'+wt] = \
-                df_global['dsdna_norm_capture_efficiency'] / wt_capture_eff_values
+            if sample_id in samples_vs_wt[wt]:
+                wt_capture_eff_values = \
+                    df_global.merge(ref_wt[wt], on='probes')['Capture_efficiency_WT'].values
+                df_global['capture_efficiency_norm_'+wt] = \
+                    df_global['dsdna_norm_capture_efficiency'] / wt_capture_eff_values
+            else:
+                continue
 
     df_chr_nrm = pd.DataFrame({'probes': probes, 'fragments': fragments, 'types': types})
     df_chr_inter_only_nrm = df_chr_nrm.copy(deep=True)
@@ -155,6 +160,7 @@ def run(
         cis_range: int,
         sparse_mat_path: Optional[str],
         wt_references_dir: Optional[str],
+        samples_vs_wt: Optional[dict],
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
         output_dir: str):
@@ -162,9 +168,11 @@ def run(
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
     output_path = output_dir + sample_id
     compute_stats(
+        sample_id=sample_id,
         cis_range=cis_range,
         sparse_matrix_path=sparse_mat_path,
         wt_references_dir=wt_references_dir,
+        samples_vs_wt=samples_vs_wt,
         formatted_contacts_path=formatted_contacts_path,
         probes_to_fragments_path=probes_to_fragments_path,
         output_path=output_path)

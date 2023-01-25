@@ -41,7 +41,7 @@ if __name__ == "__main__":
     filter_dir = outputs_dir + "filtered/"
     pondered_dir = outputs_dir + "pondered/"
     format_dir = outputs_dir + "formatted/"
-    binning_dir = outputs_dir + "binning/"
+    binning_dir = outputs_dir + "binned/"
     statistics_dir = outputs_dir + "statistics/"
     nucleosomes_dir = outputs_dir + "nucleosomes/"
     centromeres_dir = outputs_dir + "centromeres/"
@@ -49,6 +49,17 @@ if __name__ == "__main__":
     cohesins_dir = outputs_dir + "cohesins/"
 
     #   OTHER ARGUMENTS
+
+    samples_to_compare_wt: dict = {
+        'wt2h': [
+            "AD206", "AD208", "AD210", "AD212", "AD233", "AD235", "AD237", "AD239", "AD243", "AD245", "AD247",
+            "AD257", "AD259", "AD289", "AD291", "AD293", "AD295", "AD297", "AD299", "AD301"
+        ],
+        'wt4h': [
+            "AD207", "AD209", "AD211", "AD213", "AD234", "AD236", "AD238", "AD240", "AD244", "AD246", "AD248",
+            "AD258", "AD260", "AD290", "AD292", "AD294", "AD296", "AD298", "AD300", "AD302"
+        ]
+    }
 
     scores_list = [100, 200, 500, 1000, 2000]
     cen_filter_window = 40000
@@ -92,6 +103,7 @@ if __name__ == "__main__":
                 hicstuff_dir=hicstuff_dir+hicd,
                 samples_dir=format_dir+hicd,
                 wt_references=ref_wt_dir,
+                samples_vs_wt=samples_to_compare_wt,
                 probes2frag=probes_and_fragments,
                 output_dir=statistics_dir+hicd,
                 cis_span=50000,
@@ -101,10 +113,10 @@ if __name__ == "__main__":
         if operations['ponder'] == 1:
             print('Pondering Mutants')
             pip.do_ponder(
-                probes2frag=probes_and_fragments,
+                samples_vs_wt=samples_to_compare_wt,
                 binned_contacts_dir=binning_dir+hicd,
                 statistics_contacts_dir=statistics_dir+hicd,
-                output_dir=pondered_dir)
+                output_dir=pondered_dir+hicd)
 
         if operations['nucleosomes'] == 1:
             print('nucleosomes')
