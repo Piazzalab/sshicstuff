@@ -197,6 +197,7 @@ def do_nucleo(
         samples_dir: str,
         fragments: str,
         probe2frag: str,
+        fragments_nfr_filter_list: list,
         nucleosomes_path: str,
         output_dir: str,
         parallel: bool = True):
@@ -205,16 +206,19 @@ def do_nucleo(
         os.makedirs(output_dir)
 
     output_parent_dir = os.path.dirname(os.path.dirname(output_dir))+'/'
-    files = os.listdir(output_parent_dir)
     nfr_in = 'fragments_list_in_nfr.tsv'
     nfr_out = 'fragments_list_out_nfr.tsv'
 
-    if np.sum(np.isin([nfr_in, nfr_out], files)) != 2:
-        nucleosomes.preprocess(
-            fragments_list_path=fragments,
-            nucleosomes_path=nucleosomes_path,
-            output_dir=output_parent_dir
-        )
+    for f_filter in fragments_nfr_filter_list:
+        new_output_dir = output_parent_dir + f_filter + '/'
+        if not os.path.exists(new_output_dir):
+            os.makedirs(new_output_dir)
+            nucleosomes.preprocess(
+                fragments_list_path=fragments,
+                fragments_nfr_filter=f_filter,
+                nucleosomes_path=nucleosomes_path,
+                output_dir=new_output_dir
+            )
 
     samples = np.unique(
         [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
