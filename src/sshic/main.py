@@ -17,9 +17,9 @@ if __name__ == "__main__":
     operations = {
         'filter': 0,
         'format': 0,
-        'binning': 1,
+        'binning': 0,
         'statistics': 0,
-        'ponder': 0,
+        'ponder': 1,
         'nucleosomes': 0,
         'centromeres': 0,
         'telomeres': 0,

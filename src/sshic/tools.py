@@ -2,6 +2,8 @@ import sys
 import numpy as np
 from typing import Optional
 
+import pandas as pd
+
 
 def is_debug() -> bool:
     """
@@ -57,5 +59,17 @@ def frag2(x):
     return y
 
 
-if __name__ == "__main__":
-    pass
+def sort_by_chr(
+        df: pd.DataFrame,
+        col1: str = 'chr',
+        col2: str = 'positions'):
+
+    order = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7',
+             'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14',
+             'chr15', 'chr16', '2_micron', 'mitochondrion', 'chr_artificial']
+
+    df[col1] = df[col1].map(lambda x: order.index(x) if x in order else len(order))
+    df = df.sort_values(by=[col1, col2])
+    df[col1] = df[col1].map(lambda x: order[x])
+
+    return df

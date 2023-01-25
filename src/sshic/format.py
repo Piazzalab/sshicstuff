@@ -1,7 +1,7 @@
 import re
 import numpy as np
 import pandas as pd
-from sshic import tools
+import sshic.tools as tl
 
 
 def fragments_to_oligos(
@@ -18,7 +18,7 @@ def fragments_to_oligos(
         chrom, probe_start, probe_end, probe_type, probe, probe_seq = row
         sub_df_fragments = df_fragments[df_fragments['chrom'] == chrom]
         oligo_middle = int(probe_start + (probe_end-probe_start)/2)
-        nearest_frag_start = tools.find_nearest(
+        nearest_frag_start = tl.find_nearest(
             array=sub_df_fragments['start_pos'], key=oligo_middle, mode='lower'
         )
         frag_id = sub_df_fragments.index[sub_df_fragments['start_pos'] == nearest_frag_start].tolist()[0]
@@ -38,13 +38,14 @@ def format_fragments_contacts(
         contacts_res of the form :  {oligoX : {chrX_binA : n ... } ...}
         all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
     """
+
     contacts = pd.DataFrame(columns=['chr', 'positions', 'sizes'])
     contacts = contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
     frequencies = contacts.copy(deep=True)
 
     for x in ['a', 'b']:
         #   if x = a get b, if x = b get a
-        y = tools.frag2(x)
+        y = tl.frag2(x)
         df2 = df[~pd.isna(df['name_' + x])]
         unique_frag = pd.unique(df2['frag_'+x])
         for frag in unique_frag:
@@ -64,6 +65,9 @@ def format_fragments_contacts(
 
     res_c = group_c.sum()
     res_f = group_f.sum()
+
+    res_c = tl.sort_by_chr(res_c, 'chr', 'positions')
+    res_f = tl.sort_by_chr(res_f, 'chr', 'positions')
 
     res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
     res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
