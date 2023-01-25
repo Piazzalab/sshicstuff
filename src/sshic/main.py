@@ -17,9 +17,9 @@ if __name__ == "__main__":
     operations = {
         'filter': 0,
         'format': 0,
-        'binning': 0,
+        'binning': 1,
         'statistics': 0,
-        'ponder': 1,
+        'ponder': 0,
         'nucleosomes': 0,
         'centromeres': 0,
         'telomeres': 0,
@@ -61,6 +61,7 @@ if __name__ == "__main__":
         ]
     }
 
+    bins_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
     scores_list = [100, 200, 500, 1000, 2000]
     cen_filter_window = 40000
     cen_filter_modes = ['inner', 'outer', None]
@@ -91,7 +92,7 @@ if __name__ == "__main__":
         if operations['binning'] == 1:
             print('Binning')
             pip.do_binning(
-                artificial_genome=artificial_genome_fa,
+                bin_sizes_list=bins_list,
                 samples_dir=format_dir+hicd,
                 output_dir=binning_dir+hicd,
                 parallel=parallel_state

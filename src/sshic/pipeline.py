@@ -61,17 +61,16 @@ def do_format(
 
 
 def do_binning(
-        artificial_genome: str,
+        bin_sizes_list: list,
         samples_dir: str,
         output_dir: str,
         parallel: bool = True):
-    bin_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     samples = np.unique(
-        [f for f in os.listdir(samples_dir) if '_frequencies.tsv' in f])
+        [f for f in os.listdir(samples_dir) if '_contacts.tsv' in f])
 
     if parallel:
         with mp.Pool(mp.cpu_count()) as p:
@@ -82,8 +81,7 @@ def do_binning(
                 if not os.path.exists(new_output_dir):
                     os.makedirs(new_output_dir)
 
-                p.starmap(binning.run, [(artificial_genome,
-                                         samples_dir + samp,
+                p.starmap(binning.run, [(samples_dir + samp,
                                          bs,
                                          new_output_dir) for samp in samples])
     else:
@@ -94,7 +92,6 @@ def do_binning(
                 os.makedirs(new_output_dir)
             for samp in samples:
                 binning.run(
-                    artificial_genome_path=artificial_genome,
                     formatted_contacts_path=samples_dir+samp,
                     bin_size=bs,
                     output_dir=new_output_dir

@@ -8,8 +8,6 @@ from .format import fragments_to_oligos
 from .format import format_fragments_contacts
 from .format import run
 
-from .binning import build_bins_from_genome
-from .binning import get_contacts_per_bin
 from .binning import run
 
 from .statistics import compute_stats

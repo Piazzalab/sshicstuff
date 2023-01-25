@@ -51,7 +51,7 @@ def format_fragments_contacts(
             df3 = df2[df2['frag_'+x] == frag]
 
             tmp_c = pd.DataFrame({'chr': df3['chr_'+y], 'positions': df3['start_'+y],
-                                'sizes': df3['size_'+y], frag: df3['contacts']})
+                                  'sizes': df3['size_'+y], frag: df3['contacts']})
 
             tmp_f = tmp_c.copy(deep=True)
             tmp_f[frag] /= np.sum(tmp_f[frag])
