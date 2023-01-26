@@ -21,7 +21,6 @@ from .centromeres import run
 from .telomeres import freq_focus_around_telomeres
 from .telomeres import compute_average_aggregate
 from .telomeres import compute_telomere_freq_per_oligo_per_chr
-from .telomeres import plot_aggregated
 from .telomeres import run
 
 from .cohesins import freq_focus_around_cohesin_peaks
