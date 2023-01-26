@@ -55,7 +55,7 @@ def freq_focus_around_centromeres(
     """
 
     df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
-    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
+    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
     df_probes = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
     df_probes_t = df_probes.transpose()
     excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion']
@@ -77,8 +77,6 @@ def freq_focus_around_centromeres(
         #   temporary dataframe containing the bins present in the windows for the current chr only
         tmp_df.index = range(len(tmp_df))
         current_centros_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_centros_pos, mode='lower')
-
-        tmp_df.loc[:, 'chr_bins'] = abs(tmp_df.loc[:, 'chr_bins'] - current_centros_bin)
 
         if pooled:
             tmp_df.loc[:, 'chr_bins'] = abs(tmp_df.loc[:, 'chr_bins'] - current_centros_bin)

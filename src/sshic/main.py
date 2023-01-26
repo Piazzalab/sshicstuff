@@ -22,9 +22,9 @@ if __name__ == "__main__":
         'format': 0,
         'binning': 0,
         'statistics': 0,
-        'ponder': 1,
+        'ponder': 0,
         'nucleosomes': 0,
-        'centromeres': 0,
+        'centromeres': 1,
         'telomeres': 0,
         'cohesins': 0
     }
@@ -70,8 +70,5 @@ if __name__ == "__main__":
             operations=operations,
             sshic_pcrdupt_dir=hicd+'/'
         )
-
-
-
 
     print('--- DONE ---')

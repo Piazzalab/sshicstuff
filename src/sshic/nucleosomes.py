@@ -81,18 +81,26 @@ def nfr_statistics(
         probes.append(probe)
         fragments.append(frag)
         types.append(probe_type)
+
+        sub_df_contacts_in = df_contacts_in.loc[df_contacts_in['chr'] != probe_chr]
+        sub_df_contacts_out = df_contacts_out.loc[df_contacts_out['chr'] != probe_chr]
+
         #   cts_in:  sum of contacts made by the probe inside nfr
         #   cts_out: sum of contacts made by the probe outside nfr
-        cts_in = np.sum(df_contacts_in[frag].values)
-        cts_out = np.sum(df_contacts_out[frag].values)
+        cts_in = np.sum(sub_df_contacts_in[frag].values)
+        cts_out = np.sum(sub_df_contacts_out[frag].values)
 
-        nfr_in.append(
-            (cts_in / (cts_in + cts_out)) / (total_sizes_in / total_sizes_all)
-        )
+        if cts_in + cts_out == 0:
+            nfr_in.append(0)
+            nfr_out.append(0)
+        else:
+            nfr_in.append(
+                (cts_in / (cts_in + cts_out)) / (total_sizes_in / total_sizes_all)
+            )
 
-        nfr_out.append(
-            (cts_out / (cts_in + cts_out)) / (total_sizes_out / total_sizes_all)
-        )
+            nfr_out.append(
+                (cts_out / (cts_in + cts_out)) / (total_sizes_out / total_sizes_all)
+            )
         ii_probe += 1
 
     df_stats = pd.DataFrame({'probe': probes, 'fragment': fragments, 'type': types,

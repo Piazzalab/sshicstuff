@@ -26,8 +26,8 @@ def run_single(
     bins_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
     fragments_nfr_filter_list = ['start_only', 'end_only', 'middle', 'start_&_end']
     statistics_cis_region_span = 50000
-    centromere_filter_window = 40000
-    centromeres_filter_list = ['inner', 'outer', None]
+    centromere_filter_window_for_cohesins = 40000
+    cohesins_filter_list = ['inner', 'outer', None]
     cohesins_filter_scores_list = [100, 200, 500, 1000, 2000]
 
     #   OUTPUTS
@@ -40,6 +40,8 @@ def run_single(
     centromeres_dir = outputs_dir + "centromeres/"
     telomeres_dir = outputs_dir + "telomeres/"
     cohesins_dir = outputs_dir + "cohesins/"
+
+    not_binned_dir = binning_dir + sshic_pcrdupt_dir + '0kb/'
 
     #   FILTER
     if operations['filter'] == 1:
@@ -78,9 +80,7 @@ def run_single(
                 )
 
     if operations['statistics'] == 1:
-        not_binned_dir = binning_dir+sshic_pcrdupt_dir+'0kb/'
         sparse_matrix_list = sorted(os.listdir(hicstuff_dir+sshic_pcrdupt_dir))
-
         samples = [f for f in sorted(os.listdir(not_binned_dir)) if '_contacts' in f]
         samples_id = sorted([re.search(r"AD\d+", f).group() for f in samples])
 
@@ -120,16 +120,55 @@ def run_single(
                         statistics_path=stats_table_sample,
                         output_dir=pondered_dir+sshic_pcrdupt_dir+bin_dir,
                     )
-        pass
 
     if operations['nucleosomes'] == 1:
-        pass
+
+        nfr_in_file = 'fragments_list_in_nfr.tsv'
+        nfr_out_file = 'fragments_list_out_nfr.tsv'
+        samples = sorted([f for f in os.listdir(not_binned_dir) if 'contacts.tsv' in f])
+        samples_id = np.unique([re.search(r"AD\d+", f).group() for f in samples])
+        for f_filter in fragments_nfr_filter_list:
+            print(f_filter)
+            filter_dir = f_filter + '/'
+            if not os.path.exists(nucleosomes_dir+filter_dir):
+                os.makedirs(nucleosomes_dir+filter_dir)
+                nucleosomes.preprocess(
+                    fragments_list_path=fragment_list_path,
+                    fragments_nfr_filter=f_filter,
+                    nucleosomes_path=nfr_list_path,
+                    output_dir=nucleosomes_dir+filter_dir
+                )
+
+            for samp in samples:
+                nucleosomes.run(
+                    formatted_contacts_path=not_binned_dir+samp,
+                    probes_to_fragments_path=probes_to_fragments_path,
+                    fragments_in_nfr_path=nucleosomes_dir+filter_dir+nfr_in_file,
+                    fragments_out_nfr_path=nucleosomes_dir+filter_dir+nfr_out_file,
+                    output_dir=nucleosomes_dir+filter_dir+sshic_pcrdupt_dir
+                )
 
     if operations['centromeres'] == 1:
-        pass
+        samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
+        for samp in samples:
+            centromeres.run(
+                formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                probes_to_fragments_path=probes_to_fragments_path,
+                centros_coord_path=centromeres_positions_path,
+                window_size=150000,
+                output_path=centromeres_dir+sshic_pcrdupt_dir
+            )
 
     if operations['telomeres'] == 1:
-        pass
+        samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
+        for samp in samples:
+            telomeres.run(
+                formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                probes_to_fragments_path=probes_to_fragments_path,
+                window_size=150000,
+                telomeres_coord_path=centromeres_positions_path,
+                output_path=centromeres_dir+sshic_pcrdupt_dir,
+            )
 
     if operations['cohesins'] == 1:
         pass
