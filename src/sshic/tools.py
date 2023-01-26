@@ -71,5 +71,5 @@ def sort_by_chr(
     df[col1] = df[col1].map(lambda x: order.index(x) if x in order else len(order))
     df = df.sort_values(by=[col1, col2])
     df[col1] = df[col1].map(lambda x: order[x])
-
+    df.index = range(len(df))
     return df
