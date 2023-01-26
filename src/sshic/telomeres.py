@@ -116,8 +116,6 @@ def compute_average_aggregate(
     df_mean.to_csv(table_path + '_mean_on_telo.tsv', sep='\t')
     df_std.to_csv(table_path + '_std_on_telo.tsv', sep='\t')
 
-    return df_mean, df_std
-
 
 def mkdir(output_path: str):
     dir_res = output_path + '/'
@@ -155,7 +153,7 @@ def run(
         df_probes=df_probes,
         table_path=dir_table+sample_name)
 
-    df_mean, df_std = compute_average_aggregate(
+    compute_average_aggregate(
         aggregated=chr_aggregated_dict,
         table_path=dir_table,
         plot_path=dir_plot)

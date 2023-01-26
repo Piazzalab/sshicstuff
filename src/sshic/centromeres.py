@@ -122,8 +122,6 @@ def compute_average_aggregate(
     df_std.to_csv(table_path + 'std_on_cen.tsv', sep='\t')
     df_median.to_csv(table_path + 'median_on_cen.tsv', sep='\t')
 
-    return df_mean, df_std, df_median
-
 
 def mkdir(output_path: str):
     dir_res = output_path + '/'
@@ -163,10 +161,9 @@ def run(
         df_probes=df_probes,
         table_path=dir_table)
 
-    df_mean, df_std, df_median = compute_average_aggregate(
+    compute_average_aggregate(
         aggregated=chr_aggregated_dict,
         table_path=dir_table,
         plot_path=dir_plot)
-
 
     print('DONE: ', sample_name)
