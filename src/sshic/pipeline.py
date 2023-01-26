@@ -175,7 +175,7 @@ def run_single(
                     cohesins.run(
                         formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'1kb/'+samp,
                         probes_to_fragments_path=probes_to_fragments_path,
-                        window_size=100000,
+                        window_size=15000,
                         cohesins_peaks_path=cohesins_peaks_path,
                         centromere_info_path=centromeres_positions_path,
                         score_cutoff=sc,
