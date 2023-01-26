@@ -1,6 +1,5 @@
 import os
 import re
-from typing import Optional
 from itertools import chain
 import multiprocessing as mp
 import numpy as np
@@ -25,10 +24,6 @@ def run_single(
     #   DEFAULT ARGUMENTS
     bins_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
     fragments_nfr_filter_list = ['start_only', 'end_only', 'middle', 'start_&_end']
-    statistics_cis_region_span = 50000
-    centromere_filter_window_for_cohesins = 40000
-    cohesins_filter_list = ['inner', 'outer', None]
-    cohesins_filter_scores_list = [100, 200, 500, 1000, 2000]
 
     #   OUTPUTS
     hicstuff_dir = outputs_dir + "hicstuff/"
@@ -86,7 +81,7 @@ def run_single(
 
         for ii_samp, samp in enumerate(samples_id):
             statistics.run(
-                cis_range=statistics_cis_region_span,
+                cis_range=50000,
                 sparse_mat_path=hicstuff_dir+sshic_pcrdupt_dir+sparse_matrix_list[ii_samp],
                 wt_references_dir=wt_references_dir+sshic_pcrdupt_dir,
                 samples_vs_wt=samples_to_compare_wt,
@@ -126,7 +121,6 @@ def run_single(
         nfr_in_file = 'fragments_list_in_nfr.tsv'
         nfr_out_file = 'fragments_list_out_nfr.tsv'
         samples = sorted([f for f in os.listdir(not_binned_dir) if 'contacts.tsv' in f])
-        samples_id = np.unique([re.search(r"AD\d+", f).group() for f in samples])
         for f_filter in fragments_nfr_filter_list:
             print(f_filter)
             filter_dir = f_filter + '/'
@@ -165,14 +159,26 @@ def run_single(
             telomeres.run(
                 formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
                 probes_to_fragments_path=probes_to_fragments_path,
-                window_size=150000,
+                window_size=100000,
                 telomeres_coord_path=centromeres_positions_path,
-                output_path=centromeres_dir+sshic_pcrdupt_dir,
+                output_path=telomeres_dir+sshic_pcrdupt_dir,
             )
 
     if operations['cohesins'] == 1:
-        pass
+        cohesins_filter_list = ['inner', 'outer', None]
+        cohesins_filter_scores_list = [100, 200, 500, 1000, 2000]
+        samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'1kb/') if 'frequencies.tsv' in f])
 
-    pass
-
-
+        for m in cohesins_filter_list:
+            for sc in cohesins_filter_scores_list:
+                for samp in samples:
+                    cohesins.run(
+                        formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'1kb/'+samp,
+                        probes_to_fragments_path=probes_to_fragments_path,
+                        window_size=100000,
+                        cohesins_peaks_path=cohesins_peaks_path,
+                        centromere_info_path=centromeres_positions_path,
+                        score_cutoff=sc,
+                        cen_filter_span=40000,
+                        cen_filter_mode=m,
+                        output_dir=cohesins_dir+sshic_pcrdupt_dir)
