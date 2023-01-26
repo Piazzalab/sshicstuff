@@ -105,7 +105,8 @@ def compute_average_aggregate(
         if fragment not in df_cohesins_peaks_bins.columns:
             continue
 
-        df_freq_cen = df_cohesins_peaks_bins.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
+        df_freq_cen =\
+            df_cohesins_peaks_bins.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
         df_freq_cen[self_chr] = np.nan
         df_freq_cen = df_freq_cen[unique_chr].reindex(bins_array)
 
