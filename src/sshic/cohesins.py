@@ -23,115 +23,85 @@ def freq_focus_around_cohesin_peaks(
         probes_to_fragments_path: str,
         centros_info_path: str,
         window_size: int,
-        bin_size: int,
         cohesins_peaks_path: str,
         score_cutoff: int,
         filter_range: int,
-        filter_mode: str | None,
-        pooled: bool):
+        filter_mode: str | None):
 
-    excluded_chr = ['chr2', 'chr3']
-
+    excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion', 'chr_artificial']
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
+    df_peaks = df_peaks[~df_peaks['chr'].isin(excluded_chr)]
     df_peaks.sort_values(by='score', ascending=False, inplace=True)
     df_peaks.reset_index(drop=True, inplace=True)
     df_peaks = df_peaks.query("score > @score_cutoff and chr not in @excluded_chr")
 
     df_centros = pd.read_csv(centros_info_path, sep='\t', index_col=None)
-    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=0)
-    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    df_probes_t = df_probes.transpose()
+    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
+    df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
+    bin_size = df_contacts.loc[1, 'chr_bins'] - df_contacts.loc[0, 'chr_bins']
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0).T
     unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
-    def process_row(row):
-        current_chr = row[0]
-        current_peak = row[1]
+    df_merged = pd.merge(df_contacts, df_peaks, on='chr')
+    df_merged_cohesins_areas = df_merged[
+        (df_merged.chr_bins > (df_merged.start-window_size)) &
+        (df_merged.chr_bins < (df_merged.end+window_size))
+    ]
 
-        if current_chr in excluded_chr:
-            return None
+    if filter_mode == 'inner':
+        df_merged2 = pd.merge(df_merged_cohesins_areas, df_centros, on='chr')
+        df_merged_cohesins_areas_filtered = df_merged2[
+            (df_merged2.chr_bins > (df_merged2.left_arm_length-filter_range)) &
+            (df_merged2.chr_bins < (df_merged2.left_arm_length+filter_range))
+        ]
+    elif filter_mode == 'outer':
+        df_merged2 = pd.merge(df_merged_cohesins_areas, df_centros, on='chr')
+        df_merged_cohesins_areas_filtered = df_merged2[
+            (df_merged2.chr_bins < (df_merged2.left_arm_length - filter_range)) &
+            (df_merged2.chr_bins > (df_merged2.left_arm_length + filter_range))
+        ]
+    else:
+        df_merged_cohesins_areas_filtered = df_merged_cohesins_areas.copy(deep=True)
 
-        left_cutoff = current_peak - window_size - bin_size
-        if left_cutoff < 0:
-            left_cutoff = 0
-        right_cutoff = current_peak + window_size
-        tmp_df = df_contacts.query("chr == @current_chr and chr_bins > @left_cutoff and chr_bins < @right_cutoff")
-        #   temporary dataframe containing the bins present in the windows for the current chr only
-        tmp_df.index = range(len(tmp_df))
-        current_cohesin_peak_bin = tools.find_nearest(tmp_df['chr_bins'].values, current_peak, mode='lower')
+    df_merged_cohesins_areas_filtered['chr_bins'] =\
+        abs(df_merged_cohesins_areas_filtered['chr_bins'] -
+            (df_merged_cohesins_areas_filtered['start'] // bin_size) * bin_size)
 
-        if filter_mode is not None:
-            filtered_tmp_df = filter_peaks_around_centromeres(
-                df_centros=df_centros,
-                df_contacts_peaks=tmp_df,
-                filter_range=filter_range,
-                filter_mode=filter_mode,
-                bin_size=bin_size)
+    df_merged_cohesins_areas_filtered.drop(columns=['start', 'end', 'score', 'length', 'uid',
+                                                    'left_arm_length', 'right_arm_length'],
+                                           axis=1, inplace=True)
 
-            if filtered_tmp_df.shape[0] == 0:
-                return None
-        else:
-            filtered_tmp_df = tmp_df
+    df_res = df_merged_cohesins_areas_filtered.groupby(['chr', 'chr_bins'], as_index=False).mean()
+    df_res = tools.sort_by_chr(df_res, 'chr', 'chr_bins')
 
-        #   Indices shifting : bin of centromere becomes 0, bins in downstream becomes negative and bins
-        #   in upstream becomes positive.
+    #   We need to remove for each oligo the number of contact it makes with its own chr.
+    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+    #   We have to set them as NaN to not bias the average
+    for f in unique_fragments:
+        probe_chr = df_probes.loc[df_probes['frag_id'] == f, 'chr'].tolist()[0]
+        if probe_chr not in excluded_chr:
+            df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
 
-        if pooled:
-            filtered_tmp_df.loc[:, 'chr_bins'] = abs(filtered_tmp_df.loc[:, 'chr_bins'] - current_cohesin_peak_bin)
-            filtered_tmp_df = filtered_tmp_df.groupby(['chr', 'chr_bins'], as_index=False).mean()
-        else:
-            filtered_tmp_df.loc[:, 'chr_bins'] -= current_cohesin_peak_bin
-
-        #   We need to remove for each oligo the number of contact it makes with its own chr.
-        #   Because we know that the frequency of intra-chr contact is higher than inter-chr
-        #   We have to set them as NaN to not bias the average
-        for f in unique_fragments:
-            self_chr = df_probes_t.loc[df_probes_t['frag_id'] == f]['chr'][0]
-            if self_chr == current_chr:
-                tmp_df.loc[:, f] = np.nan
-
-        return filtered_tmp_df
-
-    df_res = pd.concat([process_row(row) for _, row in df_peaks.iterrows()])
-    df_res.index = range(len(df_res))
     return df_res, df_probes
-
-
-def filter_peaks_around_centromeres(
-        df_centros: pd.DataFrame,
-        df_contacts_peaks: pd.DataFrame,
-        filter_range: int,
-        filter_mode: str | None,
-        bin_size: int):
-
-    current_chr = pd.unique(df_contacts_peaks['chr'])[0]
-    current_chr_cen = df_centros.loc[df_centros['Chr'] == current_chr, 'Left_arm_length'].values[0]
-    left_cutoff = current_chr_cen - filter_range - bin_size
-    right_cutoff = current_chr_cen + filter_range
-    if filter_mode == 'outer':
-        return df_contacts_peaks.query(
-            "chr == @current_chr and (chr_bins < @left_cutoff or chr_bins > @right_cutoff)")
-    elif filter_mode == 'inner':
-        return df_contacts_peaks.query(
-            "chr == @current_chr and chr_bins > @left_cutoff and chr_bins < @right_cutoff")
-    elif filter_mode is None:
-        return df_contacts_peaks
 
 
 def compute_average_aggregate(
         df_cohesins_peaks_bins: pd.DataFrame,
         df_probes: pd.DataFrame,
-        table_path: str):
+        table_path: str,
+        plot_path
+):
 
-    all_probes = df_probes.columns.values
+    all_probes = df_probes.index.values
     unique_chr = pd.unique(df_cohesins_peaks_bins['chr'])
     bins_array = np.unique(df_cohesins_peaks_bins['chr_bins'])
 
     res: dict = {}
     for probe in all_probes:
-        fragment = df_probes.loc['frag_id', probe]
-        self_chr = df_probes.loc['chr', probe]
+        fragment = df_probes.loc[probe, 'frag_id']
+        self_chr = df_probes.loc[probe, 'chr']
         if fragment not in df_cohesins_peaks_bins.columns:
             continue
 
@@ -146,40 +116,26 @@ def compute_average_aggregate(
     df_std = pd.DataFrame()
 
     for probe, df in res.items():
-        df_mean[probe] = df.T.mean()
-        df_std[probe] = df.T.std()
+        mean = df.T.mean()
+        std = df.T.std()
 
-    df_mean.to_csv(table_path + '_mean_on_cohesins.tsv', sep='\t')
-    df_std.to_csv(table_path + '_std_on_cohesins.tsv', sep='\t')
-
-    return df_mean, df_std
-
-
-def plot_aggregated(
-        mean_df: pd.DataFrame,
-        std_df: pd.DataFrame,
-        plot_path: str):
-
-    x = mean_df.index.tolist()
-    for ii, probe in enumerate(mean_df.columns):
-        if len(probe.split('-/-')) > 1:
-            name = '_&_'.join(probe.split('-/-'))
-        else:
-            name = probe
-
-        y = mean_df[probe]
-        yerr = std_df[probe]
-        ymin = -np.max((mean_df[probe] + std_df[probe])) * 0.01
-        plt.figure(figsize=(18, 12))
-        plt.bar(x, y)
-        plt.errorbar(x, y, yerr=yerr, fmt="o", color='b', capsize=5)
+        pos = mean.index
+        ymin = -np.max((mean + std)) * 0.01
+        plt.figure(figsize=(16, 12))
+        plt.bar(pos, mean)
+        plt.errorbar(pos, mean, yerr=std, fmt="o", color='g', capsize=5, clip_on=True)
         plt.ylim((ymin, None))
-        plt.title("Aggregated frequencies for probe {0} cohesins peaks".format(name))
+        plt.title("Aggregated frequencies for probe {0} cohesins peaks".format(probe))
         plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
         plt.xticks(rotation=45)
         plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(plot_path + "{0}_cohesins_aggregated_frequencies_plot.{1}".format(name, 'jpg'), dpi=99)
+        plt.savefig(plot_path + "{0}_cohesins_aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=96)
         plt.close()
+
+        df_mean[probe] = mean
+        df_std[probe] = std
+    df_mean.to_csv(table_path + '_mean_on_cohesins.tsv', sep='\t')
+    df_std.to_csv(table_path + '_std_on_cohesins.tsv', sep='\t')
 
 
 def mkdir(output_path: str,
@@ -236,21 +192,15 @@ def run(
         probes_to_fragments_path=probes_to_fragments_path,
         centros_info_path=centromere_info_path,
         window_size=window_size,
-        bin_size=1000,
         cohesins_peaks_path=cohesins_peaks_path,
         score_cutoff=score_cutoff,
         filter_range=cen_filter_span,
-        filter_mode=cen_filter_mode,
-        pooled=True)
+        filter_mode=cen_filter_mode)
 
-    df_mean, df_std = compute_average_aggregate(
+    compute_average_aggregate(
         df_cohesins_peaks_bins=df_contacts_cohesins,
         df_probes=df_probes,
-        table_path=dir_table)
-
-    plot_aggregated(
-        mean_df=df_mean,
-        std_df=df_std,
+        table_path=dir_table,
         plot_path=dir_plot)
 
     print('DONE: ', sample_name)
