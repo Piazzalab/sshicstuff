@@ -8,344 +8,132 @@ from sshic import binning, nucleosomes, statistics, filter, format, \
     ponder_mutants, telomeres, centromeres, cohesins
 
 
-def do_filter(
-        fragments: str,
-        oligos: str,
-        samples_dir: str,
-        output_dir: str):
+def run_single(
+        fragment_list_path: str,
+        oligos_positions_path: str,
+        probes_to_fragments_path: str,
+        centromeres_positions_path: str,
+        cohesins_peaks_path: str,
+        wt_references_dir: str,
+        samples_to_compare_wt: dict,
+        nfr_list_path: str,
+        outputs_dir: str,
+        operations: dict,
+        sshic_pcrdupt_dir: str,
+):
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    #   DEFAULT ARGUMENTS
+    bins_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
+    fragments_nfr_filter_list = ['start_only', 'end_only', 'middle', 'start_&_end']
+    statistics_cis_region_span = 50000
+    centromere_filter_window = 40000
+    centromeres_filter_list = ['inner', 'outer', None]
+    cohesins_filter_scores_list = [100, 200, 500, 1000, 2000]
 
-    samples = np.unique(os.listdir(samples_dir))
-    for samp in samples:
-        samp_id = re.search(r"AD\d+", samp).group()
-        filter.run(
-            oligos_input_path=oligos,
-            fragments_input_path=fragments,
-            contacts_input=samples_dir+samp,
-            output_path=output_dir+samp_id)
+    #   OUTPUTS
+    hicstuff_dir = outputs_dir + "hicstuff/"
+    filter_dir = outputs_dir + "filtered/"
+    pondered_dir = outputs_dir + "pondered/"
+    binning_dir = outputs_dir + "binned/"
+    statistics_dir = outputs_dir + "statistics/"
+    nucleosomes_dir = outputs_dir + "nucleosomes/"
+    centromeres_dir = outputs_dir + "centromeres/"
+    telomeres_dir = outputs_dir + "telomeres/"
+    cohesins_dir = outputs_dir + "cohesins/"
 
+    #   FILTER
+    if operations['filter'] == 1:
+        samples_dir = hicstuff_dir+sshic_pcrdupt_dir
+        samples = np.unique(os.listdir(samples_dir))
+        if not os.path.exists(filter_dir+sshic_pcrdupt_dir):
+            os.makedirs(filter_dir+sshic_pcrdupt_dir)
+        for samp in samples:
+            samp_id = re.search(r"AD\d+", samp).group()
+            filter.run(
+                oligos_input_path=oligos_positions_path,
+                fragments_input_path=fragment_list_path,
+                contacts_input=samples_dir+samp,
+                output_path=filter_dir+sshic_pcrdupt_dir+samp_id)
 
-def do_format(
-        fragments: str,
-        oligos: str,
-        probes2frag: str,
-        samples_dir: str,
-        output_dir: str,
-        parallel: bool = True):
-
-    if not os.path.exists(probes2frag):
-        format.fragments_to_oligos(
-            fragments_list_path=fragments,
-            oligos_capture_path=oligos,
-            output_path=probes2frag
+    #   FORMAT
+    if operations['format'] == 1:
+        format.run(
+            fragments_list_path=fragment_list_path,
+            oligos_capture_path=oligos_positions_path,
+            output_path=probes_to_fragments_path
         )
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    samples = np.unique(os.listdir(samples_dir))
-
-    if parallel:
-        with mp.Pool(mp.cpu_count()) as p:
-            p.starmap(format.run, [(samples_dir + samp,
-                                    output_dir) for samp in samples])
-
-    else:
-        for samp in samples:
-            format.run(
-                filtered_contacts_path=samples_dir+samp,
-                output_dir=output_dir
-            )
-
-
-def do_binning(
-        bin_sizes_list: list,
-        samples_dir: str,
-        output_dir: str,
-        parallel: bool = True):
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    samples = np.unique(
-        [f for f in os.listdir(samples_dir) if '_contacts.tsv' in f])
-
-    if parallel:
-        with mp.Pool(mp.cpu_count()) as p:
-            for bs in bin_sizes_list:
-                print('bin of size: ', bs)
-
-                new_output_dir = output_dir + str(bs // 1000) + 'kb/'
-                if not os.path.exists(new_output_dir):
-                    os.makedirs(new_output_dir)
-
-                p.starmap(binning.run, [(samples_dir + samp,
-                                         bs,
-                                         new_output_dir) for samp in samples])
-    else:
-        for bs in bin_sizes_list:
+    #   BINNING
+    if operations['binning'] == 1:
+        samples_dir = filter_dir+sshic_pcrdupt_dir
+        samples = os.listdir(samples_dir)
+        for bs in bins_sizes_list:
             print('bin of size: ', bs)
-            new_output_dir = output_dir + str(bs // 1000) + 'kb/'
-            if not os.path.exists(new_output_dir):
-                os.makedirs(new_output_dir)
+
             for samp in samples:
                 binning.run(
-                    formatted_contacts_path=samples_dir+samp,
+                    filtered_contacts_path=samples_dir+samp,
                     bin_size=bs,
-                    output_dir=new_output_dir
+                    output_dir=binning_dir+sshic_pcrdupt_dir
                 )
 
+    if operations['statistics'] == 1:
+        not_binned_dir = binning_dir+sshic_pcrdupt_dir+'0kb/'
+        sparse_matrix_list = sorted(os.listdir(hicstuff_dir+sshic_pcrdupt_dir))
 
-def do_stats(
-        hicstuff_dir: str,
-        samples_dir: str,
-        probes2frag: str,
-        wt_references: Optional[str],
-        samples_vs_wt: Optional[dict],
-        output_dir: str,
-        cis_span: int,
-        parallel: bool = True):
+        samples = [f for f in sorted(os.listdir(not_binned_dir)) if '_contacts' in f]
+        samples_id = sorted([re.search(r"AD\d+", f).group() for f in samples])
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    sparse_mat_list = sorted(os.listdir(hicstuff_dir))
-    formatted_contacts_list = [f for f in sorted(os.listdir(samples_dir)) if '_contacts' in f]
-    samples_id = sorted([re.search(r"AD\d+", f).group() for f in sparse_mat_list])
-
-    if parallel:
-        with mp.Pool(mp.cpu_count()) as p:
-            p.starmap(statistics.run, [(
-                cis_span,
-                hicstuff_dir + sparse_mat_list[ii_samp],
-                wt_references,
-                samples_vs_wt,
-                samples_dir+formatted_contacts_list[ii_samp],
-                probes2frag,
-                output_dir) for ii_samp, samp in enumerate(samples_id)])
-
-    else:
         for ii_samp, samp in enumerate(samples_id):
             statistics.run(
-                cis_range=cis_span,
-                sparse_mat_path=hicstuff_dir+sparse_mat_list[ii_samp],
-                wt_references_dir=wt_references,
-                samples_vs_wt=samples_vs_wt,
-                formatted_contacts_path=samples_dir+formatted_contacts_list[ii_samp],
-                probes_to_fragments_path=probes2frag,
-                output_dir=output_dir
+                cis_range=statistics_cis_region_span,
+                sparse_mat_path=hicstuff_dir+sshic_pcrdupt_dir+sparse_matrix_list[ii_samp],
+                wt_references_dir=wt_references_dir+sshic_pcrdupt_dir,
+                samples_vs_wt=samples_to_compare_wt,
+                formatted_contacts_path=not_binned_dir+samples[ii_samp],
+                probes_to_fragments_path=probes_to_fragments_path,
+                output_dir=statistics_dir+sshic_pcrdupt_dir
             )
 
-
-def do_ponder(
-        samples_vs_wt: dict,
-        binned_contacts_dir: str,
-        statistics_contacts_dir: str,
-        output_dir: str,
-        parallel: bool = True):
-
-    bins_dir_list = os.listdir(binned_contacts_dir)
-    statistics_contacts_list = [s for s in sorted(os.listdir(statistics_contacts_dir)) if 'global' in s]
-    samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_contacts_list])
-
-    if parallel:
-        with mp.Pool(mp.cpu_count()) as p:
-            for bin_dir in bins_dir_list:
-                print('bin of size: ', bin_dir)
-                bin_dir += '/'
-                binned_contacts_list = \
-                    [f for f in sorted(os.listdir(binned_contacts_dir + bin_dir)) if 'frequencies' in f]
-
-                new_output_dir = output_dir + bin_dir
-                if not os.path.exists(new_output_dir):
-                    os.makedirs(new_output_dir)
-
-                p.starmap(ponder_mutants.run, [
-                    (samples_vs_wt,
-                     binned_contacts_dir+bin_dir+binned_contacts_list[ii_samp],
-                     statistics_contacts_dir+statistics_contacts_list[ii_samp],
-                     new_output_dir) for ii_samp, samp in enumerate(samples_id)])
-
-    else:
-        for bin_dir in bins_dir_list:
+    if operations['ponder'] == 1:
+        binned_dir_list = os.listdir(binning_dir+sshic_pcrdupt_dir)
+        statistics_tables_list = [s for s in sorted(os.listdir(statistics_dir+sshic_pcrdupt_dir)) if 'global' in s]
+        samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_tables_list])
+        for bin_dir in binned_dir_list:
             bin_dir += '/'
             binned_contacts_list = \
-                [f for f in sorted(os.listdir(binned_contacts_dir + bin_dir)) if 'frequencies' in f]
+                [f for f in sorted(os.listdir(binning_dir+sshic_pcrdupt_dir+bin_dir)) if 'frequencies' in f]
 
-            new_output_dir = output_dir + bin_dir
-            if not os.path.exists(new_output_dir):
-                os.makedirs(new_output_dir)
+            if not os.path.exists(pondered_dir+sshic_pcrdupt_dir+bin_dir):
+                os.makedirs(pondered_dir+sshic_pcrdupt_dir+bin_dir)
 
             for ii_samp, samp in enumerate(samples_id):
-                if samp not in list(chain(*samples_vs_wt.values())):
+                if samp not in list(chain(*samples_to_compare_wt.values())):
                     continue
                 else:
-                    binned_contacts = binned_contacts_list[ii_samp]
-                    stats_contacts = statistics_contacts_list[ii_samp]
+                    binned_contacts_sample = binning_dir+sshic_pcrdupt_dir+bin_dir+binned_contacts_list[ii_samp]
+                    stats_table_sample = statistics_dir+sshic_pcrdupt_dir+statistics_tables_list[ii_samp]
 
                     ponder_mutants.run(
-                        samples_vs_wt=samples_vs_wt,
-                        binned_contacts_path=binned_contacts_dir+bin_dir+binned_contacts,
-                        statistics_path=statistics_contacts_dir+stats_contacts,
-                        output_dir=new_output_dir,
+                        samples_vs_wt=samples_to_compare_wt,
+                        binned_contacts_path=binned_contacts_sample,
+                        statistics_path=stats_table_sample,
+                        output_dir=pondered_dir+sshic_pcrdupt_dir+bin_dir,
                     )
+        pass
+
+    if operations['nucleosomes'] == 1:
+        pass
+
+    if operations['centromeres'] == 1:
+        pass
+
+    if operations['telomeres'] == 1:
+        pass
+
+    if operations['cohesins'] == 1:
+        pass
+
+    pass
 
 
-def do_nucleo(
-        samples_dir: str,
-        fragments: str,
-        probe2frag: str,
-        fragments_nfr_filter_list: list,
-        nucleosomes_path: str,
-        output_dir: str,
-        parallel: bool = True):
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    output_parent_dir = os.path.dirname(os.path.dirname(output_dir))+'/'
-    nfr_in = 'fragments_list_in_nfr.tsv'
-    nfr_out = 'fragments_list_out_nfr.tsv'
-
-    for f_filter in fragments_nfr_filter_list:
-        new_output_dir = output_parent_dir + f_filter + '/'
-        if not os.path.exists(new_output_dir):
-            os.makedirs(new_output_dir)
-            nucleosomes.preprocess(
-                fragments_list_path=fragments,
-                fragments_nfr_filter=f_filter,
-                nucleosomes_path=nucleosomes_path,
-                output_dir=new_output_dir
-            )
-        else:
-            continue
-
-    samples = np.unique(
-        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir)])
-
-    if parallel:
-        with mp.Pool(mp.cpu_count()) as p:
-            for f_filter in fragments_nfr_filter_list:
-                print(f_filter)
-                f_filter += '/'
-                p.starmap(
-                    nucleosomes.run, [(samples_dir + samp + '_contacts.tsv',
-                                       probe2frag,
-                                       output_parent_dir + f_filter + nfr_in,
-                                       output_parent_dir + f_filter + nfr_out,
-                                       output_dir+f_filter) for samp in samples])
-
-    else:
-        for samp in samples:
-            for f_filter in fragments_nfr_filter_list:
-                print(f_filter)
-                f_filter += '/'
-                nucleosomes.run(
-                    formatted_contacts_path=samples_dir+samp+'_contacts.tsv',
-                    probes_to_fragments_path=probe2frag,
-                    fragments_in_nfr_path=output_parent_dir+f_filter+nfr_in,
-                    fragments_out_nfr_path=output_parent_dir+f_filter+nfr_out,
-                    output_dir=output_dir+f_filter
-                )
-
-
-def do_centro(
-        centromeres_coordinates: str,
-        probes2frag: str,
-        samples_dir: str,
-        output_dir: str,
-        span: int,
-        parallel: bool = True):
-
-    samples = np.unique(
-        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir+'10kb/')])
-    if parallel:
-        with mp.Pool(mp.cpu_count()) as p:
-            p.starmap(centromeres.run, [(samples_dir + '10kb/' + samp + '_frequencies.tsv',
-                                         probes2frag,
-                                         span,
-                                         output_dir,
-                                         centromeres_coordinates) for samp in samples])
-    else:
-        for samp in samples:
-            centromeres.run(
-                formatted_contacts_path=samples_dir + '10kb/' + samp + '_frequencies.tsv',
-                probes_to_fragments_path=probes2frag,
-                window_size=span,
-                output_path=output_dir,
-                centros_coord_path=centromeres_coordinates
-            )
-
-
-def do_telo(
-        centromeres_coordinates: str,
-        probes2frag: str,
-        samples_dir: str,
-        output_dir: str,
-        span: int,
-        parallel: bool = True):
-
-    samples = np.unique(
-        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir+'10kb/')])
-    if parallel:
-        with mp.Pool(mp.cpu_count()) as p:
-            p.starmap(telomeres.run, [(samples_dir + '10kb/' + samp + '_frequencies.tsv',
-                                       probes2frag,
-                                       span,
-                                       output_dir,
-                                       centromeres_coordinates) for samp in samples])
-    else:
-        for samp in samples:
-            telomeres.run(
-                formatted_contacts_path=samples_dir + '10kb/' + samp + '_frequencies.tsv',
-                probes_to_fragments_path=probes2frag,
-                window_size=span,
-                output_path=output_dir,
-                telomeres_coord_path=centromeres_coordinates
-            )
-
-
-def do_cohesins(
-        samples_dir: str,
-        centromeres_coordinates: str,
-        probes2frag: str,
-        cohesins_peaks: str,
-        output_dir: str,
-        span: int,
-        cen_filter_operations: list[str | None],
-        cen_filter_span: int,
-        scores: list[int],
-        parallel: bool = True):
-
-    samples = np.unique(
-        [re.search(r"AD\d+", f).group() for f in os.listdir(samples_dir+'1kb/')])
-    if parallel:
-        with mp.Pool(mp.cpu_count()) as p:
-            for m in cen_filter_operations:
-                for sc in scores:
-                    print('score higher than: ', sc)
-                    p.starmap(cohesins.run, [(samples_dir + '1kb/' + samp + '_frequencies.tsv',
-                                              probes2frag,
-                                              span,
-                                              output_dir,
-                                              cohesins_peaks,
-                                              centromeres_coordinates,
-                                              sc,
-                                              cen_filter_span,
-                                              m) for samp in samples])
-    else:
-        for m in cen_filter_operations:
-            for sc in scores:
-                for samp in samples:
-                    cohesins.run(
-                        formatted_contacts_path=samples_dir + '1kb/' + samp + '_frequencies.tsv',
-                        probes_to_fragments_path=probes2frag,
-                        window_size=span,
-                        output_dir=output_dir,
-                        cohesins_peaks_path=cohesins_peaks,
-                        centromere_info_path=centromeres_coordinates,
-                        score_cutoff=sc,
-                        cen_filter_span=cen_filter_span,
-                        cen_filter_mode=m)

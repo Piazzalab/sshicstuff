@@ -129,7 +129,7 @@ def concatenation(oligos_path, fragments_path, contacts_path, output_path):
     contacts_joined.drop("frag", axis=1, inplace=True)
     contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     contacts_filtered = contacts_joined.convert_dtypes().reset_index(drop=True)
-    contacts_filtered.to_csv(output_path+'_filtered.tsv', index=False)
+    contacts_filtered.to_csv(output_path+'_filtered.tsv', sep='\t', index=False)
 
 
 def run(

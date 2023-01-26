@@ -7,15 +7,20 @@ import pandas as pd
 from typing import Optional
 
 
-def compute_stats(
-        sample_id: str | int,
-        sparse_matrix_path: Optional[str],
+def run(
+        cis_range: int,
+        sparse_mat_path: Optional[str],
         wt_references_dir: Optional[str],
         samples_vs_wt: Optional[dict],
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
-        cis_range: int,
-        output_path: str):
+        output_dir: str):
+
+    sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    output_path = output_dir + sample_id
 
     """
     After having formatted the contacts of each oligos in the genome (file with bin_size=0)
@@ -34,7 +39,7 @@ def compute_stats(
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0).T
     all_probes = np.asarray(df_probes.index, dtype='<U64')
 
-    df_sparse_mat = pd.read_csv(sparse_matrix_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
+    df_sparse_mat = pd.read_csv(sparse_mat_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
     #   from sparse_matrix (hicstuff results): get total contacts from which probes enrichment is calculated
     total_sparse_contacts = sum(df_sparse_mat["contacts"])
 
@@ -154,27 +159,5 @@ def compute_stats(
     df_global.to_csv(output_path + '_global_statistics.tsv', sep='\t')
     df_chr_nrm.to_csv(output_path + '_normalized_chr_freq.tsv', sep='\t')
     df_chr_inter_only_nrm.to_csv(output_path + '_normalized_inter_chr_only_freq.tsv', sep='\t')
-
-
-def run(
-        cis_range: int,
-        sparse_mat_path: Optional[str],
-        wt_references_dir: Optional[str],
-        samples_vs_wt: Optional[dict],
-        formatted_contacts_path: str,
-        probes_to_fragments_path: str,
-        output_dir: str):
-
-    sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
-    output_path = output_dir + sample_id
-    compute_stats(
-        sample_id=sample_id,
-        cis_range=cis_range,
-        sparse_matrix_path=sparse_mat_path,
-        wt_references_dir=wt_references_dir,
-        samples_vs_wt=samples_vs_wt,
-        formatted_contacts_path=formatted_contacts_path,
-        probes_to_fragments_path=probes_to_fragments_path,
-        output_path=output_path)
 
     print('DONE: ', sample_id)

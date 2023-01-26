@@ -19,7 +19,10 @@ def run(
     sub_df_stats.drop('fragments', inplace=True)
     sub_df_stats = sub_df_stats.T.drop_duplicates().T
 
-    df_pondered_contacts = df_binned_contacts.filter(items=['chr', 'chr_bins', 'genome_bins'])
+    if '0kb/' in binned_contacts_path:
+        df_pondered_contacts = df_binned_contacts.filter(items=['chr', 'positions', 'genome_bins'])
+    else:
+        df_pondered_contacts = df_binned_contacts.filter(items=['chr', 'chr_bins', 'genome_bins'])
     fragments = [f for f in df_binned_contacts.columns if re.match(r'\d+', f)]
     for wt in samples_vs_wt:
         if sample_id not in samples_vs_wt[wt]:

@@ -1,10 +1,8 @@
-import re
-import numpy as np
 import pandas as pd
 import sshic.tools as tl
 
 
-def fragments_to_oligos(
+def run(
         fragments_list_path: str,
         oligos_capture_path: str,
         output_path: str):
@@ -27,61 +25,3 @@ def fragments_to_oligos(
         df_probes_in_frag[probe] = [probe_type, probe_start, probe_end, chrom, frag_id, frag_start, frag_end]
 
     df_probes_in_frag.to_csv(output_path, sep='\t', index_label='probe')
-
-
-def format_fragments_contacts(
-        df: pd.DataFrame,
-        output_path: str):
-    """
-    This function will count the number of contacts for each read that comes from column 'frag_x' in each bin.
-    The results are stored in three dictionaries, given as arguments.
-        contacts_res of the form :  {oligoX : {chrX_binA : n ... } ...}
-        all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
-    """
-
-    contacts = pd.DataFrame(columns=['chr', 'positions', 'sizes'])
-    contacts = contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
-    frequencies = contacts.copy(deep=True)
-
-    for x in ['a', 'b']:
-        #   if x = a get b, if x = b get a
-        y = tl.frag2(x)
-        df2 = df[~pd.isna(df['name_' + x])]
-        unique_frag = pd.unique(df2['frag_'+x])
-        for frag in unique_frag:
-            df3 = df2[df2['frag_'+x] == frag]
-
-            tmp_c = pd.DataFrame({'chr': df3['chr_'+y], 'positions': df3['start_'+y],
-                                  'sizes': df3['size_'+y], frag: df3['contacts']})
-
-            tmp_f = tmp_c.copy(deep=True)
-            tmp_f[frag] /= np.sum(tmp_f[frag])
-
-            contacts = pd.concat([contacts, tmp_c])
-            frequencies = pd.concat([frequencies, tmp_f])
-
-    group_c = contacts.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
-    group_f = frequencies.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
-
-    res_c = group_c.sum()
-    res_f = group_f.sum()
-
-    res_c = tl.sort_by_chr(res_c, 'chr', 'positions')
-    res_f = tl.sort_by_chr(res_f, 'chr', 'positions')
-
-    res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
-    res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
-
-
-def run(
-        filtered_contacts_path: str,
-        output_dir: str):
-
-    sample_id = re.search(r"AD\d+", filtered_contacts_path).group()
-    df_contacts_filtered = pd.read_csv(filtered_contacts_path, sep=',')
-
-    format_fragments_contacts(
-        df=df_contacts_filtered,
-        output_path=output_dir+sample_id)
-
-    print('DONE: ', sample_id)

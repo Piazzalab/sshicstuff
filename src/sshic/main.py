@@ -12,15 +12,18 @@ if __name__ == "__main__":
     inputs_dir = data_dir + 'inputs/'
     outputs_dir = data_dir + 'outputs/'
 
-    sshic_dir = ['sshic/', 'sshic_pcrdupkept/']
+    if not os.path.exists(outputs_dir):
+        os.makedirs(outputs_dir)
+
+    sshic_dir = ['sshic', 'sshic_pcrdupkept']
 
     operations = {
         'filter': 0,
         'format': 0,
         'binning': 0,
         'statistics': 0,
-        'ponder': 0,
-        'nucleosomes': 1,
+        'ponder': 1,
+        'nucleosomes': 0,
         'centromeres': 0,
         'telomeres': 0,
         'cohesins': 0
@@ -29,26 +32,11 @@ if __name__ == "__main__":
     #   INPUTS
     fragments_list = inputs_dir + "fragments_list.txt"
     probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
-    artificial_genome_fa = inputs_dir + "S288c_DSB_LY_capture_artificial.fa"
     oligos_positions = inputs_dir + "capture_oligo_positions.csv"
     centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
     cohesins_peaks_bed = inputs_dir + "HB65_reference_peaks_score50min.bed"
     nucleosomes_free_regions = inputs_dir + "Chereji_Henikoff_genome_research_NFR.bed"
     ref_wt_dir = inputs_dir + "capture_efficiencies/"
-
-    #   OUTPUTS
-    hicstuff_dir = outputs_dir + "hicstuff/"
-    filter_dir = outputs_dir + "filtered/"
-    pondered_dir = outputs_dir + "pondered/"
-    format_dir = outputs_dir + "formatted/"
-    binning_dir = outputs_dir + "binned/"
-    statistics_dir = outputs_dir + "statistics/"
-    nucleosomes_dir = outputs_dir + "nucleosomes/"
-    centromeres_dir = outputs_dir + "centromeres/"
-    telomeres_dir = outputs_dir + "telomeres/"
-    cohesins_dir = outputs_dir + "cohesins/"
-
-    #   OTHER ARGUMENTS
 
     samples_to_compare_wt: dict = {
         'wt2h': [
@@ -69,104 +57,21 @@ if __name__ == "__main__":
 
     for hicd in sshic_dir:
         print(hicd)
+        pip.run_single(
+            fragment_list_path=fragments_list,
+            oligos_positions_path=oligos_positions,
+            probes_to_fragments_path=probes_and_fragments,
+            centromeres_positions_path=centromeres_positions,
+            cohesins_peaks_path=cohesins_peaks_bed,
+            wt_references_dir=ref_wt_dir,
+            samples_to_compare_wt=samples_to_compare_wt,
+            nfr_list_path=nucleosomes_free_regions,
+            outputs_dir=outputs_dir,
+            operations=operations,
+            sshic_pcrdupt_dir=hicd+'/'
+        )
 
-        if operations['filter'] == 1:
-            print('Filtering')
-            pip.do_filter(
-                fragments=fragments_list,
-                oligos=oligos_positions,
-                samples_dir=hicstuff_dir+hicd,
-                output_dir=filter_dir+hicd
-            )
 
-        if operations['format'] == 1:
-            print('Formatting')
-            pip.do_format(
-                fragments=fragments_list,
-                oligos=oligos_positions,
-                probes2frag=probes_and_fragments,
-                samples_dir=filter_dir+hicd,
-                output_dir=format_dir+hicd,
-                parallel=parallel_state
-            )
 
-        if operations['binning'] == 1:
-            print('Binning')
-            pip.do_binning(
-                bin_sizes_list=bins_list,
-                samples_dir=format_dir+hicd,
-                output_dir=binning_dir+hicd,
-                parallel=parallel_state
-            )
-
-        if operations['statistics'] == 1:
-            print('Statistics')
-            pip.do_stats(
-                hicstuff_dir=hicstuff_dir+hicd,
-                samples_dir=format_dir+hicd,
-                wt_references=ref_wt_dir,
-                samples_vs_wt=samples_to_compare_wt,
-                probes2frag=probes_and_fragments,
-                output_dir=statistics_dir+hicd,
-                cis_span=50000,
-                parallel=parallel_state
-            )
-
-        if operations['ponder'] == 1:
-            print('Pondering Mutants')
-            pip.do_ponder(
-                samples_vs_wt=samples_to_compare_wt,
-                binned_contacts_dir=binning_dir+hicd,
-                statistics_contacts_dir=statistics_dir+hicd,
-                output_dir=pondered_dir+hicd)
-
-        if operations['nucleosomes'] == 1:
-            print('nucleosomes')
-            pip.do_nucleo(
-                samples_dir=format_dir+hicd,
-                fragments=fragments_list,
-                probe2frag=probes_and_fragments,
-                fragments_nfr_filter_list=fragments_nfr_filter_list,
-                nucleosomes_path=nucleosomes_free_regions,
-                output_dir=nucleosomes_dir+hicd,
-                parallel=parallel_state
-            )
-
-        if operations['centromeres'] == 1:
-            print('Centromeres')
-            pip.do_centro(
-                centromeres_coordinates=centromeres_positions,
-                probes2frag=probes_and_fragments,
-                samples_dir=binning_dir+hicd,
-                span=150000,
-                output_dir=centromeres_dir+hicd,
-                parallel=parallel_state
-            )
-
-        if operations['telomeres'] == 1:
-            print('Telomeres')
-            pip.do_telo(
-                centromeres_coordinates=centromeres_positions,
-                probes2frag=probes_and_fragments,
-                samples_dir=binning_dir+hicd,
-                span=100000,
-                output_dir=telomeres_dir+hicd,
-                parallel=parallel_state
-            )
-
-        if operations['cohesins'] == 1:
-            print('Cohesins Peaks')
-            pip.do_cohesins(
-                samples_dir=binning_dir+hicd,
-                centromeres_coordinates=centromeres_positions,
-                probes2frag=probes_and_fragments,
-                cohesins_peaks=cohesins_peaks_bed,
-                output_dir=cohesins_dir+hicd,
-                span=15000,
-                scores=cohesins_scores_list,
-                cen_filter_operations=cen_filter_modes,
-                cen_filter_span=cen_filter_window,
-                parallel=parallel_state
-            )
 
     print('--- DONE ---')
