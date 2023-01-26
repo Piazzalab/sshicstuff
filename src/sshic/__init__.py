@@ -25,7 +25,5 @@ from .telomeres import run
 
 from .cohesins import freq_focus_around_cohesin_peaks
 from .cohesins import compute_average_aggregate
-from .cohesins import plot_aggregated
-from .cohesins import filter_peaks_around_centromeres
 from .cohesins import run
 
