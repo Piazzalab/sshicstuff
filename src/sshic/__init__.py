@@ -14,7 +14,6 @@ from .nucleosomes import preprocess
 from .nucleosomes import run
 
 from .centromeres import freq_focus_around_centromeres
-from .centromeres import plot_aggregated
 from .centromeres import compute_centromere_freq_per_oligo_per_chr
 from .centromeres import compute_average_aggregate
 from .centromeres import run
