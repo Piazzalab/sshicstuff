@@ -114,16 +114,30 @@ def run(
         samples = [f for f in sorted(os.listdir(not_binned_dir)) if '_contacts' in f]
         samples_id = sorted([re.search(r"AD\d+", f).group() for f in samples])
 
-        for ii_samp, samp in enumerate(samples_id):
-            statistics.run(
-                cis_range=50000,
-                sparse_mat_path=hicstuff_dir+sshic_pcrdupt_dir+sparse_matrix_list[ii_samp],
-                wt_references_dir=wt_references_dir+sshic_pcrdupt_dir,
-                samples_vs_wt=samples_to_compare_wt,
-                formatted_contacts_path=not_binned_dir+samples[ii_samp],
-                probes_to_fragments_path=probes_to_fragments_path,
-                output_dir=statistics_dir+sshic_pcrdupt_dir
-            )
+        if not os.path.exists(statistics_dir+sshic_pcrdupt_dir):
+            os.makedirs(statistics_dir+sshic_pcrdupt_dir)
+
+        if parallel:
+            with mp.Pool(threads) as p:
+                p.starmap(statistics.run, [(
+                    50000,
+                    hicstuff_dir+sshic_pcrdupt_dir+sparse_matrix_list[ii_samp],
+                    wt_references_dir + sshic_pcrdupt_dir,
+                    samples_to_compare_wt,
+                    not_binned_dir+samples[ii_samp],
+                    probes_to_fragments_path,
+                    statistics_dir+sshic_pcrdupt_dir) for ii_samp, samp in enumerate(samples_id)])
+        else:
+            for ii_samp, samp in enumerate(samples_id):
+                statistics.run(
+                    cis_range=50000,
+                    sparse_mat_path=hicstuff_dir+sshic_pcrdupt_dir+sparse_matrix_list[ii_samp],
+                    wt_references_dir=wt_references_dir+sshic_pcrdupt_dir,
+                    samples_vs_wt=samples_to_compare_wt,
+                    formatted_contacts_path=not_binned_dir+samples[ii_samp],
+                    probes_to_fragments_path=probes_to_fragments_path,
+                    output_dir=statistics_dir+sshic_pcrdupt_dir
+                )
 
     #################################
     #   PONDERING

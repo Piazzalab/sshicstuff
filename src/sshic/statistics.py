@@ -17,9 +17,6 @@ def run(
         output_dir: str):
 
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
     output_path = output_dir + sample_id
 
     """

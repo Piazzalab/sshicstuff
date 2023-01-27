@@ -20,8 +20,8 @@ if __name__ == "__main__":
     operations = {
         'filter': 0,
         'format': 0,
-        'binning': 1,
-        'statistics': 0,
+        'binning': 0,
+        'statistics': 1,
         'ponder': 0,
         'nucleosomes': 0,
         'centromeres': 0,
@@ -68,7 +68,8 @@ if __name__ == "__main__":
             nfr_list_path=nucleosomes_free_regions,
             outputs_dir=outputs_dir,
             operations=operations,
-            sshic_pcrdupt_dir=hicd+'/'
+            sshic_pcrdupt_dir=hicd+'/',
+            parallel=parallel_state
         )
 
     print('--- DONE ---')
