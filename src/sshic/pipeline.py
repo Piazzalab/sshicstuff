@@ -86,7 +86,7 @@ def run(
                     )
 
         samples_dir = not_binned_dir
-        samples = os.listdir(samples_dir)
+        samples = [f for f in os.listdir(samples_dir) if 'contacts.tsv' in f]
         if parallel:
             for bs in bins_sizes_list:
                 print('bin of size: ', bs)
@@ -147,6 +147,7 @@ def run(
         statistics_tables_list = [s for s in sorted(os.listdir(statistics_dir+sshic_pcrdupt_dir)) if 'global' in s]
         samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_tables_list])
         for bin_dir in binned_dir_list:
+            print(bin_dir)
             bin_dir += '/'
             binned_contacts_list = \
                 [f for f in sorted(os.listdir(binning_dir+sshic_pcrdupt_dir+bin_dir)) if 'frequencies' in f]
@@ -154,19 +155,25 @@ def run(
             if not os.path.exists(pondered_dir+sshic_pcrdupt_dir+bin_dir):
                 os.makedirs(pondered_dir+sshic_pcrdupt_dir+bin_dir)
 
-            for ii_samp, samp in enumerate(samples_id):
-                if samp not in list(chain(*samples_to_compare_wt.values())):
-                    continue
-                else:
-                    binned_contacts_sample = binning_dir+sshic_pcrdupt_dir+bin_dir+binned_contacts_list[ii_samp]
-                    stats_table_sample = statistics_dir+sshic_pcrdupt_dir+statistics_tables_list[ii_samp]
+            if parallel:
+                with mp.Pool(threads) as p:
+                    p.starmap(ponder_mutants.run, [(
+                        samples_to_compare_wt,
+                        binning_dir+sshic_pcrdupt_dir+bin_dir+binned_contacts_list[ii_samp],
+                        statistics_dir+sshic_pcrdupt_dir+statistics_tables_list[ii_samp],
+                        pondered_dir+sshic_pcrdupt_dir+bin_dir) for ii_samp, samp in enumerate(samples_id)])
 
-                    ponder_mutants.run(
-                        samples_vs_wt=samples_to_compare_wt,
-                        binned_contacts_path=binned_contacts_sample,
-                        statistics_path=stats_table_sample,
-                        output_dir=pondered_dir+sshic_pcrdupt_dir+bin_dir,
-                    )
+            else:
+                for ii_samp, samp in enumerate(samples_id):
+                    if samp in list(chain(*samples_to_compare_wt.values())):
+                        binned_contacts_sample = binning_dir+sshic_pcrdupt_dir+bin_dir+binned_contacts_list[ii_samp]
+                        stats_table_sample = statistics_dir+sshic_pcrdupt_dir+statistics_tables_list[ii_samp]
+                        ponder_mutants.run(
+                            samples_vs_wt=samples_to_compare_wt,
+                            binned_contacts_path=binned_contacts_sample,
+                            statistics_path=stats_table_sample,
+                            output_dir=pondered_dir+sshic_pcrdupt_dir+bin_dir,
+                        )
     #################################
     #   NUCLEOSOMES
     #################################
