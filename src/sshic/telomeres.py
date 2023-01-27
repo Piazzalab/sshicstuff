@@ -135,9 +135,10 @@ def mkdir(output_path: str):
 def run(
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
+        telomeres_coord_path: str,
         window_size: int,
-        output_path: str,
-        telomeres_coord_path: str):
+        output_path: str
+):
 
     sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
     dir_table, dir_plot = mkdir(output_path=output_path+sample_name)

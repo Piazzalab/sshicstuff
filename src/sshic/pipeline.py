@@ -174,6 +174,7 @@ def run(
                             statistics_path=stats_table_sample,
                             output_dir=pondered_dir+sshic_pcrdupt_dir+bin_dir,
                         )
+
     #################################
     #   NUCLEOSOMES
     #################################
@@ -210,33 +211,53 @@ def run(
                         fragments_out_nfr_path=nucleosomes_dir+filter_dir+nfr_out_file,
                         output_dir=nucleosomes_dir+filter_dir+sshic_pcrdupt_dir
                     )
+
     #################################
     #   CENTROMERES
     #################################
     if operations['centromeres'] == 1:
         samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
-        for samp in samples:
-            centromeres.run(
-                formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
-                probes_to_fragments_path=probes_to_fragments_path,
-                centros_coord_path=centromeres_positions_path,
-                window_size=150000,
-                output_path=centromeres_dir+sshic_pcrdupt_dir
-            )
+        if parallel:
+            with mp.Pool(threads) as p:
+                p.starmap(centromeres.run, [(
+                    binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                    probes_to_fragments_path,
+                    centromeres_positions_path,
+                    150000,
+                    centromeres_dir+sshic_pcrdupt_dir) for samp in samples])
+        else:
+            for samp in samples:
+                centromeres.run(
+                    formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                    probes_to_fragments_path=probes_to_fragments_path,
+                    centros_coord_path=centromeres_positions_path,
+                    window_size=150000,
+                    output_path=centromeres_dir+sshic_pcrdupt_dir
+                )
 
     #################################
     #   TELOMERES
     #################################
     if operations['telomeres'] == 1:
         samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
-        for samp in samples:
-            telomeres.run(
-                formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
-                probes_to_fragments_path=probes_to_fragments_path,
-                window_size=100000,
-                telomeres_coord_path=centromeres_positions_path,
-                output_path=telomeres_dir+sshic_pcrdupt_dir,
-            )
+
+        if parallel:
+            with mp.Pool(threads) as p:
+                p.starmap(telomeres.run, [(
+                    binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                    probes_to_fragments_path,
+                    centromeres_positions_path,
+                    100000,
+                    telomeres_dir+sshic_pcrdupt_dir) for samp in samples])
+        else:
+            for samp in samples:
+                telomeres.run(
+                    formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                    probes_to_fragments_path=probes_to_fragments_path,
+                    window_size=100000,
+                    telomeres_coord_path=centromeres_positions_path,
+                    output_path=telomeres_dir+sshic_pcrdupt_dir,
+                )
 
     #################################
     #   COHESINS PEAKS
