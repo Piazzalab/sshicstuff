@@ -6,7 +6,30 @@ def run(
         samples_vs_wt: dict,
         binned_contacts_path: str,
         statistics_path: str,
-        output_dir: str):
+        output_dir: str
+):
+
+    """
+    This function allows to ponder / normalize every sample that are a mutant (present in
+    the dict samples_vs_wt) contacts by the normalized capture efficiency for each probe
+    by using the newly made statistics table.
+
+    Do it for each bin.
+
+    ARGUMENTS
+    ________________
+    samples_vs_wt : dict
+        dictionary of samples that need to be weighted over the WT references.
+        keys are the wt time point like 2h, 4h, 6h etc ...
+        values are lists of samples names to be pondered using the key reference wt
+    binned_contacts_path : str
+        path to rebinned contacts table of the current sample (.tsv file)
+        made previoudly with the rebin_contacts function in binning script
+    statistics_path: str
+        path the global statistics table of current sample obtained with the script statistics
+    output_dir  :  str
+                the absolute path toward the output directory to save the results
+    """
 
     sample_id = re.search(r"AD\d+", binned_contacts_path).group()
     output_path = output_dir + sample_id

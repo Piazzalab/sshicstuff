@@ -14,8 +14,57 @@ def run(
         samples_vs_wt: Optional[dict],
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
-        output_dir: str):
+        output_dir: str
+):
 
+    """
+    This function's purpose is to compute some basic statistics about the contacts made by the oligo probes
+    to get a better insight of the single stranded filament behaviour.
+    Among these statistics we mainly do :
+        . the total number of contacts made by the probe, or at least the read that contains it
+        . that amount of contacts normalized by the total number of contacts measured
+        in the sparse matrix (whole hic experiment)
+        . the number of 'cis' contacts i.e., contacts made by probe with very close (defined areas as an argument)
+        space
+        . the number of 'trans' contacts, basically what is not cis contacts, so 1 - cis
+        . the intra chromosomal contacts i.e., contacts made by the probe on the same chromosome as its
+        . the inter chromosomal contacts i.e., contacts by the probe made on other chromosome, so 1 - intra
+        . the dsdna_norm_capture_efficiency, number of contacts for one oligo divided by the mean (or median)
+        of all other 'ds' oligos in the genome
+        . (for mutants only) the capture efficiency by probe normalized over that of the wt
+
+    These statistics are stored as 'global' statistics.
+    Moreover, we also generate tables for :
+        . the contacts made by a probe with each chromosome, normalized by the all the contacts made by
+        the probe, itself normalized by the length of the chromosome, itself normalized by the size of the genome
+        . the contacts made by a probe with only inter chromosome (chromosome of the probe is excluded)
+        normalized by the sum of contacts made on all inter chromosomes, itself normalized by chromosomes length,
+        itself normalized by genome size.
+
+    ARGUMENTS
+    ______________
+
+    cis_range : int
+        number of bases (bp) around each probe where we consider that if the probe did a contact in there,
+        it is a 'cis' contact. Outside this window is will be a 'trans' contacts
+    sparse_mat_path : str
+        raw matrix (sparse matrix) given by hicstuff with all contacts made in hic. The file has
+        three columns : frag_a | frag_b | contacts
+    wt_references_dir : str
+        the path to the directory containing the capture efficiency averaged on the wild types
+    samples_vs_wt : dict
+        dictionary of samples that need to be weighted over the WT references.
+        keys are the wt time point like 2h, 4h, 6h etc ...
+        values are lists of samples names to be pondered using the key reference wt
+    formatted_contacts_path :  str
+        path to the formatted contacts files of the current sample, basically the not_binned_contacts
+        previously made with the function get_fragments_contacts in the binning script
+    probes_to_fragments_path  :  str
+        path to the table (.tsv file) that makes correspond the name of the probe with that of the fragment
+        that contains it and complementary information, generated in the format script.
+    output_dir  :  str
+                the absolute path toward the output directory to save the results
+    """
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
     output_path = output_dir + sample_id
 
@@ -110,7 +159,7 @@ def run(
                 c1 = (n1/d1) / (chrom_size/genome_size)
                 chr_contacts_nrm[chrom].append(c1)
 
-            #   n2: n1: sum contacts chr_i if chr_i != frag_chr
+            #   n2: sum contacts chr_i if chr_i != frag_chr
             #   d2: sum contacts all inter chr (exclude the frag_chr)
             #   c2 : normalized inter chr contacts on chr_i for frag_j
             n2 = np.sum(sub_df.query("chr == @chrom and chr != @probe_chr")[frag_id].values)

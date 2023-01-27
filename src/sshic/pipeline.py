@@ -54,7 +54,8 @@ def run(
                 oligos_input_path=oligos_positions_path,
                 fragments_input_path=fragment_list_path,
                 contacts_input=samples_dir+samp,
-                output_path=filter_dir+sshic_pcrdupt_dir+samp_id)
+                output_path=filter_dir+sshic_pcrdupt_dir+samp_id
+            )
 
     #################################
     #   FORMATTING
@@ -80,7 +81,8 @@ def run(
                 with mp.Pool(threads) as p:
                     p.starmap(binning.get_fragments_contacts, [(
                         samples_dir + samp,
-                        not_binned_dir) for samp in samples])
+                        not_binned_dir) for samp in samples]
+                              )
             else:
                 for samp in samples:
                     binning.get_fragments_contacts(
@@ -97,7 +99,8 @@ def run(
                     p.starmap(binning.rebin_contacts, [(
                         samples_dir+samp,
                         bs,
-                        binning_dir+sshic_pcrdupt_dir) for samp in samples])
+                        binning_dir+sshic_pcrdupt_dir) for samp in samples]
+                              )
 
             else:
                 for samp in samples:
@@ -128,7 +131,8 @@ def run(
                     samples_to_compare_wt,
                     not_binned_dir+samples[ii_samp],
                     probes_to_fragments_path,
-                    statistics_dir+sshic_pcrdupt_dir) for ii_samp, samp in enumerate(samples_id)])
+                    statistics_dir+sshic_pcrdupt_dir) for ii_samp, samp in enumerate(samples_id)]
+                          )
         else:
             for ii_samp, samp in enumerate(samples_id):
                 statistics.run(
@@ -163,7 +167,8 @@ def run(
                         samples_to_compare_wt,
                         binning_dir+sshic_pcrdupt_dir+bin_dir+binned_contacts_list[ii_samp],
                         statistics_dir+sshic_pcrdupt_dir+statistics_tables_list[ii_samp],
-                        pondered_dir+sshic_pcrdupt_dir+bin_dir) for ii_samp, samp in enumerate(samples_id)])
+                        pondered_dir+sshic_pcrdupt_dir+bin_dir) for ii_samp, samp in enumerate(samples_id)]
+                              )
 
             else:
                 for ii_samp, samp in enumerate(samples_id):
@@ -204,7 +209,8 @@ def run(
                         probes_to_fragments_path,
                         nucleosomes_dir+filter_dir+nfr_in_file,
                         nucleosomes_dir+filter_dir+nfr_out_file,
-                        nucleosomes_dir+filter_dir+sshic_pcrdupt_dir) for samp in samples])
+                        nucleosomes_dir+filter_dir+sshic_pcrdupt_dir) for samp in samples]
+                              )
             else:
                 for samp in samples:
                     nucleosomes.run(
@@ -228,7 +234,8 @@ def run(
                     probes_to_fragments_path,
                     centromeres_positions_path,
                     150000,
-                    centromeres_dir+sshic_pcrdupt_dir) for samp in samples])
+                    centromeres_dir+sshic_pcrdupt_dir) for samp in samples]
+                          )
         else:
             for samp in samples:
                 centromeres.run(
@@ -252,7 +259,8 @@ def run(
                     probes_to_fragments_path,
                     centromeres_positions_path,
                     100000,
-                    telomeres_dir+sshic_pcrdupt_dir) for samp in samples])
+                    telomeres_dir+sshic_pcrdupt_dir) for samp in samples]
+                          )
         else:
             for samp in samples:
                 telomeres.run(
@@ -288,7 +296,8 @@ def run(
                             sc,
                             cohesins_filter_span,
                             m,
-                            cohesins_dir+sshic_pcrdupt_dir) for samp in samples])
+                            cohesins_dir+sshic_pcrdupt_dir) for samp in samples]
+                                  )
                 else:
                     for samp in samples:
                         cohesins.run(
@@ -300,6 +309,5 @@ def run(
                             score_cutoff=sc,
                             cen_filter_span=40000,
                             cen_filter_mode=m,
-                            output_dir=cohesins_dir+sshic_pcrdupt_dir)
-
-
+                            output_dir=cohesins_dir+sshic_pcrdupt_dir
+                        )

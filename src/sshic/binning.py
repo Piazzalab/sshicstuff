@@ -8,12 +8,22 @@ import sshic.tools as tl
 
 def get_fragments_contacts(
         filtered_contacts_path: str,
-        output_dir: str):
+        output_dir: str
+):
     """
-    This function will count the number of contacts for each read that comes from column 'frag_x' in each bin.
-    The results are stored in three dictionaries, given as arguments.
-        contacts_res of the form :  {oligoX : {chrX_binA : n ... } ...}
-        all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
+    This function aims to organise the contacts made by each probe with the genome.
+    It gives as a result a .tsv file written dataframe with on the columns the different probes
+    and on the rows  the chromosomes positions contacted by the probes.
+
+    This step may also appear annotated as the '0kb binning' as we do the same work as a rebinning function,
+    but with no defined bin size.
+
+    ARGUMENTS
+    _________________
+    filtered_contacts_path : str
+        path to the filtered contacts table of the current sample, made previously with the filter script
+    output_dir : str
+        the absolute path toward the output directory to save the results
     """
 
     samp_id = re.search(r"AD\d+", filtered_contacts_path).group()
@@ -35,6 +45,9 @@ def get_fragments_contacts(
             tmp_c = pd.DataFrame({'chr': df3['chr_'+y], 'positions': df3['start_'+y],
                                   'sizes': df3['size_'+y], frag: df3['contacts']})
 
+            #   create the same dataframe but for frequencies
+            #   we divide all the contacts made by one probe (i.e., an entire column)
+            #   by the sum of contacts in the column
             tmp_f = tmp_c.copy(deep=True)
             tmp_f[frag] /= np.sum(tmp_f[frag])
 
@@ -53,10 +66,9 @@ def get_fragments_contacts(
     res_c.index = range(len(res_c))
     res_c.index = range(len(res_f))
 
+    #   Write into .tsv file contacts as there are and in the form of frequencies :
     res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
     res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
-
-    print('DONE : ', samp_id)
 
 
 def rebin_contacts(
@@ -64,7 +76,21 @@ def rebin_contacts(
         bin_size: int,
         output_dir: str
 ):
+    """
+    This function uses the previous one (get_fragments_contacts) and its 0kb binned formatted contacts files
+    to rebin them using defined bin sizes.
+    Each chromosome is them split into discrete range of positions of size X and the contacts made
+    in the not_binned_file are then aggregated (summed) in there.
 
+    ARGUMENTS
+    ______________
+    not_binned_samp_path : str
+        path to the 0kb binned or formatted probes contacts files (.tsv file)
+    bin_size : int
+        range size of bins (1000, 5000, 20000, etc ...)
+    output_dir : str
+        the absolute path toward the output directory to save the results
+    """
     samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
     df = pd.read_csv(not_binned_samp_path, sep='\t')
     bin_dir = output_dir + str(bin_size // 1000) + 'kb/'
