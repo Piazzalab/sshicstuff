@@ -83,5 +83,3 @@ def rebin_contacts(
 
     df_binned_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
     df_binned_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
-
-    print('DONE : ', samp_id)

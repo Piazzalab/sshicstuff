@@ -203,5 +203,3 @@ def run(
         df_fragments_out=df_fragments_out_nfr,
         output_path=output_dir+sample_id
     )
-
-    print('DONE: ', sample_id)

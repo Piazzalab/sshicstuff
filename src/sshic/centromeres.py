@@ -166,5 +166,3 @@ def run(
         aggregated=chr_aggregated_dict,
         table_path=dir_table,
         plot_path=dir_plot)
-
-    print('DONE: ', sample_name)

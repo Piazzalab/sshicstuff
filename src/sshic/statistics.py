@@ -156,5 +156,3 @@ def run(
     df_global.to_csv(output_path + '_global_statistics.tsv', sep='\t')
     df_chr_nrm.to_csv(output_path + '_normalized_chr_freq.tsv', sep='\t')
     df_chr_inter_only_nrm.to_csv(output_path + '_normalized_inter_chr_only_freq.tsv', sep='\t')
-
-    print('DONE: ', sample_id)

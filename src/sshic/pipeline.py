@@ -145,12 +145,11 @@ def run(
     #   PONDERING
     #################################
     if operations['ponder'] == 1:
-        print('Ponder mutant contacts over WT references')
         binned_dir_list = os.listdir(binning_dir+sshic_pcrdupt_dir)
         statistics_tables_list = [s for s in sorted(os.listdir(statistics_dir+sshic_pcrdupt_dir)) if 'global' in s]
         samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_tables_list])
         for bin_dir in binned_dir_list:
-            print(bin_dir)
+            print('Ponder mutant contacts (rebinned at {0} over WT references'.format(bin_dir))
             bin_dir += '/'
             binned_contacts_list = \
                 [f for f in sorted(os.listdir(binning_dir+sshic_pcrdupt_dir+bin_dir)) if 'frequencies' in f]
