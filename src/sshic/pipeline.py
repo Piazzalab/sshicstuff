@@ -7,7 +7,7 @@ from sshic import binning, nucleosomes, statistics, filter, format, \
     ponder_mutants, telomeres, centromeres, cohesins
 
 
-def run_single(
+def run(
         fragment_list_path: str,
         oligos_positions_path: str,
         probes_to_fragments_path: str,
@@ -19,7 +19,9 @@ def run_single(
         outputs_dir: str,
         operations: dict,
         sshic_pcrdupt_dir: str,
+        parallel: bool = True,
 ):
+    threads = mp.cpu_count()
 
     #   DEFAULT ARGUMENTS
     bins_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
@@ -35,10 +37,11 @@ def run_single(
     centromeres_dir = outputs_dir + "centromeres/"
     telomeres_dir = outputs_dir + "telomeres/"
     cohesins_dir = outputs_dir + "cohesins/"
-
     not_binned_dir = binning_dir + sshic_pcrdupt_dir + '0kb/'
 
-    #   FILTER
+    #################################
+    #   FILTERING
+    #################################
     if operations['filter'] == 1:
         samples_dir = hicstuff_dir+sshic_pcrdupt_dir
         samples = np.unique(os.listdir(samples_dir))
@@ -52,7 +55,9 @@ def run_single(
                 contacts_input=samples_dir+samp,
                 output_path=filter_dir+sshic_pcrdupt_dir+samp_id)
 
-    #   FORMAT
+    #################################
+    #   FORMATTING
+    #################################
     if operations['format'] == 1:
         format.run(
             fragments_list_path=fragment_list_path,
@@ -60,20 +65,50 @@ def run_single(
             output_path=probes_to_fragments_path
         )
 
+    #################################
     #   BINNING
+    #################################
     if operations['binning'] == 1:
-        samples_dir = filter_dir+sshic_pcrdupt_dir
+        if not os.path.exists(not_binned_dir):
+            samples_dir = filter_dir + sshic_pcrdupt_dir
+            samples = os.listdir(samples_dir)
+            os.makedirs(not_binned_dir)
+            if parallel:
+                with mp.Pool(threads) as p:
+                    p.starmap(binning.get_fragments_contacts, [(
+                        samples_dir + samp,
+                        not_binned_dir) for samp in samples])
+            else:
+                for samp in samples:
+                    binning.get_fragments_contacts(
+                        filtered_contacts_path=samples_dir+samp,
+                        output_dir=not_binned_dir
+                    )
+
+        samples_dir = not_binned_dir
         samples = os.listdir(samples_dir)
-        for bs in bins_sizes_list:
-            print('bin of size: ', bs)
+        if parallel:
+            for bs in bins_sizes_list:
+                print('bin of size: ', bs)
+                with mp.Pool(threads) as p:
+                    p.starmap(binning.rebin_contacts, [(
+                        samples_dir+samp,
+                        bs,
+                        binning_dir+sshic_pcrdupt_dir) for samp in samples])
 
-            for samp in samples:
-                binning.run(
-                    filtered_contacts_path=samples_dir+samp,
-                    bin_size=bs,
-                    output_dir=binning_dir+sshic_pcrdupt_dir
-                )
+        else:
+            for bs in bins_sizes_list:
+                print('bin of size: ', bs)
+                for samp in samples:
+                    binning.rebin_contacts(
+                        not_binned_samp_path=samples_dir+samp,
+                        bin_size=bs,
+                        output_dir=binning_dir+sshic_pcrdupt_dir
+                    )
 
+    #################################
+    #   STATISTICS
+    #################################
     if operations['statistics'] == 1:
         sparse_matrix_list = sorted(os.listdir(hicstuff_dir+sshic_pcrdupt_dir))
         samples = [f for f in sorted(os.listdir(not_binned_dir)) if '_contacts' in f]
@@ -90,6 +125,9 @@ def run_single(
                 output_dir=statistics_dir+sshic_pcrdupt_dir
             )
 
+    #################################
+    #   PONDERING
+    #################################
     if operations['ponder'] == 1:
         binned_dir_list = os.listdir(binning_dir+sshic_pcrdupt_dir)
         statistics_tables_list = [s for s in sorted(os.listdir(statistics_dir+sshic_pcrdupt_dir)) if 'global' in s]
@@ -115,7 +153,9 @@ def run_single(
                         statistics_path=stats_table_sample,
                         output_dir=pondered_dir+sshic_pcrdupt_dir+bin_dir,
                     )
-
+    #################################
+    #   NUCLEOSOMES
+    #################################
     if operations['nucleosomes'] == 1:
 
         nfr_in_file = 'fragments_list_in_nfr.tsv'
@@ -141,7 +181,9 @@ def run_single(
                     fragments_out_nfr_path=nucleosomes_dir+filter_dir+nfr_out_file,
                     output_dir=nucleosomes_dir+filter_dir+sshic_pcrdupt_dir
                 )
-
+    #################################
+    #   CENTROMERES
+    #################################
     if operations['centromeres'] == 1:
         samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
         for samp in samples:
@@ -153,6 +195,9 @@ def run_single(
                 output_path=centromeres_dir+sshic_pcrdupt_dir
             )
 
+    #################################
+    #   TELOMERES
+    #################################
     if operations['telomeres'] == 1:
         samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
         for samp in samples:
@@ -164,6 +209,9 @@ def run_single(
                 output_path=telomeres_dir+sshic_pcrdupt_dir,
             )
 
+    #################################
+    #   COHESINS PEAKS
+    #################################
     if operations['cohesins'] == 1:
         cohesins_filter_list = ['inner', 'outer', None]
         cohesins_filter_scores_list = [100, 200, 500, 1000, 2000]
@@ -182,3 +230,5 @@ def run_single(
                         cen_filter_span=40000,
                         cen_filter_mode=m,
                         output_dir=cohesins_dir+sshic_pcrdupt_dir)
+
+

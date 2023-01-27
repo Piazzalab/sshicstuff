@@ -20,13 +20,13 @@ if __name__ == "__main__":
     operations = {
         'filter': 0,
         'format': 0,
-        'binning': 0,
+        'binning': 1,
         'statistics': 0,
         'ponder': 0,
         'nucleosomes': 0,
         'centromeres': 0,
         'telomeres': 0,
-        'cohesins': 1
+        'cohesins': 0
     }
 
     #   INPUTS
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     for hicd in sshic_dir:
         print(hicd)
-        pip.run_single(
+        pip.run(
             fragment_list_path=fragments_list,
             oligos_positions_path=oligos_positions,
             probes_to_fragments_path=probes_and_fragments,

@@ -4,7 +4,6 @@ from .tools import is_debug
 
 from .filter import run
 from .format import run
-from .binning import run
 from .statistics import run
 
 from .nucleosomes import get_nfr_contacts

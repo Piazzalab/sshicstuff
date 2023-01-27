@@ -7,8 +7,8 @@ import sshic.tools as tl
 
 
 def get_fragments_contacts(
-        df: pd.DataFrame,
-        output_path: str):
+        filtered_contacts_path: str,
+        output_dir: str):
     """
     This function will count the number of contacts for each read that comes from column 'frag_x' in each bin.
     The results are stored in three dictionaries, given as arguments.
@@ -16,6 +16,10 @@ def get_fragments_contacts(
         all_contacted_pos of the form : {oligoX : {chrX_1456 : n, chrY_89445: m ... } ...}
     """
 
+    samp_id = re.search(r"AD\d+", filtered_contacts_path).group()
+    output_path = output_dir + samp_id
+
+    df = pd.read_csv(filtered_contacts_path, sep='\t')
     contacts = pd.DataFrame(columns=['chr', 'positions', 'sizes'])
     contacts = contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
     frequencies = contacts.copy(deep=True)
@@ -52,15 +56,21 @@ def get_fragments_contacts(
     res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
     res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
 
-    return res_c
+    print('DONE : ', samp_id)
 
 
 def rebin_contacts(
-        df: pd.DataFrame,
+        not_binned_samp_path: str,
         bin_size: int,
-        output_path: str
+        output_dir: str
 ):
 
+    samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
+    df = pd.read_csv(not_binned_samp_path, sep='\t')
+    bin_dir = output_dir + str(bin_size // 1000) + 'kb/'
+    if not os.path.exists(bin_dir):
+        os.makedirs(bin_dir)
+    output_path = bin_dir+samp_id
     fragments = [f for f in df.columns if re.match(r'\d+', str(f))]
     df.insert(2, 'chr_bins', (df["positions"] // bin_size) * bin_size)
     df_binned_contacts = df.groupby(["chr", "chr_bins"], as_index=False).sum()
@@ -73,34 +83,5 @@ def rebin_contacts(
 
     df_binned_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
     df_binned_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
-
-
-def run(
-        filtered_contacts_path: str,
-        bin_size: int,
-        output_dir: str):
-
-    if not os.path.exists(output_dir+'0kb/'):
-        os.makedirs(output_dir+'0kb/'
-                    )
-    samp_id = re.search(r"AD\d+", filtered_contacts_path).group()
-    not_binned_samp = output_dir+'0kb/'+samp_id+'_contacts.tsv'
-    if not os.path.exists(not_binned_samp):
-        df_filtered_contacts = pd.read_csv(filtered_contacts_path, sep='\t')
-        df_formatted_contacts = get_fragments_contacts(
-            df=df_filtered_contacts,
-            output_path=output_dir+'0kb/'+samp_id
-        )
-    else:
-        df_formatted_contacts = pd.read_csv(not_binned_samp, sep='\t')
-
-    bin_dir = output_dir + str(bin_size // 1000) + 'kb/'
-    if not os.path.exists(bin_dir):
-        os.makedirs(bin_dir)
-    rebin_contacts(
-        df=df_formatted_contacts,
-        bin_size=bin_size,
-        output_path=bin_dir+samp_id
-    )
 
     print('DONE : ', samp_id)
