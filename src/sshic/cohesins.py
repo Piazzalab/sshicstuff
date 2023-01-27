@@ -50,20 +50,19 @@ def freq_focus_around_cohesin_peaks(
         (df_merged.chr_bins < (df_merged.end+window_size))
     ]
 
+    df_merged2 = pd.merge(df_merged_cohesins_areas, df_centros, on='chr')
     if filter_mode == 'inner':
-        df_merged2 = pd.merge(df_merged_cohesins_areas, df_centros, on='chr')
         df_merged_cohesins_areas_filtered = df_merged2[
             (df_merged2.chr_bins > (df_merged2.left_arm_length-filter_range)) &
             (df_merged2.chr_bins < (df_merged2.left_arm_length+filter_range))
         ]
     elif filter_mode == 'outer':
-        df_merged2 = pd.merge(df_merged_cohesins_areas, df_centros, on='chr')
         df_merged_cohesins_areas_filtered = df_merged2[
-            (df_merged2.chr_bins < (df_merged2.left_arm_length - filter_range)) &
+            (df_merged2.chr_bins < (df_merged2.left_arm_length - filter_range)) |
             (df_merged2.chr_bins > (df_merged2.left_arm_length + filter_range))
         ]
     else:
-        df_merged_cohesins_areas_filtered = df_merged_cohesins_areas.copy(deep=True)
+        df_merged_cohesins_areas_filtered = df_merged2.copy(deep=True)
 
     df_merged_cohesins_areas_filtered['chr_bins'] =\
         abs(df_merged_cohesins_areas_filtered['chr_bins'] -
@@ -174,12 +173,13 @@ def run(
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
         window_size: int,
-        output_dir: str,
         cohesins_peaks_path: str,
         centromere_info_path: str,
         score_cutoff: int,
         cen_filter_span: int,
-        cen_filter_mode: str | None):
+        cen_filter_mode: str | None,
+        output_dir: str,
+):
 
     sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
     dir_table, dir_plot = mkdir(
@@ -203,5 +203,3 @@ def run(
         df_probes=df_probes,
         table_path=dir_table,
         plot_path=dir_plot)
-
-    print('DONE: ', sample_name)

@@ -43,6 +43,7 @@ def run(
     #   FILTERING
     #################################
     if operations['filter'] == 1:
+        print("Filtered hicstuff sparse matrix by keeping only contacts made by probe")
         samples_dir = hicstuff_dir+sshic_pcrdupt_dir
         samples = np.unique(os.listdir(samples_dir))
         if not os.path.exists(filter_dir+sshic_pcrdupt_dir):
@@ -59,6 +60,7 @@ def run(
     #   FORMATTING
     #################################
     if operations['format'] == 1:
+        print("Creating a table to make correspond probe with fragments that contains it")
         format.run(
             fragments_list_path=fragment_list_path,
             oligos_capture_path=oligos_positions_path,
@@ -70,6 +72,7 @@ def run(
     #################################
     if operations['binning'] == 1:
         if not os.path.exists(not_binned_dir):
+            print("Organizing the contacts for each probe in the genome ('0kb' binning)")
             samples_dir = filter_dir + sshic_pcrdupt_dir
             samples = os.listdir(samples_dir)
             os.makedirs(not_binned_dir)
@@ -87,18 +90,16 @@ def run(
 
         samples_dir = not_binned_dir
         samples = [f for f in os.listdir(samples_dir) if 'contacts.tsv' in f]
-        if parallel:
-            for bs in bins_sizes_list:
-                print('bin of size: ', bs)
+        for bs in bins_sizes_list:
+            print('Rebinning the contacts on bins of size {0} bp'.format(bs))
+            if parallel:
                 with mp.Pool(threads) as p:
                     p.starmap(binning.rebin_contacts, [(
                         samples_dir+samp,
                         bs,
                         binning_dir+sshic_pcrdupt_dir) for samp in samples])
 
-        else:
-            for bs in bins_sizes_list:
-                print('bin of size: ', bs)
+            else:
                 for samp in samples:
                     binning.rebin_contacts(
                         not_binned_samp_path=samples_dir+samp,
@@ -110,6 +111,7 @@ def run(
     #   STATISTICS
     #################################
     if operations['statistics'] == 1:
+        print('Compute some general statistics on sshic contacts')
         sparse_matrix_list = sorted(os.listdir(hicstuff_dir+sshic_pcrdupt_dir))
         samples = [f for f in sorted(os.listdir(not_binned_dir)) if '_contacts' in f]
         samples_id = sorted([re.search(r"AD\d+", f).group() for f in samples])
@@ -143,6 +145,7 @@ def run(
     #   PONDERING
     #################################
     if operations['ponder'] == 1:
+        print('Ponder mutant contacts over WT references')
         binned_dir_list = os.listdir(binning_dir+sshic_pcrdupt_dir)
         statistics_tables_list = [s for s in sorted(os.listdir(statistics_dir+sshic_pcrdupt_dir)) if 'global' in s]
         samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_tables_list])
@@ -179,6 +182,7 @@ def run(
     #   NUCLEOSOMES
     #################################
     if operations['nucleosomes'] == 1:
+        print('look for fragments inside and outside NFR')
 
         nfr_in_file = 'fragments_list_in_nfr.tsv'
         nfr_out_file = 'fragments_list_out_nfr.tsv'
@@ -216,6 +220,7 @@ def run(
     #   CENTROMERES
     #################################
     if operations['centromeres'] == 1:
+        print('aggregated on centromeres positions')
         samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
         if parallel:
             with mp.Pool(threads) as p:
@@ -240,7 +245,7 @@ def run(
     #################################
     if operations['telomeres'] == 1:
         samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
-
+        print('aggregated on telomeres positions')
         if parallel:
             with mp.Pool(threads) as p:
                 p.starmap(telomeres.run, [(
@@ -264,21 +269,38 @@ def run(
     #################################
     if operations['cohesins'] == 1:
         cohesins_filter_list = ['inner', 'outer', None]
+        cohesins_filter_span = 40000
         cohesins_filter_scores_list = [100, 200, 500, 1000, 2000]
         samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'1kb/') if 'frequencies.tsv' in f])
 
         for m in cohesins_filter_list:
+            print('aggregated on cohesins peaks, {1} {0} '
+                  'filtered around the chr centromeres'.format(cohesins_filter_span, m))
             for sc in cohesins_filter_scores_list:
-                for samp in samples:
-                    cohesins.run(
-                        formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'1kb/'+samp,
-                        probes_to_fragments_path=probes_to_fragments_path,
-                        window_size=15000,
-                        cohesins_peaks_path=cohesins_peaks_path,
-                        centromere_info_path=centromeres_positions_path,
-                        score_cutoff=sc,
-                        cen_filter_span=40000,
-                        cen_filter_mode=m,
-                        output_dir=cohesins_dir+sshic_pcrdupt_dir)
+                print('peak scores higher than {0}'.format(sc))
+                if parallel:
+                    with mp.Pool(threads) as p:
+                        p.starmap(cohesins.run, [(
+                            binning_dir+sshic_pcrdupt_dir+'1kb/'+samp,
+                            probes_to_fragments_path,
+                            15000,
+                            cohesins_peaks_path,
+                            centromeres_positions_path,
+                            sc,
+                            cohesins_filter_span,
+                            m,
+                            cohesins_dir+sshic_pcrdupt_dir) for samp in samples])
+                else:
+                    for samp in samples:
+                        cohesins.run(
+                            formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'1kb/'+samp,
+                            probes_to_fragments_path=probes_to_fragments_path,
+                            window_size=15000,
+                            cohesins_peaks_path=cohesins_peaks_path,
+                            centromere_info_path=centromeres_positions_path,
+                            score_cutoff=sc,
+                            cen_filter_span=40000,
+                            cen_filter_mode=m,
+                            output_dir=cohesins_dir+sshic_pcrdupt_dir)
 
 
