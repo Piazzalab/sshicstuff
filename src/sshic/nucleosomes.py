@@ -34,6 +34,7 @@ def get_nfr_contacts(
                 (df_merged.end_pos > df_merged.start) & (df_merged.end_pos < df_merged.end)]
         case 'middle':
             df_fragments["midpoint"] = (df_fragments["end_pos"] + df_fragments["start_pos"]) / 2
+            df_merged = pd.merge(df_fragments, df_nucleosomes, on='chrom')
             df_merged_in_nfr = df_merged[
                 (df_merged.midpoint >= df_merged.start) & (df_merged.midpoint <= df_merged.end)]
         case 'start_&_end':

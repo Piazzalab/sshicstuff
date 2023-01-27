@@ -22,8 +22,8 @@ if __name__ == "__main__":
         'format': 0,
         'binning': 0,
         'statistics': 0,
-        'ponder': 1,
-        'nucleosomes': 0,
+        'ponder': 0,
+        'nucleosomes': 1,
         'centromeres': 0,
         'telomeres': 0,
         'cohesins': 0

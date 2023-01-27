@@ -193,15 +193,23 @@ def run(
                     nucleosomes_path=nfr_list_path,
                     output_dir=nucleosomes_dir+filter_dir
                 )
-
-            for samp in samples:
-                nucleosomes.run(
-                    formatted_contacts_path=not_binned_dir+samp,
-                    probes_to_fragments_path=probes_to_fragments_path,
-                    fragments_in_nfr_path=nucleosomes_dir+filter_dir+nfr_in_file,
-                    fragments_out_nfr_path=nucleosomes_dir+filter_dir+nfr_out_file,
-                    output_dir=nucleosomes_dir+filter_dir+sshic_pcrdupt_dir
-                )
+            if parallel:
+                with mp.Pool(threads) as p:
+                    p.starmap(nucleosomes.run, [(
+                        not_binned_dir+samp,
+                        probes_to_fragments_path,
+                        nucleosomes_dir+filter_dir+nfr_in_file,
+                        nucleosomes_dir+filter_dir+nfr_out_file,
+                        nucleosomes_dir+filter_dir+sshic_pcrdupt_dir) for samp in samples])
+            else:
+                for samp in samples:
+                    nucleosomes.run(
+                        formatted_contacts_path=not_binned_dir+samp,
+                        probes_to_fragments_path=probes_to_fragments_path,
+                        fragments_in_nfr_path=nucleosomes_dir+filter_dir+nfr_in_file,
+                        fragments_out_nfr_path=nucleosomes_dir+filter_dir+nfr_out_file,
+                        output_dir=nucleosomes_dir+filter_dir+sshic_pcrdupt_dir
+                    )
     #################################
     #   CENTROMERES
     #################################
