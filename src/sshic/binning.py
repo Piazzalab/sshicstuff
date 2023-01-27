@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-import os.path
+import os
 import re
 import numpy as np
 import pandas as pd
@@ -15,7 +15,7 @@ def get_fragments_contacts(
     It gives as a result a .tsv file written dataframe with on the columns the different probes
     and on the rows  the chromosomes positions contacted by the probes.
 
-    This step may also appear annotated as the '0kb binning' as we do the same work as a rebinning function,
+    This step may also appear annotated as the '0kb binning' as we do the same work as a re-binning function,
     but with no defined bin size.
 
     ARGUMENTS

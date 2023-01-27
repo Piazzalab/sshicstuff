@@ -23,8 +23,8 @@ def run(
         keys are the wt time point like 2h, 4h, 6h etc ...
         values are lists of samples names to be pondered using the key reference wt
     binned_contacts_path : str
-        path to rebinned contacts table of the current sample (.tsv file)
-        made previoudly with the rebin_contacts function in binning script
+        path to re-binned contacts table of the current sample (.tsv file)
+        made previously with the rebin_contacts function in binning script
     statistics_path: str
         path the global statistics table of current sample obtained with the script statistics
     output_dir  :  str

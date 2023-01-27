@@ -6,9 +6,7 @@ from .filter import run
 from .format import run
 from .statistics import run
 
-from .nucleosomes import get_nfr_contacts
 from .nucleosomes import plot_size_distribution
-from .nucleosomes import get_nfr_contacts
 from .nucleosomes import preprocess
 from .nucleosomes import run
 
