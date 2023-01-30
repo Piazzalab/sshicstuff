@@ -93,21 +93,24 @@ def run(
         samples_dir = not_binned_dir
         samples = [f for f in os.listdir(samples_dir) if 'contacts.tsv' in f]
         for bs in bins_sizes_list:
+            this_bin_dir = binning_dir + sshic_pcrdupt_dir + str(bs // 1000) + 'kb/'
             print('Rebinning the contacts on bins of size {0} bp'.format(bs))
+            if not os.path.exists(this_bin_dir):
+                os.makedirs(this_bin_dir)
             if parallel:
                 with mp.Pool(threads) as p:
                     p.starmap(binning.rebin_contacts, [(
                         samples_dir+samp,
                         bs,
-                        binning_dir+sshic_pcrdupt_dir) for samp in samples]
-                              )
+                        this_bin_dir) for samp in samples]
+                        )
 
             else:
                 for samp in samples:
                     binning.rebin_contacts(
                         not_binned_samp_path=samples_dir+samp,
                         bin_size=bs,
-                        output_dir=binning_dir+sshic_pcrdupt_dir
+                        output_dir=this_bin_dir
                     )
 
     #################################
@@ -153,7 +156,7 @@ def run(
         statistics_tables_list = [s for s in sorted(os.listdir(statistics_dir+sshic_pcrdupt_dir)) if 'global' in s]
         samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_tables_list])
         for bin_dir in binned_dir_list:
-            print('Ponder mutant contacts (rebinned at {0} over WT references'.format(bin_dir))
+            print('Ponder mutant contacts (rebinned at {0} over WT references)'.format(bin_dir))
             bin_dir += '/'
             binned_contacts_list = \
                 [f for f in sorted(os.listdir(binning_dir+sshic_pcrdupt_dir+bin_dir)) if 'frequencies' in f]

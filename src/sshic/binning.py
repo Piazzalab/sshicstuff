@@ -1,5 +1,4 @@
 #! /usr/bin/env python3
-import os
 import re
 import numpy as np
 import pandas as pd
@@ -93,10 +92,6 @@ def rebin_contacts(
     """
     samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
     df = pd.read_csv(not_binned_samp_path, sep='\t')
-    bin_dir = output_dir + str(bin_size // 1000) + 'kb/'
-    if not os.path.exists(bin_dir):
-        os.makedirs(bin_dir)
-    output_path = bin_dir+samp_id
     fragments = [f for f in df.columns if re.match(r'\d+', str(f))]
     df.insert(2, 'chr_bins', (df["positions"] // bin_size) * bin_size)
     df_binned_contacts = df.groupby(["chr", "chr_bins"], as_index=False).sum()
@@ -107,5 +102,5 @@ def rebin_contacts(
     for frag in fragments:
         df_binned_frequencies[frag] /= sum(df_binned_contacts[frag])
 
-    df_binned_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
-    df_binned_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+    df_binned_contacts.to_csv(output_dir + samp_id + '_contacts.tsv', sep='\t', index=False)
+    df_binned_frequencies.to_csv(output_dir + samp_id + '_frequencies.tsv', sep='\t', index=False)
