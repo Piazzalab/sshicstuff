@@ -100,7 +100,7 @@ def center_around_probes_pos(
         df_tmp_freq['chr_bins'] -= center_window
 
         df_res_c = pd.merge(df_res_c, df_tmp_contacts, how='left')
-        df_res_f = pd.merge(df_res_f, df_tmp_contacts, how='left')
+        df_res_f = pd.merge(df_res_f, df_tmp_freq, how='left')
 
         df_res_c = df_res_c.fillna(0)
         df_res_f = df_res_f.fillna(0)
