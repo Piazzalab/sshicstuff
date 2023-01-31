@@ -20,13 +20,13 @@ if __name__ == "__main__":
     operations = {
         'filter': 0,
         'format': 0,
-        'binning': 0,
+        'binning': 1,
         'statistics': 0,
         'ponder': 0,
         'nucleosomes': 0,
-        'centromeres': 1,
-        'telomeres': 1,
-        'cohesins': 1,
+        'centromeres': 0,
+        'telomeres': 0,
+        'cohesins': 0,
     }
 
     #   INPUTS

@@ -70,10 +70,50 @@ def get_fragments_contacts(
     res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
 
 
+def center_around_probes_pos(
+    df_contacts: pd.DataFrame,
+    df_freq: pd.DataFrame,
+    df_probes: pd.DataFrame,
+    output_path: str,
+    binning: int = 1000,
+    center_window: int = 150000
+):
+    df_res_c = pd.DataFrame({'chr_bins': np.arange(-center_window, center_window, binning)})
+    df_res_f = df_res_c.copy(deep=True)
+    for index, row in df_probes.iterrows():
+        probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = row
+        if frag_id not in df_contacts.columns:
+            continue
+        probe_bin = (int(probe_start) // binning) * binning
+        df_tmp_contacts = df_contacts.loc[
+            (df_contacts.chr == probe_chr) &
+            (df_contacts.chr_bins >= probe_bin - center_window) &
+            (df_contacts.chr_bins <= probe_bin + center_window),
+            ['chr_bins', frag_id]]
+        df_tmp_freq = df_freq.loc[
+            (df_freq.chr == probe_chr) &
+            (df_freq.chr_bins >= probe_bin - center_window) &
+            (df_freq.chr_bins <= probe_bin + center_window),
+            ['chr_bins', frag_id]]
+
+        df_tmp_contacts['chr_bins'] -= center_window
+        df_tmp_freq['chr_bins'] -= center_window
+
+        df_res_c = pd.merge(df_res_c, df_tmp_contacts, how='left')
+        df_res_f = pd.merge(df_res_f, df_tmp_contacts, how='left')
+
+        df_res_c = df_res_c.fillna(0)
+        df_res_f = df_res_f.fillna(0)
+
+        df_res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
+        df_res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+
+
 def rebin_contacts(
         not_binned_samp_path: str,
         bin_size: int,
-        output_dir: str
+        output_dir: str,
+        probes_to_fragments_path: str
 ):
     """
     This function uses the previous one (get_fragments_contacts) and its 0kb binned formatted contacts files
@@ -92,6 +132,7 @@ def rebin_contacts(
     """
     samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
     df = pd.read_csv(not_binned_samp_path, sep='\t')
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0).T
     fragments = [f for f in df.columns if re.match(r'\d+', str(f))]
     df.insert(2, 'chr_bins', (df["positions"] // bin_size) * bin_size)
     df_binned_contacts = df.groupby(["chr", "chr_bins"], as_index=False).sum()
@@ -104,3 +145,12 @@ def rebin_contacts(
 
     df_binned_contacts.to_csv(output_dir + samp_id + '_contacts.tsv', sep='\t', index=False)
     df_binned_frequencies.to_csv(output_dir + samp_id + '_frequencies.tsv', sep='\t', index=False)
+
+    if bin_size == 1000:
+        center_around_probes_pos(
+            df_contacts=df_binned_contacts,
+            df_freq=df_binned_frequencies,
+            df_probes=df_probes,
+            output_path=output_dir+'probes_centered/'+samp_id
+        )
+

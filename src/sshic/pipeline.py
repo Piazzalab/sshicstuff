@@ -82,7 +82,7 @@ def run(
                     p.starmap(binning.get_fragments_contacts, [(
                         samples_dir + samp,
                         not_binned_dir) for samp in samples]
-                              )
+                        )
             else:
                 for samp in samples:
                     binning.get_fragments_contacts(
@@ -97,20 +97,25 @@ def run(
             print('Rebinning the contacts on bins of size {0} bp'.format(bs))
             if not os.path.exists(this_bin_dir):
                 os.makedirs(this_bin_dir)
+                if bs == 1000:
+                    os.makedirs(this_bin_dir+'probes_centered/')
+
             if parallel:
                 with mp.Pool(threads) as p:
                     p.starmap(binning.rebin_contacts, [(
                         samples_dir+samp,
                         bs,
-                        this_bin_dir) for samp in samples]
-                        )
+                        this_bin_dir,
+                        probes_to_fragments_path) for samp in samples]
+                    )
 
             else:
                 for samp in samples:
                     binning.rebin_contacts(
                         not_binned_samp_path=samples_dir+samp,
                         bin_size=bs,
-                        output_dir=this_bin_dir
+                        output_dir=this_bin_dir,
+                        probes_to_fragments_path=probes_to_fragments_path
                     )
 
     #################################
@@ -284,8 +289,11 @@ def run(
         samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'1kb/') if 'frequencies.tsv' in f])
 
         for m in cohesins_filter_list:
-            print('aggregated on cohesins peaks, {1} {0} '
-                  'filtered around the chr centromeres'.format(cohesins_filter_span, m))
+            if m is not None:
+                print('aggregated on cohesins peaks, {1} {0} '
+                      'filtered around the chr centromeres'.format(cohesins_filter_span, m))
+            else:
+                print('aggregated on cohesins peaks')
             for sc in cohesins_filter_scores_list:
                 print('peak scores higher than {0}'.format(sc))
                 if parallel:
