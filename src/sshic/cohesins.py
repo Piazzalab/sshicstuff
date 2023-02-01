@@ -82,6 +82,8 @@ def freq_focus_around_cohesin_peaks(
         probe_chr = df_probes.loc[df_probes['frag_id'] == f, 'chr'].tolist()[0]
         if probe_chr not in excluded_chr:
             df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
+        if df_res[f].sum() > 0:
+            df_res[f] /= df_res[f].sum()
 
     return df_res, df_probes
 

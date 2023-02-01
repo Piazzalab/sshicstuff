@@ -266,7 +266,7 @@ def run(
                     binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
                     probes_to_fragments_path,
                     centromeres_positions_path,
-                    100000,
+                    150000,
                     telomeres_dir+sshic_pcrdupt_dir) for samp in samples]
                           )
         else:
@@ -274,7 +274,7 @@ def run(
                 telomeres.run(
                     formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
                     probes_to_fragments_path=probes_to_fragments_path,
-                    window_size=100000,
+                    window_size=150000,
                     telomeres_coord_path=centromeres_positions_path,
                     output_path=telomeres_dir+sshic_pcrdupt_dir,
                 )
