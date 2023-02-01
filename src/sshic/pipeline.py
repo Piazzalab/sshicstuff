@@ -307,8 +307,9 @@ def run(
                             sc,
                             cohesins_filter_span,
                             m,
-                            cohesins_dir+sshic_pcrdupt_dir) for samp in samples]
-                                  )
+                            cohesins_dir+sshic_pcrdupt_dir,
+                            False) for samp in samples]
+                        )
                 else:
                     for samp in samples:
                         cohesins.run(
@@ -320,5 +321,6 @@ def run(
                             score_cutoff=sc,
                             cen_filter_span=40000,
                             cen_filter_mode=m,
-                            output_dir=cohesins_dir+sshic_pcrdupt_dir
+                            output_dir=cohesins_dir+sshic_pcrdupt_dir,
+                            plot=False
                         )

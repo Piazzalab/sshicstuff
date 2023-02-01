@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import re
+from typing import Optional
 from sshic import tools
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -92,7 +93,8 @@ def compute_average_aggregate(
         df_cohesins_peaks_bins: pd.DataFrame,
         df_probes: pd.DataFrame,
         table_path: str,
-        plot_path
+        plot: bool,
+        plot_path: Optional[str]
 ):
 
     all_probes = df_probes.index.values
@@ -121,18 +123,19 @@ def compute_average_aggregate(
         mean = df.T.mean()
         std = df.T.std()
 
-        pos = mean.index
-        ymin = -np.max((mean + std)) * 0.01
-        plt.figure(figsize=(16, 12))
-        plt.bar(pos, mean)
-        plt.errorbar(pos, mean, yerr=std, fmt="o", color='g', capsize=5, clip_on=True)
-        plt.ylim((ymin, None))
-        plt.title("Aggregated frequencies for probe {0} cohesins peaks".format(probe))
-        plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
-        plt.xticks(rotation=45)
-        plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(plot_path + "{0}_cohesins_aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=96)
-        plt.close()
+        if plot:
+            pos = mean.index
+            ymin = -np.max((mean + std)) * 0.01
+            plt.figure(figsize=(16, 12))
+            plt.bar(pos, mean)
+            plt.errorbar(pos, mean, yerr=std, fmt="o", color='g', capsize=5, clip_on=True)
+            plt.ylim((ymin, None))
+            plt.title("Aggregated frequencies for probe {0} cohesins peaks".format(probe))
+            plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
+            plt.xticks(rotation=45)
+            plt.ylabel("Average frequency made and standard deviation")
+            plt.savefig(plot_path + "{0}_cohesins_aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=96)
+            plt.close()
 
         df_mean[probe] = mean
         df_std[probe] = std
@@ -181,6 +184,7 @@ def run(
         cen_filter_span: int,
         cen_filter_mode: str | None,
         output_dir: str,
+        plot: bool = True
 ):
 
     sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
@@ -204,4 +208,5 @@ def run(
         df_cohesins_peaks_bins=df_contacts_cohesins,
         df_probes=df_probes,
         table_path=dir_table,
+        plot=plot,
         plot_path=dir_plot)

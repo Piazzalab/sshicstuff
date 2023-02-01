@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import re
+from typing import Optional
 from sshic import tools
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -85,7 +86,8 @@ def freq_focus_around_centromeres(
 def compute_average_aggregate(
         aggregated: dict[str: pd.DataFrame],
         table_path: str,
-        plot_path: str):
+        plot: bool,
+        plot_path: Optional[str]):
     """
     After fetching the contacts for each oligos around the centromere of the 16 chr,
     we need to make an average (and std) of the 16 chr.
@@ -101,23 +103,23 @@ def compute_average_aggregate(
         std = df.T.std()
         median = df.T.median()
 
-        ymin = -np.max((mean + std)) * 0.01
-        pos = mean.index
-        plt.figure(figsize=(16, 12))
-        plt.bar(pos, mean)
-        plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
-        plt.ylim((ymin, None))
-        plt.title("Aggregated frequencies for probe {0} around centromeres".format(probe))
-        plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
-        plt.xticks(rotation=45)
-        plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(plot_path + "{0}_centromeres_aggregated_freq_plot.{1}".format(probe, 'jpg'), dpi=96)
+        if plot:
+            ymin = -np.max((mean + std)) * 0.01
+            pos = mean.index
+            plt.figure(figsize=(16, 12))
+            plt.bar(pos, mean)
+            plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
+            plt.ylim((ymin, None))
+            plt.title("Aggregated frequencies for probe {0} around centromeres".format(probe))
+            plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
+            plt.xticks(rotation=45)
+            plt.ylabel("Average frequency made and standard deviation")
+            plt.savefig(plot_path + "{0}_centromeres_aggregated_freq_plot.{1}".format(probe, 'jpg'), dpi=96)
+            plt.close()
 
         df_mean[probe] = mean
         df_std[probe] = std
         df_median[probe] = median
-
-        plt.close()
 
     #   Write to csv
     df_mean.to_csv(table_path + 'mean_on_cen.tsv', sep='\t')
@@ -147,6 +149,7 @@ def run(
         centros_coord_path: str,
         window_size: int,
         output_path: str,
+        plot: bool = True
 ):
 
     sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
@@ -167,4 +170,5 @@ def run(
     compute_average_aggregate(
         aggregated=chr_aggregated_dict,
         table_path=dir_table,
+        plot=plot,
         plot_path=dir_plot)

@@ -5,6 +5,7 @@ import pandas as pd
 import os
 import re
 import matplotlib.pyplot as plt
+from typing import Optional
 from sshic import tools
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -86,7 +87,8 @@ def freq_focus_around_telomeres(
 def compute_average_aggregate(
         aggregated: dict[str: pd.DataFrame],
         table_path: str,
-        plot_path: str):
+        plot: bool,
+        plot_path: Optional[str]):
     """
     After fetching the contacts for each oligos around the telomere of the 16 chr,
     we need to make an average (and std) of the 16 chr.
@@ -98,18 +100,19 @@ def compute_average_aggregate(
         mean = df.T.mean()
         std = df.T.std()
 
-        ymin = -np.max((mean + std)) * 0.01
-        pos = mean.index
-        plt.figure(figsize=(18, 12))
-        plt.bar(pos, mean)
-        plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
-        plt.ylim((ymin, None))
-        plt.title("Aggregated frequencies for probe {0} around telomeres".format(probe))
-        plt.xlabel("Bins around the telomeres (in kb), 5' to 3'")
-        plt.xticks(rotation=45)
-        plt.ylabel("Average frequency made and standard deviation")
-        plt.savefig(plot_path + "{0}_telomeres_aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
-        plt.close()
+        if plot:
+            ymin = -np.max((mean + std)) * 0.01
+            pos = mean.index
+            plt.figure(figsize=(18, 12))
+            plt.bar(pos, mean)
+            plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
+            plt.ylim((ymin, None))
+            plt.title("Aggregated frequencies for probe {0} around telomeres".format(probe))
+            plt.xlabel("Bins around the telomeres (in kb), 5' to 3'")
+            plt.xticks(rotation=45)
+            plt.ylabel("Average frequency made and standard deviation")
+            plt.savefig(plot_path + "{0}_telomeres_aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
+            plt.close()
 
         df_mean[probe] = mean
         df_std[probe] = std
@@ -139,7 +142,8 @@ def run(
         probes_to_fragments_path: str,
         telomeres_coord_path: str,
         window_size: int,
-        output_path: str
+        output_path: str,
+        plot: bool = True
 ):
 
     sample_name = re.search(r"AD\d+", formatted_contacts_path).group()
@@ -159,4 +163,5 @@ def run(
     compute_average_aggregate(
         aggregated=chr_aggregated_dict,
         table_path=dir_table,
+        plot=plot,
         plot_path=dir_plot)
