@@ -106,7 +106,8 @@ def run(
                         samples_dir+samp,
                         bs,
                         this_bin_dir,
-                        probes_to_fragments_path) for samp in samples]
+                        probes_to_fragments_path,
+                        centromeres_positions_path) for samp in samples]
                     )
 
             else:
@@ -115,7 +116,8 @@ def run(
                         not_binned_samp_path=samples_dir+samp,
                         bin_size=bs,
                         output_dir=this_bin_dir,
-                        probes_to_fragments_path=probes_to_fragments_path
+                        probes_to_fragments_path=probes_to_fragments_path,
+                        chromosomes_coord_path=centromeres_positions_path
                     )
 
     #################################

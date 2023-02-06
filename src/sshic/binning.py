@@ -5,6 +5,39 @@ import pandas as pd
 import sshic.tools as tl
 
 
+def build_bins_from_genome(
+        path_to_chr_coord: str,
+        bin_size: int
+):
+    """
+    This function aims to parse the genome, and each chromosome into bins (regular range of bp)
+    of size 'bin_size' a parameter given by the user as input.
+    For the chr_bins, they will start at chrX_0, chrX_(0+bin_size) ... chrX_end
+        idem for chrY, it starts again at chrX_0, and so on chrX_(0+bin_size) ... chrX_end
+    For the genome they will start at 0, 0+bin_size, 0+2*bin_size ... genome_end.
+        For the genome_bins, the positions are not reset when we go from the end of chrX to the start of chrY
+    """
+    df = pd.read_csv(path_to_chr_coord, sep='\t', index_col=None)
+    chr_sizes = dict(zip(df.chr, df.length))
+    chr_list = []
+    chr_bins = []
+
+    for c, l in chr_sizes.items():
+        chr_list.append([c] * (l // bin_size + 1))
+        chr_bins.append(np.arange(0, (l // bin_size + 1) * bin_size, bin_size))
+
+    chr_list = np.concatenate(chr_list)
+    chr_bins = np.concatenate(chr_bins)
+
+    df_res = pd.DataFrame({
+        'chr': chr_list,
+        'chr_bins': chr_bins,
+        'genomes_bins': np.arange(0, len(chr_bins)*bin_size, bin_size)
+    })
+
+    return df_res
+
+
 def get_fragments_contacts(
         filtered_contacts_path: str,
         output_dir: str
@@ -113,7 +146,8 @@ def rebin_contacts(
         not_binned_samp_path: str,
         bin_size: int,
         output_dir: str,
-        probes_to_fragments_path: str
+        probes_to_fragments_path: str,
+        chromosomes_coord_path: str
 ):
     """
     This function uses the previous one (get_fragments_contacts) and its 0kb binned formatted contacts files
@@ -130,8 +164,15 @@ def rebin_contacts(
     output_dir : str
         the absolute path toward the output directory to save the results
     """
+
+    df_binned = build_bins_from_genome(
+        path_to_chr_coord=chromosomes_coord_path,
+        bin_size=bin_size
+    )
+
     samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
     df = pd.read_csv(not_binned_samp_path, sep='\t')
+
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0).T
     fragments = [f for f in df.columns if re.match(r'\d+', str(f))]
     df.insert(2, 'chr_bins', (df["positions"] // bin_size) * bin_size)
@@ -143,13 +184,17 @@ def rebin_contacts(
     for frag in fragments:
         df_binned_frequencies[frag] /= sum(df_binned_contacts[frag])
 
-    df_binned_contacts.to_csv(output_dir + samp_id + '_contacts.tsv', sep='\t', index=False)
-    df_binned_frequencies.to_csv(output_dir + samp_id + '_frequencies.tsv', sep='\t', index=False)
+    df_binned_contacts_full = pd.merge(df_binned, df_binned_contacts,  on=['chr', 'chr_bins'], how='left')
+    df_binned_frequencies_full = pd.merge(df_binned, df_binned_frequencies,  on=['chr', 'chr_bins'], how='left')
+    df_binned_contacts_full.fillna(0, inplace=True)
+    df_binned_frequencies_full.fillna(0, inplace=True)
+    df_binned_contacts_full.to_csv(output_dir + samp_id + '_contacts.tsv', sep='\t', index=False)
+    df_binned_frequencies_full.to_csv(output_dir + samp_id + '_frequencies.tsv', sep='\t', index=False)
 
     if bin_size == 1000:
         center_around_probes_pos(
-            df_contacts=df_binned_contacts,
-            df_freq=df_binned_frequencies,
+            df_contacts=df_binned_contacts_full,
+            df_freq=df_binned_frequencies_full,
             df_probes=df_probes,
             output_path=output_dir+'probes_centered/'+samp_id
         )
