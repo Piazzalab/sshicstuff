@@ -43,4 +43,5 @@ def run(
         frag_end = sub_df_fragments.loc[frag_id, 'end_pos']
         df_probes_in_frag[probe] = [probe_type, probe_start, probe_end, chrom, frag_id, frag_start, frag_end]
 
+    df_probes_in_frag = df_probes_in_frag.T
     df_probes_in_frag.to_csv(output_path, sep='\t', index_label='probe')

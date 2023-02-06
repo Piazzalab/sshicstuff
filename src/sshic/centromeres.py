@@ -50,7 +50,6 @@ def freq_focus_around_centromeres(
     df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
     df_probes = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
-    df_probes_t = df_probes.transpose()
     excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion', 'chr_artificial']
     unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
@@ -74,7 +73,7 @@ def freq_focus_around_centromeres(
     #   Because we know that the frequency of intra-chr contact is higher than inter-chr
     #   We have to set them as NaN to not bias the average
     for f in unique_fragments:
-        probe_chr = df_probes_t.loc[df_probes_t['frag_id'] == f, 'chr'].tolist()[0]
+        probe_chr = df_probes.loc[df_probes['frag_id'] == f, 'chr'].tolist()[0]
         if probe_chr not in excluded_chr:
             df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
         if df_res[f].sum() > 0:

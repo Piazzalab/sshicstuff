@@ -173,7 +173,7 @@ def rebin_contacts(
     samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
     df = pd.read_csv(not_binned_samp_path, sep='\t')
 
-    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0).T
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     fragments = [f for f in df.columns if re.match(r'\d+', str(f))]
     df.insert(2, 'chr_bins', (df["positions"] // bin_size) * bin_size)
     df_binned_contacts = df.groupby(["chr", "chr_bins"], as_index=False).sum()

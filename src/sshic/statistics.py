@@ -82,7 +82,7 @@ def run(
 
     unique_chr = list(chr_size_dict.keys())
     df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
-    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0).T
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     all_probes = np.asarray(df_probes.index, dtype='<U64')
 
     df_sparse_mat = pd.read_csv(sparse_mat_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])

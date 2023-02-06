@@ -42,7 +42,7 @@ def freq_focus_around_cohesin_peaks(
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
     df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
     bin_size = df_contacts.loc[1, 'chr_bins'] - df_contacts.loc[0, 'chr_bins']
-    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0).T
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
     df_merged = pd.merge(df_contacts, df_peaks, on='chr')
