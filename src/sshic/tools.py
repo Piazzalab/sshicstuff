@@ -21,6 +21,17 @@ def is_debug() -> bool:
             return True
 
 
+def detect_delimiter(path: str):
+    with open(path, 'r') as file:
+        contents = file.read()
+    tabs = contents.count('\t')
+    commas = contents.count(',')
+    if tabs > commas:
+        return '\t'
+    else:
+        return ','
+
+
 def find_nearest(array: list | np.ndarray,
                  key: int | float,
                  mode: Optional[str] = None) -> int | float:

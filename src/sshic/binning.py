@@ -171,7 +171,7 @@ def rebin_contacts(
     )
 
     samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
-    df = pd.read_csv(not_binned_samp_path, sep='\t')
+    df = pd.read_csv(not_binned_samp_path, sep=tl.detect_delimiter(not_binned_samp_path))
 
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     fragments = [f for f in df.columns if re.match(r'\d+', str(f))]
