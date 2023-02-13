@@ -80,9 +80,9 @@ def freq_focus_around_cohesin_peaks(
     #   Because we know that the frequency of intra-chr contact is higher than inter-chr
     #   We have to set them as NaN to not bias the average
     for f in unique_fragments:
-        probe_chr = df_probes.loc[df_probes['frag_id'] == f, 'chr'].tolist()[0]
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
         if probe_chr not in excluded_chr:
-            df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
+            df_res.loc[df_res['chr'] == probe_chr, int(f)] = np.nan
         if df_res[f].sum() > 0:
             df_res[f] /= df_res[f].sum()
 
@@ -103,7 +103,7 @@ def compute_average_aggregate(
 
     res: dict = {}
     for probe in all_probes:
-        fragment = df_probes.loc[probe, 'frag_id']
+        fragment = str(df_probes.loc[probe, 'frag_id'])
         self_chr = df_probes.loc[probe, 'chr']
         if fragment not in df_cohesins_peaks_bins.columns:
             continue

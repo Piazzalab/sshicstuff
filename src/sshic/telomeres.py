@@ -24,10 +24,10 @@ def compute_telomere_freq_per_oligo_per_chr(
         df_probes: pd.DataFrame,
         table_path: str):
 
-    all_probes = df_probes.columns.values
+    all_probes = df_probes.index.values
     res: dict = {}
     for probe in all_probes:
-        fragment = df_probes.loc['frag_id', probe]
+        fragment = str(df_probes.loc[probe, 'frag_id'])
         if fragment not in df_freq.columns:
             continue
         df_freq_telo = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
@@ -74,9 +74,9 @@ def freq_focus_around_telomeres(
     #   Because we know that the frequency of intra-chr contact is higher than inter-chr
     #   We have to set them as NaN to not bias the average
     for f in unique_fragments:
-        probe_chr = df_probes.loc[df_probes['frag_id'] == f, 'chr'].tolist()[0]
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
         if probe_chr not in excluded_chr:
-            df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
+            df_res.loc[df_res['chr'] == probe_chr, int(f)] = np.nan
         if df_res[f].sum() > 0:
             df_res[f] /= df_res[f].sum()
 
