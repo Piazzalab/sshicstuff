@@ -236,7 +236,9 @@ def run(
     #################################
     if operations['centromeres'] == 1:
         print('aggregated on centromeres positions')
-        samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
+        print('raw binned tables')
+        samples_not_pondered = \
+            sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
         if parallel:
             with mp.Pool(threads) as p:
                 p.starmap(centromeres.run, [(
@@ -244,24 +246,47 @@ def run(
                     probes_to_fragments_path,
                     centromeres_positions_path,
                     150000,
-                    centromeres_dir+sshic_pcrdupt_dir) for samp in samples]
-                          )
+                    centromeres_dir+'not_pondered/'+sshic_pcrdupt_dir) for samp in samples_not_pondered]
+                )
         else:
-            for samp in samples:
+            for samp in samples_not_pondered:
                 centromeres.run(
                     formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
                     probes_to_fragments_path=probes_to_fragments_path,
                     centros_coord_path=centromeres_positions_path,
                     window_size=150000,
-                    output_path=centromeres_dir+sshic_pcrdupt_dir
+                    output_path=centromeres_dir+'not_pondered/'+sshic_pcrdupt_dir
+                )
+
+        print('pondered binned tables')
+        samples_pondered = sorted(os.listdir(pondered_dir+sshic_pcrdupt_dir+'10kb/'))
+        if parallel:
+            with mp.Pool(threads) as p:
+                p.starmap(centromeres.run, [(
+                    pondered_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                    probes_to_fragments_path,
+                    centromeres_positions_path,
+                    150000,
+                    centromeres_dir+'pondered/'+sshic_pcrdupt_dir) for samp in samples_pondered]
+                )
+        else:
+            for samp in samples_pondered:
+                centromeres.run(
+                    formatted_contacts_path=pondered_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                    probes_to_fragments_path=probes_to_fragments_path,
+                    centros_coord_path=centromeres_positions_path,
+                    window_size=150000,
+                    output_path=centromeres_dir+'pondered/'+sshic_pcrdupt_dir
                 )
 
     #################################
     #   TELOMERES
     #################################
     if operations['telomeres'] == 1:
-        samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
         print('aggregated on telomeres positions')
+        print('raw binned tables')
+        samples_not_pondered = \
+            sorted([f for f in os.listdir(binning_dir + sshic_pcrdupt_dir + '10kb/') if 'frequencies.tsv' in f])
         if parallel:
             with mp.Pool(threads) as p:
                 p.starmap(telomeres.run, [(
@@ -269,16 +294,36 @@ def run(
                     probes_to_fragments_path,
                     centromeres_positions_path,
                     150000,
-                    telomeres_dir+sshic_pcrdupt_dir) for samp in samples]
-                          )
+                    telomeres_dir+'not_pondered/'+sshic_pcrdupt_dir) for samp in samples_not_pondered]
+                )
         else:
-            for samp in samples:
+            for samp in samples_not_pondered:
                 telomeres.run(
                     formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'10kb/'+samp,
                     probes_to_fragments_path=probes_to_fragments_path,
                     window_size=150000,
                     telomeres_coord_path=centromeres_positions_path,
-                    output_path=telomeres_dir+sshic_pcrdupt_dir,
+                    output_path=telomeres_dir+'not_pondered/'+sshic_pcrdupt_dir,
+                )
+        print('pondered binned tables')
+        samples_pondered = sorted(os.listdir(pondered_dir+sshic_pcrdupt_dir+'10kb/'))
+        if parallel:
+            with mp.Pool(threads) as p:
+                p.starmap(telomeres.run, [(
+                    pondered_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                    probes_to_fragments_path,
+                    centromeres_positions_path,
+                    150000,
+                    telomeres_dir+'pondered/'+sshic_pcrdupt_dir) for samp in samples_pondered]
+                )
+        else:
+            for samp in samples_pondered:
+                telomeres.run(
+                    formatted_contacts_path=pondered_dir+sshic_pcrdupt_dir+'10kb/'+samp,
+                    probes_to_fragments_path=probes_to_fragments_path,
+                    window_size=150000,
+                    telomeres_coord_path=centromeres_positions_path,
+                    output_path=telomeres_dir+'pondered/'+sshic_pcrdupt_dir,
                 )
 
     #################################
