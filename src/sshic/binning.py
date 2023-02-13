@@ -32,7 +32,7 @@ def build_bins_from_genome(
     df_res = pd.DataFrame({
         'chr': chr_list,
         'chr_bins': chr_bins,
-        'genomes_bins': np.arange(0, len(chr_bins)*bin_size, bin_size)
+        'genome_bins': np.arange(0, len(chr_bins)*bin_size, bin_size)
     })
 
     return df_res
