@@ -34,7 +34,7 @@ def run(
     sample_id = re.search(r"AD\d+", binned_contacts_path).group()
     output_path = output_dir + sample_id
 
-    df_binned_contacts = pd.read_csv(binned_contacts_path, header=0, sep="\t", index_col=0)
+    df_binned_contacts = pd.read_csv(binned_contacts_path, header=0, sep="\t")
     df_stats = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
 
     sub_df_stats = df_stats.filter(regex=r'wt\d+h|fragments').T
@@ -42,8 +42,8 @@ def run(
     sub_df_stats.drop('fragments', inplace=True)
     sub_df_stats = sub_df_stats.T.drop_duplicates().T
 
-    if '0kb/' in binned_contacts_path:
-        df_pondered_contacts = df_binned_contacts.filter(items=['chr', 'positions', 'genome_bins'])
+    if '/0kb/' in binned_contacts_path:
+        df_pondered_contacts = df_binned_contacts.filter(items=['chr', 'positions'])
     else:
         df_pondered_contacts = df_binned_contacts.filter(items=['chr', 'chr_bins', 'genome_bins'])
     fragments = [f for f in df_binned_contacts.columns if re.match(r'\d+', f)]
