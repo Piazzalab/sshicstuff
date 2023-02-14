@@ -236,6 +236,7 @@ def run(
     #################################
     if operations['centromeres'] == 1:
         print('aggregated on centromeres positions')
+        print('\n')
         print('raw binned tables')
         samples_not_pondered = \
             sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'10kb/') if 'frequencies.tsv' in f])
@@ -257,7 +258,7 @@ def run(
                     window_size=150000,
                     output_path=centromeres_dir+'not_pondered/'+sshic_pcrdupt_dir
                 )
-
+        print('\n')
         print('pondered binned tables')
         samples_pondered = sorted(os.listdir(pondered_dir+sshic_pcrdupt_dir+'10kb/'))
         if parallel:
@@ -284,6 +285,7 @@ def run(
     #################################
     if operations['telomeres'] == 1:
         print('aggregated on telomeres positions')
+        print('\n')
         print('raw binned tables')
         samples_not_pondered = \
             sorted([f for f in os.listdir(binning_dir + sshic_pcrdupt_dir + '10kb/') if 'frequencies.tsv' in f])
@@ -305,6 +307,7 @@ def run(
                     telomeres_coord_path=centromeres_positions_path,
                     output_path=telomeres_dir+'not_pondered/'+sshic_pcrdupt_dir,
                 )
+        print('\n')
         print('pondered binned tables')
         samples_pondered = sorted(os.listdir(pondered_dir+sshic_pcrdupt_dir+'10kb/'))
         if parallel:
@@ -332,9 +335,11 @@ def run(
     if operations['cohesins'] == 1:
         cohesins_filter_list = ['inner', 'outer', None]
         cohesins_filter_span = 40000
-        cohesins_filter_scores_list = [100, 200, 500, 1000, 2000]
-        samples = sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'1kb/') if 'frequencies.tsv' in f])
-
+        cohesins_filter_scores_list = [100, 200, 600, 1000, 2000, 3000]
+        print('\n')
+        print('raw binned tables')
+        samples_not_pondered = \
+            sorted([f for f in os.listdir(binning_dir+sshic_pcrdupt_dir+'1kb/') if 'frequencies.tsv' in f])
         for m in cohesins_filter_list:
             if m is not None:
                 print('aggregated on cohesins peaks, {1} {0} '
@@ -354,11 +359,11 @@ def run(
                             sc,
                             cohesins_filter_span,
                             m,
-                            cohesins_dir+sshic_pcrdupt_dir,
-                            False) for samp in samples]
+                            cohesins_dir+'not_pondered/'+sshic_pcrdupt_dir,
+                            False) for samp in samples_not_pondered]
                         )
                 else:
-                    for samp in samples:
+                    for samp in samples_not_pondered:
                         cohesins.run(
                             formatted_contacts_path=binning_dir+sshic_pcrdupt_dir+'1kb/'+samp,
                             probes_to_fragments_path=probes_to_fragments_path,
@@ -368,6 +373,45 @@ def run(
                             score_cutoff=sc,
                             cen_filter_span=40000,
                             cen_filter_mode=m,
-                            output_dir=cohesins_dir+sshic_pcrdupt_dir,
+                            output_dir=cohesins_dir+'not_pondered/'+sshic_pcrdupt_dir,
+                            plot=False
+                        )
+        print('\n')
+        print('pondered binned tables')
+        samples_pondered = sorted(os.listdir(pondered_dir+sshic_pcrdupt_dir+'1kb/'))
+        for m in cohesins_filter_list:
+            if m is not None:
+                print('aggregated on cohesins peaks, {1} {0} '
+                      'filtered around the chr centromeres'.format(cohesins_filter_span, m))
+            else:
+                print('aggregated on cohesins peaks')
+            for sc in cohesins_filter_scores_list:
+                print('peak scores higher than {0}'.format(sc))
+                if parallel:
+                    with mp.Pool(threads) as p:
+                        p.starmap(cohesins.run, [(
+                            pondered_dir+sshic_pcrdupt_dir+'1kb/'+samp,
+                            probes_to_fragments_path,
+                            15000,
+                            cohesins_peaks_path,
+                            centromeres_positions_path,
+                            sc,
+                            cohesins_filter_span,
+                            m,
+                            cohesins_dir+'pondered/'+sshic_pcrdupt_dir,
+                            False) for samp in samples_pondered]
+                        )
+                else:
+                    for samp in samples_pondered:
+                        cohesins.run(
+                            formatted_contacts_path=pondered_dir+sshic_pcrdupt_dir+'1kb/'+samp,
+                            probes_to_fragments_path=probes_to_fragments_path,
+                            window_size=15000,
+                            cohesins_peaks_path=cohesins_peaks_path,
+                            centromere_info_path=centromeres_positions_path,
+                            score_cutoff=sc,
+                            cen_filter_span=40000,
+                            cen_filter_mode=m,
+                            output_dir=cohesins_dir+'pondered/'+sshic_pcrdupt_dir,
                             plot=False
                         )

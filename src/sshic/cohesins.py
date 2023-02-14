@@ -82,7 +82,7 @@ def freq_focus_around_cohesin_peaks(
     for f in unique_fragments:
         probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
         if probe_chr not in excluded_chr:
-            df_res.loc[df_res['chr'] == probe_chr, int(f)] = np.nan
+            df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
         if df_res[f].sum() > 0:
             df_res[f] /= df_res[f].sum()
 
@@ -104,17 +104,13 @@ def compute_average_aggregate(
     res: dict = {}
     for probe in all_probes:
         fragment = str(df_probes.loc[probe, 'frag_id'])
-        self_chr = df_probes.loc[probe, 'chr']
         if fragment not in df_cohesins_peaks_bins.columns:
             continue
 
         df_freq_cen =\
             df_cohesins_peaks_bins.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
-        df_freq_cen[self_chr] = np.nan
-        df_freq_cen = df_freq_cen[unique_chr].reindex(bins_array)
-
         res[probe] = df_freq_cen
-        df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cen.tsv', sep='\t')
+        df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cohesins.tsv', sep='\t')
 
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
