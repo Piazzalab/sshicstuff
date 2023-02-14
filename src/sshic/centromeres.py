@@ -75,7 +75,7 @@ def freq_focus_around_centromeres(
     for f in unique_fragments:
         probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
         if probe_chr not in excluded_chr:
-            df_res.loc[df_res['chr'] == probe_chr, int(f)] = np.nan
+            df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
         if df_res[f].sum() > 0:
             df_res[f] /= df_res[f].sum()
 

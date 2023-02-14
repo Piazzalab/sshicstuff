@@ -32,7 +32,7 @@ def compute_telomere_freq_per_oligo_per_chr(
             continue
         df_freq_telo = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
         res[probe] = df_freq_telo
-        df_freq_telo.to_csv(table_path + '_chr1-16_freq_on_telo.tsv', sep='\t')
+        df_freq_telo.to_csv(table_path + probe + '_chr1-16_freq_on_telo.tsv', sep='\t')
     return res
 
 
@@ -76,7 +76,7 @@ def freq_focus_around_telomeres(
     for f in unique_fragments:
         probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
         if probe_chr not in excluded_chr:
-            df_res.loc[df_res['chr'] == probe_chr, int(f)] = np.nan
+            df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
         if df_res[f].sum() > 0:
             df_res[f] /= df_res[f].sum()
 
@@ -157,7 +157,7 @@ def run(
     chr_aggregated_dict = compute_telomere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros,
         df_probes=df_probes,
-        table_path=dir_table+sample_name)
+        table_path=dir_table)
 
     compute_average_aggregate(
         aggregated=chr_aggregated_dict,
