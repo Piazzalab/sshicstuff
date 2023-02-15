@@ -58,7 +58,7 @@ def freq_focus_around_centromeres(
 
     df_merged = pd.merge(df_contacts, df_centros, on='chr')
     df_merged_cen_areas = df_merged[
-        (df_merged.chr_bins > (df_merged.left_arm_length-window_size)) &
+        (df_merged.chr_bins > (df_merged.left_arm_length-window_size-bin_size)) &
         (df_merged.chr_bins < (df_merged.left_arm_length+window_size))
     ]
 
