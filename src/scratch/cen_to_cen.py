@@ -4,6 +4,20 @@ import numpy as np
 import pandas as pd
 
 
+def compute_sums(df: pd.DataFrame,
+                 chr2frag: dict):
+    sum1 = df.sum(axis=0)
+    matrix = df.to_numpy(dtype=float)
+
+    for chrom, frags in chr2frag.items():
+        start = frags[0]
+        end = frags[-1]+1
+        matrix[start:end, start:end] = np.nan
+
+    sum2 = pd.DataFrame(matrix).sum(axis=0)
+    return sum1, sum2
+
+
 if __name__ == "__main__":
     bin_size = 1000
     window_size = 60000
@@ -19,6 +33,11 @@ if __name__ == "__main__":
     df_centros = pd.read_csv(data_dir+'S288c_chr_centro_coordinates.tsv', sep='\t', index_col=None)
     df_fragments = pd.read_csv(data_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv', sep='\t', index_col=None)
 
+    chr_to_fragid = {}
+    for c in np.unique(df_fragments.chr):
+        chr_to_fragid[c] = df_fragments[df_fragments['chr'] == c].index.tolist()
+
+
     df_merged_frag_centros = pd.merge(df_fragments, df_centros, on='chr')
     df_fragments_filtered = df_merged_frag_centros[
         (df_merged_frag_centros.start_pos > (df_merged_frag_centros.left_arm_length-window_size-bin_size)) &
@@ -29,11 +48,13 @@ if __name__ == "__main__":
         (df_fragments_filtered.start_pos == (df_fragments_filtered.left_arm_length // bin_size)*bin_size)
     ]
 
-    fragid_to_chr = dict(pd.Series(df_fragments_filtered_bis.iloc[:, 1]))
+    cen_bin_to_chr = dict(pd.Series(df_fragments_filtered_bis.iloc[:, 1]))
 
     for samp in samples:
         samp_id = re.search(r"AD\d+", samp).group()
         df1 = pd.read_csv(samples_dir+samp, sep=' ', header=None)
+        sum_, sum_inter = compute_sums(df1, chr_to_fragid)
+
         #   remove fragments on row that are not in the windows [-nkb -- centromere -- + nkb]
         df2 = df1.filter(items=df_fragments_filtered.index.tolist(), axis=0)
         #   only keep on columns fragments that are on the centromere's bin
@@ -46,37 +67,23 @@ if __name__ == "__main__":
         #   use absolute value to allow a groupby method in a further step
         df3['chr_bins'] = abs(df3['chr_bins']-(df_fragments_filtered['left_arm_length'] // bin_size)*bin_size)
         #   replace columns name by chr names
-        df3.rename(columns=fragid_to_chr, inplace=True)
+        df3.rename(columns=cen_bin_to_chr, inplace=True)
 
-        #   always favour deepcopy for dataframe
-        df3_inter = df3.copy(deep=True)
-        #   set n.a.n for all inter contacts i.e., contacts made by chr X with chr X
-        for c in fragid_to_chr.values():
-            df3_inter.loc[df3_inter['chr'] == c, c] = np.nan
+        df3['mean'] = df3.loc[:, cen_bin_to_chr.values()].mean(axis=1) / sum_
+        df3['mean_inter'] = df3.loc[:, cen_bin_to_chr.values()].mean(axis=1) / sum_inter
 
-        df3['mean'] = df3.loc[:, fragid_to_chr.values()].mean(axis=1)
-        df3_inter['mean'] = df3_inter.loc[:, fragid_to_chr.values()].mean(axis=1)
-
-        df4 = df3.loc[:, ['chr', 'chr_bins', 'mean']]
-        df4_inter = df3_inter.loc[:, ['chr', 'chr_bins', 'mean']]
+        df4 = df3.loc[:, ['chr', 'chr_bins', 'mean', 'mean_inter']].fillna(0.)
 
         #   pivot the table
         #   left and right bins are merged such as a groupby method, followed by a mean method
-        df5 = df4.pivot_table(index='chr_bins', columns=['chr'],
-                              values='mean', aggfunc=np.mean, fill_value=0)
-        df5_inter = df4_inter.pivot_table(index='chr_bins', columns=['chr'],
-                                          values='mean', aggfunc=np.mean, fill_value=0)
-
-        res = df5.copy(deep=True)
-        res_inter = df5_inter.copy(deep=True)
-
-        for b in res.index:
-            #   1 : freq divided by the row's sum
-            #   2 : freq of inter contacts divided by row's sum of inter contacts
-            res.loc[b, :] /= res.loc[b, :].sum()
-            res_inter.loc[b, :] /= res_inter.loc[b, :].sum()
+        #   res1 : normalized over all contacts in df1
+        #   res2 : normalized over all inter contacts in df1
+        res1 = df4.pivot_table(index='chr_bins', columns=['chr'], values='mean', aggfunc=np.mean, fill_value=0)
+        res2 = df4.pivot_table(index='chr_bins', columns=['chr'], values='mean_inter', aggfunc=np.mean, fill_value=0)
 
         output_path = output_dir + samp_id
-        res.to_csv(output_path + '_freq.tsv', sep='\t')
-        res_inter.to_csv(output_path + '_freq_inter.tsv', sep='\t')
+        res1.to_csv(output_path + '_freq.tsv', sep='\t')
+        res2.to_csv(output_path + '_freq_inter.tsv', sep='\t')
+
+        print(samp_id)
 
