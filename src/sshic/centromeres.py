@@ -29,9 +29,12 @@ def compute_centromere_freq_per_oligo_per_chr(
         fragment = str(df_probes.loc[probe, 'frag_id'])
         if fragment not in df_freq.columns:
             continue
-        df_freq_cen = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
-        res[probe] = df_freq_cen
+        if df_freq[fragment].sum() == 0.:
+            continue
+        df_freq_cen = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=0.)
         df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cen.tsv', sep='\t')
+        res[probe] = df_freq_cen
+
     return res
 
 
@@ -50,11 +53,21 @@ def freq_focus_around_centromeres(
     df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
     df_probes = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
-    excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion', 'chr_artificial']
-    unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
+    excluded_chr = ['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
+    fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
     df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
     df_centros = df_centros[~df_centros['chr'].isin(excluded_chr)]
+
+    #   We need to remove for each oligo the number of contact it makes with its own chr.
+    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+    #   We have to set them as NaN to not bias the average
+    for f in fragments:
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+        if probe_chr not in excluded_chr:
+            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
+
+    sum_inter = df_contacts[fragments].sum(axis=0)
 
     df_merged = pd.merge(df_contacts, df_centros, on='chr')
     df_merged_cen_areas = df_merged[
@@ -65,19 +78,10 @@ def freq_focus_around_centromeres(
     df_merged_cen_areas['chr_bins'] = \
         abs(df_merged_cen_areas['chr_bins'] - (df_merged_cen_areas['left_arm_length'] // bin_size)*bin_size)
 
-    df_res = df_merged_cen_areas.groupby(['chr', 'chr_bins'], as_index=False).mean()
+    df_res = df_merged_cen_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
     df_res = tools.sort_by_chr(df_res, 'chr', 'chr_bins')
     df_res.drop(columns=['length', 'left_arm_length', 'right_arm_length'], axis=1, inplace=True)
-
-    #   We need to remove for each oligo the number of contact it makes with its own chr.
-    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
-    #   We have to set them as NaN to not bias the average
-    for f in unique_fragments:
-        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
-        if probe_chr not in excluded_chr:
-            df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
-        if df_res[f].sum() > 0:
-            df_res[f] /= df_res[f].sum()
+    df_res[fragments] = df_res[fragments].div(sum_inter)
 
     return df_res, df_probes
 
