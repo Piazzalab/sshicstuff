@@ -115,6 +115,8 @@ def run(
     dsdna_counter = 0
     for probe in all_probes:
         probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = df_probes.loc[probe].tolist()
+        frag_id = str(frag_id)
+
         if frag_id not in df_formatted_contacts.columns.tolist():
             continue
 
