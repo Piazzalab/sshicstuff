@@ -26,7 +26,7 @@ if __name__ == "__main__":
     samples_dir = data_dir + 'HiC_WT_2h_4h/'
     samples = sorted(os.listdir(samples_dir))
 
-    output_dir = data_dir + 'outputs/'
+    output_dir = data_dir + 'outputs/' + 'cen2cen/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -80,6 +80,9 @@ if __name__ == "__main__":
         #   res2 : normalized over all inter contacts in df1
         res1 = df4.pivot_table(index='chr_bins', columns=['chr'], values='mean', aggfunc=np.mean, fill_value=0)
         res2 = df4.pivot_table(index='chr_bins', columns=['chr'], values='mean_inter', aggfunc=np.mean, fill_value=0)
+
+        res1['mean'] = res1.mean(axis=1)
+        res2['mean'] = res2.mean(axis=1)
 
         output_path = output_dir + samp_id
         res1.to_csv(output_path + '_freq.tsv', sep='\t')
