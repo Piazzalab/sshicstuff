@@ -22,16 +22,16 @@ if __name__ == "__main__":
     bin_size = 1000
     window_size = 60000
     excluded_chr = ['chr3', 'chr5']
-    data_dir = '../../data/tmp/'
+    data_dir = '../../data/inputs/'
     samples_dir = data_dir + 'HiC_WT_2h_4h/'
     samples = sorted(os.listdir(samples_dir))
 
-    output_dir = data_dir + 'outputs/' + 'cen2cen/'
+    output_dir = '../../data/inputs/hic/' + 'cen2cen/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     df_centros = pd.read_csv(data_dir+'S288c_chr_centro_coordinates.tsv', sep='\t', index_col=None)
-    df_fragments = pd.read_csv(data_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv', sep='\t', index_col=None)
+    df_fragments = pd.read_csv(samples_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv', sep='\t', index_col=None)
 
     chr_to_fragid = {}
     for c in np.unique(df_fragments.chr):
