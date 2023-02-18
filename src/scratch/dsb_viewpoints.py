@@ -1,5 +1,7 @@
 import os
 import re
+
+import numpy as np
 import pandas as pd
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -7,8 +9,9 @@ pd.options.mode.chained_assignment = None
 
 if __name__ == "__main__":
     excluded_chr = ['chr3', 'chr5']
-    data_dir = '../../data/tmp/'
-    samples_dir = data_dir + 'HiC_WT_2h_4h/'
+    data_dir = '../../data/'
+    samples_dir = data_dir + 'inputs/HiC_WT_2h_4h/samples/'
+    fragments_dir = data_dir + 'inputs/HiC_WT_2h_4h/'
     samples = sorted(os.listdir(samples_dir))
 
     #   position on both end of the breaks, 6 bins of 1000 bp
@@ -23,12 +26,17 @@ if __name__ == "__main__":
     #       telo_right -> chr length
     #   read the cohesins peaks table and keeps only peaks with score >= 100
     #   read the fragment library file
-    df_centros = pd.read_csv(data_dir+'S288c_chr_centro_coordinates.tsv', sep='\t', index_col=None)
+    df_centros = pd.read_csv(data_dir+'inputs/S288c_chr_centro_coordinates.tsv', sep='\t', index_col=None)
     df_telos = pd.DataFrame({'chr': df_centros['chr'], 'telo_l': 0, 'telo_r': df_centros['length']})
-    df_cohesins = pd.read_csv(data_dir+'HB65_reference_peaks_score50min.bed', sep='\t', index_col=None, header=None,
-                              names=['chr', 'start', 'end', 'uid', 'score'])
+    df_cohesins = pd.read_csv(data_dir+'inputs/HB65_reference_peaks_score50min.bed',
+                              sep='\t', index_col=None, header=None, names=['chr', 'start', 'end', 'uid', 'score'])
     df_cohesins = df_cohesins.loc[df_cohesins['score'] >= 100, :]
-    df_fragments = pd.read_csv(data_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv', sep='\t', index_col=None)
+    df_fragments = pd.read_csv(fragments_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv',
+                               sep='\t', index_col=None)
+
+    chr_to_fragid = {}
+    for c in np.unique(df_fragments.chr):
+        chr_to_fragid[c] = df_fragments[df_fragments['chr'] == c].index.tolist()
 
     #   Only keep fragments that belong to the bins of interest
     df_fragments_filtered = df_fragments[
@@ -43,12 +51,21 @@ if __name__ == "__main__":
         #   just the name of the sample (AD157, AD254, ...)
         samp_id = re.search(r"AD\d+", samp).group()
         print(samp_id)
-        #   df1: raw dataframe, dense matrix
+        #   df0: raw dataframe, dense matrix
         #   may require a lot of time to import the table as it is heavy table
         #   NB : df1 is a square matrix
-        df1 = pd.read_csv(samples_dir+samp, sep=' ', header=None)
+        df0 = pd.read_csv(samples_dir+samp, sep=' ', header=None)
+        mat = df0.to_numpy(dtype=float)
+        for chrom, frags in chr_to_fragid.items():
+            start = frags[0]
+            end = frags[-1] + 1
+            mat[start:end, start:end] = np.nan
+
+        df1 = pd.DataFrame(mat)
         #   df2: only keep columns corresponding to fragment index present in df_fragment_filtered,
         #       i.e.,  bins of interest
+        #   Inter normalization
+        df1 = df1.div(df1.sum(axis=0))
         df2 = df1.filter(items=df_fragments_filtered.index.tolist(), axis=1)
         #   group the 6 bins at the left of the breaks site by mean and add columns for result
         df2['chr5_dsb_left'] = df2.iloc[:, 0:6].mean(axis=1)
@@ -77,7 +94,7 @@ if __name__ == "__main__":
         ##########################
         """
         #   output dir for centromeres aggregated
-        cen_dir = data_dir + 'outputs/' + 'centromeres/' + samp_id + '/'
+        cen_dir = '../../data/outputs/hic/' + 'centromeres/' + samp_id + '/'
         if not os.path.exists(cen_dir):
             os.makedirs(cen_dir)
 
@@ -100,10 +117,6 @@ if __name__ == "__main__":
         df6.drop(columns=['length', 'left_arm_length', 'right_arm_length'], axis=1, inplace=True)
         #   df7: df6 but without chr3 and chr5
         df7 = df6[~df6.chr.isin(excluded_chr)]
-
-        #   normalise the contacts, i.e, the sum of all contacts should be equal to 1
-        for c in df7.columns[2:]:
-            df7[c] /= df7[c].sum()
 
         #   Initialize df for mean, std and median
         df_cen_mean = pd.DataFrame()
@@ -138,7 +151,7 @@ if __name__ == "__main__":
         """
 
         #   No comment here, same process as centromeres.
-        telo_dir = data_dir + 'outputs/' + 'telomeres/' + samp_id + '/'
+        telo_dir = '../../data/outputs/hic/' + 'telomeres/' + samp_id + '/'
         if not os.path.exists(telo_dir):
             os.makedirs(telo_dir)
 
@@ -181,7 +194,7 @@ if __name__ == "__main__":
         ##########################
         """
 
-        cohesins_dir = data_dir + 'outputs/' + 'cohesins/' + samp_id + '/'
+        cohesins_dir = '../../data/outputs/hic/' + 'cohesins/' + samp_id + '/'
         if not os.path.exists(cohesins_dir):
             os.makedirs(cohesins_dir)
 
