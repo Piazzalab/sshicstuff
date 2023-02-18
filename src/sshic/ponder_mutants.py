@@ -55,4 +55,9 @@ def run(
             df_pondered_contacts[frag] = \
                 df_binned_contacts[frag] * sub_df_stats.loc['capture_efficiency_norm_'+wt, frag]
 
-        df_pondered_contacts.to_csv('{0}_frequencies_pondered_over_{1}.tsv'.format(output_path, wt), sep='\t')
+        df_pondered_freq = df_pondered_contacts.copy(deep=True)
+        df_pondered_freq[fragments] = \
+            df_pondered_freq[fragments].div(df_pondered_freq[fragments].sum(axis=0))
+
+        df_pondered_contacts.to_csv('{0}_contacts_pondered_over_{1}.tsv'.format(output_path, wt), sep='\t')
+        df_pondered_freq.to_csv('{0}_frequencies_pondered_over_{1}.tsv'.format(output_path, wt), sep='\t')

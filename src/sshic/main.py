@@ -24,9 +24,9 @@ if __name__ == "__main__":
         'statistics': 0,
         'ponder': 0,
         'nucleosomes': 0,
-        'centromeres': 1,
-        'telomeres': 1,
-        'cohesins': 0,
+        'centromeres': 0,
+        'telomeres': 0,
+        'cohesins': 1,
     }
 
     #   INPUTS

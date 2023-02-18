@@ -166,7 +166,7 @@ def run(
             print('Ponder mutant contacts (rebinned at {0} over WT references)'.format(bin_dir))
             bin_dir += '/'
             binned_contacts_list = \
-                [f for f in sorted(os.listdir(binning_dir+sshic_pcrdupt_dir+bin_dir)) if 'frequencies' in f]
+                [f for f in sorted(os.listdir(binning_dir+sshic_pcrdupt_dir+bin_dir)) if 'contacts' in f]
 
             if not os.path.exists(pondered_dir+sshic_pcrdupt_dir+bin_dir):
                 os.makedirs(pondered_dir+sshic_pcrdupt_dir+bin_dir)
@@ -260,7 +260,8 @@ def run(
                 )
         print('\n')
         print('pondered binned tables')
-        samples_pondered = sorted(os.listdir(pondered_dir+sshic_pcrdupt_dir+'10kb/'))
+        samples_pondered = \
+            sorted([f for f in os.listdir(pondered_dir+sshic_pcrdupt_dir+'10kb/') if 'contacts' in f])
         if parallel:
             with mp.Pool(threads) as p:
                 p.starmap(centromeres.run, [(
@@ -288,7 +289,7 @@ def run(
         print('\n')
         print('raw binned tables')
         samples_not_pondered = \
-            sorted([f for f in os.listdir(binning_dir + sshic_pcrdupt_dir + '10kb/') if 'frequencies.tsv' in f])
+            sorted([f for f in os.listdir(binning_dir + sshic_pcrdupt_dir + '10kb/') if 'contacts.tsv' in f])
         if parallel:
             with mp.Pool(threads) as p:
                 p.starmap(telomeres.run, [(
@@ -309,7 +310,8 @@ def run(
                 )
         print('\n')
         print('pondered binned tables')
-        samples_pondered = sorted(os.listdir(pondered_dir+sshic_pcrdupt_dir+'10kb/'))
+        samples_pondered =\
+            sorted([f for f in os.listdir(pondered_dir + sshic_pcrdupt_dir + '10kb/') if 'contacts' in f])
         if parallel:
             with mp.Pool(threads) as p:
                 p.starmap(telomeres.run, [(

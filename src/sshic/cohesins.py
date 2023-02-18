@@ -29,7 +29,7 @@ def freq_focus_around_cohesin_peaks(
         filter_range: int,
         filter_mode: str | None):
 
-    excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion', 'chr_artificial']
+    excluded_chr = ['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
@@ -43,11 +43,21 @@ def freq_focus_around_cohesin_peaks(
     df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
     bin_size = df_contacts.loc[1, 'chr_bins'] - df_contacts.loc[0, 'chr_bins']
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    unique_fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
+    fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
+
+    #   We need to remove for each oligo the number of contact it makes with its own chr.
+    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+    #   We have to set them as NaN to not bias the average
+    for f in fragments:
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+        if probe_chr not in excluded_chr:
+            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
+
+    sum_inter = df_contacts[fragments].sum(axis=0)
 
     df_merged = pd.merge(df_contacts, df_peaks, on='chr')
     df_merged_cohesins_areas = df_merged[
-        (df_merged.chr_bins > (df_merged.start-window_size)) &
+        (df_merged.chr_bins > (df_merged.start-window_size-bin_size)) &
         (df_merged.chr_bins < (df_merged.end+window_size))
     ]
 
@@ -73,18 +83,9 @@ def freq_focus_around_cohesin_peaks(
                                                     'left_arm_length', 'right_arm_length'],
                                            axis=1, inplace=True)
 
-    df_res = df_merged_cohesins_areas_filtered.groupby(['chr', 'chr_bins'], as_index=False).mean()
+    df_res = df_merged_cohesins_areas_filtered.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
     df_res = tools.sort_by_chr(df_res, 'chr', 'chr_bins')
-
-    #   We need to remove for each oligo the number of contact it makes with its own chr.
-    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
-    #   We have to set them as NaN to not bias the average
-    for f in unique_fragments:
-        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
-        if probe_chr not in excluded_chr:
-            df_res.loc[df_res['chr'] == probe_chr, f] = np.nan
-        if df_res[f].sum() > 0:
-            df_res[f] /= df_res[f].sum()
+    df_res[fragments] = df_res[fragments].div(sum_inter)
 
     return df_res, df_probes
 
@@ -106,11 +107,12 @@ def compute_average_aggregate(
         fragment = str(df_probes.loc[probe, 'frag_id'])
         if fragment not in df_cohesins_peaks_bins.columns:
             continue
-
+        if df_cohesins_peaks_bins[fragment].sum() == 0.:
+            continue
         df_freq_cen =\
             df_cohesins_peaks_bins.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
-        res[probe] = df_freq_cen
         df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cohesins.tsv', sep='\t')
+        res[probe] = df_freq_cen
 
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
@@ -135,8 +137,8 @@ def compute_average_aggregate(
 
         df_mean[probe] = mean
         df_std[probe] = std
-    df_mean.to_csv(table_path + '_mean_on_cohesins.tsv', sep='\t')
-    df_std.to_csv(table_path + '_std_on_cohesins.tsv', sep='\t')
+    df_mean.to_csv(table_path + 'mean_on_cohesins.tsv', sep='\t')
+    df_std.to_csv(table_path + 'std_on_cohesins.tsv', sep='\t')
 
 
 def mkdir(output_path: str,
