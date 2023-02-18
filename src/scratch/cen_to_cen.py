@@ -4,39 +4,26 @@ import numpy as np
 import pandas as pd
 
 
-def compute_sums(df: pd.DataFrame,
-                 chr2frag: dict):
-    sum1 = df.sum(axis=0)
-    matrix = df.to_numpy(dtype=float)
-
-    for chrom, frags in chr2frag.items():
-        start = frags[0]
-        end = frags[-1]+1
-        matrix[start:end, start:end] = np.nan
-
-    sum2 = pd.DataFrame(matrix).sum(axis=0)
-    return sum1, sum2
-
-
 if __name__ == "__main__":
     bin_size = 1000
     window_size = 60000
     excluded_chr = ['chr3', 'chr5']
-    data_dir = '../../data/inputs/'
-    samples_dir = data_dir + 'HiC_WT_2h_4h/'
+    data_dir = '../../data/'
+    samples_dir = data_dir + 'inputs/HiC_WT_2h_4h/samples/'
+    fragments_dir = data_dir + 'inputs/HiC_WT_2h_4h/'
     samples = sorted(os.listdir(samples_dir))
 
-    output_dir = '../../data/inputs/hic/' + 'cen2cen/'
+    output_dir = '../../data/outputs/hic/' + 'cen2cen/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    df_centros = pd.read_csv(data_dir+'S288c_chr_centro_coordinates.tsv', sep='\t', index_col=None)
-    df_fragments = pd.read_csv(samples_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv', sep='\t', index_col=None)
+    df_centros = pd.read_csv(data_dir+'inputs/S288c_chr_centro_coordinates.tsv', sep='\t', index_col=None)
+    df_fragments = pd.read_csv(fragments_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv',
+                               sep='\t', index_col=None)
 
     chr_to_fragid = {}
     for c in np.unique(df_fragments.chr):
         chr_to_fragid[c] = df_fragments[df_fragments['chr'] == c].index.tolist()
-
 
     df_merged_frag_centros = pd.merge(df_fragments, df_centros, on='chr')
     df_fragments_filtered = df_merged_frag_centros[
@@ -52,8 +39,17 @@ if __name__ == "__main__":
 
     for samp in samples:
         samp_id = re.search(r"AD\d+", samp).group()
-        df1 = pd.read_csv(samples_dir+samp, sep=' ', header=None)
-        sum_, sum_inter = compute_sums(df1, chr_to_fragid)
+        df0 = pd.read_csv(samples_dir+samp, sep=' ', header=None)
+        mat = df0.to_numpy(dtype=float)
+
+        for chrom, frags in chr_to_fragid.items():
+            start = frags[0]
+            end = frags[-1] + 1
+            mat[start:end, start:end] = np.nan
+
+        df1 = pd.DataFrame(mat)
+        sum_ = df0.sum(axis=0)
+        sum_inter = df1.sum(axis=0)
 
         #   remove fragments on row that are not in the windows [-nkb -- centromere -- + nkb]
         df2 = df1.filter(items=df_fragments_filtered.index.tolist(), axis=0)
