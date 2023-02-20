@@ -72,9 +72,12 @@ if __name__ == "__main__":
         #   group the 6 bins on the rigth by mean and add columns for result
         df2['chr5_dsb_right'] = df2.iloc[:, 6:12].mean(axis=1)
         #   same for the 6 bins of the control on chr8
+        df2['chr8_ctrl_140kb'] = df2.iloc[:, 12]
         df2['chr8_ctrl'] = df2.iloc[:, 12:18].mean(axis=1)
+
+        columns = ['chr5_dsb_left', 'chr5_dsb_right', 'chr8_ctrl', 'chr8_ctrl_140kb']
         #   df3: df2 but with only the 3 averaged columns
-        df3 = df2[['chr5_dsb_left', 'chr5_dsb_right', 'chr8_ctrl']]
+        df3 = df2[columns]
         #   add chromosome number column at hte beginning of th df3
         df3.insert(0, 'chr', df_fragments.chr)
         #   df4: create a deep copy of df3.
@@ -122,7 +125,7 @@ if __name__ == "__main__":
         df_cen_mean = pd.DataFrame()
         df_cen_std = pd.DataFrame()
         df_cen_median = pd.DataFrame()
-        for col in ['chr5_dsb_left', 'chr5_dsb_right', 'chr8_ctrl']:
+        for col in  columns:
             #   make a pivot of the table :
             #       chromosomes becoming the columns
             #       chr_bins the row index
@@ -174,7 +177,7 @@ if __name__ == "__main__":
         df_telo_mean = pd.DataFrame()
         df_telo_std = pd.DataFrame()
         df_telo_median = pd.DataFrame()
-        for col in ['chr5_dsb_left', 'chr5_dsb_right', 'chr8_ctrl']:
+        for col in  columns:
             df_telo_chr = df9.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=0.)
             df_telo_chr.to_csv(telo_dir + col + '_chr1-16_freq_telo.tsv', sep='\t')
 
@@ -218,7 +221,7 @@ if __name__ == "__main__":
         df_cohesins_mean = pd.DataFrame()
         df_cohesins_std = pd.DataFrame()
         df_cohesins_median = pd.DataFrame()
-        for col in ['chr5_dsb_left', 'chr5_dsb_right', 'chr8_ctrl']:
+        for col in columns:
             df_cohesins_chr = df11.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=0.)
             df_cohesins_chr.to_csv(cohesins_dir + col + '_chr1-16_freq_telo.tsv', sep='\t')
 
