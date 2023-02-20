@@ -8,7 +8,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = None
 
 if __name__ == "__main__":
-    excluded_chr = ['chr3', 'chr5']
+    excluded_chr = ['chr3', 'chr2', 'chr5']
     data_dir = '../../data/'
     samples_dir = data_dir + 'inputs/HiC_WT_2h_4h/samples/'
     fragments_dir = data_dir + 'inputs/HiC_WT_2h_4h/'
@@ -38,13 +38,17 @@ if __name__ == "__main__":
     for c in np.unique(df_fragments.chr):
         chr_to_fragid[c] = df_fragments[df_fragments['chr'] == c].index.tolist()
 
+    #   filter fragments that belongs to excluded chromosomes list
+    df_fragments_filtered1 = df_fragments[
+        (~df_fragments.chr.isin(excluded_chr))
+    ]
+
     #   Only keep fragments that belong to the bins of interest
-    df_fragments_filtered = df_fragments[
+    df_fragments_filtered2 = df_fragments[
         ((df_fragments.chr == 'chr5') &
          ((df_fragments.start_pos.isin(chr5_dsb_left_bins)) |
-         (df_fragments.start_pos.isin(chr5_dsb_right_bins))) |
-         (df_fragments.chr == 'chr8') &
-         (df_fragments.start_pos.isin(chr8_ctrl_bins)))
+          (df_fragments.start_pos.isin(chr5_dsb_right_bins)))) |
+        ((df_fragments.chr == 'chr8') & (df_fragments.start_pos.isin(chr8_ctrl_bins)))
     ]
 
     for samp in samples:
@@ -62,11 +66,13 @@ if __name__ == "__main__":
             mat[start:end, start:end] = np.nan
 
         df1 = pd.DataFrame(mat)
-        #   df2: only keep columns corresponding to fragment index present in df_fragment_filtered,
-        #       i.e.,  bins of interest
-        #   Inter normalization
-        df1 = df1.div(df1.sum(axis=0))
-        df2 = df1.filter(items=df_fragments_filtered.index.tolist(), axis=1)
+        #   remove excluded chromosomes
+        df1b = df1.filter(items=df_fragments_filtered1.index.tolist(), axis=0)
+        #   inter normalization
+        #   add 1e-9 to prevent from dividing by zero
+        df1c = df1b.div(df1b.sum(axis=0)+1e-9)
+
+        df2 = df1c.filter(items=df_fragments_filtered2.index.tolist(), axis=1)
         #   group the 6 bins at the left of the breaks site by mean and add columns for result
         df2['chr5_dsb_left'] = df2.iloc[:, 0:6].mean(axis=1)
         #   group the 6 bins on the rigth by mean and add columns for result
@@ -118,20 +124,18 @@ if __name__ == "__main__":
         df6 = df_merged_cen_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
         #   remove useless columns
         df6.drop(columns=['length', 'left_arm_length', 'right_arm_length'], axis=1, inplace=True)
-        #   df7: df6 but without chr3 and chr5
-        df7 = df6[~df6.chr.isin(excluded_chr)]
 
         #   Initialize df for mean, std and median
         df_cen_mean = pd.DataFrame()
         df_cen_std = pd.DataFrame()
         df_cen_median = pd.DataFrame()
-        for col in  columns:
+        for col in columns:
             #   make a pivot of the table :
             #       chromosomes becoming the columns
             #       chr_bins the row index
             #       applied for each column ('chr5_dsb_left', 'chr5_dsb_right', 'chr8_ctrl') one by one
             #       we go from one dataframe to 3 new ones
-            df_cen_chr = df7.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=0.)
+            df_cen_chr = df6.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=np.nan)
             df_cen_chr.to_csv(cen_dir + col + '_chr1-16_freq_cen.tsv', sep='\t')
 
             #   compute the mean, std and median for each column
@@ -159,26 +163,27 @@ if __name__ == "__main__":
             os.makedirs(telo_dir)
 
         df_merged2 = pd.merge(df5, df_telos, on='chr')
-        df_merged_telo_areas = df_merged2[
-            (df_merged2.chr_bins < (df_merged2.telo_l + 150000 + 10000)) |
-            (df_merged2.chr_bins > (df_merged2.telo_r - 150000))
+        df_merged_telo_areas_part_a = df_merged2[
+            df_merged2.chr_bins < (df_merged2.telo_l + 150000 + 10000)
         ]
 
-        df_merged_telo_areas.loc[df_merged2.chr_bins >= (df_merged2.telo_r - 150000), 'chr_bins'] = \
-            abs(df_merged_telo_areas['chr_bins'] - (df_merged_telo_areas['telo_r'] // 10000) * 10000)
+        df_merged_telo_areas_part_b = df_merged2[
+            df_merged2.chr_bins > (df_merged2.telo_r - 150000 - 10000)
+        ]
+
+        df_merged_telo_areas_part_b['chr_bins'] = \
+            abs(df_merged_telo_areas_part_b['chr_bins'] - (df_merged_telo_areas_part_b['telo_r'] // 10000) * 10000)
+
+        df_merged_telo_areas = pd.concat((df_merged_telo_areas_part_a, df_merged_telo_areas_part_b))
 
         df8 = df_merged_telo_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
         df8.drop(columns=['telo_l', 'telo_r'], axis=1, inplace=True)
-        df9 = df8[~df8.chr.isin(excluded_chr)]
-
-        for c in df9.columns[2:]:
-            df9[c] /= df9[c].sum()
 
         df_telo_mean = pd.DataFrame()
         df_telo_std = pd.DataFrame()
         df_telo_median = pd.DataFrame()
-        for col in  columns:
-            df_telo_chr = df9.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=0.)
+        for col in columns:
+            df_telo_chr = df8.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=np.nan)
             df_telo_chr.to_csv(telo_dir + col + '_chr1-16_freq_telo.tsv', sep='\t')
 
             df_telo_mean[col] = df_telo_chr.mean(axis=1)
@@ -213,16 +218,12 @@ if __name__ == "__main__":
 
         df10 = df_merged_cohesins_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
         df10.drop(columns=['start', 'end', 'score'], axis=1, inplace=True)
-        df11 = df10[~df10.chr.isin(excluded_chr)]
-
-        for c in df11.columns[2:]:
-            df11[c] /= df11[c].sum()
 
         df_cohesins_mean = pd.DataFrame()
         df_cohesins_std = pd.DataFrame()
         df_cohesins_median = pd.DataFrame()
         for col in columns:
-            df_cohesins_chr = df11.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=0.)
+            df_cohesins_chr = df10.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=np.nan)
             df_cohesins_chr.to_csv(cohesins_dir + col + '_chr1-16_freq_telo.tsv', sep='\t')
 
             df_cohesins_mean[col] = df_cohesins_chr.mean(axis=1)
