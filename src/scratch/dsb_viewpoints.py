@@ -9,6 +9,8 @@ pd.options.mode.chained_assignment = None
 
 if __name__ == "__main__":
     excluded_chr = ['chr3', 'chr2', 'chr5']
+    chr_order = ['chr1', 'chr4', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10',
+                 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', ]
     data_dir = '../../data/'
     samples_dir = data_dir + 'inputs/HiC_WT_2h_4h/samples/'
     fragments_dir = data_dir + 'inputs/HiC_WT_2h_4h/'
@@ -28,9 +30,18 @@ if __name__ == "__main__":
     #   read the fragment library file
     df_centros = pd.read_csv(data_dir+'inputs/S288c_chr_centro_coordinates.tsv', sep='\t', index_col=None)
     df_telos = pd.DataFrame({'chr': df_centros['chr'], 'telo_l': 0, 'telo_r': df_centros['length']})
+
     df_cohesins = pd.read_csv(data_dir+'inputs/HB65_reference_peaks_score50min.bed',
                               sep='\t', index_col=None, header=None, names=['chr', 'start', 'end', 'uid', 'score'])
     df_cohesins = df_cohesins.loc[df_cohesins['score'] >= 100, :]
+    df_cohesins = df_cohesins[~df_cohesins.chr.isin(excluded_chr)]
+    peaks = df_cohesins[['chr', 'start']]
+    peaks['chr'] = peaks['chr'].map(lambda x: chr_order.index(x) if x in chr_order else len(chr_order))
+    peaks.sort_values(by=['chr'], inplace=True)
+    peaks['chr'] = peaks['chr'].map(lambda x: chr_order[x])
+    peaks.index = range(len(peaks))
+    peaks = peaks.to_numpy()
+
     df_fragments = pd.read_csv(fragments_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv',
                                sep='\t', index_col=None)
 
@@ -208,31 +219,38 @@ if __name__ == "__main__":
 
         df_merged3 = pd.merge(df3, df_cohesins, on='chr')
         df_merged_cohesins_areas = df_merged3[
-            (df_merged3.chr_bins > (df_merged3.start - 15000 - 1000)) &
+            (df_merged3.chr_bins > (df_merged3.start - 16000 - 1000)) &
             (df_merged3.chr_bins < (df_merged3.end + 15000))
         ]
 
-        df_merged_cohesins_areas.sort_values(by=['start', 'chr_bins'], inplace=True)
-        df_merged_cohesins_areas['chr_bins'] = \
-            abs(df_merged_cohesins_areas['chr_bins'] - (df_merged_cohesins_areas['start'] // 1000) * 1000)
+        df10 = df_merged_cohesins_areas.copy(deep=True)
+        df10['chr'] = df10['chr'].map(lambda x: chr_order.index(x) if x in chr_order else len(chr_order))
+        df10 = df10.sort_values(by=['chr', 'start', 'chr_bins'])
+        df10['chr'] = df10['chr'].map(lambda x: chr_order[x])
+        df10['chr_bins'] = abs(df10['chr_bins'] - (df10['start'] // 1000) * 1000)
+        df10.drop(columns=['uid', 'end', 'score'], axis=1, inplace=True)
 
-        df10 = df_merged_cohesins_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
-        df10.drop(columns=['start', 'end', 'score'], axis=1, inplace=True)
+        for row in peaks:
+            c, p = row
+            df10.loc[(df10.chr == c) & (df10.start == p), columns] = \
+                df10.loc[(df10.chr == c) & (df10.start == p), columns].diff()
 
+        df11 = df10.dropna(axis=0).drop(columns='start')
+        df12 = df11.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
         df_cohesins_mean = pd.DataFrame()
         df_cohesins_std = pd.DataFrame()
         df_cohesins_median = pd.DataFrame()
         for col in columns:
-            df_cohesins_chr = df10.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=np.nan)
-            df_cohesins_chr.to_csv(cohesins_dir + col + '_chr1-16_freq_telo.tsv', sep='\t')
+            df_cohesins_chr = df11.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=np.nan)
+            df_cohesins_chr.to_csv(cohesins_dir + col + '_chr1-16_freq_cohesins_derivative.tsv', sep='\t')
 
             df_cohesins_mean[col] = df_cohesins_chr.mean(axis=1)
             df_cohesins_median[col] = df_cohesins_chr.median(axis=1)
             df_cohesins_std[col] = df_cohesins_chr.std(axis=1)
 
-        df_cohesins_mean.to_csv(cohesins_dir + 'mean_on_cohesins.tsv', sep='\t')
-        df_cohesins_std.to_csv(cohesins_dir + 'std_on_cohesins.tsv', sep='\t')
-        df_cohesins_median.to_csv(cohesins_dir + 'median_on_cohesins.tsv', sep='\t')
+        df_cohesins_mean.to_csv(cohesins_dir + 'mean_on_cohesins_derivative.tsv', sep='\t')
+        df_cohesins_std.to_csv(cohesins_dir + 'std_on_cohesins_derivative.tsv', sep='\t')
+        df_cohesins_median.to_csv(cohesins_dir + 'median_on_cohesins_derivative.tsv', sep='\t')
 
         print("\t DONE : cohesins")
         print("\n")
