@@ -67,7 +67,8 @@ def freq_focus_around_centromeres(
         if probe_chr not in excluded_chr:
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
-    sum_inter = df_contacts[fragments].sum(axis=0)
+    #   Inter normalization
+    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
 
     df_merged = pd.merge(df_contacts, df_centros, on='chr')
     df_merged_cen_areas = df_merged[
@@ -81,7 +82,6 @@ def freq_focus_around_centromeres(
     df_res = df_merged_cen_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
     df_res = tools.sort_by_chr(df_res, 'chr', 'chr_bins')
     df_res.drop(columns=['length', 'left_arm_length', 'right_arm_length'], axis=1, inplace=True)
-    df_res[fragments] = df_res[fragments].div(sum_inter)
 
     return df_res, df_probes
 

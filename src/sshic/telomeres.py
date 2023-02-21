@@ -67,13 +67,23 @@ def freq_focus_around_telomeres(
         if probe_chr not in excluded_chr:
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
-    sum_inter = df_contacts[fragments].sum(axis=0)
+    #   Inter normalization
+    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
 
     df_merged = pd.merge(df_contacts, df_telos, on='chr')
-    df_merged_telos_areas = df_merged[
-        (df_merged.chr_bins <= (df_merged.telo_l+window_size)) |
-        (df_merged.chr_bins >= (df_merged.telo_r-window_size))
+
+    df_merged_telos_areas_part_a = df_merged[
+        df_merged.chr_bins < (df_merged.telo_l + window_size + bin_size)
     ]
+
+    df_merged_telos_areas_part_b = df_merged[
+        df_merged.chr_bins > (df_merged.telo_r - window_size - bin_size)
+    ]
+
+    df_merged_telos_areas_part_b['chr_bins'] = \
+        abs(df_merged_telos_areas_part_b['chr_bins'] - (df_merged_telos_areas_part_b['telo_r'] // 10000) * 10000)
+
+    df_merged_telos_areas = pd.concat((df_merged_telos_areas_part_a, df_merged_telos_areas_part_b))
 
     df_merged_telos_areas.loc[df_merged.chr_bins >= (df_merged.telo_r-window_size), 'chr_bins'] = \
         abs(df_merged_telos_areas['chr_bins'] - (df_merged_telos_areas['telo_r'] // bin_size)*bin_size)
@@ -81,7 +91,6 @@ def freq_focus_around_telomeres(
     df_res = df_merged_telos_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
     df_res = tools.sort_by_chr(df_res, 'chr', 'chr_bins')
     df_res.drop(columns=['telo_l', 'telo_r'], axis=1, inplace=True)
-    df_res[fragments] = df_res[fragments].div(sum_inter)
 
     return df_res, df_probes
 
