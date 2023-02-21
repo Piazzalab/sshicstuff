@@ -73,14 +73,23 @@ def frag2(x):
 def sort_by_chr(
         df: pd.DataFrame,
         col1: str = 'chr',
-        col2: str = 'positions'):
+        col2: Optional[str] = None,
+        col3: Optional[str] = None
+):
 
     order = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7',
              'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14',
              'chr15', 'chr16', '2_micron', 'mitochondrion', 'chr_artificial']
 
     df[col1] = df[col1].map(lambda x: order.index(x) if x in order else len(order))
-    df = df.sort_values(by=[col1, col2])
+    if col2 is not None:
+        df = df.sort_values(by=[col1, col2])
+        if col3 is not None:
+            df = df.sort_values(by=[col1, col2, col3])
+        else:
+            df = df.sort_values(by=[col1, col2])
+    else:
+        df = df.sort_values(by=[col1])
     df[col1] = df[col1].map(lambda x: order[x])
     df.index = range(len(df))
     return df
