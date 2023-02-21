@@ -30,13 +30,19 @@ def freq_focus_around_cohesin_peaks(
         filter_mode: str | None):
 
     excluded_chr = ['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
+    chr_order = ['chr1', 'chr4', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10',
+                 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', ]
+
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
     df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
     df_peaks = df_peaks[~df_peaks['chr'].isin(excluded_chr)]
-    df_peaks.sort_values(by='score', ascending=False, inplace=True)
-    df_peaks.reset_index(drop=True, inplace=True)
     df_peaks = df_peaks.query("score > @score_cutoff and chr not in @excluded_chr")
+    df_peaks['chr'] = df_peaks['chr'].map(lambda x: chr_order.index(x) if x in chr_order else len(chr_order))
+    df_peaks.sort_values(by=['chr'], inplace=True)
+    df_peaks['chr'] = df_peaks['chr'].map(lambda x: chr_order[x])
+    df_peaks.index = range(len(df_peaks))
+    peaks = df_peaks[['chr', 'start']].to_numpy()
 
     df_centros = pd.read_csv(centros_info_path, sep='\t', index_col=None)
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
@@ -53,14 +59,16 @@ def freq_focus_around_cohesin_peaks(
         if probe_chr not in excluded_chr:
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
-    sum_inter = df_contacts[fragments].sum(axis=0)
+    #   Inter normalization
+    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
 
     df_merged = pd.merge(df_contacts, df_peaks, on='chr')
     df_merged_cohesins_areas = df_merged[
-        (df_merged.chr_bins > (df_merged.start-window_size-bin_size)) &
+        (df_merged.chr_bins > (df_merged.start-window_size-bin_size*2)) &
         (df_merged.chr_bins < (df_merged.end+window_size))
     ]
 
+    df_merged_cohesins_areas.drop(columns=['end', 'score', 'uid'], axis=1, inplace=True)
     df_merged2 = pd.merge(df_merged_cohesins_areas, df_centros, on='chr')
     if filter_mode == 'inner':
         df_merged_cohesins_areas_filtered = df_merged2[
@@ -75,19 +83,26 @@ def freq_focus_around_cohesin_peaks(
     else:
         df_merged_cohesins_areas_filtered = df_merged2.copy(deep=True)
 
-    df_merged_cohesins_areas_filtered['chr_bins'] =\
-        abs(df_merged_cohesins_areas_filtered['chr_bins'] -
-            (df_merged_cohesins_areas_filtered['start'] // bin_size) * bin_size)
+    df = df_merged_cohesins_areas_filtered.drop(
+        columns=['left_arm_length', 'right_arm_length', 'length'], axis=1)
+    df = tools.sort_by_chr(df, 'chr', 'start', 'chr_bins')
+    df['chr_bins'] = abs(df['chr_bins'] - (df['start'] // bin_size) * bin_size)
 
-    df_merged_cohesins_areas_filtered.drop(columns=['start', 'end', 'score', 'length', 'uid',
-                                                    'left_arm_length', 'right_arm_length'],
-                                           axis=1, inplace=True)
+    df_prime = df.copy(deep=True)
+    for row in peaks:
+        c, p = row
+        df_prime.loc[(df_prime.chr == c) & (df_prime.start == p), fragments] = \
+            df_prime.loc[(df_prime.chr == c) & (df_prime.start == p), fragments].diff()
 
-    df_res = df_merged_cohesins_areas_filtered.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
+    df_prime = df_prime.dropna(axis=0).drop(columns='start')
+
+    df_res = df.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
+    df_res_prime = df_prime.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
+
     df_res = tools.sort_by_chr(df_res, 'chr', 'chr_bins')
-    df_res[fragments] = df_res[fragments].div(sum_inter)
+    df_res_prime = tools.sort_by_chr(df_res_prime, 'chr', 'chr_bins')
 
-    return df_res, df_probes
+    return df_res, df_res_prime, df_probes
 
 
 def compute_average_aggregate(
@@ -99,9 +114,6 @@ def compute_average_aggregate(
 ):
 
     all_probes = df_probes.index.values
-    unique_chr = pd.unique(df_cohesins_peaks_bins['chr'])
-    bins_array = np.unique(df_cohesins_peaks_bins['chr_bins'])
-
     res: dict = {}
     for probe in all_probes:
         fragment = str(df_probes.loc[probe, 'frag_id'])

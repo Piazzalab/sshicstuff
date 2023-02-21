@@ -412,7 +412,7 @@ def run(
                             cohesins_peaks_path=cohesins_peaks_path,
                             centromere_info_path=centromeres_positions_path,
                             score_cutoff=sc,
-                            cen_filter_span=40000,
+                            cen_filter_span=60000,
                             cen_filter_mode=m,
                             output_dir=cohesins_dir+'pondered/'+sshic_pcrdupt_dir,
                             plot=False
