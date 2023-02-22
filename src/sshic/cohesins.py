@@ -35,9 +35,11 @@ def freq_focus_around_cohesin_peaks(
 
     df_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                            names=['chr', 'start', 'end', 'uid', 'score'])
-    df_peaks = df_peaks[df_peaks['score'] > score_cutoff]
     df_peaks = df_peaks[~df_peaks['chr'].isin(excluded_chr)]
-    df_peaks = df_peaks.query("score > @score_cutoff and chr not in @excluded_chr")
+    if score_cutoff is not None:
+        df_peaks.sort_values(by='score', ascending=False, inplace=True)
+        df_peaks = df_peaks.iloc[:600, :]
+
     df_peaks['chr'] = df_peaks['chr'].map(lambda x: chr_order.index(x) if x in chr_order else len(chr_order))
     df_peaks.sort_values(by=['chr'], inplace=True)
     df_peaks['chr'] = df_peaks['chr'].map(lambda x: chr_order[x])
@@ -88,13 +90,11 @@ def freq_focus_around_cohesin_peaks(
     df = tools.sort_by_chr(df, 'chr', 'start', 'chr_bins')
     df['chr_bins'] = abs(df['chr_bins'] - (df['start'] // bin_size) * bin_size)
 
-    df_prime = df.copy(deep=True)
-    for row in peaks:
-        c, p = row
-        df_prime.loc[(df_prime.chr == c) & (df_prime.start == p), fragments] = \
-            df_prime.loc[(df_prime.chr == c) & (df_prime.start == p), fragments].diff()
-
-    df_prime = df_prime.dropna(axis=0).drop(columns='start')
+    grouped = df.groupby(['chr', 'start'])
+    df_prime = grouped[fragments].transform(lambda x: x.diff())
+    df_prime = pd.concat([df[['chr', 'chr_bins', 'start']], df_prime], axis=1)
+    df_prime = df_prime[df_prime.chr_bins != 16000]
+    df_prime.reset_index(drop=True, inplace=True)
 
     df_res = df.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
     df_res_prime = df_prime.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
@@ -110,8 +110,11 @@ def compute_average_aggregate(
         df_probes: pd.DataFrame,
         table_path: str,
         plot: bool,
-        plot_path: Optional[str]
+        plot_path: Optional[str],
+        option: Optional[str] = ""
 ):
+    if option != "":
+        option = '_'+option
 
     all_probes = df_probes.index.values
     res: dict = {}
@@ -123,7 +126,7 @@ def compute_average_aggregate(
             continue
         df_freq_cen =\
             df_cohesins_peaks_bins.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
-        df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cohesins.tsv', sep='\t')
+        df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cohesins{0}.tsv'.format(option), sep='\t')
         res[probe] = df_freq_cen
 
     df_mean = pd.DataFrame()
@@ -140,17 +143,18 @@ def compute_average_aggregate(
             plt.bar(pos, mean)
             plt.errorbar(pos, mean, yerr=std, fmt="o", color='g', capsize=5, clip_on=True)
             plt.ylim((ymin, None))
-            plt.title("Aggregated frequencies for probe {0} cohesins peaks".format(probe))
+            plt.title("Aggregated frequencies {0} for probe {1} cohesins peaks".format(option, probe))
             plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
             plt.xticks(rotation=45)
             plt.ylabel("Average frequency made and standard deviation")
-            plt.savefig(plot_path + "{0}_cohesins_aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=96)
+            plt.savefig(plot_path+"{0}_cohesins_aggregated_{1}frequencies_plot.{2}".format(probe, option, 'jpg'),
+                        dpi=96)
             plt.close()
 
         df_mean[probe] = mean
         df_std[probe] = std
-    df_mean.to_csv(table_path + 'mean_on_cohesins.tsv', sep='\t')
-    df_std.to_csv(table_path + 'std_on_cohesins.tsv', sep='\t')
+    df_mean.to_csv(table_path + 'mean_on_cohesins.{0}.tsv'.format(option), sep='\t')
+    df_std.to_csv(table_path + 'std_on_cohesins{0}.tsv'.format(option), sep='\t')
 
 
 def mkdir(output_path: str,
@@ -169,7 +173,10 @@ def mkdir(output_path: str,
     if not os.path.exists(dir_mode):
         os.makedirs(dir_mode)
 
-    dir_score = dir_mode + str(score_h) + '/'
+    if score_h is not None:
+        dir_score = dir_mode + 'top_' + str(score_h) + '/'
+    else:
+        dir_score = dir_mode + 'all/'
     if not os.path.exists(dir_score):
         os.makedirs(dir_score)
 
@@ -190,7 +197,7 @@ def run(
         window_size: int,
         cohesins_peaks_path: str,
         centromere_info_path: str,
-        score_cutoff: int,
+        score_cutoff: int | None,
         cen_filter_span: int,
         cen_filter_mode: str | None,
         output_dir: str,
@@ -204,7 +211,7 @@ def run(
         filter_mode=cen_filter_mode,
         filter_span=cen_filter_span)
 
-    df_contacts_cohesins, df_probes = freq_focus_around_cohesin_peaks(
+    df_contacts_cohesins, df_contacts_cohesins_prime, df_probes = freq_focus_around_cohesin_peaks(
         formatted_contacts_path=formatted_contacts_path,
         probes_to_fragments_path=probes_to_fragments_path,
         centros_info_path=centromere_info_path,
@@ -220,3 +227,11 @@ def run(
         table_path=dir_table,
         plot=plot,
         plot_path=dir_plot)
+
+    compute_average_aggregate(
+        df_cohesins_peaks_bins=df_contacts_cohesins,
+        df_probes=df_probes,
+        table_path=dir_table,
+        plot=plot,
+        plot_path=dir_plot,
+        option='derivative')

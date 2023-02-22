@@ -336,8 +336,8 @@ def run(
     #################################
     if operations['cohesins'] == 1:
         cohesins_filter_list = ['inner', 'outer', None]
-        cohesins_filter_span = 40000
-        cohesins_filter_scores_list = [100, 200, 600, 1000, 2000, 3000]
+        cohesins_filter_span = 60000
+        cohesins_top_scores_filter_list = [600, None]
         print('\n')
         print('raw binned tables')
         samples_not_pondered = \
@@ -348,8 +348,11 @@ def run(
                       'filtered around the chr centromeres'.format(cohesins_filter_span, m))
             else:
                 print('aggregated on cohesins peaks')
-            for sc in cohesins_filter_scores_list:
-                print('peak scores higher than {0}'.format(sc))
+            for sc in cohesins_top_scores_filter_list:
+                if sc is not None:
+                    print('top {0} peak scores'.format(sc))
+                else:
+                    print('all peaks, no score filter')
                 if parallel:
                     with mp.Pool(threads) as p:
                         p.starmap(cohesins.run, [(
@@ -362,7 +365,7 @@ def run(
                             cohesins_filter_span,
                             m,
                             cohesins_dir+'not_pondered/'+sshic_pcrdupt_dir,
-                            False) for samp in samples_not_pondered]
+                            False) for samp in samples_not_pondered],
                         )
                 else:
                     for samp in samples_not_pondered:
@@ -373,22 +376,26 @@ def run(
                             cohesins_peaks_path=cohesins_peaks_path,
                             centromere_info_path=centromeres_positions_path,
                             score_cutoff=sc,
-                            cen_filter_span=40000,
+                            cen_filter_span=cohesins_filter_span,
                             cen_filter_mode=m,
                             output_dir=cohesins_dir+'not_pondered/'+sshic_pcrdupt_dir,
                             plot=False
                         )
         print('\n')
         print('pondered binned tables')
-        samples_pondered = sorted(os.listdir(pondered_dir+sshic_pcrdupt_dir+'1kb/'))
+        samples_pondered = \
+            sorted([f for f in os.listdir(pondered_dir + sshic_pcrdupt_dir + '1kb/') if 'contacts' in f])
         for m in cohesins_filter_list:
             if m is not None:
                 print('aggregated on cohesins peaks, {1} {0} '
                       'filtered around the chr centromeres'.format(cohesins_filter_span, m))
             else:
                 print('aggregated on cohesins peaks')
-            for sc in cohesins_filter_scores_list:
-                print('peak scores higher than {0}'.format(sc))
+            for sc in cohesins_top_scores_filter_list:
+                if sc is not None:
+                    print('top {0} peak scores'.format(sc))
+                else:
+                    print('all peaks, no score filter')
                 if parallel:
                     with mp.Pool(threads) as p:
                         p.starmap(cohesins.run, [(
@@ -401,7 +408,7 @@ def run(
                             cohesins_filter_span,
                             m,
                             cohesins_dir+'pondered/'+sshic_pcrdupt_dir,
-                            False) for samp in samples_pondered]
+                            False) for samp in samples_pondered],
                         )
                 else:
                     for samp in samples_pondered:
@@ -412,7 +419,7 @@ def run(
                             cohesins_peaks_path=cohesins_peaks_path,
                             centromere_info_path=centromeres_positions_path,
                             score_cutoff=sc,
-                            cen_filter_span=60000,
+                            cen_filter_span=cohesins_filter_span,
                             cen_filter_mode=m,
                             output_dir=cohesins_dir+'pondered/'+sshic_pcrdupt_dir,
                             plot=False
