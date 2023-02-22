@@ -230,12 +230,12 @@ if __name__ == "__main__":
         df10['chr_bins'] = abs(df10['chr_bins'] - (df10['start'] // 1000) * 1000)
         df10.drop(columns=['uid', 'end', 'score'], axis=1, inplace=True)
 
-        for row in peaks:
-            c, p = row
-            df10.loc[(df10.chr == c) & (df10.start == p), columns] = \
-                df10.loc[(df10.chr == c) & (df10.start == p), columns].diff()
+        grouped = df10.groupby(['chr', 'start'])
+        df11 = grouped[columns].transform(lambda x: x.diff())
+        df11 = pd.concat([df10[['chr', 'chr_bins', 'start']], df11], axis=1)
+        df11 = df11.dropna(axis=0).drop(columns='start')
+        df11.reset_index(drop=True, inplace=True)
 
-        df11 = df10.dropna(axis=0).drop(columns='start')
         df12 = df11.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
         df_cohesins_mean = pd.DataFrame()
         df_cohesins_std = pd.DataFrame()
