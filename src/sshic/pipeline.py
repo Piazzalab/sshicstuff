@@ -3,8 +3,8 @@ import re
 from itertools import chain
 import multiprocessing as mp
 import numpy as np
-from sshic import binning, nucleosomes, statistics, filter, format, \
-    ponder_mutants, telomeres, centromeres, cohesins
+from sshic import binning, statistics, filter, format, \
+    ponder_mutants, telomeres, centromeres, cohesins, nucleosomes2
 
 
 def run(
@@ -15,7 +15,7 @@ def run(
         cohesins_peaks_path: str,
         wt_references_dir: str,
         samples_to_compare_wt: dict,
-        nfr_list_path: str,
+        single_nucleosomes_list: str,
         outputs_dir: str,
         operations: dict,
         sshic_pcrdupt_dir: str,
@@ -197,39 +197,25 @@ def run(
     #################################
     if operations['nucleosomes'] == 1:
         print('look for fragments inside and outside NFR')
-
-        nfr_in_file = 'fragments_list_in_nfr.tsv'
-        nfr_out_file = 'fragments_list_out_nfr.tsv'
         samples = sorted([f for f in os.listdir(not_binned_dir) if 'contacts.tsv' in f])
-        for f_filter in fragments_nfr_filter_list:
-            print(f_filter)
-            filter_dir = f_filter + '/'
-            if not os.path.exists(nucleosomes_dir+filter_dir):
-                os.makedirs(nucleosomes_dir+filter_dir)
-                nucleosomes.preprocess(
+        fragments_with_scores_list = nucleosomes_dir+'fragments_list_single_nucleosomes_score.tsv'
+        if not os.path.exists(nucleosomes_dir):
+            os.makedirs(nucleosomes_dir)
+            if not os.path.exists(fragments_with_scores_list):
+                nucleosomes2.preprocess(
                     fragments_list_path=fragment_list_path,
-                    fragments_nfr_filter=f_filter,
-                    nucleosomes_path=nfr_list_path,
-                    output_dir=nucleosomes_dir+filter_dir
+                    single_nucleosomes_scores_path=single_nucleosomes_list,
+                    output_dir=nucleosomes_dir
                 )
-            if parallel:
-                with mp.Pool(threads) as p:
-                    p.starmap(nucleosomes.run, [(
-                        not_binned_dir+samp,
-                        probes_to_fragments_path,
-                        nucleosomes_dir+filter_dir+nfr_in_file,
-                        nucleosomes_dir+filter_dir+nfr_out_file,
-                        nucleosomes_dir+filter_dir+sshic_pcrdupt_dir) for samp in samples]
-                              )
-            else:
-                for samp in samples:
-                    nucleosomes.run(
-                        formatted_contacts_path=not_binned_dir+samp,
-                        probes_to_fragments_path=probes_to_fragments_path,
-                        fragments_in_nfr_path=nucleosomes_dir+filter_dir+nfr_in_file,
-                        fragments_out_nfr_path=nucleosomes_dir+filter_dir+nfr_out_file,
-                        output_dir=nucleosomes_dir+filter_dir+sshic_pcrdupt_dir
-                    )
+
+        for samp in samples:
+            nucleosomes2.run(
+                formatted_contacts_path=not_binned_dir+samp,
+                probes_to_fragments_path=probes_to_fragments_path,
+                fragments_nucleosomes_score_list=fragments_with_scores_list,
+                output_dir=nucleosomes_dir+sshic_pcrdupt_dir
+            )
+
 
     #################################
     #   CENTROMERES

@@ -23,10 +23,10 @@ if __name__ == "__main__":
         'binning': 0,
         'statistics': 0,
         'ponder': 0,
-        'nucleosomes': 0,
+        'nucleosomes': 1,
         'centromeres': 0,
         'telomeres': 0,
-        'cohesins': 1,
+        'cohesins': 0,
     }
 
     #   INPUTS
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     oligos_positions = inputs_dir + "capture_oligo_positions.csv"
     centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
     cohesins_peaks_bed = inputs_dir + "HB65_reference_peaks_score50min.bed"
-    nucleosomes_free_regions = inputs_dir + "Chereji_Henikoff_genome_research_NFR.bed"
+    nucleosomes_free_regions = inputs_dir + "Chereji_2018/Chereji_2018_Occupancy_H3_CC_V64.bed"
     ref_wt_dir = inputs_dir + "capture_efficiencies/"
 
     samples_to_compare_wt: dict = {
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             cohesins_peaks_path=cohesins_peaks_bed,
             wt_references_dir=ref_wt_dir,
             samples_to_compare_wt=samples_to_compare_wt,
-            nfr_list_path=nucleosomes_free_regions,
+            single_nucleosomes_list=nucleosomes_free_regions,
             outputs_dir=outputs_dir,
             operations=operations,
             sshic_pcrdupt_dir=hicd+'/',
