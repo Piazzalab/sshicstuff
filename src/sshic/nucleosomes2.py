@@ -1,8 +1,29 @@
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
+
+
+def process_chunk(args):
+    df_fragments_chr_mask, df_nucleosomes_chr_mask, current_chr = args
+    frag_starts = df_fragments_chr_mask['start'].values
+    frag_ends = df_fragments_chr_mask['end'].values
+    nucleosome_starts = df_nucleosomes_chr_mask['start'].values
+    nucleosome_ends = df_nucleosomes_chr_mask['end'].values
+    nucleosome_scores = df_nucleosomes_chr_mask['score'].values
+    nucleosomes_average_score = []
+    for i in range(len(df_fragments_chr_mask)):
+        nucleosome_mask = np.array((nucleosome_starts >= frag_starts[i]) & (nucleosome_ends <= frag_ends[i]))
+        nucleosome_scores_i = nucleosome_scores[nucleosome_mask]
+        if len(nucleosome_scores_i) == 0:
+            average_score = 0.
+        else:
+            average_score = np.average(nucleosome_scores_i)
+        nucleosomes_average_score.append(average_score)
+    print(current_chr)
+    return {current_chr: nucleosomes_average_score}
 
 
 if __name__ == "__main__":
@@ -23,26 +44,20 @@ if __name__ == "__main__":
     excluded_chr = ['2_micron', 'mitochondrion', 'chr_artificial']
     df_fragments = df_fragments[~df_fragments['chr'].isin(excluded_chr)]
 
-    counter = 0
-    nucleosomes_average_score = np.zeros(len(df_fragments), dtype=float)
+    df_fragments['average_scores'] = np.zeros(df_fragments.shape[0], dtype=float)
+    args_list = []
+    eff_cores = int(mp.cpu_count()/2)
     for c in pd.unique(df_fragments.chr):
         df_frag_chr_mask = df_fragments[df_fragments.chr == c]
         df_nucleosomes_chr_mask = df_nucleosomes[df_nucleosomes.chr == c]
+        args_list.append((df_frag_chr_mask, df_nucleosomes_chr_mask, c))
 
-        frag_starts = df_frag_chr_mask['start'].values
-        frag_ends = df_frag_chr_mask['end'].values
-        nucleosome_starts = df_nucleosomes_chr_mask['start'].values
-        nucleosome_ends = df_nucleosomes_chr_mask['end'].values
-        nucleosome_scores = df_nucleosomes_chr_mask['score'].values
+    with mp.Pool(processes=eff_cores) as pool:
+        chunk_results = pool.map(process_chunk, args_list)
 
-        for i in range(len(df_frag_chr_mask)):
-            nucleosome_mask = (nucleosome_starts >= frag_starts[i]) & (nucleosome_ends <= frag_ends[i])
-            nucleosome_scores_i = nucleosome_scores[nucleosome_mask]
-            average_score = np.average(nucleosome_scores_i)
-            nucleosomes_average_score[counter] = average_score
-            counter += 1
-            print(counter)
-
-    df_fragments['average_score'] = nucleosomes_average_score
+    counter = 0
+    results = {list(d.keys())[0]: list(d.values())[0] for d in chunk_results}
+    for chrom, scores in results.items():
+        df_fragments.loc[df_fragments['chr'] == chrom, 'average_scores'] = scores
 
     pass
