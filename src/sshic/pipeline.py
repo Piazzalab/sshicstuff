@@ -178,7 +178,7 @@ def run(
                         binning_dir+sshic_pcrdupt_dir+bin_dir+binned_contacts_list[ii_samp],
                         statistics_dir+sshic_pcrdupt_dir+statistics_tables_list[ii_samp],
                         pondered_dir+sshic_pcrdupt_dir+bin_dir) for ii_samp, samp in enumerate(samples_id)]
-                              )
+                        )
 
             else:
                 for ii_samp, samp in enumerate(samples_id):
@@ -196,8 +196,8 @@ def run(
     #   NUCLEOSOMES
     #################################
     if operations['nucleosomes'] == 1:
-        print('look for fragments inside and outside NFR')
-        samples = sorted([f for f in os.listdir(not_binned_dir) if 'contacts.tsv' in f])
+        print('look for fragments contacts correlation with single nucleosomes occupancy')
+        samples = sorted([f for f in os.listdir(not_binned_dir) if 'frequencies.tsv' in f])
         fragments_with_scores_list = nucleosomes_dir+'fragments_list_single_nucleosomes_score.tsv'
         if not os.path.exists(nucleosomes_dir):
             os.makedirs(nucleosomes_dir)
@@ -208,14 +208,17 @@ def run(
                     output_dir=nucleosomes_dir
                 )
 
-        for samp in samples:
-            nucleosomes2.run(
-                formatted_contacts_path=not_binned_dir+samp,
-                probes_to_fragments_path=probes_to_fragments_path,
-                fragments_nucleosomes_score_list=fragments_with_scores_list,
-                output_dir=nucleosomes_dir+sshic_pcrdupt_dir
-            )
-
+        bins_for_deviation = ['10kb/']
+        for b in bins_for_deviation:
+            for samp in samples:
+                nucleosomes2.run(
+                    formatted_contacts_path=not_binned_dir+samp,
+                    binned_contacts_path=binning_dir+sshic_pcrdupt_dir+b+samp,
+                    samples_to_compare=samples_to_compare_wt,
+                    probes_to_fragments_path=probes_to_fragments_path,
+                    fragments_nucleosomes_score_list=fragments_with_scores_list,
+                    output_dir=nucleosomes_dir+sshic_pcrdupt_dir
+                )
 
     #################################
     #   CENTROMERES
