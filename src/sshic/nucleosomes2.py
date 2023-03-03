@@ -3,9 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
-
 import matplotlib.pyplot as plt
-import seaborn as sns
+from scipy.stats import gaussian_kde
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -36,7 +35,6 @@ def preprocess(
         single_nucleosomes_scores_path,
         output_dir: str
 ):
-
     roman_chr = {'chrI': 'chr1', 'chrII': 'chr2', 'chrIII': 'chr3', 'chrIV': 'chr4',
                  'chrV': 'chr5', 'chrVI': 'chr6', 'chrVII': 'chr7', 'chrVIII': 'chr8',
                  'chrIX': 'chr9', 'chrX': 'chr10', 'chrXI': 'chr11', 'chrXII': 'chr12',
@@ -53,7 +51,7 @@ def preprocess(
 
     df_fragments['average_scores'] = np.zeros(df_fragments.shape[0], dtype=float)
     args_list = []
-    eff_cores = int(mp.cpu_count()/2)
+    eff_cores = int(mp.cpu_count() / 2)
     for c in pd.unique(df_fragments.chr):
         df_frag_chr_mask = df_fragments[df_fragments.chr == c]
         df_nucleosomes_chr_mask = df_nucleosomes[df_nucleosomes.chr == c]
@@ -66,7 +64,32 @@ def preprocess(
     for chrom, scores in results.items():
         df_fragments.loc[df_fragments['chr'] == chrom, 'average_scores'] = scores
 
-    df_fragments.to_csv(output_dir+'fragments_list_single_nucleosomes_score.tsv', sep='\t', index_label='fragments')
+    df_fragments.to_csv(output_dir + 'fragments_list_single_nucleosomes_score.tsv', sep='\t', index_label='fragments')
+
+
+def plot_freq_vs_score(
+        df: pd.DataFrame,
+        probe_name: str,
+        plot_path: str
+):
+    x = df['average_scores']
+    y = df['freq_normalized']
+
+    xy = np.vstack([x, y])
+    z = gaussian_kde(xy)(xy)
+
+    plt.figure(figsize=(11, 8))
+    plt.scatter(x, y, c=z, marker='.', s=8)
+    plt.title("Frequencies of contacts between {0} and genome compared \n"
+              "to the score on single nucleosome occupancy".format(probe_name))
+    plt.xlabel("Single nucleosome average score per fragment")
+    plt.ylabel("Frequencies of contacts")
+    plt.yscale('log')
+    plt.xscale('log')
+    plt.colorbar()
+    plt.savefig(plot_path + 'plot_' + probe_name + '_frequencies_vs_single_nucleosomes_score.jpg', dpi=96)
+    plt.close()
+    # plt.show()
 
 
 def run(
@@ -77,6 +100,11 @@ def run(
         fragments_nucleosomes_score_list: str,
         output_dir: str
 ):
+    sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
+    samples_of_interest = samples_to_compare['wt4h']
+    if sample_id not in samples_of_interest:
+        return None
+
     excluded_chr = ['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=False)
     df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
@@ -85,21 +113,24 @@ def run(
     df_fragments_with_scores = pd.read_csv(fragments_nucleosomes_score_list, sep='\t', index_col=0)
 
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
-    samples_of_interest = [samples_to_compare['wt4h']]
-
     probes_left = ['Probe_URA-L-6065-SspI-RC', 'Probe_URA-L-3728-SspI-RC',
                    'Probe_URA-L-3081-MfeI-RC', 'Probe_URA-L-2599-MfeI-RC']
 
     probes_right = ['Probe_URA-R-2954-SspI', 'Probe_URA-R-8073-SspI',
                     'Probe_URA-R-12116-SspI', 'Probe_URA-R-2715-93-SspI']
 
+    probes_control = ['chr4-64420-CDC13', 'chr8-428677-DNA2', 'chr15-996452-MEK1', 'chr2-650593-MET8',
+                      'chr15-620339-PDR5', 'chr10-449622-POL31', 'chr8-140404-ARG4-54nt', 'Neg_chr8-103079',
+                      'Neg_chr4-200383', 'Neg_chr2-199707', 'Neg_chr15-331170']
+
     binsize = df_contacts_binned.chr_bins[1] - df_contacts_binned.chr_bins[0]
+    output_dir += sample_id + '/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     fragments_left = []
     fragments_right = []
+    fragments_ctl = []
     for (l_probe, r_probe) in zip(probes_left, probes_right):
         l_frag = str(df_probes.loc[l_probe, 'frag_id'])
         r_frag = str(df_probes.loc[r_probe, 'frag_id'])
@@ -108,56 +139,62 @@ def run(
         if r_frag in df_contacts.columns:
             fragments_right.append(r_frag)
 
+    for ctl_probe in probes_control:
+        ctl_frag = str(df_probes.loc[ctl_probe, 'frag_id'])
+        if ctl_frag in df_contacts.columns:
+            fragments_ctl.append(ctl_frag)
+
+    #   Left probes
     df_contacts_left = df_contacts[['chr', 'positions', 'sizes']]
     df_contacts_left['mean'] = df_contacts[fragments_left].mean(axis=1)
     df_contacts_left = df_contacts_left[df_contacts_left['mean'] > 0.]
     df_contacts_binned_left = df_contacts_binned[['chr', 'chr_bins']]
     df_contacts_binned_left['mean'] = df_contacts_binned[fragments_left].mean(axis=1)
+    dfl = pd.DataFrame({'chr': df_contacts_left['chr'], 'start': df_contacts_left['positions'],
+                        'sizes': df_contacts_left['sizes'], 'freq': df_contacts_left['mean']})
 
+    dfl2 = pd.merge(dfl, df_fragments_with_scores, on=['chr', 'start'])
+    dfl2.insert(2, 'chr_bins', (dfl2.start // binsize) * binsize)
+    dfl3 = pd.merge(dfl2, df_contacts_binned_left[['chr', 'chr_bins', 'mean']], on=['chr', 'chr_bins'])
+    dfl3['freq_normalized'] = (dfl3['freq'] / dfl3['sizes']) / (dfl3['mean'] / binsize)
+    dfl4 = dfl3[['chr', 'start', 'freq_normalized', 'average_scores']]
+    dfl4.to_csv(output_dir + 'L-6065-3728-3081-2599_mean_frequencies.tsv', sep='\t')
+    plot_freq_vs_score(df=dfl4, probe_name='L-6065-3728-3081-2599_mean', plot_path=output_dir)
+
+    #   Right probes
     df_contacts_right = df_contacts[['chr', 'positions', 'sizes']]
     df_contacts_right['mean'] = df_contacts[fragments_right].mean(axis=1)
     df_contacts_right = df_contacts_right[df_contacts_right['mean'] > 0.]
     df_contacts_binned_right = df_contacts_binned[['chr', 'chr_bins']]
     df_contacts_binned_right['mean'] = df_contacts_binned[fragments_right].mean(axis=1)
-
-    dfl = pd.DataFrame({'chr': df_contacts_left['chr'],
-                        'start': df_contacts_left['positions'],
-                        'sizes': df_contacts_left['sizes'],
-                        'freq': df_contacts_left['mean']})
-
-    dfl2 = pd.merge(dfl, df_fragments_with_scores, on=['chr', 'start'])
-    dfl2.insert(2, 'chr_bins', (dfl2.start // binsize)*binsize)
-    dfl3 = pd.merge(dfl2, df_contacts_binned_left[['chr', 'chr_bins', 'mean']], on=['chr', 'chr_bins'])
-    dfl3['freq_normalized'] = (dfl3['freq'] / dfl3['sizes']) / (dfl3['mean'] / binsize)
-    dfl4 = dfl3[['chr', 'start', 'freq_normalized', 'average_scores']]
-
-    dfr = pd.DataFrame({'chr': df_contacts_right['chr'],
-                        'start': df_contacts_right['positions'],
-                        'sizes': df_contacts_right['sizes'],
-                        'freq': df_contacts_right['mean']})
+    dfr = pd.DataFrame({'chr': df_contacts_right['chr'], 'start': df_contacts_right['positions'],
+                        'sizes': df_contacts_right['sizes'], 'freq': df_contacts_right['mean']})
 
     dfr2 = pd.merge(dfr, df_fragments_with_scores, on=['chr', 'start'])
-    dfr2.insert(2, 'chr_bins', (dfr2.start // binsize)*binsize)
+    dfr2.insert(2, 'chr_bins', (dfr2.start // binsize) * binsize)
     dfr3 = pd.merge(dfr2, df_contacts_binned_right[['chr', 'chr_bins', 'mean']], on=['chr', 'chr_bins'])
-    dfr3['freq_normalized'] = (dfr3['freq']/dfr3['sizes']) / (dfr3['mean']/binsize)
+    dfr3['freq_normalized'] = (dfr3['freq'] / dfr3['sizes']) / (dfr3['mean'] / binsize)
     dfr4 = dfr3[['chr', 'start', 'freq_normalized', 'average_scores']]
+    dfr4.to_csv(output_dir + 'R-2954-8073-12116-2715_mean_frequencies.tsv', sep='\t')
+    plot_freq_vs_score(df=dfr4, probe_name='R-2954-8073-12116-2715_mean', plot_path=output_dir)
 
-    x = dfr4['average_scores']
-    y = dfr4['freq_normalized']
+    #   Control probes
+    for frag in fragments_ctl:
+        probe = df_probes[df_probes['frag_id'] == int(frag)].index[0]
+        df_contacts_ctl = df_contacts[['chr', 'positions', 'sizes', frag]]
+        df_contacts_ctl = df_contacts_ctl[df_contacts_ctl[frag] > 0.]
+        df_contacts_binned_ctl = df_contacts_binned[['chr', 'chr_bins', frag]]
 
-    from scipy.stats import gaussian_kde
-    xy = np.vstack([x, y])
-    z = gaussian_kde(xy)(xy)
+        dfctl = pd.DataFrame({'chr': df_contacts_ctl['chr'],
+                              'start': df_contacts_ctl['positions'],
+                              'sizes': df_contacts_ctl['sizes'],
+                              'freq': df_contacts_ctl[frag]})
 
-    plt.figure(figsize=(11, 8))
-    plt.scatter(x, y, c=z, marker='.', s=8)
-    plt.yscale('log')
-    plt.xscale('log')
-    plt.colorbar()
-    plt.show()
-
-    pass
-
-
-
+        dfctl2 = pd.merge(dfctl, df_fragments_with_scores, on=['chr', 'start'])
+        dfctl2.insert(2, 'chr_bins', (dfctl2.start // binsize) * binsize)
+        dfctl3 = pd.merge(dfctl2, df_contacts_binned_ctl[['chr', 'chr_bins', frag]], on=['chr', 'chr_bins'])
+        dfctl3['freq_normalized'] = (dfctl3['freq'] / dfctl3['sizes']) / (dfctl3[frag] / binsize)
+        dfctl4 = dfctl3[['chr', 'start', 'freq_normalized', 'average_scores']]
+        dfctl4.to_csv(output_dir + probe + '_mean_frequencies.tsv', sep='\t')
+        plot_freq_vs_score(df=dfctl4, probe_name=probe, plot_path=output_dir)
 

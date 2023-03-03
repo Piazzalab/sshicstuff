@@ -217,7 +217,7 @@ def run(
                     samples_to_compare=samples_to_compare_wt,
                     probes_to_fragments_path=probes_to_fragments_path,
                     fragments_nucleosomes_score_list=fragments_with_scores_list,
-                    output_dir=nucleosomes_dir+sshic_pcrdupt_dir
+                    output_dir=nucleosomes_dir+sshic_pcrdupt_dir+b
                 )
 
     #################################
