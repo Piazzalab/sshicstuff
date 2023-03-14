@@ -214,11 +214,23 @@ def run(
                 nucleosomes2.run(
                     formatted_contacts_path=not_binned_dir+samp,
                     binned_contacts_path=binning_dir+sshic_pcrdupt_dir+b+samp,
-                    samples_to_compare=samples_to_compare_wt,
                     probes_to_fragments_path=probes_to_fragments_path,
                     fragments_nucleosomes_score_list=fragments_with_scores_list,
+                    score_filter=0.5,
                     output_dir=nucleosomes_dir+sshic_pcrdupt_dir+b
                 )
+
+        # bins_for_deviation = ['10kb/']
+        # for b in bins_for_deviation:
+        #     for samp in samples:
+        #         nucleosomes2.run(
+        #             formatted_contacts_path=not_binned_dir+samp,
+        #             binned_contacts_path=binning_dir+sshic_pcrdupt_dir+b+samp,
+        #             samples_to_compare=samples_to_compare_wt,
+        #             probes_to_fragments_path=probes_to_fragments_path,
+        #             fragments_nucleosomes_score_list=fragments_with_scores_list,
+        #             output_dir=nucleosomes_dir+sshic_pcrdupt_dir+b
+        #         )
 
     #################################
     #   CENTROMERES
