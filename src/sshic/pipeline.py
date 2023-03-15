@@ -197,7 +197,7 @@ def run(
     #################################
     if operations['nucleosomes'] == 1:
         print('look for fragments contacts correlation with single nucleosomes occupancy')
-        samples = sorted([f for f in os.listdir(not_binned_dir) if 'frequencies.tsv' in f])
+        samples = sorted([f for f in os.listdir(not_binned_dir) if 'contacts.tsv' in f])
         fragments_with_scores_list = nucleosomes_dir+'fragments_list_single_nucleosomes_score.tsv'
         if not os.path.exists(nucleosomes_dir):
             os.makedirs(nucleosomes_dir)
@@ -208,17 +208,14 @@ def run(
                     output_dir=nucleosomes_dir
                 )
 
-        bins_for_deviation = ['10kb/']
-        for b in bins_for_deviation:
-            for samp in samples:
-                nucleosomes2.run(
-                    formatted_contacts_path=not_binned_dir+samp,
-                    binned_contacts_path=binning_dir+sshic_pcrdupt_dir+b+samp,
-                    probes_to_fragments_path=probes_to_fragments_path,
-                    fragments_nucleosomes_score_list=fragments_with_scores_list,
-                    score_filter=0.5,
-                    output_dir=nucleosomes_dir+sshic_pcrdupt_dir+b
-                )
+        for samp in samples:
+            nucleosomes2.run(
+                formatted_contacts_path=not_binned_dir+samp,
+                probes_to_fragments_path=probes_to_fragments_path,
+                fragments_nucleosomes_score_list=fragments_with_scores_list,
+                score_filter=0.5,
+                output_dir=nucleosomes_dir+sshic_pcrdupt_dir
+            )
 
         # bins_for_deviation = ['10kb/']
         # for b in bins_for_deviation:

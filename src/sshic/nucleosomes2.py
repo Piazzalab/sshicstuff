@@ -94,24 +94,78 @@ def plot_freq_vs_score(
 
 def run(
         formatted_contacts_path: str,
-        binned_contacts_path: str,
         probes_to_fragments_path: str,
         fragments_nucleosomes_score_list: str,
         score_filter: int | float,
         output_dir: str
 ):
+
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
+    output_dir += sample_id + '/'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     excluded_chr = ['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=False)
+    df_contacts.rename(columns={'positions': 'start'}, inplace=True)
     df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
-    df_contacts_binned = pd.read_csv(binned_contacts_path, sep='\t', index_col=False)
-    df_contacts_binned = df_contacts_binned[~df_contacts_binned['chr'].isin(excluded_chr)]
     df_fragments_with_scores = pd.read_csv(fragments_nucleosomes_score_list, sep='\t', index_col=0)
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
-    df_fragments_kept = df_fragments_with_scores[df_fragments_with_scores['average_scores'] < 0.5]
+    #   We need to remove for each oligo the number of contact it makes with its own chr.
+    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+    #   We have to set them as NaN to not bias the average
+    for f in fragments:
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+        if probe_chr not in excluded_chr:
+            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
-    pass
+    #   Inter normalization
+    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    df_fragments_kept = df_fragments_with_scores[df_fragments_with_scores['average_scores'] < score_filter]
+    df_contacts_merged = pd.merge(df_fragments_kept, df_contacts, on=['chr', 'start'])
+
+    df_contacts_around_lnp = pd.DataFrame()
+    for _, row in df_contacts_merged.iterrows():
+        fragment_chr = row[0]
+        fragment_start = row[1]
+        df_contacts_chr_mask = df_contacts.loc[df_contacts.chr == fragment_chr]
+        index_contact = df_contacts.loc[df_contacts.start == fragment_start].index.tolist()[0]
+        tmp_df = df_contacts_chr_mask.loc[index_contact-10:index_contact+10, :]
+        tmp_id = list(tmp_df.index - index_contact)
+        tmp_df.insert(1, 'id', tmp_id)
+        for col in tmp_df.columns:
+            if col not in ['chr', 'id', 'start', 'sizes']:
+                contacts_0 = tmp_df.loc[tmp_df['id'] == 0, col].values
+                if len(contacts_0) > 0 and contacts_0 > 0:
+                    tmp_df[col] /= contacts_0[0]
+
+        df_contacts_around_lnp = pd.concat((df_contacts_around_lnp, tmp_df))
+
+    df_aggregated_lnp = df_contacts_around_lnp.groupby(by='id').mean(numeric_only=True)
+    df_aggregated_lnp.drop(columns=['start', 'sizes'], inplace=True)
+    df_aggregated_lnp.to_csv(output_dir + 'nucleosome_poor_region_aggregated.tsv', sep='\t')
+    for probe in df_probes.index.values:
+        probe_frag_id = str(df_probes.loc[probe, 'frag_id'])
+        if probe_frag_id not in df_aggregated_lnp.columns:
+            continue
+        if df_aggregated_lnp[probe_frag_id].sum() == 0.:
+            continue
+
+        x = df_aggregated_lnp.index.values
+        y = df_aggregated_lnp[probe_frag_id].to_numpy()
+        ymin = -np.max(y) * 0.01
+        plt.figure(figsize=(16, 12))
+        plt.bar(x, y)
+        plt.ylim((ymin, None))
+        plt.title("Aggregated frequencies for probe {0} around poor nucleosome regions".format(probe))
+        plt.xlabel("Genomic fragments")
+        plt.xticks(rotation=45)
+        plt.ylabel("Average frequency made and standard deviation")
+        plt.savefig(output_dir + "{0}_nucleosome_poor_region_aggregated.{1}".format(probe, 'jpg'),
+                    dpi=96)
+        plt.close()
 
 
 # def run(
