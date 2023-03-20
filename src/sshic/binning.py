@@ -39,8 +39,10 @@ def build_bins_from_genome(
 
 
 def get_fragments_contacts(
+        probes_to_fragments_path: str,
         filtered_contacts_path: str,
-        output_dir: str
+        output_dir: str,
+        additional=None,
 ):
     """
     This function aims to organise the contacts made by each probe with the genome.
@@ -58,49 +60,56 @@ def get_fragments_contacts(
         the absolute path toward the output directory to save the results
     """
 
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    fragments = pd.unique(df_probes['frag_id'])
+    if additional is None:
+        additional = {}
     samp_id = re.search(r"AD\d+", filtered_contacts_path).group()
     output_path = output_dir + samp_id
 
     df = pd.read_csv(filtered_contacts_path, sep='\t')
-    contacts = pd.DataFrame(columns=['chr', 'positions', 'sizes'])
-    contacts = contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
-    frequencies = contacts.copy(deep=True)
+    df_contacts = pd.DataFrame(columns=['chr', 'positions', 'sizes'])
+    df_contacts = df_contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
 
     for x in ['a', 'b']:
-        #   if x = a get b, if x = b get a
         y = tl.frag2(x)
         df2 = df[~pd.isna(df['name_' + x])]
-        unique_frag = pd.unique(df2['frag_'+x])
-        for frag in unique_frag:
-            df3 = df2[df2['frag_'+x] == frag]
 
-            tmp_c = pd.DataFrame({'chr': df3['chr_'+y], 'positions': df3['start_'+y],
-                                  'sizes': df3['size_'+y], frag: df3['contacts']})
+        for frag in fragments:
+            if frag not in pd.unique(df2['frag_'+x]):
+                tmp = pd.DataFrame({
+                    'chr': [np.nan],
+                    'positions': [np.nan],
+                    'sizes': [np.nan],
+                    frag: [np.nan]})
 
-            #   create the same dataframe but for frequencies
-            #   we divide all the contacts made by one probe (i.e., an entire column)
-            #   by the sum of contacts in the column
-            tmp_f = tmp_c.copy(deep=True)
-            tmp_f[frag] /= np.sum(tmp_f[frag])
+            else:
+                df3 = df2[df2['frag_'+x] == frag]
+                tmp = pd.DataFrame({
+                    'chr': df3['chr_'+y],
+                    'positions': df3['start_'+y],
+                    'sizes': df3['size_'+y],
+                    frag: df3['contacts']})
 
-            contacts = pd.concat([contacts, tmp_c])
-            frequencies = pd.concat([frequencies, tmp_f])
+            df_contacts = pd.concat([df_contacts, tmp])
 
-    group_c = contacts.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
-    group_f = frequencies.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
+    group = df_contacts.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
+    df_res_contacts = group.sum()
+    df_res_contacts = tl.sort_by_chr(df_res_contacts, 'chr', 'positions')
+    df_res_contacts.index = range(len(df_res_contacts))
 
-    res_c = group_c.sum()
-    res_f = group_f.sum()
+    df_res_frequencies = df_res_contacts.copy(deep=True)
+    for frag in fragments:
+        df_res_frequencies[frag] /= sum(df_res_frequencies[frag])
 
-    res_c = tl.sort_by_chr(res_c, 'chr', 'positions')
-    res_f = tl.sort_by_chr(res_f, 'chr', 'positions')
-
-    res_c.index = range(len(res_c))
-    res_c.index = range(len(res_f))
+    if len(additional) > 0:
+        for colname, colfrag in additional.items():
+            df_res_contacts[colname] = df_res_contacts[colfrag].mean(axis=1)
+            df_res_frequencies[colname] = df_res_frequencies[colfrag].mean(axis=1)
 
     #   Write into .tsv file contacts as there are and in the form of frequencies :
-    res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
-    res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+    df_res_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
+    df_res_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
 
 
 def center_around_probes_pos(
@@ -147,7 +156,8 @@ def rebin_contacts(
         bin_size: int,
         output_dir: str,
         probes_to_fragments_path: str,
-        chromosomes_coord_path: str
+        chromosomes_coord_path: str,
+        additional=None,
 ):
     """
     This function uses the previous one (get_fragments_contacts) and its 0kb binned formatted contacts files
@@ -164,6 +174,8 @@ def rebin_contacts(
     output_dir : str
         the absolute path toward the output directory to save the results
     """
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    fragments = pd.unique(df_probes['frag_id'])
 
     df_binned = build_bins_from_genome(
         path_to_chr_coord=chromosomes_coord_path,
@@ -173,8 +185,12 @@ def rebin_contacts(
     samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
     df = pd.read_csv(not_binned_samp_path, sep=tl.detect_delimiter(not_binned_samp_path))
 
-    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    fragments = [f for f in df.columns if re.match(r'\d+', str(f))]
+    if len(additional) > 0:
+        df = df.iloc[:, ~df.columns.isin(additional.keys())]
+
+    df = df.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
+    df.columns = [int(col) if col.isdigit() and int(col) in fragments else col for col in df.columns]
+
     df.insert(2, 'chr_bins', (df["positions"] // bin_size) * bin_size)
     df_binned_contacts = df.groupby(["chr", "chr_bins"], as_index=False).sum()
     df_binned_contacts.drop(['positions', 'sizes'], axis=1, inplace=True)
@@ -188,6 +204,12 @@ def rebin_contacts(
     df_binned_frequencies_full = pd.merge(df_binned, df_binned_frequencies,  on=['chr', 'chr_bins'], how='left')
     df_binned_contacts_full.fillna(0, inplace=True)
     df_binned_frequencies_full.fillna(0, inplace=True)
+
+    if len(additional) > 0:
+        for colname, colfrag in additional.items():
+            df_binned_contacts_full[colname] = df_binned_contacts_full[colfrag].mean(axis=1)
+            df_binned_frequencies_full[colname] = df_binned_frequencies_full[colfrag].mean(axis=1)
+
     df_binned_contacts_full.to_csv(output_dir + samp_id + '_contacts.tsv', sep='\t', index=False)
     df_binned_frequencies_full.to_csv(output_dir + samp_id + '_frequencies.tsv', sep='\t', index=False)
 

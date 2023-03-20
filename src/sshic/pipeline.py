@@ -71,6 +71,19 @@ def run(
     #################################
     #   BINNING
     #################################
+
+    additional_averages = {
+        'average_left': [18535, 18589, 18605, 18611, 18614, 18616],
+        'average_right': [18621, 18632, 18634, 18666, 18694],
+        'Average_3Left_(2599-3081-3728)': [18605, 18611, 18614],
+        'Average_4left_(less_4kb)': [18605, 18611, 18614, 18616],
+        'Average_left_(2599-3081-3728-6065)': [18605, 18611, 18614, 18589],
+        'Average_3right_(1439-2715-2954)': [18621, 18632, 18634],
+        'Average_4right_(1429-2715-2954-8072)': [18621, 18632, 18634, 18666],
+        'Average_2right_(2954-8072)': [18634, 18666],
+        'Average_right_(1439-2715)': [18621, 18632]
+    }
+
     if operations['binning'] == 1:
         if not os.path.exists(not_binned_dir):
             print("Organizing the contacts for each probe in the genome ('0kb' binning)")
@@ -80,14 +93,18 @@ def run(
             if parallel:
                 with mp.Pool(threads) as p:
                     p.starmap(binning.get_fragments_contacts, [(
+                        probes_to_fragments_path,
                         samples_dir + samp,
-                        not_binned_dir) for samp in samples]
+                        not_binned_dir,
+                        additional_averages) for samp in samples]
                         )
             else:
                 for samp in samples:
                     binning.get_fragments_contacts(
+                        probes_to_fragments_path=probes_to_fragments_path,
                         filtered_contacts_path=samples_dir+samp,
-                        output_dir=not_binned_dir
+                        output_dir=not_binned_dir,
+                        additional=additional_averages
                     )
 
         samples_dir = not_binned_dir
@@ -107,7 +124,8 @@ def run(
                         bs,
                         this_bin_dir,
                         probes_to_fragments_path,
-                        centromeres_positions_path) for samp in samples]
+                        centromeres_positions_path,
+                        additional_averages) for samp in samples]
                     )
 
             else:
@@ -117,7 +135,8 @@ def run(
                         bin_size=bs,
                         output_dir=this_bin_dir,
                         probes_to_fragments_path=probes_to_fragments_path,
-                        chromosomes_coord_path=centromeres_positions_path
+                        chromosomes_coord_path=centromeres_positions_path,
+                        additional=additional_averages
                     )
 
     #################################
