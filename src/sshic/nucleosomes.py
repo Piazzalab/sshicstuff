@@ -225,4 +225,4 @@ if __name__ == "__main__":
                     output_dir=nucleosomes_dir+sshic_dir
                 )
 
-        print('-- DONE --')
+    print('-- DONE --')
