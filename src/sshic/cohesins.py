@@ -3,11 +3,11 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 import os
 import re
 from typing import Optional
-from sshic import tools
-
+from tools import is_debug, sort_by_chr
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
 
@@ -87,7 +87,7 @@ def freq_focus_around_cohesin_peaks(
 
     df = df_merged_cohesins_areas_filtered.drop(
         columns=['left_arm_length', 'right_arm_length', 'length'], axis=1)
-    df = tools.sort_by_chr(df, 'chr', 'start', 'chr_bins')
+    df = sort_by_chr(df, 'chr', 'start', 'chr_bins')
     df['chr_bins'] = abs(df['chr_bins'] - (df['start'] // bin_size) * bin_size)
 
     grouped = df.groupby(['chr', 'start'])
@@ -99,8 +99,8 @@ def freq_focus_around_cohesin_peaks(
     df_res = df.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
     df_res_prime = df_prime.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
 
-    df_res = tools.sort_by_chr(df_res, 'chr', 'chr_bins')
-    df_res_prime = tools.sort_by_chr(df_res_prime, 'chr', 'chr_bins')
+    df_res = sort_by_chr(df_res, 'chr', 'chr_bins')
+    df_res_prime = sort_by_chr(df_res_prime, 'chr', 'chr_bins')
 
     return df_res, df_res_prime, df_probes
 
@@ -191,7 +191,7 @@ def mkdir(output_path: str,
     return dir_table, dir_plot
 
 
-def run(
+def main(
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
         window_size: int,
@@ -235,3 +235,113 @@ def run(
         plot=plot,
         plot_path=dir_plot,
         option='derivative')
+
+
+if __name__ == "__main__":
+    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+
+    outputs_dir = data_dir + 'outputs/'
+    inputs_dir = data_dir + 'inputs/'
+    binning_dir = outputs_dir + "binned/"
+    pondered_dir = outputs_dir + "pondered/"
+    cohesins_dir = outputs_dir + "cohesins/"
+    cohesins_peaks_path = inputs_dir + "HB65_reference_peaks_score50min.bed"
+    centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
+    probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
+    parallel = True
+
+    if is_debug():
+        parallel = False
+
+    for sshic_dir in sshic_pcrdupt_dir:
+        print(sshic_dir)
+        cohesins_filter_list = ['inner', 'outer', None]
+        cohesins_filter_span = 60000
+        cohesins_top_scores_filter_list = [600, None]
+        print('\n')
+        print('raw binned tables')
+        samples_not_pondered = \
+            sorted([f for f in os.listdir(binning_dir + sshic_dir + '1kb/') if 'frequencies.tsv' in f])
+        for m in cohesins_filter_list:
+            if m is not None:
+                print('aggregated on cohesins peaks, {1} {0} '
+                      'filtered around the chr centromeres'.format(cohesins_filter_span, m))
+            else:
+                print('aggregated on cohesins peaks')
+            for sc in cohesins_top_scores_filter_list:
+                if sc is not None:
+                    print('top {0} peak scores'.format(sc))
+                else:
+                    print('all peaks, no score filter')
+                if parallel:
+                    with mp.Pool(mp.cpu_count()) as p:
+                        p.starmap(main, [(
+                            binning_dir + sshic_dir + '1kb/' + samp,
+                            probes_and_fragments,
+                            15000,
+                            cohesins_peaks_path,
+                            centromeres_positions,
+                            sc,
+                            cohesins_filter_span,
+                            m,
+                            cohesins_dir + 'not_pondered/' + sshic_dir,
+                            False) for samp in samples_not_pondered],
+                        )
+                else:
+                    for samp in samples_not_pondered:
+                        main(
+                            formatted_contacts_path=binning_dir + sshic_dir + '1kb/' + samp,
+                            probes_to_fragments_path=probes_and_fragments,
+                            window_size=15000,
+                            cohesins_peaks_path=cohesins_peaks_path,
+                            centromere_info_path=centromeres_positions,
+                            score_cutoff=sc,
+                            cen_filter_span=cohesins_filter_span,
+                            cen_filter_mode=m,
+                            output_dir=cohesins_dir + 'not_pondered/' + sshic_dir,
+                            plot=False
+                        )
+        print('\n')
+        print('pondered binned tables')
+        samples_pondered = \
+            sorted([f for f in os.listdir(pondered_dir + sshic_dir + '1kb/') if 'contacts' in f])
+        for m in cohesins_filter_list:
+            if m is not None:
+                print('aggregated on cohesins peaks, {1} {0} '
+                      'filtered around the chr centromeres'.format(cohesins_filter_span, m))
+            else:
+                print('aggregated on cohesins peaks')
+            for sc in cohesins_top_scores_filter_list:
+                if sc is not None:
+                    print('top {0} peak scores'.format(sc))
+                else:
+                    print('all peaks, no score filter')
+                if parallel:
+                    with mp.Pool(mp.cpu_count()) as p:
+                        p.starmap(main, [(
+                            pondered_dir + sshic_dir + '1kb/' + samp,
+                            probes_and_fragments,
+                            15000,
+                            cohesins_peaks_path,
+                            centromeres_positions,
+                            sc,
+                            cohesins_filter_span,
+                            m,
+                            cohesins_dir + 'pondered/' + sshic_dir,
+                            False) for samp in samples_pondered],
+                                  )
+                else:
+                    for samp in samples_pondered:
+                        main(
+                            formatted_contacts_path=pondered_dir + sshic_dir + '1kb/' + samp,
+                            probes_to_fragments_path=probes_and_fragments,
+                            window_size=15000,
+                            cohesins_peaks_path=cohesins_peaks_path,
+                            centromere_info_path=centromeres_positions,
+                            score_cutoff=sc,
+                            cen_filter_span=cohesins_filter_span,
+                            cen_filter_mode=m,
+                            output_dir=cohesins_dir + 'pondered/' + sshic_dir,
+                            plot=False
+                        )

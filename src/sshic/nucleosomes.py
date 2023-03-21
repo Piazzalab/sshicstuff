@@ -1,222 +1,229 @@
-#! /usr/bin/env python3
-import os.path
-
+import re
+import os
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 import matplotlib.pyplot as plt
-from typing import Optional
-from scipy import stats
-import re
+from scipy.stats import gaussian_kde
+
+from tools import is_debug
+#   Set as None to avoid SettingWithCopyWarning
+pd.options.mode.chained_assignment = None
 
 
-def plot_size_distribution(
-        df: pd.DataFrame,
-        output_path: str,
-        mode: str = 'all',
-        bin_count: Optional[int] = None
-):
-
-    x = df['size'].values
-
-    if bin_count is None:
-        #   Freedman-Diaconis rule for optimal binning
-        q1 = np.quantile(x, 0.25)
-        q3 = np.quantile(x, 0.75)
-        iqr = q3 - q1
-        bin_width = (2 * iqr) / (len(x) ** (1 / 3))
-        bin_count = int(np.ceil((x.max() - x.min()) / bin_width))
-
-    xx = np.linspace(min(x), max(x), 10000)
-    kde = stats.gaussian_kde(x)
-    fig, ax = plt.subplots(figsize=(16, 14), dpi=300)
-    ax.hist(x, density=True, bins=bin_count, alpha=0.3, linewidth=1.2, edgecolor='black')
-    ax.plot(xx, kde(xx))
-    plt.ylabel('Numbers')
-
-    if mode == 'all':
-        plt.xlabel('Sizes of NFR')
-        plt.title("Distribution of NFR sizes")
-        plt.savefig(output_path + 'nfr_sizes_distribution.jpg', dpi=300)
-    else:
-        plt.xlabel('Sizes of fragments')
-        plt.title("Distribution of fragments sizes {0} NFR".format(mode))
-        plt.savefig(output_path + 'fragments_sizes_{0}_nfr_distribution.jpg'.format(mode), dpi=300)
-    # plt.show()
-    plt.close()
+def process_chunk(args):
+    df_fragments_chr_mask, df_nucleosomes_chr_mask, current_chr = args
+    frag_starts = df_fragments_chr_mask['start'].values
+    frag_ends = df_fragments_chr_mask['end'].values
+    nucleosome_starts = df_nucleosomes_chr_mask['start'].values
+    nucleosome_ends = df_nucleosomes_chr_mask['end'].values
+    nucleosome_scores = df_nucleosomes_chr_mask['score'].values
+    nucleosomes_average_score = []
+    for i in range(len(df_fragments_chr_mask)):
+        nucleosome_mask = np.array((nucleosome_starts >= frag_starts[i]) & (nucleosome_ends <= frag_ends[i]))
+        nucleosome_scores_i = nucleosome_scores[nucleosome_mask]
+        if len(nucleosome_scores_i) == 0:
+            average_score = 0.
+        else:
+            average_score = np.average(nucleosome_scores_i)
+        nucleosomes_average_score.append(average_score)
+    print(current_chr)
+    return {current_chr: nucleosomes_average_score}
 
 
 def preprocess(
         fragments_list_path: str,
-        fragments_nfr_filter: str,
-        nucleosomes_path,
+        single_nucleosomes_scores_path,
         output_dir: str
 ):
-    """
-    This function aims to part the fragments_list into two lists:
-    . one with the fragments that are located at the level of a NFR
-    . one with the  fragment that are not
-    There is multiples ways to consider whereas a fragment overlaps correctly a NFR, that's why we try
-    with multiple filters modes.
-
-    Distribution of size sare then plot and stored :
-    . histogram of fragments sizes within nfr
-    . histogram of fragments sizes not in nfr
-    . histogram on nfr sizes
-
-    ARGUMENTS
-    _____________
-
-    fragments_list_path :  str
-            path to the digested fragments list based on a restriction enzyme or a fixed chunk size.
-    fragments_nfr_filter: str
-        filter mode regarding how the fragment overlaps a nfr (the start of the fragment is
-        contained into the nfr, or its end, or both, or its midpoint ..)
-    nucleosomes_path : str
-        path to file with all nucleosomes free regions positions and lengths
-    output_dir  :  str
-            the absolute path toward the output directory to save the results
-    """
+    roman_chr = {'chrI': 'chr1', 'chrII': 'chr2', 'chrIII': 'chr3', 'chrIV': 'chr4',
+                 'chrV': 'chr5', 'chrVI': 'chr6', 'chrVII': 'chr7', 'chrVIII': 'chr8',
+                 'chrIX': 'chr9', 'chrX': 'chr10', 'chrXI': 'chr11', 'chrXII': 'chr12',
+                 'chrXIII': 'chr13', 'chrXIV': 'chr14', 'chrXV': 'chr15', 'chrXVI': 'chr16'}
 
     df_fragments = pd.read_csv(fragments_list_path, sep='\t')
-    df_fragments.insert(0, 'uid', df_fragments.index)
-    df_nucleosomes = pd.read_csv(nucleosomes_path, sep='\t')
-    df_nucleosomes.drop_duplicates(keep='first', inplace=True)
-    df_nucleosomes.index = range(len(df_nucleosomes))
+    df_fragments.rename(columns={'chrom': 'chr', 'start_pos': 'start', 'end_pos': 'end'}, inplace=True)
+    df_fragments = df_fragments[['chr', 'start', 'end']]
+    df_nucleosomes = pd.read_csv(single_nucleosomes_scores_path, sep='\t', header=None)
+    df_nucleosomes.columns = ['chr', 'start', 'end', 'score']
+    df_nucleosomes.replace({"chr": roman_chr}, inplace=True)
     excluded_chr = ['2_micron', 'mitochondrion', 'chr_artificial']
-    df_fragments = df_fragments[~df_fragments['chrom'].isin(excluded_chr)]
+    df_fragments = df_fragments[~df_fragments['chr'].isin(excluded_chr)]
 
-    df_merged = pd.merge(df_fragments, df_nucleosomes, on='chrom')
-    df_merged_in_nfr = pd.DataFrame()
-    match fragments_nfr_filter:
-        case 'start_only':
-            df_merged_in_nfr = df_merged[
-                (df_merged.start_pos > df_merged.start) & (df_merged.start_pos < df_merged.end)]
-        case 'end_only':
-            df_merged_in_nfr = df_merged[
-                (df_merged.end_pos > df_merged.start) & (df_merged.end_pos < df_merged.end)]
-        case 'middle':
-            df_fragments["midpoint"] = (df_fragments["end_pos"] + df_fragments["start_pos"]) / 2
-            df_merged = pd.merge(df_fragments, df_nucleosomes, on='chrom')
-            df_merged_in_nfr = df_merged[
-                (df_merged.midpoint >= df_merged.start) & (df_merged.midpoint <= df_merged.end)]
-        case 'start_&_end':
-            df_merged_in_nfr = df_merged[
-                (df_merged.start_pos > df_merged.start) & (df_merged.end_pos < df_merged.end)]
-    del df_merged
-    index_in_nfr = np.unique(df_merged_in_nfr.uid)
-    df_fragments_in_nfr = df_fragments.loc[index_in_nfr, :]
-    df_fragments_out_nfr = df_fragments.drop(index_in_nfr)
+    df_fragments['average_scores'] = np.zeros(df_fragments.shape[0], dtype=float)
+    args_list = []
+    eff_cores = int(mp.cpu_count() / 2)
+    for c in pd.unique(df_fragments.chr):
+        df_frag_chr_mask = df_fragments[df_fragments.chr == c]
+        df_nucleosomes_chr_mask = df_nucleosomes[df_nucleosomes.chr == c]
+        args_list.append((df_frag_chr_mask, df_nucleosomes_chr_mask, c))
 
-    df_fragments.drop(columns='uid', inplace=True)
-    df_fragments_in_nfr.to_csv(output_dir + 'fragments_list_in_nfr.tsv', sep='\t', index_label='fragments')
-    df_fragments_out_nfr.to_csv(output_dir + 'fragments_list_out_nfr.tsv', sep='\t', index_label='fragments')
-    df_nucleosomes = df_nucleosomes.rename(columns={'length': 'size'})
+    with mp.Pool(processes=eff_cores) as pool:
+        chunk_results = pool.map(process_chunk, args_list)
 
-    plot_size_distribution(
-        df=df_fragments_in_nfr,
-        bin_count=120,
-        mode='inside',
-        output_path=output_dir
-    )
+    results = {list(d.keys())[0]: list(d.values())[0] for d in chunk_results}
+    for chrom, scores in results.items():
+        df_fragments.loc[df_fragments['chr'] == chrom, 'average_scores'] = scores
 
-    plot_size_distribution(
-        df=df_fragments_out_nfr,
-        bin_count=120,
-        mode='outside',
-        output_path=output_dir
-    )
-
-    plot_size_distribution(
-        df=df_nucleosomes,
-        bin_count=120,
-        mode='all',
-        output_path=output_dir
-    )
+    df_fragments.to_csv(output_dir + 'fragments_list_single_nucleosomes_score.tsv', sep='\t', index_label='fragments')
 
 
-def run(
+def plot_freq_vs_score(
+        df: pd.DataFrame,
+        probe_name: str,
+        plot_path: str
+):
+    x = df['average_scores']
+    y = df['freq_normalized']
+
+    xy = np.vstack([x, y])
+    z = gaussian_kde(xy)(xy)
+
+    plt.figure(figsize=(11, 8))
+    plt.scatter(x, y, c=z, marker='.', s=8)
+    plt.title("Frequencies of contacts between {0} and genome compared \n"
+              "to the score on single nucleosome occupancy".format(probe_name))
+    plt.xlabel("Single nucleosome average score per fragment")
+    plt.ylabel("Frequencies of contacts")
+    plt.yscale('log')
+    plt.xscale('log')
+    plt.colorbar()
+    plt.savefig(plot_path + 'plot_' + probe_name + '_frequencies_vs_single_nucleosomes_score.jpg', dpi=96)
+    plt.close()
+    # plt.show()
+
+
+def main(
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
-        fragments_in_nfr_path: str,
-        fragments_out_nfr_path: str,
+        fragments_nucleosomes_score_list: str,
+        score_filter: int | float,
         output_dir: str
 ):
-
-    """
-    This function's goal is to compute some statistics about the frequencies of contacts made by each
-    probe, in NFR and non NFR regions.
-
-    ARGUMENTS
-    ______________
-    formatted_contacts_path :  str
-        path to the formatted contacts files of the current sample, basically the not_binned_contacts
-        previously made with the function get_fragments_contacts in the binning script
-    probes_to_fragments_path  :  str
-        path to the table (.tsv file) that makes correspond the name of the probe with that of the fragment
-        that contains it and complementary information, generated in the format script.
-    fragments_in_nfr_path : str
-        path to the list of fragments that are located on nfr
-    fragments_in_nfr_path : str
-        path to the list of fragments that aren't located on nfr
-    output_dir  :  str
-        the absolute path toward the output directory to save the results
-    """
-
-    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=False)
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    fragments = pd.unique(df_probes['frag_id'].astype(str))
+
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
-
-    df_fragments_in_nfr = pd.read_csv(fragments_in_nfr_path, sep='\t', index_col=0)
-    df_fragments_out_nfr = pd.read_csv(fragments_out_nfr_path, sep='\t', index_col=0)
-
+    output_dir += sample_id + '/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    output_path = output_dir+sample_id
-    df_contacts_in = df_contacts[df_contacts['positions'].isin(df_fragments_in_nfr['start_pos'])]
-    df_contacts_out = df_contacts[df_contacts['positions'].isin(df_fragments_out_nfr['start_pos'])]
-    all_probes = df_probes.columns.tolist()
+    excluded_chr = ['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
+    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=False)
+    df_contacts.rename(columns={'positions': 'start'}, inplace=True)
+    df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
 
-    probes = []
-    fragments = []
-    types = []
-    nfr_in = []
-    nfr_out = []
-    total_sizes_in = sum(df_fragments_in_nfr['size'].values)
-    total_sizes_out = sum(df_fragments_out_nfr['size'].values)
-    total_sizes_all = total_sizes_in + total_sizes_out
-    ii_probe = 0
-    for probe in all_probes:
-        probe_type, probe_start, probe_end, probe_chr, frag, frag_start, frag_end = df_probes[probe].tolist()
-        if frag not in df_contacts.columns:
+    df_contacts.columns = [int(col) if col.isdigit() and int(col) in fragments else col for col in df_contacts.columns]
+
+    df_fragments_with_scores = pd.read_csv(fragments_nucleosomes_score_list, sep='\t', index_col=0)
+
+    probe_chrs = df_probes.loc[df_probes['frag_id'].isin(fragments), 'chr']
+    probe_chrs.index = df_probes.loc[df_probes['frag_id'].isin(fragments), 'frag_id'].astype(str)
+
+    #   We need to remove for each oligo the number of contact it makes with its own chr.
+    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+    #   We have to set them as NaN to not bias the average
+    for f in fragments:
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+        if probe_chr not in excluded_chr:
+            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
+
+    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    df_fragments_kept = df_fragments_with_scores[df_fragments_with_scores['average_scores'] < score_filter]
+    df_contacts_merged = pd.merge(df_fragments_kept, df_contacts, on=['chr', 'start'])
+
+    df_contacts_around_lnp = pd.DataFrame()
+    for _, row in df_contacts_merged.iterrows():
+        fragment_chr = row['chr']
+        fragment_start = row['start']
+        df_contacts_chr_mask = df_contacts.loc[df_contacts.chr == fragment_chr]
+        index_contact = df_contacts.loc[df_contacts.start == fragment_start].index.tolist()[0]
+        tmp_df = df_contacts_chr_mask.loc[index_contact-10:index_contact+10, :]
+        tmp_id = list(tmp_df.index - index_contact)
+        tmp_df.insert(1, 'id', tmp_id)
+        for col in tmp_df.columns:
+            if col not in ['chr', 'id', 'start', 'sizes']:
+                contacts_0 = tmp_df.loc[tmp_df['id'] == 0, col].values
+                if len(contacts_0) > 0 and contacts_0 > 0:
+                    tmp_df[col] /= contacts_0[0]
+
+        df_contacts_around_lnp = pd.concat((df_contacts_around_lnp, tmp_df))
+
+    df_aggregated_lnp = df_contacts_around_lnp.groupby(by='id').mean(numeric_only=True)
+    df_aggregated_lnp.drop(columns=['start', 'sizes'], inplace=True)
+    df_aggregated_lnp.to_csv(output_dir + 'nucleosome_poor_region_aggregated.tsv', sep='\t')
+
+    for probe in df_probes.index.values:
+        probe_frag_id = df_probes.loc[probe, 'frag_id'].astype(str)
+        if probe_frag_id not in df_aggregated_lnp.columns:
             continue
-        probes.append(probe)
-        fragments.append(frag)
-        types.append(probe_type)
+        if df_aggregated_lnp[probe_frag_id].sum() == 0.:
+            continue
 
-        sub_df_contacts_in = df_contacts_in.loc[df_contacts_in['chr'] != probe_chr]
-        sub_df_contacts_out = df_contacts_out.loc[df_contacts_out['chr'] != probe_chr]
+        x = df_aggregated_lnp.index.values
+        y = df_aggregated_lnp[probe_frag_id].to_numpy()
+        ymin = -np.max(y) * 0.01
+        plt.figure(figsize=(16, 12))
+        plt.bar(x, y)
+        plt.ylim((ymin, None))
+        plt.title("Aggregated frequencies for probe {0} around poor nucleosome regions".format(probe))
+        plt.xlabel("Genomic fragments")
+        plt.xticks(rotation=45)
+        plt.ylabel("Average frequency made and standard deviation")
+        plt.savefig(output_dir + "{0}_nucleosome_poor_region_aggregated.{1}".format(probe, 'jpg'),
+                    dpi=96)
+        plt.close()
 
-        #   cts_in:  sum of contacts made by the probe inside nfr
-        #   cts_out: sum of contacts made by the probe outside nfr
-        cts_in = np.sum(sub_df_contacts_in[frag].values)
-        cts_out = np.sum(sub_df_contacts_out[frag].values)
 
-        if cts_in + cts_out == 0:
-            #   prevent from dividing by 0
-            nfr_in.append(0)
-            nfr_out.append(0)
+if __name__ == "__main__":
+    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+
+    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+    outputs_dir = data_dir + 'outputs/'
+    inputs_dir = data_dir + 'inputs/'
+    fragments_list = inputs_dir + "fragments_list.txt"
+    probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
+    single_nucleosomes_list = inputs_dir + "Chereji_2018/Chereji_2018_Occupancy_H3_CC_V64.bed"
+    nucleosomes_dir = outputs_dir + "nucleosomes/"
+    binning_dir = outputs_dir + "binned/"
+
+    parallel = True
+    if is_debug():
+        parallel = False
+
+    print('look for fragments contacts correlation with single nucleosomes occupancy')
+    fragments_with_scores_list = nucleosomes_dir+'fragments_list_single_nucleosomes_score.tsv'
+    if not os.path.exists(nucleosomes_dir):
+        os.makedirs(nucleosomes_dir)
+        if not os.path.exists(fragments_with_scores_list):
+            preprocess(
+                fragments_list_path=fragments_list,
+                single_nucleosomes_scores_path=single_nucleosomes_list,
+                output_dir=nucleosomes_dir
+                )
+
+    for sshic_dir in sshic_pcrdupt_dir:
+        print(sshic_dir)
+        print('\n')
+        not_binned_dir = binning_dir + sshic_dir + '0kb/'
+        samples = sorted([f for f in os.listdir(not_binned_dir) if 'contacts.tsv' in f])
+        if parallel:
+            with mp.Pool(mp.cpu_count()) as p:
+                p.starmap(main, [(
+                    not_binned_dir+samp,
+                    probes_and_fragments,
+                    fragments_with_scores_list,
+                    0.5,
+                    nucleosomes_dir+sshic_dir) for samp in samples]
+                )
         else:
-            nfr_in.append(
-                (cts_in / (cts_in + cts_out)) / (total_sizes_in / total_sizes_all)
-            )
+            for samp in samples:
+                main(
+                    formatted_contacts_path=not_binned_dir+samp,
+                    probes_to_fragments_path=probes_and_fragments,
+                    fragments_nucleosomes_score_list=fragments_with_scores_list,
+                    score_filter=0.5,
+                    output_dir=nucleosomes_dir+sshic_dir
+                )
 
-            nfr_out.append(
-                (cts_out / (cts_in + cts_out)) / (total_sizes_out / total_sizes_all)
-            )
-        ii_probe += 1
-
-    df_stats = pd.DataFrame({'probe': probes, 'fragment': fragments, 'type': types,
-                             'contacts_in_nfr': nfr_in, 'contacts_out_nfr': nfr_out})
-
-    df_stats.to_csv(output_path + '_statistics_nfr_per_probe.tsv', sep='\t')
+        print('-- DONE --')

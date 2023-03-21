@@ -1,4 +1,9 @@
 import pandas as pd
+import re
+import os
+import numpy as np
+import multiprocessing as mp
+from tools import is_debug
 
 
 def oligos_correction(oligos_path):
@@ -52,7 +57,7 @@ def starts_match(fragments, oligos):
 
 def oligos_fragments_joining(fragments, oligos):
     """
-    Removes the fragments that does not contains an oligo region, puts all the columns of fragments_list
+    Removes the fragments that does not contain an oligo region, puts all the columns of fragments_list
     that corresponds. It also changes the starts and ends columns by the fragments ones.
     """
     oligos = starts_match(fragments, oligos)
@@ -95,7 +100,7 @@ def frag2(x):
 
 def second_join(x, fragments, oligos_fragments, contacts):
     """
-    Adds the fragments file informations (=columns) for the y fragment after the first join (see first_join function)
+    Adds the fragments file information (=columns) for the y fragment after the first join (see first_join function)
     Only for y because the x fragments have already their information because it is the oligos_fragments.
     """
     new_contacts = first_join(x, oligos_fragments, contacts)
@@ -114,10 +119,17 @@ def second_join(x, fragments, oligos_fragments, contacts):
     return joined
 
 
-def concatenation(oligos_path, fragments_path, contacts_path, output_path):
+def main(
+        oligos_path: str,
+        fragments_path: str,
+        contacts_path: str,
+        output_path: str
+):
     """
     Does the two joining (for 'frag_a' and 'frag_b') and then concatenate the two results
     """
+
+    sample_id = re.search(r"AD\d+", contacts_path).group()
     fragments = fragments_correction(fragments_path)
     oligos = oligos_correction(oligos_path)
     contacts = contacts_correction(contacts_path)
@@ -129,17 +141,46 @@ def concatenation(oligos_path, fragments_path, contacts_path, output_path):
     contacts_joined.drop("frag", axis=1, inplace=True)
     contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     contacts_filtered = contacts_joined.convert_dtypes().reset_index(drop=True)
-    contacts_filtered.to_csv(output_path+'_filtered.tsv', sep='\t', index=False)
+    contacts_filtered.to_csv(output_path+sample_id+'_filtered.tsv', sep='\t', index=False)
 
 
-def run(
-        oligos_input_path: str,
-        fragments_input_path: str,
-        contacts_input: str,
-        output_path: str):
+if __name__ == "__main__":
 
-    concatenation(
-        oligos_input_path,
-        fragments_input_path,
-        contacts_input,
-        output_path)
+    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+
+    outputs_dir = data_dir + 'outputs/'
+    inputs_dir = data_dir + 'inputs/'
+    hicstuff_dir = outputs_dir + "hicstuff/"
+    filter_dir = outputs_dir + "filtered/"
+    fragments_list = inputs_dir + "fragments_list.txt"
+    oligos_positions = inputs_dir + "capture_oligo_positions.csv"
+    parallel = True
+    if is_debug():
+        parallel = False
+
+    for sshic_dir in sshic_pcrdupt_dir:
+        print(sshic_dir)
+        print("Filtered hicstuff sparse matrix by keeping only contacts made by probe")
+        samples_dir = hicstuff_dir + sshic_dir
+        samples = np.unique(os.listdir(samples_dir))
+        if not os.path.exists(filter_dir + sshic_dir):
+            os.makedirs(filter_dir + sshic_dir)
+        if parallel:
+            with mp.Pool(mp.cpu_count()) as p:
+                p.starmap(main, [(
+                    oligos_positions,
+                    fragments_list,
+                    samples_dir+samp,
+                    filter_dir+sshic_dir) for samp in samples]
+                )
+        else:
+            for samp in samples:
+                main(
+                    oligos_path=oligos_positions,
+                    fragments_path=fragments_list,
+                    contacts_path=samples_dir+samp,
+                    output_path=filter_dir+sshic_dir
+                )
+
+        print('-- DONE --')

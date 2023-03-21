@@ -5,8 +5,9 @@ import pandas as pd
 import os
 import re
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 from typing import Optional
-from sshic import tools
+from tools import is_debug, sort_by_chr
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -85,11 +86,11 @@ def freq_focus_around_telomeres(
 
     df_merged_telos_areas = pd.concat((df_merged_telos_areas_part_a, df_merged_telos_areas_part_b))
 
-    df_merged_telos_areas.loc[df_merged.chr_bins >= (df_merged.telo_r-window_size), 'chr_bins'] = \
-        abs(df_merged_telos_areas['chr_bins'] - (df_merged_telos_areas['telo_r'] // bin_size)*bin_size)
+    # df_merged_telos_areas.loc[df_merged.chr_bins >= (df_merged.telo_r-window_size), 'chr_bins'] = \
+    #     abs(df_merged_telos_areas['chr_bins'] - (df_merged_telos_areas['telo_r'] // bin_size)*bin_size)
 
     df_res = df_merged_telos_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
-    df_res = tools.sort_by_chr(df_res, 'chr', 'chr_bins')
+    df_res = sort_by_chr(df_res, 'chr', 'chr_bins')
     df_res.drop(columns=['telo_l', 'telo_r'], axis=1, inplace=True)
 
     return df_res, df_probes
@@ -148,7 +149,7 @@ def mkdir(output_path: str):
     return dir_table, dir_plot
 
 
-def run(
+def main(
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
         telomeres_coord_path: str,
@@ -176,3 +177,68 @@ def run(
         table_path=dir_table,
         plot=plot,
         plot_path=dir_plot)
+
+
+if __name__ == "__main__":
+    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+
+    outputs_dir = data_dir + 'outputs/'
+    inputs_dir = data_dir + 'inputs/'
+    binning_dir = outputs_dir + "binned/"
+    pondered_dir = outputs_dir + "pondered/"
+    telomeres_dir = outputs_dir + "telomeres/"
+    centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
+    probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
+    parallel = True
+
+    if is_debug():
+        parallel = False
+
+    print('aggregated on telomeres positions')
+    for sshic_dir in sshic_pcrdupt_dir:
+        print(sshic_dir)
+        print('\n')
+        print('raw binned tables')
+        samples_not_pondered = \
+            sorted([f for f in os.listdir(binning_dir + sshic_dir + '10kb/') if 'contacts.tsv' in f])
+        if parallel:
+            with mp.Pool(mp.cpu_count()) as p:
+                p.starmap(main, [(
+                    binning_dir+sshic_dir+'10kb/'+samp,
+                    probes_and_fragments,
+                    centromeres_positions,
+                    150000,
+                    telomeres_dir+'not_pondered/'+sshic_dir) for samp in samples_not_pondered]
+                )
+        else:
+            for samp in samples_not_pondered:
+                main(
+                    formatted_contacts_path=binning_dir+sshic_dir+'10kb/'+samp,
+                    probes_to_fragments_path=probes_and_fragments,
+                    window_size=150000,
+                    telomeres_coord_path=centromeres_positions,
+                    output_path=telomeres_dir+'not_pondered/'+sshic_dir,
+                )
+        print('\n')
+        print('pondered binned tables')
+        samples_pondered =\
+            sorted([f for f in os.listdir(pondered_dir + sshic_dir + '10kb/') if 'contacts' in f])
+        if parallel:
+            with mp.Pool(mp.cpu_count()) as p:
+                p.starmap(main, [(
+                    pondered_dir+sshic_dir+'10kb/'+samp,
+                    probes_and_fragments,
+                    centromeres_positions,
+                    150000,
+                    telomeres_dir+'pondered/'+sshic_dir) for samp in samples_pondered]
+                )
+        else:
+            for samp in samples_pondered:
+                main(
+                    formatted_contacts_path=pondered_dir+sshic_dir+'10kb/'+samp,
+                    probes_to_fragments_path=probes_and_fragments,
+                    window_size=150000,
+                    telomeres_coord_path=centromeres_positions,
+                    output_path=telomeres_dir+'pondered/'+sshic_dir,
+                )

@@ -5,6 +5,8 @@ import re
 import numpy as np
 import pandas as pd
 from typing import Optional
+from tools import is_debug
+import multiprocessing as mp
 
 
 def run(
@@ -68,12 +70,9 @@ def run(
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
     output_path = output_dir + sample_id
 
-    """
-    After having formatted the contacts of each oligos in the genome (file with bin_size=0)
-    We know cant to use this new formatted file to compute basics statistics like total number of contacts,
-    frequencies of contacts intra .vs. inter chromosomes, cis .vs. trans oligos
-     (with cis range as an input value given by the user, in bp)
-    """
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    fragments = df_probes['frag_id'].astype(str).values
+    all_probes = np.asarray(df_probes.index, dtype='<U64')
 
     chr_size_dict = {
         'chr1': 230218, 'chr2': 813184, 'chr3': 316620, 'chr4': 1531933, 'chr5': 576874, 'chr6': 270161,
@@ -81,9 +80,12 @@ def run(
         'chr13': 924431, 'chr14': 784333, 'chr15': 1091291, 'chr16': 948066, 'mitochondrion': 85779, '2_micron': 6318}
 
     unique_chr = list(chr_size_dict.keys())
+
     df_formatted_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
-    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    all_probes = np.asarray(df_probes.index, dtype='<U64')
+    df_formatted_contacts = df_formatted_contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
+    df_formatted_contacts.columns = \
+        [int(col) if col.isdigit() and int(col) in fragments else col for col in df_formatted_contacts.columns]
+
 
     df_sparse_mat = pd.read_csv(sparse_mat_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
     #   from sparse_matrix (hicstuff results): get total contacts from which probes enrichment is calculated
@@ -99,7 +101,6 @@ def run(
         ref_wt: dict = {}
 
     probes = []
-    fragments = []
     types = []
     cis_contacts = []
     trans_contacts = []
@@ -112,16 +113,9 @@ def run(
     chr_inter_only_contacts_nrm = {k: [] for k in chr_size_dict}
 
     ii_probe = 0
-    dsdna_counter = 0
     for probe in all_probes:
         probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = df_probes.loc[probe].tolist()
-        frag_id = str(frag_id)
-
-        if frag_id not in df_formatted_contacts.columns.tolist():
-            continue
-
         probes.append(probe)
-        fragments.append(frag_id)
         types.append(probe_type)
         sub_df = df_formatted_contacts[['chr', 'positions', frag_id]]
         cis_limits = \
@@ -130,19 +124,21 @@ def run(
         total_contacts.append(probe_contacts)
         total_contacts_inter.append(np.sum(sub_df.query("chr != @probe_chr")[frag_id].values))
 
-        cis_contacts.append(
-            np.sum(
-                sub_df.query(
-                    "chr == @probe_chr and positions > @cis_limits[0] and positions <@cis_limits[1]")[frag_id].values) /
-            total_contacts[ii_probe]
-        )
-        trans_contacts.append(1 - cis_contacts[ii_probe])
-        intra_chr_contacts.append(
-            np.sum(sub_df.query("chr == @probe_chr")[frag_id].values) / total_contacts[ii_probe]
-        )
-        inter_chr_contacts.append(
-            np.sum(sub_df.query("chr != @probe_chr")[frag_id].values) / total_contacts[ii_probe]
-        )
+        if total_contacts[ii_probe] == 0.:
+            cis_contacts.append(0.)
+            trans_contacts.append(0.)
+            intra_chr_contacts.append(0.)
+            inter_chr_contacts.append(0.)
+        else:
+
+            cis_contacts.append(
+                sub_df.loc[(sub_df["chr"] == probe_chr) &
+                           (sub_df['positions'] > cis_limits[0]) &
+                           (sub_df['positions'] < cis_limits[1]), frag_id].sum() / total_contacts[ii_probe])
+
+            trans_contacts.append(1 - cis_contacts[ii_probe])
+            intra_chr_contacts.append(sub_df.loc[sub_df['chr'] == probe_chr, frag_id].sum() / total_contacts[ii_probe])
+            inter_chr_contacts.append(sub_df.loc[sub_df['chr'] != probe_chr, frag_id].sum() / total_contacts[ii_probe])
 
         for chrom in chr_size_dict:
 
@@ -153,7 +149,7 @@ def run(
             #   c1 : normalized contacts on chr_i for frag_j
             chrom_size = chr_size_dict[chrom]
             genome_size = sum([s for c, s in chr_size_dict.items() if c != probe_chr])
-            n1 = np.sum(sub_df.query("chr == @chrom")[frag_id].values)
+            n1 = sub_df.loc[sub_df['chr'] == chrom, frag_id].sum()
             if n1 == 0:
                 chr_contacts_nrm[chrom].append(0)
             else:
@@ -164,7 +160,8 @@ def run(
             #   n2: sum contacts chr_i if chr_i != frag_chr
             #   d2: sum contacts all inter chr (exclude the frag_chr)
             #   c2 : normalized inter chr contacts on chr_i for frag_j
-            n2 = np.sum(sub_df.query("chr == @chrom and chr != @probe_chr")[frag_id].values)
+            n2 = sub_df.loc[(sub_df['chr'] == chrom) & (sub_df['chr'] != probe_chr), frag_id].sum()
+
             if n2 == 0:
                 chr_inter_only_contacts_nrm[chrom].append(0)
             else:
@@ -207,3 +204,70 @@ def run(
     df_global.to_csv(output_path + '_global_statistics.tsv', sep='\t')
     df_chr_nrm.to_csv(output_path + '_normalized_chr_freq.tsv', sep='\t')
     df_chr_inter_only_nrm.to_csv(output_path + '_normalized_inter_chr_only_freq.tsv', sep='\t')
+
+
+if __name__ == "__main__":
+
+    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+
+    outputs_dir = data_dir + 'outputs/'
+    inputs_dir = data_dir + 'inputs/'
+    hicstuff_dir = outputs_dir + "hicstuff/"
+    filter_dir = outputs_dir + "filtered/"
+    statistics_dir = outputs_dir + "statistics/"
+    binning_dir = outputs_dir + "binned/"
+    probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
+    centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
+    ref_wt_dir = inputs_dir + "capture_efficiencies/"
+
+    samples_to_compare_wt: dict = {
+        'wt2h': [
+            "AD206", "AD208", "AD210", "AD212", "AD233", "AD235", "AD237", "AD239", "AD243", "AD245", "AD247",
+            "AD257", "AD259", "AD289", "AD291", "AD293", "AD295", "AD297", "AD299", "AD301"
+        ],
+        'wt4h': [
+            "AD207", "AD209", "AD211", "AD213", "AD234", "AD236", "AD238", "AD240", "AD244", "AD246", "AD248",
+            "AD258", "AD260", "AD290", "AD292", "AD294", "AD296", "AD298", "AD300", "AD302"
+        ]
+    }
+
+    parallel = True
+    if is_debug():
+        parallel = False
+
+    for sshic_dir in sshic_pcrdupt_dir:
+        print(sshic_dir)
+        print('Compute some general statistics on sshic contacts')
+        not_binned_dir = binning_dir + sshic_dir + '0kb/'
+        sparse_matrix_list = sorted(os.listdir(hicstuff_dir+sshic_dir))
+        samples = [f for f in sorted(os.listdir(not_binned_dir)) if '_contacts' in f]
+        samples_id = sorted([re.search(r"AD\d+", f).group() for f in samples])
+
+        if not os.path.exists(statistics_dir+sshic_dir):
+            os.makedirs(statistics_dir+sshic_dir)
+
+        if parallel:
+            with mp.Pool(mp.cpu_count()) as p:
+                p.starmap(run, [(
+                    50000,
+                    hicstuff_dir+sshic_dir+sparse_matrix_list[ii_samp],
+                    ref_wt_dir+sshic_dir,
+                    samples_to_compare_wt,
+                    not_binned_dir+samples[ii_samp],
+                    probes_and_fragments,
+                    statistics_dir+sshic_dir) for ii_samp, samp in enumerate(samples_id)]
+                )
+        else:
+            for ii_samp, samp in enumerate(samples_id):
+                run(
+                    cis_range=50000,
+                    sparse_mat_path=hicstuff_dir+sshic_dir+sparse_matrix_list[ii_samp],
+                    wt_references_dir=ref_wt_dir+sshic_dir,
+                    samples_vs_wt=samples_to_compare_wt,
+                    formatted_contacts_path=not_binned_dir+samples[ii_samp],
+                    probes_to_fragments_path=probes_and_fragments,
+                    output_dir=statistics_dir+sshic_dir
+                )
+
+    print('-- DONE --')

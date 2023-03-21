@@ -1,8 +1,13 @@
 #! /usr/bin/env python3
 import re
+import os
 import numpy as np
 import pandas as pd
-import sshic.tools as tl
+import multiprocessing as mp
+from tools import is_debug, sort_by_chr, detect_delimiter, frag2
+
+#   Set as None to avoid SettingWithCopyWarning
+pd.options.mode.chained_assignment = None
 
 
 def build_bins_from_genome(
@@ -38,6 +43,23 @@ def build_bins_from_genome(
     return df_res
 
 
+def make_average_on_probes(
+        probes_to_average: dict,
+        df_contacts: pd.DataFrame,
+        df_frequencies: pd.DataFrame,
+        output_path: str
+):
+
+    df_avg_contacts = df_contacts.iloc[:, :3]
+    df_avg_frequencies = df_avg_contacts.copy(deep=True)
+    for colname, colfrag in probes_to_average.items():
+        df_avg_contacts[colname] = df_contacts[colfrag].mean(axis=1)
+        df_avg_frequencies[colname] = df_frequencies[colfrag].mean(axis=1)
+
+    df_avg_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
+    df_avg_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+
+
 def get_fragments_contacts(
         probes_to_fragments_path: str,
         filtered_contacts_path: str,
@@ -61,22 +83,22 @@ def get_fragments_contacts(
     """
 
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    fragments = pd.unique(df_probes['frag_id'])
+    fragments = pd.unique(df_probes['frag_id'].astype(str))
     if additional is None:
         additional = {}
     samp_id = re.search(r"AD\d+", filtered_contacts_path).group()
-    output_path = output_dir + samp_id
 
     df = pd.read_csv(filtered_contacts_path, sep='\t')
     df_contacts = pd.DataFrame(columns=['chr', 'positions', 'sizes'])
     df_contacts = df_contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
 
     for x in ['a', 'b']:
-        y = tl.frag2(x)
+        y = frag2(x)
         df2 = df[~pd.isna(df['name_' + x])]
 
         for frag in fragments:
-            if frag not in pd.unique(df2['frag_'+x]):
+            frag_int = int(frag)
+            if frag_int not in pd.unique(df2['frag_'+x]):
                 tmp = pd.DataFrame({
                     'chr': [np.nan],
                     'positions': [np.nan],
@@ -84,7 +106,7 @@ def get_fragments_contacts(
                     frag: [np.nan]})
 
             else:
-                df3 = df2[df2['frag_'+x] == frag]
+                df3 = df2[df2['frag_'+x] == frag_int]
                 tmp = pd.DataFrame({
                     'chr': df3['chr_'+y],
                     'positions': df3['start_'+y],
@@ -95,21 +117,26 @@ def get_fragments_contacts(
 
     group = df_contacts.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
     df_res_contacts = group.sum()
-    df_res_contacts = tl.sort_by_chr(df_res_contacts, 'chr', 'positions')
+    df_res_contacts = sort_by_chr(df_res_contacts, 'chr', 'positions')
     df_res_contacts.index = range(len(df_res_contacts))
 
     df_res_frequencies = df_res_contacts.copy(deep=True)
     for frag in fragments:
         df_res_frequencies[frag] /= sum(df_res_frequencies[frag])
 
-    if len(additional) > 0:
-        for colname, colfrag in additional.items():
-            df_res_contacts[colname] = df_res_contacts[colfrag].mean(axis=1)
-            df_res_frequencies[colname] = df_res_frequencies[colfrag].mean(axis=1)
-
     #   Write into .tsv file contacts as there are and in the form of frequencies :
-    df_res_contacts.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
-    df_res_frequencies.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+    df_res_contacts.to_csv(output_dir + samp_id + '_contacts.tsv', sep='\t', index=False)
+    df_res_frequencies.to_csv(output_dir + samp_id + '_frequencies.tsv', sep='\t', index=False)
+
+    if len(additional) > 0:
+        if not os.path.exists(output_dir+'average_on_probes/'):
+            os.makedirs(output_dir+'average_on_probes/')
+        make_average_on_probes(
+            probes_to_average=additional_averages,
+            df_contacts=df_res_contacts,
+            df_frequencies=df_res_frequencies,
+            output_path=output_dir+'average_on_probes/'+samp_id
+        )
 
 
 def center_around_probes_pos(
@@ -175,7 +202,7 @@ def rebin_contacts(
         the absolute path toward the output directory to save the results
     """
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    fragments = pd.unique(df_probes['frag_id'])
+    fragments = pd.unique(df_probes['frag_id'].astype(str))
 
     df_binned = build_bins_from_genome(
         path_to_chr_coord=chromosomes_coord_path,
@@ -183,19 +210,15 @@ def rebin_contacts(
     )
 
     samp_id = re.search(r"AD\d+", not_binned_samp_path).group()
-    df = pd.read_csv(not_binned_samp_path, sep=tl.detect_delimiter(not_binned_samp_path))
-
-    if len(additional) > 0:
-        df = df.iloc[:, ~df.columns.isin(additional.keys())]
+    df = pd.read_csv(not_binned_samp_path, sep=detect_delimiter(not_binned_samp_path))
 
     df = df.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
-    df.columns = [int(col) if col.isdigit() and int(col) in fragments else col for col in df.columns]
 
     df.insert(2, 'chr_bins', (df["positions"] // bin_size) * bin_size)
     df_binned_contacts = df.groupby(["chr", "chr_bins"], as_index=False).sum()
     df_binned_contacts.drop(['positions', 'sizes'], axis=1, inplace=True)
 
-    df_binned_contacts = tl.sort_by_chr(df_binned_contacts, 'chr', 'chr_bins')
+    df_binned_contacts = sort_by_chr(df_binned_contacts, 'chr', 'chr_bins')
     df_binned_frequencies = df_binned_contacts.copy(deep=True)
     for frag in fragments:
         df_binned_frequencies[frag] /= sum(df_binned_contacts[frag])
@@ -205,13 +228,18 @@ def rebin_contacts(
     df_binned_contacts_full.fillna(0, inplace=True)
     df_binned_frequencies_full.fillna(0, inplace=True)
 
-    if len(additional) > 0:
-        for colname, colfrag in additional.items():
-            df_binned_contacts_full[colname] = df_binned_contacts_full[colfrag].mean(axis=1)
-            df_binned_frequencies_full[colname] = df_binned_frequencies_full[colfrag].mean(axis=1)
-
     df_binned_contacts_full.to_csv(output_dir + samp_id + '_contacts.tsv', sep='\t', index=False)
     df_binned_frequencies_full.to_csv(output_dir + samp_id + '_frequencies.tsv', sep='\t', index=False)
+
+    if len(additional) > 0:
+        if not os.path.exists(output_dir+'average_on_probes/'):
+            os.makedirs(output_dir+'average_on_probes/')
+        make_average_on_probes(
+            probes_to_average=additional_averages,
+            df_contacts=df_binned_contacts_full,
+            df_frequencies=df_binned_frequencies_full,
+            output_path=output_dir+'average_on_probes/'+samp_id
+        )
 
     if bin_size == 1000:
         center_around_probes_pos(
@@ -221,3 +249,91 @@ def rebin_contacts(
             output_path=output_dir+'probes_centered/'+samp_id
         )
 
+
+if __name__ == "__main__":
+
+    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+
+    outputs_dir = data_dir + 'outputs/'
+    inputs_dir = data_dir + 'inputs/'
+    filter_dir = outputs_dir + "filtered/"
+    binning_dir = outputs_dir + "binned/"
+    probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
+    centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
+
+    parallel = True
+    if is_debug():
+        parallel = False
+
+    additional_averages = {
+        'Average_left': ['18535', '18589', '18605', '18611', '18614', '18616'],
+        'Average_right': ['18621', '18632', '18634', '18666', '18694'],
+        'Average_3Left_(2599-3081-3728)': ['18605', '18611', '18614'],
+        'Average_4left_(less_4kb)': ['18605', '18611', '18614', '18616'],
+        'Average_left_(2599-3081-3728-6065)': ['18605', '18611', '18614', '18589'],
+        'Average_3right_(1439-2715-2954)': ['18621', '18632', '18634'],
+        'Average_4right_(1429-2715-2954-8072)': ['18621', '18632', '18634', '18666'],
+        'Average_2right_(2954-8072)': ['18634', '18666'],
+        'Average_right_(1439-2715)': ['18621', '18632']
+    }
+
+    for sshic_dir in sshic_pcrdupt_dir:
+        print(sshic_dir)
+        not_binned_dir = binning_dir + sshic_dir + '0kb/'
+        if not os.path.exists(not_binned_dir):
+            print("Organizing the contacts for each probe in the genome ('0kb' binning)")
+            samples_dir = filter_dir + sshic_dir
+            samples = os.listdir(samples_dir)
+            os.makedirs(not_binned_dir)
+            if parallel:
+                with mp.Pool(mp.cpu_count()) as p:
+                    p.starmap(get_fragments_contacts, [(
+                        probes_and_fragments,
+                        samples_dir+samp,
+                        not_binned_dir,
+                        additional_averages) for samp in samples]
+                    )
+            else:
+                for samp in samples:
+                    get_fragments_contacts(
+                        probes_to_fragments_path=probes_and_fragments,
+                        filtered_contacts_path=samples_dir+samp,
+                        output_dir=not_binned_dir,
+                        additional=additional_averages
+                    )
+
+        samples_dir = not_binned_dir
+        samples = [f for f in os.listdir(samples_dir) if 'contacts.tsv' in f]
+        bins_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
+        for bs in bins_sizes_list:
+            this_bin_dir = binning_dir + sshic_dir + str(bs // 1000) + 'kb/'
+            print('Rebinning the contacts on bins of size {0} bp'.format(bs))
+            if not os.path.exists(this_bin_dir):
+                os.makedirs(this_bin_dir)
+                if bs == 1000:
+                    os.makedirs(this_bin_dir+'probes_centered/')
+
+            if parallel:
+                with mp.Pool(mp.cpu_count()) as p:
+                    p.starmap(rebin_contacts, [(
+                        samples_dir+samp,
+                        bs,
+                        this_bin_dir,
+                        probes_and_fragments,
+                        centromeres_positions,
+                        additional_averages) for samp in samples]
+                    )
+
+            else:
+                for samp in samples:
+                    rebin_contacts(
+                        not_binned_samp_path=samples_dir+samp,
+                        bin_size=bs,
+                        output_dir=this_bin_dir,
+                        probes_to_fragments_path=probes_and_fragments,
+                        chromosomes_coord_path=centromeres_positions,
+                        additional=additional_averages
+                    )
+
+        print('-- DONE --')
