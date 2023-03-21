@@ -99,6 +99,8 @@ def run(
         score_filter: int | float,
         output_dir: str
 ):
+    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    fragments = np.unique(df_probes['frag_id'])
 
     sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
     output_dir += sample_id + '/'
@@ -109,9 +111,13 @@ def run(
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=False)
     df_contacts.rename(columns={'positions': 'start'}, inplace=True)
     df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
+
+    df_contacts.columns = [int(col) if col.isdigit() and int(col) in fragments else col for col in df_contacts.columns]
+
     df_fragments_with_scores = pd.read_csv(fragments_nucleosomes_score_list, sep='\t', index_col=0)
-    df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
+
+    probe_chrs = df_probes.loc[df_probes['frag_id'].isin(fragments), 'chr']
+    probe_chrs.index = df_probes.loc[df_probes['frag_id'].isin(fragments), 'frag_id'].astype(str)
 
     #   We need to remove for each oligo the number of contact it makes with its own chr.
     #   Because we know that the frequency of intra-chr contact is higher than inter-chr
@@ -121,15 +127,14 @@ def run(
         if probe_chr not in excluded_chr:
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
-    #   Inter normalization
-    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
     df_fragments_kept = df_fragments_with_scores[df_fragments_with_scores['average_scores'] < score_filter]
     df_contacts_merged = pd.merge(df_fragments_kept, df_contacts, on=['chr', 'start'])
 
     df_contacts_around_lnp = pd.DataFrame()
     for _, row in df_contacts_merged.iterrows():
-        fragment_chr = row[0]
-        fragment_start = row[1]
+        fragment_chr = row['chr']
+        fragment_start = row['start']
         df_contacts_chr_mask = df_contacts.loc[df_contacts.chr == fragment_chr]
         index_contact = df_contacts.loc[df_contacts.start == fragment_start].index.tolist()[0]
         tmp_df = df_contacts_chr_mask.loc[index_contact-10:index_contact+10, :]
@@ -146,6 +151,7 @@ def run(
     df_aggregated_lnp = df_contacts_around_lnp.groupby(by='id').mean(numeric_only=True)
     df_aggregated_lnp.drop(columns=['start', 'sizes'], inplace=True)
     df_aggregated_lnp.to_csv(output_dir + 'nucleosome_poor_region_aggregated.tsv', sep='\t')
+
     for probe in df_probes.index.values:
         probe_frag_id = str(df_probes.loc[probe, 'frag_id'])
         if probe_frag_id not in df_aggregated_lnp.columns:
