@@ -141,11 +141,10 @@ def main(
         tmp_df = df_contacts_chr_mask.loc[index_contact-10:index_contact+10, :]
         tmp_id = list(tmp_df.index - index_contact)
         tmp_df.insert(1, 'id', tmp_id)
-        for col in tmp_df.columns:
-            if col not in ['chr', 'id', 'start', 'sizes']:
-                contacts_0 = tmp_df.loc[tmp_df['id'] == 0, col].values
-                if len(contacts_0) > 0 and contacts_0 > 0:
-                    tmp_df[col] /= contacts_0[0]
+        for col in fragments:
+            contacts_0 = tmp_df.loc[tmp_df['id'] == 0, col].values
+            if len(contacts_0) > 0 and contacts_0 > 0:
+                tmp_df[col] /= contacts_0[0]
 
         df_contacts_around_lnp = pd.concat((df_contacts_around_lnp, tmp_df))
 
@@ -169,7 +168,7 @@ def main(
         plt.title("Aggregated frequencies for probe {0} around poor nucleosome regions".format(probe))
         plt.xlabel("Genomic fragments")
         plt.xticks(rotation=45)
-        plt.ylabel("Average frequency made and standard deviation")
+        plt.ylabel("Average frequency")
         plt.savefig(output_dir + "{0}_nucleosome_poor_region_aggregated.{1}".format(probe, 'jpg'),
                     dpi=96)
         plt.close()
