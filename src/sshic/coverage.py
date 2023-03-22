@@ -8,6 +8,7 @@ import multiprocessing as mp
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
 
+
 def main(
         fragments_path: str,
         hic_contacts_path: str,
@@ -39,10 +40,17 @@ def main(
     df_grouped = pd.concat(
         (df_grouped_a, df_grouped_b)).groupby(by=['id', 'chr', 'start', 'end'], as_index=False).sum()
 
-    # df_grouped.index = df_grouped.id
+    df_grouped.index = df_grouped.id
     df_grouped.drop(columns=['id'], inplace=True)
-    # df_grouped.rename(columns={'chr': 'chrom', 'start': 'chromStart', 'end': 'chromEnd'}, inplace=True)
-    df_grouped.to_csv(output_dir+sample_id+'_coverage_per_fragment.bed', sep='\t', index=False, header=False)
+
+    # Write .bedgraph files :
+    if not os.path.exists(output_dir+'bedgraph/'):
+        os.makedirs(output_dir+'bedgraph/')
+    df_grouped.to_csv(output_dir+'bedgraph/'+sample_id+'_coverage_per_fragment.bedgraph',
+                      sep='\t',
+                      index=False,
+                      header=False)
+
     print(sample_id)
 
 
