@@ -213,7 +213,7 @@ if __name__ == "__main__":
 
     outputs_dir = data_dir + 'outputs/'
     inputs_dir = data_dir + 'inputs/'
-    hicstuff_dir = outputs_dir + "hicstuff/"
+    hicstuff_dir = outputs_dir + "sparse/"
     filter_dir = outputs_dir + "filtered/"
     statistics_dir = outputs_dir + "statistics/"
     binning_dir = outputs_dir + "binned/"

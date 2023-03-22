@@ -84,7 +84,7 @@ if __name__ == "__main__":
     inputs_dir = data_dir + 'inputs/'
     outputs_dir = data_dir + 'outputs/'
     fragments_list = inputs_dir + "fragments_list.txt"
-    hicstuff_dir = outputs_dir + "hicstuff/"
+    hicstuff_dir = outputs_dir + "sparse/"
     coverage_dir = outputs_dir + "coverage/"
     centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
 

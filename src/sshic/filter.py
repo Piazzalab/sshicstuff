@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     outputs_dir = data_dir + 'outputs/'
     inputs_dir = data_dir + 'inputs/'
-    hicstuff_dir = outputs_dir + "hicstuff/"
+    hicstuff_dir = outputs_dir + "sparse/"
     filter_dir = outputs_dir + "filtered/"
     fragments_list = inputs_dir + "fragments_list.txt"
     oligos_positions = inputs_dir + "capture_oligo_positions.csv"
