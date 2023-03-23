@@ -169,11 +169,17 @@ def center_around_probes_pos(
         df_res_c = pd.merge(df_res_c, df_tmp_contacts, how='left')
         df_res_f = pd.merge(df_res_f, df_tmp_freq, how='left')
 
-        df_res_c = df_res_c.fillna(0)
-        df_res_f = df_res_f.fillna(0)
+    df_res_c = df_res_c.fillna(0)
+    df_res_f = df_res_f.fillna(0)
 
-        df_res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
-        df_res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+    df_res_f_pooled = df_res_f.copy(deep=True)
+    df_res_f_pooled['chr_bins'] = abs(df_res_f_pooled['chr_bins'])
+    df_res_f_pooled = df_res_f_pooled.groupby(by='chr_bins', as_index=False).mean(numeric_only=True)
+    df_res_f_pooled = df_res_f_pooled.fillna(0)
+
+    df_res_c.to_csv(output_path + '_contacts.tsv', sep='\t', index=False)
+    df_res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+    df_res_f_pooled.to_csv(output_path + '_frequencies_pooled.tsv', sep='\t', index=False)
 
 
 def rebin_contacts(
