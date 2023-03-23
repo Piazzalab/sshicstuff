@@ -6,7 +6,8 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 
-from tools import is_debug
+from universal import utils
+
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
 
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     binning_dir = outputs_dir + "binned/"
 
     parallel = True
-    if is_debug():
+    if utils.is_debug():
         parallel = False
 
     print('look for fragments contacts correlation with single nucleosomes occupancy')
