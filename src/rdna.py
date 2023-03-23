@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import os
 import re
-from universal.utils import is_debug
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -17,13 +16,6 @@ if __name__ == "__main__":
     inputs_dir = data_dir + 'inputs/'
     binning_dir = outputs_dir + "binned/"
     rdna_dir = outputs_dir + "rdna/"
-    probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
-
-    parallel = True
-    if is_debug():
-        parallel = False
-
-    df_probes = pd.read_csv(probes_and_fragments, sep='\t', index_col=0)
 
     rdna_regions = pd.DataFrame({'chr': ['chr12'] * 17, 'chr_bins': np.arange(451000, 468000, 1000)})
     rdna_flanking_left = pd.DataFrame({'chr': ['chr12'] * 6, 'chr_bins': np.arange(445000, 451000, 1000)})
