@@ -1,16 +1,44 @@
 import re
 import os
-import multiprocessing as mp
 import pandas as pd
+import numpy as np
 from itertools import chain
 
-from universal.utils import is_debug
+
+def center_around_probes_pos(
+    df: pd.DataFrame,
+    output_path: str,
+    binning: int = 1000,
+    center_window: int = 150000
+):
+    df_res_f = pd.DataFrame({'chr_bins': np.arange(-center_window, center_window, binning)})
+    for index, row in df_probes.iterrows():
+        probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = row
+        probe_bin = (int(probe_start) // binning) * binning
+        df_tmp_freq = df.loc[
+            (df.chr == probe_chr) &
+            (df.chr_bins >= probe_bin - center_window) &
+            (df.chr_bins <= probe_bin + center_window),
+            ['chr_bins', str(frag_id)]]
+
+        df_tmp_freq['chr_bins'] -= center_window
+        df_res_f = pd.merge(df_res_f, df_tmp_freq, how='left')
+
+    df_res_f = df_res_f.fillna(0)
+    df_res_f_pooled = df_res_f.copy(deep=True)
+    df_res_f_pooled['chr_bins'] = abs(df_res_f_pooled['chr_bins'])
+    df_res_f_pooled = df_res_f_pooled.groupby(by='chr_bins', as_index=False).mean(numeric_only=True)
+    df_res_f_pooled = df_res_f_pooled.fillna(0)
+
+    df_res_f.to_csv(output_path + '_frequencies.tsv', sep='\t', index=False)
+    df_res_f_pooled.to_csv(output_path + '_frequencies_pooled.tsv', sep='\t', index=False)
 
 
 def main(
         samples_vs_wt: dict,
-        binned_contacts_path: str,
+        binned_table_path: str,
         additional: dict,
+        bin_size: int,
         statistics_path: str,
         output_dir: str
 ):
@@ -28,7 +56,7 @@ def main(
         dictionary of samples that need to be weighted over the WT references.
         keys are the wt time point like 2h, 4h, 6h etc ...
         values are lists of samples names to be pondered using the key reference wt
-    binned_contacts_path : str
+    binned_table_path : str
         path to re-binned contacts table of the current sample (.tsv file)
         made previously with the rebin_contacts function in binning script
     statistics_path: str
@@ -37,53 +65,64 @@ def main(
                 the absolute path toward the output directory to save the results
     """
 
-    sample_id = re.search(r"AD\d+", binned_contacts_path).group()
+    sample_id = re.search(r"AD\d+", binned_table_path).group()
+    output_path = ''
+    if 'frequencies' in binned_table_path:
+        output_path = output_dir+sample_id+'_frequencies'
+    elif 'contacts' in binned_table_path:
+        output_path = output_dir+sample_id+'_contacts'
 
     df_stats = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
     sub_df_stats = df_stats.filter(regex=r'wt\d+h|fragments').T
     sub_df_stats.columns = sub_df_stats.loc['fragments'].astype(int).astype(str)
     sub_df_stats.drop('fragments', inplace=True)
     sub_df_stats = sub_df_stats.T.drop_duplicates().T
-    fragments = pd.unique(df_stats['fragments'].astype(str))
 
-    df_binned_freq = pd.read_csv(binned_contacts_path, header=0, sep="\t")
-    if '/0kb/' in binned_contacts_path:
-        df_binned_freq = df_binned_freq.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
-        df_pondered_freq = df_binned_freq.filter(items=['chr', 'positions'])
+    df_binned = pd.read_csv(binned_table_path, header=0, sep="\t")
+
+    fragments = pd.unique(df_probes['frag_id'].astype(str))
+    if '/0kb/' in binned_table_path:
+        df_binned = df_binned.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
+        df_pondered = df_binned.filter(items=['chr', 'positions'])
 
     else:
-        df_binned_freq = df_binned_freq.astype(dtype={'chr': str, 'chr_bins': int})
-        df_pondered_freq = df_binned_freq.filter(items=['chr', 'chr_bins', 'genome_bins'])
+        df_binned = df_binned.astype(dtype={'chr': str, 'chr_bins': int})
+        df_pondered = df_binned.filter(items=['chr', 'chr_bins', 'genome_bins'])
 
     for wt in samples_vs_wt:
         if sample_id not in samples_vs_wt[wt]:
             continue
-
         for frag in fragments:
-            df_pondered_freq[frag] = \
-                df_binned_freq[frag]*sub_df_stats.loc['capture_efficiency_norm_'+wt, frag]
-
-        df_pondered_freq.to_csv(
-            '{0}_frequencies_pondered_over_{1}.tsv'.format(output_dir+sample_id, wt), sep='\t', index=False)
+            df_pondered[frag] = df_binned[frag]*sub_df_stats.loc['capture_efficiency_norm_'+wt, frag]
+        df_pondered.to_csv('{0}_pondered_over_{1}.tsv'.format(output_path, wt), sep='\t', index=False)
 
         if len(additional) > 0:
-            df_avg_freq = df_pondered_freq.iloc[:, :3]
+            df_avg_freq = df_pondered.iloc[:, :3]
             for colname, colfrag in additional.items():
-                df_avg_freq[colname] = df_pondered_freq[colfrag].mean(axis=1)
-            df_avg_freq.to_csv(
-                output_dir+'average_on_probes/'+sample_id+'_frequencies.tsv', sep='\t', index=None)
+                df_avg_freq[colname] = df_pondered[colfrag].mean(axis=1)
+            df_avg_freq.to_csv(output_dir+'average_on_probes/'+sample_id+'_frequencies.tsv', sep='\t', index=None)
+
+        if bin_size == 1000 and 'frequencies' in binned_table_path:
+            center_around_probes_pos(
+                df=df_pondered,
+                output_path=output_dir+'probes_centered/'+samp_id
+            )
 
 
 if __name__ == "__main__":
 
     data_dir = os.path.dirname(os.getcwd()) + '/data/'
     sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+    bins_sizes_list = [1000, 2000, 5000, 10000, 20000, 40000, 80000, 100000]
 
     outputs_dir = data_dir + 'outputs/'
     inputs_dir = data_dir + 'inputs/'
     pondered_dir = outputs_dir + "pondered/"
     statistics_dir = outputs_dir + "statistics/"
     binning_dir = outputs_dir + "binned/"
+    probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
+
+    df_probes = pd.read_csv(probes_and_fragments, sep='\t', index_col=0)
 
     samples_to_compare_wt: dict = {
         'wt2h': [
@@ -108,49 +147,31 @@ if __name__ == "__main__":
         'Average_right_(1439-2715)': ['18621', '18632']
     }
 
-    parallel = True
-    if is_debug():
-        parallel = False
-
     for sshic_dir in sshic_pcrdupt_dir:
         print(sshic_dir)
-        binned_dir_list = os.listdir(binning_dir+sshic_dir)
         statistics_tables_list = [s for s in sorted(os.listdir(statistics_dir+sshic_dir)) if 'global' in s]
-        samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_tables_list])
-        for bin_dir in binned_dir_list:
-            if bin_dir == '1kb' and not os.path.exists(pondered_dir+sshic_dir+bin_dir+'/probes_centered'):
-                os.makedirs(pondered_dir+sshic_dir+bin_dir+'probes_centered')
-            print('Ponder mutant contact frequencies (rebinned at {0} over WT references)'.format(bin_dir))
-            bin_dir += '/'
-            binned_contacts_list = \
-                [f for f in sorted(os.listdir(binning_dir+sshic_dir+bin_dir)) if 'frequencies' in f]
+        for bs in bins_sizes_list:
+            bin_dir = str(bs // 1000) + 'kb/'
+            samples_dir = binning_dir + sshic_dir + bin_dir
+            outputs_dir = pondered_dir + sshic_dir + bin_dir
+            print('Ponder mutant contact frequencies (rebinned at {0} over WT references)'.format(str(bs/1000)+'kb'))
+            if bs == 1000 and not os.path.exists(outputs_dir+'probes_centered'):
+                os.makedirs(outputs_dir+'probes_centered')
+            if not os.path.exists(outputs_dir+'average_on_probes/'):
+                os.makedirs(outputs_dir+'average_on_probes/')
 
-            if not os.path.exists(pondered_dir+sshic_dir+bin_dir):
-                os.makedirs(pondered_dir+sshic_dir+bin_dir)
-            if not os.path.exists(pondered_dir+sshic_dir+bin_dir+'average_on_probes/'):
-                os.makedirs(pondered_dir+sshic_dir+bin_dir+'average_on_probes/')
-
-            if parallel:
-                with mp.Pool(mp.cpu_count()) as p:
-                    p.starmap(main, [(
-                        samples_to_compare_wt,
-                        binning_dir+sshic_dir+bin_dir+binned_contacts_list[ii_samp],
-                        additional_averages,
-                        statistics_dir+sshic_dir+statistics_tables_list[ii_samp],
-                        pondered_dir+sshic_dir+bin_dir) for ii_samp, samp in enumerate(samples_id)]
-                        )
-
-            else:
-                for ii_samp, samp in enumerate(samples_id):
-                    if samp in list(chain(*samples_to_compare_wt.values())):
-                        binned_contacts_sample = binning_dir+sshic_dir+bin_dir+binned_contacts_list[ii_samp]
-                        stats_table_sample = statistics_dir+sshic_dir+statistics_tables_list[ii_samp]
-                        main(
-                            samples_vs_wt=samples_to_compare_wt,
-                            binned_contacts_path=binned_contacts_sample,
-                            additional=additional_averages,
-                            statistics_path=stats_table_sample,
-                            output_dir=pondered_dir+sshic_dir+bin_dir,
-                        )
+            samples = [s for s in sorted(os.listdir(samples_dir)) if '.tsv' in s]
+            for samp in samples:
+                samp_id = re.search(r"AD\d+", samp).group()
+                if samp_id in list(chain(*samples_to_compare_wt.values())):
+                    stats_table_sample = [st for st in statistics_tables_list if samp_id in st][0]
+                    main(
+                        samples_vs_wt=samples_to_compare_wt,
+                        binned_table_path=samples_dir+samp,
+                        additional=additional_averages,
+                        bin_size=bs,
+                        statistics_path=statistics_dir+sshic_dir+stats_table_sample,
+                        output_dir=pondered_dir+sshic_dir+bin_dir,
+                    )
 
     print('-- DONE --')
