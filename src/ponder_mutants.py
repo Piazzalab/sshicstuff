@@ -4,7 +4,7 @@ import multiprocessing as mp
 import pandas as pd
 from itertools import chain
 
-from tools import is_debug
+from universal.utils import is_debug
 
 
 def main(

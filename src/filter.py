@@ -3,7 +3,7 @@ import re
 import os
 import numpy as np
 import multiprocessing as mp
-from tools import is_debug
+from universal.utils import is_debug
 
 
 def oligos_correction(oligos_path):

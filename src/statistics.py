@@ -5,7 +5,7 @@ import re
 import numpy as np
 import pandas as pd
 from typing import Optional
-from tools import is_debug
+from universal.utils import is_debug
 import multiprocessing as mp
 
 

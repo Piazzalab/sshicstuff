@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
-from tools import is_debug, sort_by_chr, detect_delimiter, frag2
+from universal.utils import is_debug, sort_by_chr, detect_delimiter, frag2
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None

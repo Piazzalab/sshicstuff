@@ -7,7 +7,7 @@ import re
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 from typing import Optional
-from tools import is_debug, sort_by_chr
+from universal.utils import is_debug, sort_by_chr
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
