@@ -46,49 +46,37 @@ def main(
     sub_df_stats = sub_df_stats.T.drop_duplicates().T
     fragments = pd.unique(df_stats['fragments'].astype(str))
 
-    df_binned_contacts = pd.read_csv(binned_contacts_path, header=0, sep="\t")
+    df_binned_freq = pd.read_csv(binned_contacts_path, header=0, sep="\t")
     if '/0kb/' in binned_contacts_path:
-        df_binned_contacts = df_binned_contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
-        df_pondered_contacts = df_binned_contacts.filter(items=['chr', 'positions'])
+        df_binned_freq = df_binned_freq.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
+        df_pondered_freq = df_binned_freq.filter(items=['chr', 'positions'])
 
     else:
-        df_binned_contacts = df_binned_contacts.astype(dtype={'chr': str, 'chr_bins': int})
-        df_pondered_contacts = df_binned_contacts.filter(items=['chr', 'chr_bins', 'genome_bins'])
+        df_binned_freq = df_binned_freq.astype(dtype={'chr': str, 'chr_bins': int})
+        df_pondered_freq = df_binned_freq.filter(items=['chr', 'chr_bins', 'genome_bins'])
 
     for wt in samples_vs_wt:
         if sample_id not in samples_vs_wt[wt]:
             continue
 
         for frag in fragments:
-            df_pondered_contacts[frag] = \
-                df_binned_contacts[frag] * sub_df_stats.loc['capture_efficiency_norm_'+wt, frag]
+            df_pondered_freq[frag] = \
+                df_binned_freq[frag]*sub_df_stats.loc['capture_efficiency_norm_'+wt, frag]
 
-        df_pondered_freq = df_pondered_contacts.copy(deep=True)
-        df_pondered_freq[fragments] = \
-            df_pondered_freq[fragments].div(df_pondered_freq[fragments].sum(axis=0))
-
-        df_pondered_contacts.to_csv('{0}_contacts_pondered_over_{1}.tsv'.format(output_dir+sample_id, wt), sep='\t')
-        df_pondered_freq.to_csv('{0}_frequencies_pondered_over_{1}.tsv'.format(output_dir+sample_id, wt), sep='\t')
+        df_pondered_freq.to_csv(
+            '{0}_frequencies_pondered_over_{1}.tsv'.format(output_dir+sample_id, wt), sep='\t', index=False)
 
         if len(additional) > 0:
-            if not os.path.exists(output_dir + 'average_on_probes/'):
-                os.makedirs(output_dir + 'average_on_probes/')
-
-            df_avg_contacts = df_pondered_contacts.iloc[:, :3]
-            df_avg_frequencies = df_avg_contacts.copy(deep=True)
+            df_avg_freq = df_pondered_freq.iloc[:, :3]
             for colname, colfrag in additional.items():
-                df_avg_contacts[colname] = df_pondered_contacts[colfrag].mean(axis=1)
-                df_avg_frequencies[colname] = df_pondered_freq[colfrag].mean(axis=1)
-
-            df_avg_contacts.to_csv(
-                output_dir+'average_on_probes/'+sample_id+'_contacts.tsv', sep='\t', index=False)
-            df_avg_frequencies.to_csv(
-                output_dir+'average_on_probes/'+sample_id+'_frequencies.tsv', sep='\t', index=False)
+                df_avg_freq[colname] = df_pondered_freq[colfrag].mean(axis=1)
+            df_avg_freq.to_csv(
+                output_dir+'average_on_probes/'+sample_id+'_frequencies.tsv', sep='\t', index=None)
 
 
 if __name__ == "__main__":
 
-    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    data_dir = os.path.dirname(os.getcwd()) + '/data/'
     sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
 
     outputs_dir = data_dir + 'outputs/'
@@ -130,13 +118,17 @@ if __name__ == "__main__":
         statistics_tables_list = [s for s in sorted(os.listdir(statistics_dir+sshic_dir)) if 'global' in s]
         samples_id = sorted([re.search(r"AD\d+", f).group() for f in statistics_tables_list])
         for bin_dir in binned_dir_list:
-            print('Ponder mutant contacts (rebinned at {0} over WT references)'.format(bin_dir))
+            if bin_dir == '1kb' and not os.path.exists(pondered_dir+sshic_dir+bin_dir+'/probes_centered'):
+                os.makedirs(pondered_dir+sshic_dir+bin_dir+'probes_centered')
+            print('Ponder mutant contact frequencies (rebinned at {0} over WT references)'.format(bin_dir))
             bin_dir += '/'
             binned_contacts_list = \
-                [f for f in sorted(os.listdir(binning_dir+sshic_dir+bin_dir)) if 'contacts' in f]
+                [f for f in sorted(os.listdir(binning_dir+sshic_dir+bin_dir)) if 'frequencies' in f]
 
             if not os.path.exists(pondered_dir+sshic_dir+bin_dir):
                 os.makedirs(pondered_dir+sshic_dir+bin_dir)
+            if not os.path.exists(pondered_dir+sshic_dir+bin_dir+'average_on_probes/'):
+                os.makedirs(pondered_dir+sshic_dir+bin_dir+'average_on_probes/')
 
             if parallel:
                 with mp.Pool(mp.cpu_count()) as p:
