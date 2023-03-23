@@ -151,19 +151,17 @@ def center_around_probes_pos(
     df_res_f = df_res_c.copy(deep=True)
     for index, row in df_probes.iterrows():
         probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = row
-        if frag_id not in df_contacts.columns:
-            continue
         probe_bin = (int(probe_start) // binning) * binning
         df_tmp_contacts = df_contacts.loc[
             (df_contacts.chr == probe_chr) &
             (df_contacts.chr_bins >= probe_bin - center_window) &
             (df_contacts.chr_bins <= probe_bin + center_window),
-            ['chr_bins', frag_id]]
+            ['chr_bins', str(frag_id)]]
         df_tmp_freq = df_freq.loc[
             (df_freq.chr == probe_chr) &
             (df_freq.chr_bins >= probe_bin - center_window) &
             (df_freq.chr_bins <= probe_bin + center_window),
-            ['chr_bins', frag_id]]
+            ['chr_bins', str(frag_id)]]
 
         df_tmp_contacts['chr_bins'] -= center_window
         df_tmp_freq['chr_bins'] -= center_window
@@ -252,7 +250,7 @@ def rebin_contacts(
 
 if __name__ == "__main__":
 
-    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    data_dir = os.path.dirname(os.getcwd()) + '/data/'
     sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
 
     outputs_dir = data_dir + 'outputs/'
