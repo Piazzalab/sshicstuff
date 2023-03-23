@@ -138,7 +138,7 @@ def main(
         fragment_chr = row['chr']
         fragment_start = row['start']
         df_contacts_chr_mask = df_contacts.loc[df_contacts.chr == fragment_chr]
-        index_contact = df_contacts.loc[df_contacts.start == fragment_start].index.tolist()[0]
+        index_contact = df_contacts_chr_mask.loc[df_contacts_chr_mask.start == fragment_start].index.tolist()[0]
         tmp_df = df_contacts_chr_mask.loc[index_contact-10:index_contact+10, :]
         tmp_id = list(tmp_df.index - index_contact)
         tmp_df.insert(1, 'id', tmp_id)
