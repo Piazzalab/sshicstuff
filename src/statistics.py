@@ -115,6 +115,7 @@ def run(
     ii_probe = 0
     for probe in all_probes:
         probe_type, probe_start, probe_end, probe_chr, frag_id, frag_start, frag_end = df_probes.loc[probe].tolist()
+        frag_id = str(frag_id)
         probes.append(probe)
         types.append(probe_type)
         sub_df = df_formatted_contacts[['chr', 'positions', frag_id]]
@@ -208,7 +209,7 @@ def run(
 
 if __name__ == "__main__":
 
-    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    data_dir = os.path.dirname(os.getcwd()) + '/data/'
     sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
 
     outputs_dir = data_dir + 'outputs/'
