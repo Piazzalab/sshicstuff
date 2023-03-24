@@ -6,14 +6,14 @@ import pandas as pd
 
 if __name__ == "__main__":
     bin_size = 1000
-    window_size = 60000
+    window_size = 100000
     excluded_chr = ['chr3', 'chr2', 'chr5']
     data_dir = '../../data/'
     samples_dir = data_dir + 'inputs/HiC_WT_2h_4h/samples/'
     fragments_dir = data_dir + 'inputs/HiC_WT_2h_4h/'
     samples = sorted(os.listdir(samples_dir))
 
-    output_dir = '../../data/outputs/hic/' + 'cen2cen/'
+    output_dir = '../../data/outputs/hic/' + 'cen2rdna/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -21,6 +21,7 @@ if __name__ == "__main__":
     df_fragments = pd.read_csv(fragments_dir+'AD154to160_S288c_DSB_cutsite_q20_chrs_1kb.frag.tsv',
                                sep='\t', index_col=None)
 
+    rdna_regions = ['chr12:'+str(b) for b in range(451000, 468000, 1000)]
     chr_to_fragid = {}
     for c in np.unique(df_fragments.chr):
         chr_to_fragid[c] = df_fragments[df_fragments['chr'] == c].index.tolist()
@@ -40,12 +41,10 @@ if __name__ == "__main__":
 
     #   filter fragments that are not in the chr12 rDNA region 451000:468000
     df_fragments_filtered3 = df_fragments_filtered1[
-        (df_fragments_filtered2.start_pos >= 451000) &
-        (df_fragments_filtered2.end_pos <= 468000) &
-        (df_fragments_filtered2.chr == 'chr12')
+        (df_fragments_filtered1.start_pos >= 451000) &
+        (df_fragments_filtered1.end_pos <= 468000) &
+        (df_fragments_filtered1.chr == 'chr12')
     ]
-
-    cen_bin_to_chr = dict(pd.Series(df_fragments_filtered3.iloc[:, 1]))
 
     for samp in samples:
         samp_id = re.search(r"AD\d+", samp).group()
@@ -69,19 +68,18 @@ if __name__ == "__main__":
         df2 = df1d.filter(items=df_fragments_filtered2.index.tolist(), axis=0)
 
 
-        #   only keep on columns fragments that are on the centromere's bin
+        #   only keep on columns fragments that are on rDNA region
         df3 = df2.filter(items=df_fragments_filtered3.index.tolist(), axis=1)
+        #   replace columns name by chr names
+        df3.columns = rdna_regions
         #   add columns with chr ID for each fragment on row
         df3.insert(0, 'chr', df_fragments_filtered2.chr)
         #   add columns with bin for each fragment on row
         df3.insert(1, 'chr_bins', df_fragments_filtered2.start_pos)
         #   indices shifting for bins in 'chr_bins' column
         #   use absolute value to allow a groupby method in a further step
-        df3['chr_bins'] = abs(df3['chr_bins']-(df_fragments_filtered2['left_arm_length'] // bin_size)*bin_size)
-        #   replace columns name by chr names
-        df3.rename(columns=cen_bin_to_chr, inplace=True)
-
-        df3['mean'] = df3.loc[:, cen_bin_to_chr.values()].mean(axis=1)
+        df3['chr_bins'] = abs(df3['chr_bins'] - (df_fragments_filtered2['left_arm_length'] // bin_size) * bin_size)
+        df3.insert(2, 'mean', df3[rdna_regions].mean(axis=1))
 
         df4 = df3.loc[:, ['chr', 'chr_bins', 'mean']]
 
@@ -94,7 +92,7 @@ if __name__ == "__main__":
         res['mean'] = res.mean(axis=1)
 
         output_path = output_dir + samp_id
-        res.to_csv(output_path + '_freq_inter.tsv', sep='\t')
+        res.to_csv(output_path + '_freq_pericentro_to_rdna.tsv', sep='\t')
 
         print(samp_id)
 
