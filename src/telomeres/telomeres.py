@@ -200,7 +200,7 @@ if __name__ == "__main__":
         print('\n')
         print('raw binned tables')
         samples_not_pondered = \
-            sorted([f for f in os.listdir(binning_dir + sshic_dir + '10kb/') if 'contacts.tsv' in f])
+            sorted([f for f in os.listdir(binning_dir + sshic_dir + '10kb/') if 'frequencies' in f])
         if parallel:
             with mp.Pool(mp.cpu_count()) as p:
                 p.starmap(main, [(
@@ -222,7 +222,7 @@ if __name__ == "__main__":
         print('\n')
         print('pondered binned tables')
         samples_pondered =\
-            sorted([f for f in os.listdir(pondered_dir + sshic_dir + '10kb/') if 'contacts' in f])
+            sorted([f for f in os.listdir(pondered_dir + sshic_dir + '10kb/') if 'frequencies' in f])
         if parallel:
             with mp.Pool(mp.cpu_count()) as p:
                 p.starmap(main, [(
