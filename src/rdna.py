@@ -17,6 +17,17 @@ def main(
     samp_id = re.search(r"AD\d+", binned_contacts_path).group()
     print(samp_id)
     df_contacts = pd.read_csv(binned_contacts_path, sep='\t')
+    fragments = pd.unique(df_probes['frag_id'].astype(str))
+
+    #   We need to remove for each oligo the number of contact it makes with its own chr.
+    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+    #   We have to set them as NaN to not bias the average
+    for f in fragments:
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+        df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
+    #   Inter normalization
+    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+
     for colname, colfrag in probes_averages.items():
         df_contacts[colname] = df_contacts[colfrag].mean(axis=1)
 
@@ -46,7 +57,9 @@ if __name__ == "__main__":
     binning_dir = outputs_dir + "binned/"
     pondered_dir = outputs_dir + "pondered/"
     rdna_dir = outputs_dir + "rdna/"
+    probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
 
+    df_probes = pd.read_csv(probes_and_fragments, sep='\t', index_col=0)
     rdna_regions = pd.DataFrame({'chr': ['chr12'] * 17, 'chr_bins': np.arange(451000, 468000, 1000)})
     rdna_flanking_left = pd.DataFrame({'chr': ['chr12'] * 11, 'chr_bins': np.arange(440000, 451000, 1000)})
     rdna_flanking_right = pd.DataFrame({'chr': ['chr12'] * 10, 'chr_bins': np.arange(490000, 500000, 1000)})
