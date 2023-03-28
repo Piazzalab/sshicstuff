@@ -146,7 +146,7 @@ def main(
 
 if __name__ == "__main__":
 
-    data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
+    data_dir = os.path.dirname(os.getcwd()) + '/data/'
     sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
 
     outputs_dir = data_dir + 'outputs/'
