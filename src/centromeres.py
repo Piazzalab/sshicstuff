@@ -69,7 +69,7 @@ def freq_focus_around_centromeres(
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
     #   Inter normalization
-    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
 
     df_merged = pd.merge(df_contacts, df_centros, on='chr')
     df_merged_cen_areas = df_merged[

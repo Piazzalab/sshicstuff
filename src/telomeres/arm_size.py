@@ -30,7 +30,7 @@ def main(
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
     #   Inter normalization
-    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
     #   add additional subset of probes where contacts are averaged
     for colname, colfrag in probes_averages.items():
         df_contacts[colname] = df_contacts[colfrag].mean(axis=1)

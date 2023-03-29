@@ -26,7 +26,7 @@ def main(
         probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
         df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
     #   Inter normalization
-    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
 
     for colname, colfrag in probes_averages.items():
         df_contacts[colname] = df_contacts[colfrag].mean(axis=1)

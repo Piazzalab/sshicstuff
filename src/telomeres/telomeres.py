@@ -69,7 +69,7 @@ def freq_focus_around_telomeres(
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
     #   Inter normalization
-    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
     df_merged = pd.merge(df_contacts, df_telos, on='chr')
 
     df_merged_telos_areas_part_a = df_merged[

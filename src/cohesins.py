@@ -62,7 +62,7 @@ def freq_focus_around_cohesin_peaks(
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
     #   Inter normalization
-    df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
 
     df_merged = pd.merge(df_contacts, df_peaks, on='chr')
     df_merged_cohesins_areas = df_merged[
