@@ -62,18 +62,18 @@ def freq_focus_around_centromeres(
     excluded_chr = ['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
     fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
+    df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
+    df_centros = df_centros[~df_centros['chr'].isin(excluded_chr)]
+
+    #   We need to remove for each oligo the number of contact it makes with its own chr.
+    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+    #   We have to set them as NaN to not bias the average
+    for f in fragments:
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+        if probe_chr not in excluded_chr:
+            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
+
     if inter_norm:
-        df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
-        df_centros = df_centros[~df_centros['chr'].isin(excluded_chr)]
-
-        #   We need to remove for each oligo the number of contact it makes with its own chr.
-        #   Because we know that the frequency of intra-chr contact is higher than inter-chr
-        #   We have to set them as NaN to not bias the average
-        for f in fragments:
-            probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
-            if probe_chr not in excluded_chr:
-                df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
-
         #   Inter normalization
         df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
 
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     if is_debug():
         parallel = False
 
-    inter_normalization = False
+    inter_normalization = True
     print('aggregated on centromeres positions')
     for sshic_dir in sshic_pcrdupt_dir:
         print(sshic_dir)
