@@ -23,6 +23,7 @@ pd.options.mode.chained_assignment = None
 def compute_telomere_freq_per_oligo_per_chr(
         df_freq: pd.DataFrame,
         df_probes: pd.DataFrame,
+        inter_norm: bool,
         table_path: str):
 
     all_probes = df_probes.index.values
@@ -34,7 +35,10 @@ def compute_telomere_freq_per_oligo_per_chr(
         if df_freq[fragment].sum() == 0.:
             continue
         df_freq_telo = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
-        df_freq_telo.to_csv(table_path + probe + '_chr1-16_freq_on_telo.tsv', sep='\t')
+        if inter_norm:
+            df_freq_telo.to_csv(table_path + probe + '_chr1-16_freq_on_telo_inter.tsv', sep='\t')
+        else:
+            df_freq_telo.to_csv(table_path + probe + '_chr1-16_freq_on_telo_absolute.tsv', sep='\t')
         res[probe] = df_freq_telo
     return res
 
@@ -43,6 +47,7 @@ def freq_focus_around_telomeres(
         formatted_contacts_path: str,
         probes_to_fragments_path: str,
         window_size: int,
+        inter_norm: bool,
         telomeres_coord_path: str):
     """
     Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
@@ -57,21 +62,22 @@ def freq_focus_around_telomeres(
     excluded_chr = ['chr2', 'chr3', '2_micron', 'mitochondrion', 'chr_artificial']
     fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
-    df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
-    df_telos = df_telos[~df_telos['chr'].isin(excluded_chr)]
+    if inter_norm:
+        df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
+        df_telos = df_telos[~df_telos['chr'].isin(excluded_chr)]
 
-    #   We need to remove for each oligo the number of contact it makes with its own chr.
-    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
-    #   We have to set them as NaN to not bias the average
-    for f in fragments:
-        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
-        if probe_chr not in excluded_chr:
-            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
+        #   We need to remove for each oligo the number of contact it makes with its own chr.
+        #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+        #   We have to set them as NaN to not bias the average
+        for f in fragments:
+            probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+            if probe_chr not in excluded_chr:
+                df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
-    #   Inter normalization
-    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+        #   Inter normalization
+        df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+
     df_merged = pd.merge(df_contacts, df_telos, on='chr')
-
     df_merged_telos_areas_part_a = df_merged[
         df_merged.chr_bins < (df_merged.telo_l + window_size + bin_size)
     ]
@@ -98,12 +104,18 @@ def freq_focus_around_telomeres(
 def compute_average_aggregate(
         aggregated: dict[str: pd.DataFrame],
         table_path: str,
+        inter_norm: bool,
         plot: bool,
         plot_path: Optional[str]):
     """
     After fetching the contacts for each oligos around the telomere of the 16 chr,
     we need to make an average (and std) of the 16 chr.
     """
+
+    normalization = 'absolute'
+    if inter_norm:
+        normalization = 'inter'
+
     df_mean = pd.DataFrame()
     df_std = pd.DataFrame()
 
@@ -118,19 +130,20 @@ def compute_average_aggregate(
             plt.bar(pos, mean)
             plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
             plt.ylim((ymin, None))
-            plt.title("Aggregated frequencies for probe {0} around telomeres".format(probe))
+            plt.title("Aggregated frequencies for probe {0} around telomeres {1}".format(probe, normalization))
             plt.xlabel("Bins around the telomeres (in kb), 5' to 3'")
             plt.xticks(rotation=45)
             plt.ylabel("Average frequency made and standard deviation")
-            plt.savefig(plot_path + "{0}_telomeres_aggregated_frequencies_plot.{1}".format(probe, 'jpg'), dpi=99)
+            plt.savefig(plot_path + "{0}_telomeres_aggregated_frequencies_plot_{1}.{2}".format(
+                probe, normalization, 'jpg'), dpi=96)
             plt.close()
 
         df_mean[probe] = mean
         df_std[probe] = std
 
     #   Write to csv
-    df_mean.to_csv(table_path + '_mean_on_telo.tsv', sep='\t')
-    df_std.to_csv(table_path + '_std_on_telo.tsv', sep='\t')
+    df_mean.to_csv(table_path + 'mean_on_telo.tsv', sep='\t')
+    df_std.to_csv(table_path + 'std_on_telo.tsv', sep='\t')
 
 
 def mkdir(output_path: str):
@@ -154,6 +167,7 @@ def main(
         telomeres_coord_path: str,
         window_size: int,
         output_path: str,
+        inter_norm: bool,
         plot: bool = True
 ):
 
@@ -164,16 +178,19 @@ def main(
         formatted_contacts_path=formatted_contacts_path,
         probes_to_fragments_path=probes_to_fragments_path,
         window_size=window_size,
+        inter_norm=inter_norm,
         telomeres_coord_path=telomeres_coord_path)
 
     chr_aggregated_dict = compute_telomere_freq_per_oligo_per_chr(
         df_freq=df_contacts_centros,
         df_probes=df_probes,
+        inter_norm=inter_norm,
         table_path=dir_table)
 
     compute_average_aggregate(
         aggregated=chr_aggregated_dict,
         table_path=dir_table,
+        inter_norm=inter_norm,
         plot=plot,
         plot_path=dir_plot)
 
@@ -194,6 +211,7 @@ if __name__ == "__main__":
     if is_debug():
         parallel = False
 
+    inter_normalization = False
     print('aggregated on telomeres positions')
     for sshic_dir in sshic_pcrdupt_dir:
         print(sshic_dir)
@@ -208,7 +226,8 @@ if __name__ == "__main__":
                     probes_and_fragments,
                     centromeres_positions,
                     150000,
-                    telomeres_dir+'not_pondered/'+sshic_dir) for samp in samples_not_pondered]
+                    telomeres_dir+'not_pondered/'+sshic_dir,
+                    inter_normalization) for samp in samples_not_pondered]
                 )
         else:
             for samp in samples_not_pondered:
@@ -217,6 +236,7 @@ if __name__ == "__main__":
                     probes_to_fragments_path=probes_and_fragments,
                     window_size=150000,
                     telomeres_coord_path=centromeres_positions,
+                    inter_norm=inter_normalization,
                     output_path=telomeres_dir+'not_pondered/'+sshic_dir,
                 )
         print('\n')
@@ -230,7 +250,8 @@ if __name__ == "__main__":
                     probes_and_fragments,
                     centromeres_positions,
                     150000,
-                    telomeres_dir+'pondered/'+sshic_dir) for samp in samples_pondered]
+                    telomeres_dir+'pondered/'+sshic_dir,
+                    inter_normalization) for samp in samples_pondered]
                 )
         else:
             for samp in samples_pondered:
@@ -239,6 +260,7 @@ if __name__ == "__main__":
                     probes_to_fragments_path=probes_and_fragments,
                     window_size=150000,
                     telomeres_coord_path=centromeres_positions,
+                    inter_norm=inter_normalization,
                     output_path=telomeres_dir+'pondered/'+sshic_dir,
                 )
 
