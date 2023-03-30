@@ -9,8 +9,8 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="hic_ssdna",
     version="1.1.0",
-    package_dir={"": "src"},
-    packages=setuptools.find_packages(where="src"),
+    package_dir={"": "sshic"},
+    packages=setuptools.find_packages(where="sshic"),
     install_requires=[
         'pandas',
         'getopt',
