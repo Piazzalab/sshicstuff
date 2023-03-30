@@ -44,6 +44,7 @@ def rebin_contacts(
         df_unbinned: pd.DataFrame,
         bin_size: int,
         chromosomes_coord_path: str,
+        output_dir: str
 ):
 
     df_binned_template = build_bins_from_genome(
@@ -57,4 +58,10 @@ def rebin_contacts(
     df_binned_contacts = pd.merge(df_binned_template, df_binned_contacts,  on=['chr', 'chr_bins'], how='left')
     df_binned_contacts = remove_columns(df_binned_contacts, exclusion=['start', 'end', 'size'])
     df_binned_contacts.fillna(0, inplace=True)
-    return df_binned_contacts
+
+    fragments = df_binned_contacts.columns[2:].values
+    df_binned_freq = df_binned_contacts.copy(deep=True)
+    df_binned_freq[fragments] = (df_binned_contacts[fragments].div(df_binned_contacts[fragments].sum(axis=0)))
+
+    df_binned_contacts.to_csv(output_dir + 'binned_contacts.tsv', sep='\t', index=False)
+    df_binned_freq.to_csv(output_dir + 'binned_frequencies.tsv', sep='\t', index=False)
