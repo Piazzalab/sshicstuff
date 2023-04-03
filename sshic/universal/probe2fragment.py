@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from universal.utils import find_nearest
 
@@ -5,7 +6,6 @@ from universal.utils import find_nearest
 def main(
         fragments_list_path: str,
         oligos_capture_path: str,
-        output_path: str
 ):
 
     """
@@ -22,9 +22,10 @@ def main(
         path to the digested fragments list based on a restriction enzyme or a fixed chunk size.
     oligos_capture_path : str
         path to the file containing the oligo-nucleotides capture information
-    output_path : str
-        desired output_path to save the file
     """
+
+    dirname = os.path.dirname(fragments_list_path)
+    output_path = os.path.join(dirname, "probes_to_fragments.tsv")
 
     df_fragments = pd.read_csv(fragments_list_path, sep='\t')
     df_oligos = pd.read_csv(oligos_capture_path, sep=",")
