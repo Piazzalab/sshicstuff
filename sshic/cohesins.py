@@ -24,6 +24,7 @@ def freq_focus_around_cohesin_peaks(
         probes_to_fragments_path: str,
         centros_info_path: str,
         window_size: int,
+        inter_norm: bool,
         cohesins_peaks_path: str,
         score_cutoff: int,
         filter_range: int,
@@ -61,8 +62,9 @@ def freq_focus_around_cohesin_peaks(
         if probe_chr not in excluded_chr:
             df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
-    #   Inter normalization
-    df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+    if inter_norm:
+        #   Inter normalization
+        df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
 
     df_merged = pd.merge(df_contacts, df_peaks, on='chr')
     df_merged_cohesins_areas = df_merged[
@@ -109,12 +111,17 @@ def compute_average_aggregate(
         df_cohesins_peaks_bins: pd.DataFrame,
         df_probes: pd.DataFrame,
         table_path: str,
+        inter_norm: bool,
         plot: bool,
         plot_path: Optional[str],
         option: Optional[str] = ""
 ):
     if option != "":
         option = '_'+option
+
+    normalization = 'absolute'
+    if inter_norm:
+        normalization = 'inter'
 
     all_probes = df_probes.index.values
     res: dict = {}
@@ -126,7 +133,8 @@ def compute_average_aggregate(
             continue
         df_freq_cen =\
             df_cohesins_peaks_bins.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=np.nan)
-        df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cohesins{0}.tsv'.format(option), sep='\t')
+        df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cohesins{0}_{1}.tsv'.format(
+            option, normalization), sep='\t')
         res[probe] = df_freq_cen
 
     df_mean = pd.DataFrame()
@@ -143,12 +151,13 @@ def compute_average_aggregate(
             plt.bar(pos, mean)
             plt.errorbar(pos, mean, yerr=std, fmt="o", color='g', capsize=5, clip_on=True)
             plt.ylim((ymin, None))
-            plt.title("Aggregated frequencies {0} for probe {1} cohesins peaks".format(option, probe))
+            plt.title("Aggregated frequencies {0} for probe {1} cohesins peaks {2}".format(
+                option, probe, normalization))
             plt.xlabel("Bins around the cohesins peaks (in kb), 5' to 3'")
             plt.xticks(rotation=45)
             plt.ylabel("Average frequency made and standard deviation")
-            plt.savefig(plot_path+"{0}_cohesins_aggregated_{1}frequencies_plot.{2}".format(probe, option, 'jpg'),
-                        dpi=96)
+            plt.savefig(plot_path+"{0}_cohesins_aggregated_{1}_{2}frequencies_plot.{3}".format(
+                probe, option, normalization, 'jpg'), dpi=96)
             plt.close()
 
         df_mean[probe] = mean
@@ -201,6 +210,7 @@ def main(
         cen_filter_span: int,
         cen_filter_mode: str | None,
         output_dir: str,
+        inter_norm: bool,
         plot: bool = True
 ):
 
@@ -216,6 +226,7 @@ def main(
         probes_to_fragments_path=probes_to_fragments_path,
         centros_info_path=centromere_info_path,
         window_size=window_size,
+        inter_norm=inter_norm,
         cohesins_peaks_path=cohesins_peaks_path,
         score_cutoff=score_cutoff,
         filter_range=cen_filter_span,
@@ -225,6 +236,7 @@ def main(
         df_cohesins_peaks_bins=df_contacts_cohesins,
         df_probes=df_probes,
         table_path=dir_table,
+        inter_norm=inter_norm,
         plot=plot,
         plot_path=dir_plot)
 
@@ -232,6 +244,7 @@ def main(
         df_cohesins_peaks_bins=df_contacts_cohesins,
         df_probes=df_probes,
         table_path=dir_table,
+        inter_norm=inter_norm,
         plot=plot,
         plot_path=dir_plot,
         option='derivative')
@@ -254,6 +267,7 @@ if __name__ == "__main__":
     if is_debug():
         parallel = False
 
+    inter_normalization = False
     for sshic_dir in sshic_pcrdupt_dir:
         print(sshic_dir)
         cohesins_filter_list = ['inner', 'outer', None]
@@ -286,6 +300,7 @@ if __name__ == "__main__":
                             cohesins_filter_span,
                             m,
                             cohesins_dir + 'not_pondered/' + sshic_dir,
+                            inter_normalization,
                             False) for samp in samples_not_pondered],
                         )
                 else:
@@ -294,6 +309,7 @@ if __name__ == "__main__":
                             formatted_contacts_path=binning_dir + sshic_dir + '1kb/' + samp,
                             probes_to_fragments_path=probes_and_fragments,
                             window_size=15000,
+                            inter_norm=inter_normalization,
                             cohesins_peaks_path=cohesins_peaks_path,
                             centromere_info_path=centromeres_positions,
                             score_cutoff=sc,
@@ -329,14 +345,16 @@ if __name__ == "__main__":
                             cohesins_filter_span,
                             m,
                             cohesins_dir + 'pondered/' + sshic_dir,
+                            inter_normalization,
                             False) for samp in samples_pondered],
-                                  )
+                        )
                 else:
                     for samp in samples_pondered:
                         main(
                             formatted_contacts_path=pondered_dir + sshic_dir + '1kb/' + samp,
                             probes_to_fragments_path=probes_and_fragments,
                             window_size=15000,
+                            inter_norm=inter_normalization,
                             cohesins_peaks_path=cohesins_peaks_path,
                             centromere_info_path=centromeres_positions,
                             score_cutoff=sc,
