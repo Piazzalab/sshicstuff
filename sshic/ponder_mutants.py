@@ -73,7 +73,7 @@ def main(
         output_path = output_dir+sample_id+'_contacts'
 
     df_stats = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
-    sub_df_stats = df_stats.filter(regex=r'wt\d+h|fragments').drop_duplicates()
+    sub_df_stats = df_stats.filter(regex=r'wt\d+h|AD+\d|fragments').drop_duplicates()
     sub_df_stats.index = sub_df_stats['fragments'].astype(str)
     sub_df_stats = sub_df_stats.drop(columns=['fragments'])
 
@@ -93,6 +93,8 @@ def main(
             continue
         for frag in fragments:
             ponder_coeff = sub_df_stats.loc[frag, 'capture_efficiency_norm_'+wt]
+            if ponder_coeff == np.nan:
+                ponder_coeff = 0.
             df_pondered[frag] = df_binned[frag]*ponder_coeff
         df_pondered.to_csv('{0}_pondered_over_{1}.tsv'.format(output_path, wt), sep='\t', index=False)
 
@@ -121,21 +123,17 @@ if __name__ == "__main__":
     statistics_dir = outputs_dir + "statistics/"
     binning_dir = outputs_dir + "binned/"
     probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
+    samples_to_compare_wt = inputs_dir + "capture_efficiencies/mutants_vs_ref.csv"
+
+    df_samples_to_wt = pd.read_csv(samples_to_compare_wt, header=0, sep="\t")
+    samples_to_wt = {}
+    for index, row in df_samples_to_wt.iterrows():
+        if row['ref'] not in samples_to_wt:
+            samples_to_wt[row['ref']] = []
+        samples_to_wt[row['ref']].append(row['sample'])
 
     df_probes = pd.read_csv(probes_and_fragments, sep='\t', index_col=0)
 
-    samples_to_compare_wt: dict = {
-        'wt2h': [
-            "AD206", "AD208", "AD210", "AD212", "AD233", "AD235", "AD237", "AD239", "AD243", "AD245", "AD247",
-            "AD257", "AD259", "AD289", "AD291", "AD293", "AD295", "AD297", "AD299", "AD301", "AD356", "AD358",
-            "AD360"
-        ],
-        'wt4h': [
-            "AD207", "AD209", "AD211", "AD213", "AD234", "AD236", "AD238", "AD240", "AD244", "AD246", "AD248",
-            "AD258", "AD260", "AD290", "AD292", "AD294", "AD296", "AD298", "AD300", "AD302", "AD342", "AD343",
-            "AD344", "AD345", "AD346", "AD347", "AD357", "AD359", "AD361"
-        ]
-    }
 
     additional_averages = {
         'Average_left': ['18535', '18589', '18605', '18611', '18614', '18616'],
@@ -165,10 +163,10 @@ if __name__ == "__main__":
             samples = [s for s in sorted(os.listdir(samples_dir)) if '.tsv' in s]
             for samp in samples:
                 samp_id = re.search(r"AD\d+", samp).group()
-                if samp_id in list(chain(*samples_to_compare_wt.values())):
+                if samp_id in list(chain(*samples_to_wt.values())):
                     stats_table_sample = [st for st in statistics_tables_list if samp_id in st][0]
                     main(
-                        samples_vs_wt=samples_to_compare_wt,
+                        samples_vs_wt=samples_to_wt,
                         binned_table_path=samples_dir+samp,
                         additional=additional_averages,
                         bin_size=bs,

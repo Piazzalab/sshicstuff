@@ -86,7 +86,6 @@ def run(
     df_formatted_contacts.columns = \
         [int(col) if col.isdigit() and int(col) in fragments else col for col in df_formatted_contacts.columns]
 
-
     df_sparse_mat = pd.read_csv(sparse_mat_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
     #   from sparse_matrix (hicstuff results): get total contacts from which probes enrichment is calculated
     total_sparse_contacts = sum(df_sparse_mat["contacts"])
@@ -95,7 +94,7 @@ def run(
     if os.path.exists(wt_references_dir) and os.listdir(wt_references_dir) is not None:
         wt_capture_ref = True
         ref_wt: dict = \
-            {k.lower().split('.')[0]: pd.read_csv(wt_references_dir + k, sep='\t')
+            {k.split('.')[0]: pd.read_csv(wt_references_dir + k, sep='\t')
              for k in os.listdir(wt_references_dir)}
     else:
         ref_wt: dict = {}
@@ -190,6 +189,9 @@ def run(
             if sample_id in samples_vs_wt[wt]:
                 wt_capture_eff_values = \
                     df_global.merge(ref_wt[wt], on='probes')['Capture_efficiency_WT'].values
+                if wt_capture_eff_values.min() == 0.:
+                    for i in np.where(wt_capture_eff_values == 0.)[0]:
+                        wt_capture_eff_values[i] = np.nan
                 df_global['capture_efficiency_norm_'+wt] = \
                     df_global['dsdna_norm_capture_efficiency'] / wt_capture_eff_values
             else:
@@ -221,19 +223,14 @@ if __name__ == "__main__":
     probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
     centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
     ref_wt_dir = inputs_dir + "capture_efficiencies/"
+    samples_to_compare_wt = ref_wt_dir + "mutants_vs_ref.csv"
 
-    samples_to_compare_wt: dict = {
-        'wt2h': [
-            "AD206", "AD208", "AD210", "AD212", "AD233", "AD235", "AD237", "AD239", "AD243", "AD245", "AD247",
-            "AD257", "AD259", "AD289", "AD291", "AD293", "AD295", "AD297", "AD299", "AD301", "AD356", "AD358",
-            "AD360"
-        ],
-        'wt4h': [
-            "AD207", "AD209", "AD211", "AD213", "AD234", "AD236", "AD238", "AD240", "AD244", "AD246", "AD248",
-            "AD258", "AD260", "AD290", "AD292", "AD294", "AD296", "AD298", "AD300", "AD302", "AD342", "AD343",
-            "AD344", "AD345", "AD346", "AD347", "AD357", "AD359", "AD361"
-        ]
-    }
+    df_samples_to_wt = pd.read_csv(samples_to_compare_wt, header=0, sep="\t")
+    samples_to_wt = {}
+    for index, row in df_samples_to_wt.iterrows():
+        if row['ref'] not in samples_to_wt:
+            samples_to_wt[row['ref']] = []
+        samples_to_wt[row['ref']].append(row['sample'])
 
     parallel = True
     if is_debug():
@@ -256,7 +253,7 @@ if __name__ == "__main__":
                     50000,
                     hicstuff_dir+sshic_dir+sparse_matrix_list[ii_samp],
                     ref_wt_dir+sshic_dir,
-                    samples_to_compare_wt,
+                    samples_to_wt,
                     not_binned_dir+samples[ii_samp],
                     probes_and_fragments,
                     statistics_dir+sshic_dir) for ii_samp, samp in enumerate(samples_id)]
@@ -267,7 +264,7 @@ if __name__ == "__main__":
                     cis_range=50000,
                     sparse_mat_path=hicstuff_dir+sshic_dir+sparse_matrix_list[ii_samp],
                     wt_references_dir=ref_wt_dir+sshic_dir,
-                    samples_vs_wt=samples_to_compare_wt,
+                    samples_vs_wt=samples_to_wt,
                     formatted_contacts_path=not_binned_dir+samples[ii_samp],
                     probes_to_fragments_path=probes_and_fragments,
                     output_dir=statistics_dir+sshic_dir
