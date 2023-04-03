@@ -1,3 +1,5 @@
+import re
+import os
 import pandas as pd
 from universal.utils import frag2
 
@@ -87,7 +89,7 @@ def first_join(x: str, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame):
     Join the contacts and the oligos_fragments dataframes keeping only
     the rows that have their 'x' frag (frag_a or frag_b, see contacts_correction function)
     """
-    joined = contacts.merge(oligos_fragments, left_on=x, right_on='frag', how='inner')
+    joined = contacts.merge(oligos_fragments, left_on='frag_'+x, right_on='frag', how='inner')
     return joined
 
 
@@ -104,7 +106,7 @@ def second_join(
     new_contacts = first_join(x, oligos_fragments, contacts)
     y = frag2(x)
     joined = new_contacts.join(fragments.drop("frag", axis=1),
-                               on=y,
+                               on='frag_'+y,
                                lsuffix='_' + x[-1],
                                rsuffix='_' + y[-1], how='left')
 
@@ -120,22 +122,25 @@ def second_join(
 def main(
         oligos_path: str,
         fragments_path: str,
-        contacts_path: str,
-        output_dir: str
+        contacts_path: str
 ):
     """
     Does the two joining (for 'frag_a' and 'frag_b') and then concatenate the two results
     """
 
+    sample_id = re.search(r"AD\d+", contacts_path).group()
+    sample_dir = os.path.dirname(contacts_path)
+    output_path = os.path.join(sample_dir, sample_id+'_filtered.tsv')
+
     fragments = fragments_correction(fragments_path)
     oligos = oligos_correction(oligos_path)
     contacts = contacts_correction(contacts_path)
     oligos_fragments = oligos_fragments_joining(fragments, oligos)
-    df1 = second_join('frag_a', fragments, oligos_fragments, contacts)
-    df2 = second_join('frag_b', fragments, oligos_fragments, contacts)
+    df1 = second_join('a', fragments, oligos_fragments, contacts)
+    df2 = second_join('b', fragments, oligos_fragments, contacts)
 
     contacts_joined = pd.concat([df1, df2])
     contacts_joined.drop("frag", axis=1, inplace=True)
     contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     contacts_filtered = contacts_joined.convert_dtypes().reset_index(drop=True)
-    contacts_filtered.to_csv(output_dir + '_filtered.tsv', sep='\t', index=False)
+    contacts_filtered.to_csv(output_path, sep='\t', index=False)
