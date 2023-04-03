@@ -1,9 +1,7 @@
 import os
+import re
 import numpy as np
 import pandas as pd
-
-from universal.binning import rebin_contacts
-from universal.utils import remove_columns
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -12,8 +10,11 @@ pd.options.mode.chained_assignment = None
 def main(
         fragments_path: str,
         hic_contacts_path: str,
-        output_dir: str
 ):
+
+    sample_id = re.search(r"AD\d+", hic_contacts_path).group()
+    sample_dir = os.path.dirname(hic_contacts_path)
+    output_path = os.path.join(sample_dir, sample_id+'_coverage_per_fragment.tsv')
 
     df_fragments = pd.read_csv(fragments_path, sep='\t')
     df_fragments.rename(columns={'chrom': 'chr', 'start_pos': 'start', 'end_pos': 'end'}, inplace=True)
@@ -41,4 +42,4 @@ def main(
 
     df_grouped.index = df_grouped.id
     df_grouped.drop(columns=['id'], inplace=True)
-    df_grouped.to_csv(output_dir + 'coverage_per_fragment.tsv', sep='\t', index=False)
+    df_grouped.to_csv(output_path, sep='\t', index=False)
