@@ -241,7 +241,7 @@ def main(
         plot_path=dir_plot)
 
     compute_average_aggregate(
-        df_cohesins_peaks_bins=df_contacts_cohesins,
+        df_cohesins_peaks_bins=df_contacts_cohesins_prime,
         df_probes=df_probes,
         table_path=dir_table,
         inter_norm=inter_norm,
