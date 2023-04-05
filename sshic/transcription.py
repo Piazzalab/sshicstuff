@@ -99,25 +99,49 @@ def main(
     ]
 
     df_filtered = pd.concat((df_merged_filtered, df_merged_filtered_3, df_merged_filtered_5))
-    df_grouped = \
-        df_filtered.groupby(by=['chr', 'start_y', 'end_y'], as_index=False).mean(numeric_only=True)
+    df_filtered.drop_duplicates(inplace=True)
 
-    df_grouped.drop(columns=['start_x', 'end_x', 'sizes', ], inplace=True)
-    df_grouped.rename(columns={'start_y': 'start', 'end_y': 'end'}, inplace=True)
-    df_grouped_named = df_genes.merge(df_grouped, on=['chr', 'start', 'end', 'strand', 'length', 'rna_per_bp'])
-    df_grouped_named.drop(columns=["Systemati_name", "strand"], inplace=True)
-    df_grouped_named.sort_values(by='rna_per_bp', inplace=True)
-    df_grouped_named.index = range(len(df_grouped_named))
+    df_strand_1 = df_filtered.loc[df_filtered['strand'] == 1]
+    df_strand_minus_1 = df_filtered.loc[df_filtered['strand'] == -1]
+    fragments_strand_1 = set(df_strand_1['start_x'])
+    fragments_minus_1 = set(df_strand_minus_1['start_x'])
+    fragments_to_remove = fragments_strand_1.intersection(fragments_minus_1)
+    df_filtered = df_filtered[~df_filtered['start_x'].isin(fragments_to_remove)]
 
-    df_bottom_10 = df_grouped_named.loc[0:int(0.1*len(df_grouped_named)), :]
-    df_top_10 = df_grouped_named.loc[int(0.9*len(df_grouped_named)):, :]
-    df_top_10.index = range(len(df_top_10))
+    groups = df_filtered.groupby(by=['chr', 'start_y', 'end_y'], as_index=False)
+    enrichment_genes_per_bp = {}
+    for grp in groups:
+        df_grp = grp[1]
+        gene_name = df_grp['name'].to_list()[0]
+        average_gene_contacts = df_grp['sum'].sum(axis=0)
+        gene_size = df_grp['end_x'].max() - df_grp['start_x'].min() + 1
+        average_gene_contacts_per_bp = average_gene_contacts / gene_size
 
-    df_grouped_named.to_csv(output_dir+samples_id+'_all_genes.tsv', sep='\t')
-    df_bottom_10.to_csv(output_dir+samples_id+'_bottom_10_percent.tsv', sep='\t')
-    df_top_10.to_csv(output_dir+samples_id+'_top_10_percent.tsv', sep='\t')
+        df_extended_region = df_contacts2.loc[
+            (df_contacts2['start'] <= df_grp['start_x'].min() - 2500) |
+            (df_contacts2['end'] > df_grp['end_x'].max() + 2500)
+        ]
+        extended_region_size = df_extended_region['end'].max() - df_extended_region['start'].min() + 1
+        extended_region_contacts_per_bp = df_extended_region['sum'].sum() / extended_region_size
+        enrichment_genes_per_bp[gene_name] = average_gene_contacts_per_bp / extended_region_contacts_per_bp
 
-    return df_grouped_named, df_bottom_10, df_top_10
+
+        # df_grouped.drop(columns=['start_x', 'end_x', 'sizes', ], inplace=True)
+    # df_grouped.rename(columns={'start_y': 'start', 'end_y': 'end'}, inplace=True)
+    # df_grouped_named = df_genes.merge(df_grouped, on=['chr', 'start', 'end', 'strand', 'length', 'rna_per_bp'])
+    # df_grouped_named.drop(columns=["Systemati_name", "strand"], inplace=True)
+    # df_grouped_named.sort_values(by='rna_per_bp', inplace=True)
+    # df_grouped_named.index = range(len(df_grouped_named))
+    #
+    # df_bottom_10 = df_grouped_named.loc[0:int(0.1*len(df_grouped_named)), :]
+    # df_top_10 = df_grouped_named.loc[int(0.9*len(df_grouped_named)):, :]
+    # df_top_10.index = range(len(df_top_10))
+    #
+    # df_grouped_named.to_csv(output_dir+samples_id+'_all_genes.tsv', sep='\t')
+    # df_bottom_10.to_csv(output_dir+samples_id+'_bottom_10_percent.tsv', sep='\t')
+    # df_top_10.to_csv(output_dir+samples_id+'_top_10_percent.tsv', sep='\t')
+    #
+    # return df_grouped_named, df_bottom_10, df_top_10
 
 
 def merge(
