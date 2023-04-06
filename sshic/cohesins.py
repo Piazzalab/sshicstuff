@@ -39,11 +39,24 @@ def main(
 
     df_merged2 = df_contacts2.merge(df_peaks, on='chr')
     df_merged_cohesins_areas = df_merged2[
-        (df_merged2.chr_bins >= (df_merged2.start-15000-bin_size)) &
-        (df_merged2.end <= (df_merged2.start+1+15000))
+        (df_merged2.start >= df_merged2.chr_bins) &
+        (df_merged2.start + 1 <= df_merged2.end)
     ]
-    df_merged_cohesins_areas.drop(columns=['end', 'score', 'uid'], axis=1, inplace=True)
+    df_merged_cohesins_areas.drop(columns=['end', 'uid'], axis=1, inplace=True)
     df_merged_cohesins_areas.rename(columns={'start': 'cohesin'}, inplace=True)
+
+    df_enrichment_cohesins = df_merged_cohesins_areas[['chr', 'chr_bins', 'cohesin', 'score']]
+    df_enrichment_cohesins['enrichment'] = np.nan
+    for index, row in df_merged_cohesins_areas.iterrows():
+        cohesins_bin_contact_per_bp = row['sum'] / 1000
+        df_extended_region = df_contacts2.loc[
+            (df_contacts2['chr_bins'] >= row['chr_bins'] - 3000) &
+            (df_contacts2['end'] <= row['chr_bins'] + 4000) &
+            (df_contacts2['chr'] == row['chr'])
+        ]
+
+        extended_region_contacts_per_bp = df_extended_region['sum'].sum() / 7000
+        df_enrichment_cohesins.loc[index, 'enrichment'] = cohesins_bin_contact_per_bp / extended_region_contacts_per_bp
 
     pass
 
