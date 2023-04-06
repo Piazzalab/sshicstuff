@@ -118,19 +118,15 @@ def main(
         fragments_in_gene_length_sum = df_grp['sizes'].sum(axis=0)
         gene_contacts_per_bp = gene_contacts_sum / fragments_in_gene_length_sum
 
+        df_extended_region = df_contacts2.loc[
+            (df_contacts2['start'] <= df_grp['start_x'].min() - 2500) |
+            (df_contacts2['end'] > df_grp['end_x'].max() + 2500)
+        ]
+        extended_region_contacts = df_extended_region['sum'].sum()
+        extended_region_fragment_length_sun = df_extended_region['sizes'].sum(axis=0)
+        extended_region_contacts_per_bp = extended_region_contacts / extended_region_fragment_length_sun
 
-        # df_extended_region = df_contacts2.loc[
-        #     (df_contacts2['start'] <= df_grp['start_x'].min() - 2500) |
-        #     (df_contacts2['end'] > df_grp['end_x'].max() + 2500)
-        # ]
-        # extended_region_contacts = df_extended_region['sum'].sum()
-        # extended_region_fragment_length_sun = df_extended_region['sizes'].sum(axis=0)
-        # extended_region_contacts_per_bp = extended_region_contacts / extended_region_fragment_length_sun
-        #
-        # enrichment_genes_per_bp[gene_name] = gene_contacts_per_bp / extended_region_contacts_per_bp
-
-        enrichment_genes_per_bp[gene_name] = gene_contacts_per_bp
-
+        enrichment_genes_per_bp[gene_name] = gene_contacts_per_bp / extended_region_contacts_per_bp
 
     df_gene_enrichment = pd.DataFrame({
         'name': enrichment_genes_per_bp.keys(),
