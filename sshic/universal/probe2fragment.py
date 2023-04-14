@@ -47,3 +47,11 @@ def main(
 
     df_probes_in_frag = df_probes_in_frag.T
     df_probes_in_frag.to_csv(output_path, sep='\t', index_label='probe')
+
+
+if __name__ == "__main__":
+    import sys
+    fragments_list = sys.argv[1]
+    oligos_positions = sys.argv[2]
+
+    main(fragments_list, oligos_positions)

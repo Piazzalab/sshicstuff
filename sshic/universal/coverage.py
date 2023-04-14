@@ -43,3 +43,11 @@ def main(
     df_grouped.index = df_grouped.id
     df_grouped.drop(columns=['id'], inplace=True)
     df_grouped.to_csv(output_path, sep='\t', index=False)
+
+
+if __name__ == "__main__":
+    import sys
+
+    sample_sparse_matrix_path = sys.argv[1]
+    fragments_list_path = sys.argv[2]
+    main(fragments_path=fragments_list_path, hic_contacts_path=sample_sparse_matrix_path)

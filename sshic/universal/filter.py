@@ -144,3 +144,16 @@ def main(
     contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     contacts_filtered = contacts_joined.convert_dtypes().reset_index(drop=True)
     contacts_filtered.to_csv(output_path, sep='\t', index=False)
+
+
+if __name__ == "__main__":
+    import sys
+    sample_sparse_matrix_path = sys.argv[1]
+    fragments_list_path = sys.argv[2]
+    oligos_path = sys.argv[3]
+
+    # sample_sparse_matrix_path = "../test_data/AD162/AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30.txt"
+    # fragments_list_path = "../test_data/fragments_list.txt"
+    # oligos_path = "../test_data/capture_oligo_positions.csv"
+
+    main(oligos_path, fragments_list_path, sample_sparse_matrix_path)
