@@ -33,7 +33,16 @@ def main(
     }
 
     control_probes = ['8579', '32542', '68339', '5315', '65930', '38864', '30750']
+    excluded_chr = ['chr2', 'chr3']
+
     df_contacts: pd.DataFrame = pd.read_csv(fragments_path, sep='\t')
+    df_contacts = df_contacts[~df_contacts["chr"].isin(excluded_chr)]
+
+    for f in fragments:
+        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+        if probe_chr not in excluded_chr:
+            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
+
     df_contacts["Sum_7high"] = df_contacts[probes_high_quality_sum].sum(axis=1)
 
     for colname, colfrag in probes_to_average.items():
