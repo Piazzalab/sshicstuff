@@ -37,8 +37,8 @@ def main(
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     fragments = pd.unique(df_probes['frag_id'].astype(str))
     df = pd.read_csv(filtered_contacts_path, sep='\t')
-    df_contacts = pd.DataFrame(columns=['chr', 'positions', 'sizes'])
-    df_contacts = df_contacts.astype(dtype={'chr': str, 'positions': int, 'sizes': int})
+    df_contacts = pd.DataFrame(columns=['chr', 'start', 'sizes'])
+    df_contacts = df_contacts.astype(dtype={'chr': str, 'start': int, 'sizes': int})
 
     for x in ['a', 'b']:
         y = frag2(x)
@@ -49,7 +49,7 @@ def main(
             if frag_int not in pd.unique(df2['frag_'+x]):
                 tmp = pd.DataFrame({
                     'chr': [np.nan],
-                    'positions': [np.nan],
+                    'start': [np.nan],
                     'sizes': [np.nan],
                     frag: [np.nan]})
 
@@ -57,15 +57,15 @@ def main(
                 df3 = df2[df2['frag_'+x] == frag_int]
                 tmp = pd.DataFrame({
                     'chr': df3['chr_'+y],
-                    'positions': df3['start_'+y],
+                    'start': df3['start_'+y],
                     'sizes': df3['size_'+y],
                     frag: df3['contacts']})
 
             df_contacts = pd.concat([df_contacts, tmp])
 
-    group = df_contacts.groupby(by=['chr', 'positions', 'sizes'], as_index=False)
+    group = df_contacts.groupby(by=['chr', 'start', 'sizes'], as_index=False)
     df_res_contacts = group.sum()
-    df_res_contacts = sort_by_chr(df_res_contacts, 'chr', 'positions')
+    df_res_contacts = sort_by_chr(df_res_contacts, 'chr', 'start')
     df_res_contacts.index = range(len(df_res_contacts))
 
     df_res_frequencies = df_res_contacts.copy(deep=True)

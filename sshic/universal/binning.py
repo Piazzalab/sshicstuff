@@ -1,7 +1,9 @@
 #! /usr/bin/env python3
+import os
+import re
 import numpy as np
 import pandas as pd
-from .utils import sort_by_chr, remove_columns
+from utils import sort_by_chr, remove_columns
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -41,27 +43,48 @@ def build_bins_from_genome(
 
 
 def rebin_contacts(
-        df_unbinned: pd.DataFrame,
-        bin_size: int,
+        contacts_unbinned_path: str,
         chromosomes_coord_path: str,
-        output_dir: str
+        bin_size: int,
 ):
 
-    df_binned_template = build_bins_from_genome(
+    sample_id = re.search(r"AD\d+", contacts_unbinned_path).group()
+    sample_dir = os.path.dirname(contacts_unbinned_path)
+    bin_suffix = str(bin_size // 1000) + 'kb'
+    output_path = os.path.join(sample_dir, sample_id) + '_' + bin_suffix
+
+
+    df_binned_template: pd.DataFrame = build_bins_from_genome(
         path_to_chr_coord=chromosomes_coord_path,
         bin_size=bin_size
     )
-    df = df_unbinned.copy(deep=True)
+
+    df_unbinned: pd.DataFrame = pd.read_csv(contacts_unbinned_path, sep='\t').drop(columns='sizes')
+    df: pd.DataFrame = df_unbinned.copy(deep=True)
     df.insert(2, 'chr_bins', (df["start"] // bin_size) * bin_size)
-    df_binned_contacts = df.groupby(["chr", "chr_bins"], as_index=False).sum()
+    df_binned_contacts: pd.DataFrame = df.groupby(["chr", "chr_bins"], as_index=False).sum()
     df_binned_contacts = sort_by_chr(df_binned_contacts, 'chr', 'chr_bins')
     df_binned_contacts = pd.merge(df_binned_template, df_binned_contacts,  on=['chr', 'chr_bins'], how='left')
-    df_binned_contacts = remove_columns(df_binned_contacts, exclusion=['start', 'end', 'size'])
+    df_binned_contacts = remove_columns(df_binned_contacts, exclusion=['start', 'end'])
     df_binned_contacts.fillna(0, inplace=True)
 
-    fragments = df_binned_contacts.columns[2:].values
-    df_binned_freq = df_binned_contacts.copy(deep=True)
+    fragments = [c for c in df_binned_contacts.columns if c not in ['chr', 'chr_bins', "genome_bins"]]
+
+    df_binned_freq: pd.DataFrame = df_binned_contacts.copy(deep=True)
     df_binned_freq[fragments] = (df_binned_contacts[fragments].div(df_binned_contacts[fragments].sum(axis=0)))
 
-    df_binned_contacts.to_csv(output_dir + 'binned_contacts.tsv', sep='\t', index=False)
-    df_binned_freq.to_csv(output_dir + 'binned_frequencies.tsv', sep='\t', index=False)
+    df_binned_contacts.to_csv(output_path + '_binned_contacts.tsv', sep='\t', index=False)
+    df_binned_freq.to_csv(output_path + '_binned_frequencies.tsv', sep='\t', index=False)
+
+
+if __name__ == "__main__":
+    import sys
+
+    fragments_contacts_unbinned_path: str = sys.argv[1]
+    chromosomes_coordinates_path: str = sys.argv[2]
+    binning: int = int(sys.argv[3])
+    rebin_contacts(
+        contacts_unbinned_path=fragments_contacts_unbinned_path,
+        chromosomes_coord_path=chromosomes_coordinates_path,
+        bin_size=binning
+    )
