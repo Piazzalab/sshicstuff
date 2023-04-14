@@ -1,16 +1,17 @@
 #! /usr/bin/env python3
+import re
+import os
 import numpy as np
 import pandas as pd
-from .utils import sort_by_chr, frag2
+from utils import frag2, sort_by_chr
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
 
 
-def get_fragments_contacts(
+def main(
         probes_to_fragments_path: str,
         filtered_contacts_path: str,
-        output_dir: str,
 ):
 
     """
@@ -28,6 +29,10 @@ def get_fragments_contacts(
     output_dir : str
         the absolute path toward the output directory to save the results
     """
+
+    sample_id = re.search(r"AD\d+", filtered_contacts_path).group()
+    sample_dir = os.path.dirname(filtered_contacts_path)
+    output_path = os.path.join(sample_dir, sample_id)
 
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     fragments = pd.unique(df_probes['frag_id'].astype(str))
@@ -68,6 +73,14 @@ def get_fragments_contacts(
         df_res_frequencies[frag] /= sum(df_res_frequencies[frag])
 
     #   Write into .tsv file contacts as there are and in the form of frequencies :
-    df_res_contacts.to_csv(output_dir + 'unbinned_contacts.tsv', sep='\t', index=False)
-    df_res_frequencies.to_csv(output_dir + 'unbinned_frequencies.tsv', sep='\t', index=False)
+    df_res_contacts.to_csv(output_path + '_unbinned_contacts.tsv', sep='\t', index=False)
+    df_res_frequencies.to_csv(output_path + '_unbinned_frequencies.tsv', sep='\t', index=False)
 
+
+if __name__ == "__main__":
+    import sys
+
+    filter_sample_path: str = sys.argv[1]
+    probes_to_fragments_table_path: str = sys.argv[2]
+
+    main(probes_to_fragments_table_path, filter_sample_path)
