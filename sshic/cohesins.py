@@ -38,11 +38,12 @@ def main(
     df_contacts: pd.DataFrame = pd.read_csv(fragments_path, sep='\t')
     df_contacts = df_contacts[~df_contacts["chr"].isin(excluded_chr)]
 
-    # for f in fragments:
-    #     probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
-    #     if probe_chr not in excluded_chr:
-    #         df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
-
+    df_merged0: pd.DataFrame = df_peaks.merge(df_centro, on='chr')
+    df_peaks2 = df_merged0[
+        (df_merged0.end < (df_merged0.left_arm_length - 60000)) |
+        (df_merged0.start > (df_merged0.left_arm_length + 60000))
+    ]
+    df_peaks2.drop(columns=['length', 'left_arm_length', 'right_arm_length'], inplace=True)
     df_contacts["Sum_7high"] = df_contacts[probes_high_quality_sum].sum(axis=1)
 
     for colname, colfrag in probes_to_average.items():
@@ -54,7 +55,7 @@ def main(
 
     col_of_interest = [c for c in df_contacts.columns if c not in ['chr', 'positions', 'sizes']]
 
-    df_merged: pd.DataFrame = pd.merge(df_contacts, df_peaks, on='chr')
+    df_merged: pd.DataFrame = pd.merge(df_contacts, df_peaks2, on='chr')
     df_filtered: pd.DataFrame = df_merged.loc[
         (df_merged['positions'] >= df_merged['interval_start']) &
         (df_merged['positions'] + df_merged['sizes'] < df_merged['interval_end'])
@@ -165,7 +166,6 @@ if __name__ == "__main__":
         # wt_df = {}
         for samp in samples:
             samp_id = re.search(r"AD\d+", samp).group()
-            # if samp_id in ["AD162", "AD242", "AD296", "AD300"]:
             print(samp_id)
             df_aggregated = main(
                 df_peaks=new_df,
@@ -174,5 +174,3 @@ if __name__ == "__main__":
                 fragments_path=not_binned_dir+samp,
                 output_dir=cohesins_dir+sshic_dir
             )
-        #     wt_df[samp_id] = df_aggregated
-        # merge(wt_res=wt_df, output_dir=cohesins_dir+sshic_dir)
