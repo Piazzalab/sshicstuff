@@ -33,15 +33,15 @@ def main(
     }
 
     control_probes = ['8579', '32542', '68339', '5315', '65930', '38864', '30750']
-    excluded_chr = ['chr2', 'chr3']
+    excluded_chr = ['chr3']
 
     df_contacts: pd.DataFrame = pd.read_csv(fragments_path, sep='\t')
     df_contacts = df_contacts[~df_contacts["chr"].isin(excluded_chr)]
 
-    for f in fragments:
-        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
-        if probe_chr not in excluded_chr:
-            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
+    # for f in fragments:
+    #     probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
+    #     if probe_chr not in excluded_chr:
+    #         df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
 
     df_contacts["Sum_7high"] = df_contacts[probes_high_quality_sum].sum(axis=1)
 
@@ -162,18 +162,17 @@ if __name__ == "__main__":
         if not os.path.exists(cohesins_dir+sshic_dir):
             os.makedirs(cohesins_dir+sshic_dir)
 
-        wt_df = {}
+        # wt_df = {}
         for samp in samples:
             samp_id = re.search(r"AD\d+", samp).group()
-            if samp_id in ["AD162", "AD242", "AD296", "AD300"]:
-                print(samp_id)
-                df_aggregated = main(
-                    df_peaks=new_df,
-                    df_probes=df_probes2frag,
-                    df_centro=df_centro_pos,
-                    fragments_path=not_binned_dir+samp,
-                    output_dir=cohesins_dir+sshic_dir
-                )
-                wt_df[samp_id] = df_aggregated
-
-        merge(wt_res=wt_df, output_dir=cohesins_dir+sshic_dir)
+            # if samp_id in ["AD162", "AD242", "AD296", "AD300"]:
+            print(samp_id)
+            df_aggregated = main(
+                df_peaks=new_df,
+                df_probes=df_probes2frag,
+                df_centro=df_centro_pos,
+                fragments_path=not_binned_dir+samp,
+                output_dir=cohesins_dir+sshic_dir
+            )
+        #     wt_df[samp_id] = df_aggregated
+        # merge(wt_res=wt_df, output_dir=cohesins_dir+sshic_dir)
