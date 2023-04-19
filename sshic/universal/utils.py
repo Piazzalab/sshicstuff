@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy as np
 from typing import Optional
 import pandas as pd
@@ -68,11 +69,13 @@ def frag2(x):
         y = 'a'
     return y
 
+
 def remove_columns(df: pd.DataFrame, exclusion: list) -> pd.DataFrame:
     for column in df.columns:
         if column in exclusion:
             df = df.drop(columns=column)
     return df
+
 
 def sort_by_chr(
         df: pd.DataFrame,
@@ -97,3 +100,13 @@ def sort_by_chr(
     df[col1] = df[col1].map(lambda x: order[x])
     df.index = range(len(df))
     return df
+
+
+def list_folders(directory_path):
+    folders = []
+    for item in os.listdir(directory_path):
+        item_path = os.path.join(directory_path, item)
+        if os.path.isdir(item_path):
+            folders.append(item)
+    return folders
+
