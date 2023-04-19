@@ -191,7 +191,7 @@ def main(argv=None):
         elif opt in ("-c", "--contacts"):
             contacts_input = arg
 
-    concatenation(
+    filter_contacts(
         oligos_input,
         fragments_input,
         contacts_input,
