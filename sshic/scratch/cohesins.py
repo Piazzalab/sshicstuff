@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import re
 
-import universal.utils as tools
+import sshic.utils as tools
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None

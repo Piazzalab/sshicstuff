@@ -1,12 +1,12 @@
+import pandas as pd
 import re
 import os
-import sys
-import getopt
-import pandas as pd
-from utils import frag2
+import numpy as np
+import multiprocessing as mp
+from utils import is_debug
 
 
-def oligos_correction(oligos_path: str):
+def oligos_correction(oligos_path):
     oligos = pd.read_csv(oligos_path, sep=",")
     oligos.columns = [oligos.columns[i].lower() for i in range(len(oligos.columns))]
     oligos.sort_values(by=['chr', 'start'], inplace=True)
@@ -15,7 +15,7 @@ def oligos_correction(oligos_path: str):
     return oligos
 
 
-def fragments_correction(fragments_path: str):
+def fragments_correction(fragments_path):
     fragments = pd.read_csv(fragments_path, sep='\t')
     fragments = pd.DataFrame({'frag': [k for k in range(len(fragments))],
                               'chr': fragments['chrom'],
@@ -27,10 +27,7 @@ def fragments_correction(fragments_path: str):
     return fragments
 
 
-def starts_match(
-        fragments: pd.DataFrame,
-        oligos: pd.DataFrame
-):
+def starts_match(fragments, oligos):
     """
     If the capture oligo is inside a fragment, it changes the start of
     the oligos dataframe with the fragments starts.
@@ -58,10 +55,7 @@ def starts_match(
     return oligos
 
 
-def oligos_fragments_joining(
-        fragments: pd.DataFrame,
-        oligos: pd.DataFrame
-):
+def oligos_fragments_joining(fragments, oligos):
     """
     Removes the fragments that does not contain an oligo region, puts all the columns of fragments_list
     that corresponds. It also changes the starts and ends columns by the fragments ones.
@@ -75,7 +69,7 @@ def oligos_fragments_joining(
     return oligos_fragments
 
 
-def contacts_correction(contacts_path: str):
+def contacts_correction(contacts_path):
     """
     Re-organizes the contacts file
     """
@@ -87,21 +81,24 @@ def contacts_correction(contacts_path: str):
     return contacts
 
 
-def first_join(x: str, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame):
+def first_join(x, oligos_fragments, contacts):
     """
     Join the contacts and the oligos_fragments dataframes keeping only
     the rows that have their 'x' frag (frag_a or frag_b, see contacts_correction function)
     """
-    joined = contacts.merge(oligos_fragments, left_on='frag_'+x, right_on='frag', how='inner')
+    joined = contacts.merge(oligos_fragments, left_on=x, right_on='frag', how='inner')
     return joined
 
 
-def second_join(
-        x: str,
-        fragments: pd.DataFrame,
-        oligos_fragments: pd.DataFrame,
-        contacts: pd.DataFrame
-):
+def frag2(x):
+    if x == 'frag_a':
+        y = 'frag_b'
+    else:
+        y = 'frag_a'
+    return y
+
+
+def second_join(x, fragments, oligos_fragments, contacts):
     """
     Adds the fragments file information (=columns) for the y fragment after the first join (see first_join function)
     Only for y because the x fragments have already their information because it is the oligos_fragments.
@@ -109,7 +106,7 @@ def second_join(
     new_contacts = first_join(x, oligos_fragments, contacts)
     y = frag2(x)
     joined = new_contacts.join(fragments.drop("frag", axis=1),
-                               on='frag_'+y,
+                               on=y,
                                lsuffix='_' + x[-1],
                                rsuffix='_' + y[-1], how='left')
 
@@ -122,81 +119,68 @@ def second_join(
     return joined
 
 
-def filter_contacts(
+def main(
         oligos_path: str,
         fragments_path: str,
-        contacts_path: str
+        contacts_path: str,
+        output_path: str
 ):
     """
     Does the two joining (for 'frag_a' and 'frag_b') and then concatenate the two results
     """
 
     sample_id = re.search(r"AD\d+", contacts_path).group()
-    sample_dir = os.path.dirname(contacts_path)
-    output_path = os.path.join(sample_dir, sample_id+'_filtered.tsv')
-
     fragments = fragments_correction(fragments_path)
     oligos = oligos_correction(oligos_path)
     contacts = contacts_correction(contacts_path)
     oligos_fragments = oligos_fragments_joining(fragments, oligos)
-    df1 = second_join('a', fragments, oligos_fragments, contacts)
-    df2 = second_join('b', fragments, oligos_fragments, contacts)
+    df1 = second_join('frag_a', fragments, oligos_fragments, contacts)
+    df2 = second_join('frag_b', fragments, oligos_fragments, contacts)
 
     contacts_joined = pd.concat([df1, df2])
     contacts_joined.drop("frag", axis=1, inplace=True)
     contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     contacts_filtered = contacts_joined.convert_dtypes().reset_index(drop=True)
-    contacts_filtered.to_csv(output_path, sep='\t', index=False)
-
-
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-    if not argv:
-        print('Please enter arguments correctly')
-        exit(0)
-
-    try:
-        opts, args = getopt.getopt(
-            argv,
-            "ho:f:c:", [
-                "--help",
-                "--oligos",
-                "--fragments",
-                "--contacts"]
-        )
-
-    except getopt.GetoptError:
-        print('contacts filter arguments :\n'
-              '-o <oligos_input.csv> \n'
-              '-f <fragments_input.txt> (generated by hicstuff) \n'
-              '-c <sparse_contacts_input.txt> (generated by hicstuff) \n'
-              )
-        sys.exit(2)
-
-    oligos_input, fragments_input, contacts_input = ['' for _ in range(3)]
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print(
-                'contacts filter arguments :\n'
-                '-o <oligos_input.csv> \n'
-                '-f <fragments_input.txt> (generated by hicstuff) \n'
-                '-c <sparse_contacts_input.txt> (generated by hicstuff) \n'
-            )
-            sys.exit()
-        elif opt in ("-o", "--oligos"):
-            oligos_input = arg
-        elif opt in ("-f", "--fragments"):
-            fragments_input = arg
-        elif opt in ("-c", "--contacts"):
-            contacts_input = arg
-
-    filter_contacts(
-        oligos_input,
-        fragments_input,
-        contacts_input,
-    )
+    contacts_filtered.to_csv(output_path+sample_id+'_filtered.tsv', sep='\t', index=False)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    data_dir = os.path.dirname(os.getcwd()) + '/data/'
+    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+
+    outputs_dir = data_dir + 'outputs/'
+    inputs_dir = data_dir + 'inputs/'
+    hicstuff_dir = outputs_dir + "sparse/"
+    filter_dir = outputs_dir + "filtered/"
+    fragments_list = inputs_dir + "fragments_list.txt"
+    oligos_positions = inputs_dir + "capture_oligo_positions.csv"
+    parallel = True
+    if is_debug():
+        parallel = False
+
+    for sshic_dir in sshic_pcrdupt_dir:
+        print(sshic_dir)
+        print("Filtered hicstuff sparse matrix by keeping only contacts made by probe")
+        samples_dir = hicstuff_dir + sshic_dir
+        samples = np.unique(os.listdir(samples_dir))
+        if not os.path.exists(filter_dir + sshic_dir):
+            os.makedirs(filter_dir + sshic_dir)
+        if parallel:
+            with mp.Pool(mp.cpu_count()) as p:
+                p.starmap(main, [(
+                    oligos_positions,
+                    fragments_list,
+                    samples_dir+samp,
+                    filter_dir+sshic_dir) for samp in samples]
+                )
+        else:
+            for samp in samples:
+                main(
+                    oligos_path=oligos_positions,
+                    fragments_path=fragments_list,
+                    contacts_path=samples_dir+samp,
+                    output_path=filter_dir+sshic_dir
+                )
+
+        print('-- DONE --')

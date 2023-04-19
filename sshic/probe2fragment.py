@@ -2,7 +2,7 @@ import os
 import sys
 import getopt
 import pandas as pd
-from universal.utils import find_nearest
+from utils import find_nearest
 
 
 def associate_probes_to_fragments(

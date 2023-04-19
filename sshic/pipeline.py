@@ -1,20 +1,17 @@
-import os
 import re
-import sys
-import getopt
 
-from universal.utils import list_folders
-from universal.filter import filter_contacts
-from universal.coverage import coverage
-from universal.probe2fragment import associate_probes_to_fragments as p2f
-from universal.fragments import organize_contacts
-from universal.statistics import get_stats
-from universal.binning import rebin_contacts
+from utils import list_folders
+from filter import filter_contacts
+from coverage import coverage
+from probe2fragment import associate_probes_to_fragments as p2f
+from fragments import organize_contacts
+from statistics import get_stats
+from binning import rebin_contacts
 
 
 if __name__ == "__main__":
 
-    data_dir = "../../test_data/"
+    data_dir = "../test_data/"
     oligos_input = data_dir + "capture_oligo_positions.csv"
     fragments_list_input = data_dir + "fragments_list.txt"
     centromeres_coordinates_input = data_dir + "S288c_chr_centro_coordinates.tsv"

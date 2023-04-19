@@ -34,7 +34,7 @@ def organize_contacts(filtered_contacts_path: str):
 
     probes_to_fragments_path: str = os.path.join(data_dir, "probes_to_fragments.tsv")
     if not os.path.exists(probes_to_fragments_path):
-        from universal.probe2fragment import associate_probes_to_fragments
+        from probe2fragment import associate_probes_to_fragments
         associate_probes_to_fragments(
             fragments_list_path=os.path.join(data_dir, "fragments_list.txt"),
             oligos_capture_path=os.path.join(data_dir, "capture_oligo_positions.csv")
