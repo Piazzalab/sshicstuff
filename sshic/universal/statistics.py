@@ -127,14 +127,13 @@ def get_stats(
     df_stats['capture_efficiency_vs_dsdna'] = n3 / d3
 
     if wt_reference is not None:
-        wt_id: str = re.search(r"AD\d+", wt_reference).group()
         df_wt: pd.DataFrame = pd.read_csv(wt_reference, sep='\t')
-        df_stats[f"capture_efficiency_vs_wt_({wt_id})"] = np.nan
+        df_stats[f"capture_efficiency_vs_wt"] = np.nan
         for index, row in df_stats.iterrows():
             probe = row['probe']
             wt_capture_eff = df_wt.loc[df_wt['probes'] == probe, "Capture_efficiency_WT"]
             if wt_capture_eff > 0:
-                df_stats.loc[index, f"capture_efficiency_vs_wt_({wt_id})"] = wt_capture_eff
+                df_stats.loc[index, f"capture_efficiency_vs_wt"] = wt_capture_eff
 
     df_chr_nrm = pd.DataFrame({
         'probes': df_probes.index.values, 'fragments': df_probes["frag_id"].values, 'types': df_probes["type"].values
