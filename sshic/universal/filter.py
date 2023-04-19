@@ -122,7 +122,7 @@ def second_join(
     return joined
 
 
-def concatenation(
+def filter_contacts(
         oligos_path: str,
         fragments_path: str,
         contacts_path: str
