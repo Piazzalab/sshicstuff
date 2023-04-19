@@ -1,7 +1,7 @@
 import re
 import os
 import sys
-import getopt
+import argparse
 import pandas as pd
 import numpy as np
 
@@ -51,46 +51,21 @@ def ponder_mutant(
     df_frequencies.to_csv(output_path + f"_{bin_prefix}_frequencies.tsv")
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
+def main(argv):
     if not argv:
         print('Please enter arguments correctly')
         exit(0)
 
-    try:
-        opts, args = getopt.getopt(
-            argv,
-            "hs:b:", [
-                "--help",
-                "--sample_dir",
-                "--binning"]
-        )
+    parser = argparse.ArgumentParser(
+        description='Ponder a mutant sample by an efficiency coefficient over the wt')
+    parser.add_argument('-s', '--sample-dir', type=str, required=True,
+                        help='Path to the sample_directory (containing binned and unbinned contacts/frequencies tsv)')
+    parser.add_argument('-b', '--binning', type=int, required=True, help='Binning size (in bp)')
 
-    except getopt.GetoptError:
-        print('Ponder a mutant sample by an efficiency coefficient over the wt:\n'
-              '-s <sample_directory> (contained binned and unbinned contacts/frequencies tsv) \n'
-              '-b <binning size> (in bp) \n'
-              )
-        sys.exit(2)
-
-    sample_dir_input = ""
-    binning = 0
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print('Ponder a mutant sample by an efficiency coefficient over the wt:\n'
-                  '-s <sample_directory> (contained binned and unbinned contacts/frequencies tsv) \n'
-                  '-b <binning size> (in bp) \n'
-                  )
-            sys.exit()
-        elif opt in ("-s", "--sample_dir"):
-            sample_dir_input = arg
-        elif opt in ("-b", "--binning"):
-            binning = int(arg)
-
+    args = parser.parse_args(argv)
     ponder_mutant(
-        sample_dir=sample_dir_input,
-        bins_size=binning
+        sample_dir=args.sample_dir,
+        bins_size=args.binning
     )
 
 
