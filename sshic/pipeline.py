@@ -44,6 +44,7 @@ def main(
                 contacts_unbinned_path=unbinned_contacts_input,
                 chromosomes_coord_path=centromeres_coordinates_path,
                 bin_size=bn)
+            
 
 if __name__ == "__main__":
 
