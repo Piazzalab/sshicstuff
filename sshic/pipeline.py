@@ -14,6 +14,7 @@ from aggregated import aggregate
 
 def main(
         inputs_dir_path: str,
+        samples_dir_path: str,
         oligos_path: str,
         fragments_list_path: str,
         centromeres_coordinates_path: str,
@@ -25,7 +26,8 @@ def main(
         inter_normalization: bool = True
 ):
 
-    my_samples = list_folders(inputs_dir_path)
+    listed_dirs = list_folders(inputs_dir_path)
+    my_samples = [d for d in listed_dirs if re.match(r'^AD\d+$', d)]
     my_samples_absolute = [os.path.join(inputs_dir_path, samp) for samp in my_samples]
     for sample_dir in my_samples_absolute:
         sample_id = re.search(r"AD\d+", sample_dir).group()
@@ -75,7 +77,9 @@ def main(
 if __name__ == "__main__":
     """
     -i ../test_data/ 
-    -o ../test_data/capture_oligo_positions.csv
+    -o ../test_data/outputs
+    -s ../test_data/S288c_DSB_chrIV845464_Capture_APO1345
+    -oligos-input ../test_data/capture_oligo_positions.csv
     -f ../test_data/fragments_list.txt
     -c ../test_data/S288c_chr_centro_coordinates.tsv 
     -b 1000 10000 10000
@@ -90,8 +94,12 @@ if __name__ == "__main__":
         description="Script that processes sshic samples data.")
 
     parser.add_argument('-i', '--inputs-dir', type=str, required=True,
-                        help='Path to inputs directory that contains samples and inputs files')
-    parser.add_argument('-o', '--oligos-input', type=str, required=True,
+                        help='Path to inputs directory that contains inputs files')
+    parser.add_argument('-o', '--outputs-dir', type=str, required=True,
+                        help='Path to outputs directory that contains outputs files for each sample')
+    parser.add_argument('-s', '--samples-dir', type=str, required=True,
+                        help='Path to inputs directory that contains samples files')
+    parser.add_argument('--oligos-input', type=str, required=True,
                         help='name of the file that contains positions of oligos')
     parser.add_argument('-f', '--fragments-list-input', type=str, required=True,
                         help='name of the fragments_list file (hic_stuff output)')
@@ -114,6 +122,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(
         inputs_dir_path=args.inputs_dir,
+        samples_dir_path=args.outputs_dir,
         oligos_path=args.oligos_input,
         fragments_list_path=args.fragments_list_input,
         centromeres_coordinates_path=args.centromeres_coordinates_input,
