@@ -19,7 +19,7 @@ pd.options.mode.chained_assignment = None
 """
 
 
-def aggregated(
+def aggregate(
         binned_contacts_path: str,
         centros_coord_path: str,
         window_size: int,
