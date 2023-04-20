@@ -193,11 +193,10 @@ def main(
 
 
 if __name__ == "__main__":
-    data_dir = os.path.dirname(os.getcwd()) + '/data/'
     sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
 
-    outputs_dir = data_dir + 'outputs/'
-    inputs_dir = data_dir + 'inputs/'
+    outputs_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/outputs/'
+    inputs_dir = os.path.dirname(os.getcwd()) + '/inputs/'
     binning_dir = outputs_dir + "binned/"
     pondered_dir = outputs_dir + "pondered/"
     centromeres_dir = outputs_dir + "centromeres/"
