@@ -168,7 +168,7 @@ def main(argv=None):
                         help="plot for each probe its aggregated mean of contacts around centromere, with std")
 
     args = parser.parse_args(argv)
-    aggregated(
+    aggregate(
         binned_contacts_path=args.contacts,
         centros_coord_path=args.centromeres,
         window_size=args.window_size,
