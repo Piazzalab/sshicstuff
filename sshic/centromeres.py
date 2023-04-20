@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import multiprocessing as mp
 import os
 import re
-from typing import Optional
-from utils import is_debug, sort_by_chr
+from typing import Optional, List
+from utils import sort_by_chr
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -16,80 +15,6 @@ pd.options.mode.chained_assignment = None
 **********   AGGREGATED CONTACTS AROUND CENTROMERE FUNCTIONS   **********
 **************************************************************************
 """
-
-
-def compute_centromere_freq_per_oligo_per_chr(
-        df_freq: pd.DataFrame,
-        df_probes: pd.DataFrame,
-        inter_norm: bool,
-        table_path: str):
-
-    all_probes = df_probes.index.values
-    res: dict = {}
-    for probe in all_probes:
-        fragment = str(df_probes.loc[probe, 'frag_id'])
-        if fragment not in df_freq.columns:
-            continue
-        if df_freq[fragment].sum() == 0.:
-            continue
-        df_freq_cen = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=0.)
-        if inter_norm:
-            df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cen_inter.tsv', sep='\t')
-        else:
-            df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cen_absolute.tsv', sep='\t')
-        res[probe] = df_freq_cen
-
-    return res
-
-
-def freq_focus_around_centromeres(
-        formatted_contacts_path: str,
-        fragments_to_oligos_path: str,
-        window_size: int,
-        bin_size: int,
-        inter_norm: bool,
-        centros_infos_path: str
-):
-    """
-    Function to capture all the bins contained in a window in bp (specified by the user), at both side of the
-    centromeres and for each of the 16 chromosomes of yeast genome
-    """
-
-    df_centros = pd.read_csv(centros_infos_path, sep='\t', index_col=None)
-    df_contacts = pd.read_csv(formatted_contacts_path, sep='\t')
-    df_probes = pd.read_csv(fragments_to_oligos_path, sep='\t', index_col=0)
-    excluded_chr = ['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
-    fragments = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
-
-    df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr)]
-    df_centros = df_centros[~df_centros['chr'].isin(excluded_chr)]
-
-    #   We need to remove for each oligo the number of contact it makes with its own chr.
-    #   Because we know that the frequency of intra-chr contact is higher than inter-chr
-    #   We have to set them as NaN to not bias the average
-    for f in fragments:
-        probe_chr = df_probes.loc[df_probes['frag_id'] == int(f), 'chr'].tolist()[0]
-        if probe_chr not in excluded_chr:
-            df_contacts.loc[df_contacts['chr'] == probe_chr, f] = np.nan
-
-    if inter_norm:
-        #   Inter normalization
-        df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
-
-    df_merged = pd.merge(df_contacts, df_centros, on='chr')
-    df_merged_cen_areas = df_merged[
-        (df_merged.chr_bins > (df_merged.left_arm_length-window_size-bin_size)) &
-        (df_merged.chr_bins < (df_merged.left_arm_length+window_size))
-    ]
-
-    df_merged_cen_areas['chr_bins'] = \
-        abs(df_merged_cen_areas['chr_bins'] - (df_merged_cen_areas['left_arm_length'] // bin_size)*bin_size)
-
-    df_res = df_merged_cen_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
-    df_res = sort_by_chr(df_res, 'chr', 'chr_bins')
-    df_res.drop(columns=['length', 'left_arm_length', 'right_arm_length'], axis=1, inplace=True)
-
-    return df_res, df_probes
 
 
 def compute_average_aggregate(
@@ -144,7 +69,9 @@ def aggregated(
         binned_contacts_path: str,
         centros_coord_path: str,
         window_size: int,
-        inter_norm: bool,
+        excluded_chr_list: List[str],
+        exclude_probe_chr: bool = True,
+        inter_normalization: bool = True,
         plot: bool = True
 ):
 
@@ -167,29 +94,96 @@ def aggregated(
             oligos_capture_path=os.path.join(data_dir, "capture_oligo_positions.csv")
         )
 
-    df_contacts_centros, df_probes = freq_focus_around_centromeres(
-        formatted_contacts_path=binned_contacts_path,
-        fragments_to_oligos_path=probes_to_fragments_path,
-        window_size=window_size,
-        bin_size=10000,
-        inter_norm=inter_norm,
-        centros_infos_path=centros_coord_path,)
+    df_centros: pd.DataFrame = pd.read_csv(centros_coord_path, sep='\t', index_col=None)
+    df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep='\t')
+    df_probes: pd.DataFrame = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
+    df_probes['frag_id'] = df_probes['frag_id'].astype(str)
+    fragments: np.array = np.array([f for f in df_contacts.columns.values if re.match(r'\d+', f)])
 
-    chr_aggregated_dict = compute_centromere_freq_per_oligo_per_chr(
-        df_freq=df_contacts_centros,
-        df_probes=df_probes,
-        inter_norm=inter_norm,
-        table_path=dir_table)
+    bin_size = df_contacts.loc[1, "chr_bins"] - df_contacts.loc[0, "chr_bins"]
 
-    compute_average_aggregate(
-        aggregated=chr_aggregated_dict,
-        table_path=dir_table,
-        inter_norm=inter_norm,
-        plot=plot,
-        plot_path=dir_plot)
+    if len(excluded_chr_list) > 0:
+        df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr_list)]
+        df_centros = df_centros[~df_centros['chr'].isin(excluded_chr_list)]
+
+    if exclude_probe_chr:
+        #   We need to remove for each oligo the number of contact it makes with its own chr.
+        #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+        #   We have to set them as NaN to not bias the average
+        for frag in fragments:
+            probe_chr = df_probes.loc[df_probes['frag_id'] == frag, 'chr'].tolist()[0]
+            if probe_chr not in excluded_chr_list:
+                df_contacts.loc[df_contacts['chr'] == probe_chr, frag] = np.nan
+
+    if inter_normalization:
+        #   Inter normalization
+        df_contacts[fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
+
+    df_merged: pd.DataFrame = pd.merge(df_contacts, df_centros, on='chr')
+    df_merged_cen_areas = df_merged[
+        (df_merged.chr_bins > (df_merged.left_arm_length-window_size-bin_size)) &
+        (df_merged.chr_bins < (df_merged.left_arm_length+window_size))
+    ]
+
+    df_merged_cen_areas['chr_bins'] = \
+        abs(df_merged_cen_areas['chr_bins'] - (df_merged_cen_areas['left_arm_length'] // bin_size)*bin_size)
+
+    df_grouped: pd.DataFrame = df_merged_cen_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(numeric_only=True)
+    df_grouped = sort_by_chr(df_grouped, 'chr', 'chr_bins')
+    df_grouped.drop(columns=['length', 'left_arm_length', 'right_arm_length'], axis=1, inplace=True)
 
 
+
+    all_probes = df_probes.index.values
+    # res: dict = {}
+    # for probe in all_probes:
+    #     fragment = str(df_probes.loc[probe, 'frag_id'])
+    #     if fragment not in df_freq.columns:
+    #         continue
+    #     if df_freq[fragment].sum() == 0.:
+    #         continue
+    #     df_freq_cen = df_freq.pivot_table(index='chr_bins', columns='chr', values=fragment, fill_value=0.)
+    #     if inter_norm:
+    #         df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cen_inter.tsv', sep='\t')
+    #     else:
+    #         df_freq_cen.to_csv(table_path + probe + '_chr1-16_freq_cen_absolute.tsv', sep='\t')
+    #     res[probe] = df_freq_cen
+    #
+    # return res
+
+
+
+
+
+    # df_contacts_centros, df_probes = freq_focus_around_centromeres(
+    #     formatted_contacts_path=binned_contacts_path,
+    #     fragments_to_oligos_path=probes_to_fragments_path,
+    #     window_size=window_size,
+    #     bin_size=10000,
+    #     inter_norm=inter_normalization,
+    #     centros_infos_path=centros_coord_path,)
+    #
+    # chr_aggregated_dict = compute_centromere_freq_per_oligo_per_chr(
+    #     df_freq=df_contacts_centros,
+    #     df_probes=df_probes,
+    #     inter_norm=inter_normalization,
+    #     table_path=dir_tables)
+    #
+    # compute_average_aggregate(
+    #     aggregated=chr_aggregated_dict,
+    #     table_path=dir_tables,
+    #     inter_norm=inter_normalization,
+    #     plot=plot,
+    #     plot_path=dir_plots)
 
 
 if __name__ == "__main__":
+
+    aggregated(
+        binned_contacts_path="../test_data/AD162/AD162_1kb_binned_frequencies.tsv",
+        centros_coord_path="../test_data/S288c_chr_centro_coordinates.tsv",
+        window_size=150000,
+        excluded_chr_list=['chr2', 'chr3', 'chr5', '2_micron', 'mitochondrion', 'chr_artificial']
+    )
+
     pass
