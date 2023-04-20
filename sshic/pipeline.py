@@ -9,6 +9,7 @@ from probe2fragment import associate_probes_to_fragments as p2f
 from fragments import organize_contacts
 from statistics import get_stats
 from binning import rebin_contacts
+from aggregated import aggregate
 
 
 def main(
@@ -16,7 +17,12 @@ def main(
         oligos_path: str,
         fragments_list_path: str,
         centromeres_coordinates_path: str,
-        binning_size_list: list
+        binning_size_list: list,
+        window_size_centromeres: int,
+        window_size_telomeres: int,
+        excluded_chr_list: list,
+        excluded_probe_chr: bool = True,
+        inter_normalization: bool = True
 ):
 
     my_samples = list_folders(inputs_dir_path)
@@ -44,35 +50,77 @@ def main(
                 contacts_unbinned_path=unbinned_contacts_input,
                 chromosomes_coord_path=centromeres_coordinates_path,
                 bin_size=bn)
+
+        aggregate(
+            binned_contacts_path=os.path.join(sample_dir, sample_id+"_1kb_binned_frequencies.tsv"),
+            centros_coord_path=centromeres_coordinates_path,
+            window_size=window_size_centromeres,
+            on="centromeres",
+            exclude_probe_chr=excluded_probe_chr,
+            excluded_chr_list=excluded_chr_list,
+            inter_normalization=inter_normalization,
+            plot=True)
+
+        aggregate(
+            binned_contacts_path=os.path.join(sample_dir, sample_id+"_1kb_binned_frequencies.tsv"),
+            centros_coord_path=centromeres_coordinates_path,
+            window_size=window_size_telomeres,
+            on="telomeres",
+            exclude_probe_chr=excluded_probe_chr,
+            excluded_chr_list=excluded_chr_list,
+            inter_normalization=inter_normalization,
+            plot=True)
             
 
 if __name__ == "__main__":
-
-    # data_dir = "../test_data"
-    # oligos_input = os.path.join(data_dir, "capture_oligo_positions.csv")
-    # fragments_list_input = os.path.join(data_dir, "fragments_list.txt")
-    # centromeres_coordinates_input = os.path.join(data_dir, "S288c_chr_centro_coordinates.tsv")
-    # binning_sizes_list = [1000, 5000, 10000, 50000, 100000]
+    """
+    -i ../test_data/ 
+    -o ../test_data/capture_oligo_positions.csv
+    -f ../test_data/fragments_list.txt
+    -c ../test_data/S288c_chr_centro_coordinates.tsv 
+    -b 1000 10000 10000
+    --window-size-centros 150000  
+    --window-size-telos 150000 
+    --excluded-chr chr2 chr3 chr5 2_micron mitochondrion, chr_artificial
+    --exclude-probe-chr 
+    --inter-norm
+    """
 
     parser = argparse.ArgumentParser(
         description="Script that processes sshic samples data.")
 
-    parser.add_argument('--inputs-dir', type=str, required=True,
+    parser.add_argument('-i', '--inputs-dir', type=str, required=True,
                         help='Path to inputs directory that contains samples and inputs files')
-    parser.add_argument('--oligos-input', type=str, required=True,
+    parser.add_argument('-o', '--oligos-input', type=str, required=True,
                         help='name of the file that contains positions of oligos')
-    parser.add_argument('--fragments-list-input', type=str, required=True,
+    parser.add_argument('-f', '--fragments-list-input', type=str, required=True,
                         help='name of the fragments_list file (hic_stuff output)')
-    parser.add_argument('--centromeres-coordinates-input', type=str, required=True,
+    parser.add_argument('-c', '--centromeres-coordinates-input', type=str, required=True,
                         help='name of the centromeres_coordinates file')
-    parser.add_argument('--binning-sizes-list', nargs='+', type=int, required=True,
+    parser.add_argument('-b', '--binning-sizes-list', nargs='+', type=int, required=True,
                         help='desired bin size for the rebin step')
+    parser.add_argument('--window-size-centros', type=int, required=True,
+                        help="window (in bp) that defines a focus region to aggregated centromeres")
+    parser.add_argument('--window-size-telos', type=int, required=True,
+                        help="window (in bp) that defines a focus region to aggregated telomeres")
+    parser.add_argument('--excluded-chr', nargs='+', type=str, required=False,
+                        help='list of chromosomes to excludes to prevent bias of contacts')
+    parser.add_argument('--exclude-probe-chr', action='store_true', required=False,
+                        help="exclude the chromosome where the probe comes from (oligo's chromosome)")
+    parser.add_argument('--inter-norm', action='store_true', required=False,
+                        help="normalize the contacts only on contacts made "
+                             "on chromosomes that have not been excluded (inter)")
 
     args = parser.parse_args()
     main(
-        args.inputs_dir,
-        args.oligos_input,
-        args.fragments_list_input,
-        args.centromeres_coordinates_input,
-        args.binning_sizes_list)
+        inputs_dir_path=args.inputs_dir,
+        oligos_path=args.oligos_input,
+        fragments_list_path=args.fragments_list_input,
+        centromeres_coordinates_path=args.centromeres_coordinates_input,
+        binning_size_list=args.binning_sizes_list,
+        excluded_chr_list=args.excluded_chr,
+        excluded_probe_chr=args.exclude_probe_chr,
+        window_size_centromeres=args.window_size_centros,
+        window_size_telomeres=args.window_size_telos
+    )
 
