@@ -50,9 +50,9 @@ def rebin_contacts(
 ):
 
     sample_id = re.search(r"AD\d+", contacts_unbinned_path).group()
-    sample_dir = os.path.dirname(contacts_unbinned_path)
+    output_dir = os.path.dirname(contacts_unbinned_path)
     bin_suffix = str(bin_size // 1000) + 'kb'
-    output_path = os.path.join(sample_dir, sample_id) + '_' + bin_suffix
+    output_path = os.path.join(output_dir, sample_id) + '_' + bin_suffix
 
 
     df_binned_template: pd.DataFrame = build_bins_from_genome(

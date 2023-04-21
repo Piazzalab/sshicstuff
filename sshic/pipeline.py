@@ -2,7 +2,6 @@ import re
 import os
 import argparse
 
-from utils import list_folders
 from filter import filter_contacts
 from coverage import coverage
 from probe2fragment import associate_probes_to_fragments as p2f
@@ -13,7 +12,6 @@ from aggregated import aggregate
 
 
 def main(
-        inputs_dir_path: str,
         samples_dir_path: str,
         oligos_path: str,
         fragments_list_path: str,
@@ -26,26 +24,39 @@ def main(
         inter_normalization: bool = True
 ):
 
-    listed_dirs = list_folders(inputs_dir_path)
-    my_samples = [d for d in listed_dirs if re.match(r'^AD\d+$', d)]
-    my_samples_absolute = [os.path.join(inputs_dir_path, samp) for samp in my_samples]
-    for sample_dir in my_samples_absolute:
-        sample_id = re.search(r"AD\d+", sample_dir).group()
-        sparse_contacts_input = os.path.join(sample_dir, sample_id+"_S288c_DSB_LY_Capture_artificial_cutsite_q30.txt")
+    my_samples = [f for f in os.listdir(samples_dir_path) if os.path.isfile(os.path.join(samples_dir_path, f))]
+    for samp in my_samples:
+        samp_id = re.match(r'^AD\d+', samp).group()
+        print(samp_id)
+        my_sample_output_dir = os.path.join(samples_dir_path, samp_id)
+        os.makedirs(my_sample_output_dir, exist_ok=True)
 
+        sparse_contacts_input = os.path.join(samples_dir_path, samp)
         filter_contacts(
             oligos_path=oligos_path,
             fragments_path=fragments_list_path,
-            contacts_path=sparse_contacts_input)
-        filtered_contacts_input = os.path.join(sample_dir, sample_id+"_filtered.tsv")
+            contacts_path=sparse_contacts_input,
+            output_dir=my_sample_output_dir)
 
-        coverage(hic_contacts_path=sparse_contacts_input, fragments_path=fragments_list_path)
+        filtered_contacts_input = os.path.join(my_sample_output_dir, samp_id+"_filtered.tsv")
+
+        coverage(
+            hic_contacts_path=sparse_contacts_input,
+            fragments_path=fragments_list_path,
+            output_dir=my_sample_output_dir)
+
         p2f(fragments_list_path=fragments_list_path, oligos_capture_path=oligos_path)
-        organize_contacts(filtered_contacts_path=filtered_contacts_input)
-        unbinned_contacts_input = os.path.join(sample_dir, sample_id+"_unbinned_contacts.tsv")
-        unbinned_frequencies_input = os.path.join(sample_dir, sample_id+"_unbinned_frequencies.tsv")
+        probes_to_fragments_path = os.path.join(os.path.dirname(samples_dir_path), "probes_to_fragments.tsv")
+        organize_contacts(
+            filtered_contacts_path=filtered_contacts_input,
+            probes_to_fragments_path=probes_to_fragments_path)
+        unbinned_contacts_input = os.path.join(my_sample_output_dir, samp_id+"_unbinned_contacts.tsv")
+        unbinned_frequencies_input = os.path.join(my_sample_output_dir, samp_id+"_unbinned_frequencies.tsv")
 
-        get_stats(contacts_unbinned_path=unbinned_contacts_input, sparse_contacts_path=sparse_contacts_input)
+        get_stats(
+            contacts_unbinned_path=unbinned_contacts_input,
+            sparse_contacts_path=sparse_contacts_input,
+            probes_to_fragments_path=probes_to_fragments_path)
 
         for bn in binning_size_list:
             rebin_contacts(
@@ -54,8 +65,9 @@ def main(
                 bin_size=bn)
 
         aggregate(
-            binned_contacts_path=os.path.join(sample_dir, sample_id+"_1kb_binned_frequencies.tsv"),
+            binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_1kb_binned_frequencies.tsv"),
             centros_coord_path=centromeres_coordinates_path,
+            probes_to_fragments_path=probes_to_fragments_path,
             window_size=window_size_centromeres,
             on="centromeres",
             exclude_probe_chr=excluded_probe_chr,
@@ -64,8 +76,9 @@ def main(
             plot=True)
 
         aggregate(
-            binned_contacts_path=os.path.join(sample_dir, sample_id+"_1kb_binned_frequencies.tsv"),
+            binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_1kb_binned_frequencies.tsv"),
             centros_coord_path=centromeres_coordinates_path,
+            probes_to_fragments_path=probes_to_fragments_path,
             window_size=window_size_telomeres,
             on="telomeres",
             exclude_probe_chr=excluded_probe_chr,
@@ -76,13 +89,11 @@ def main(
 
 if __name__ == "__main__":
     """
-    -i ../test_data/ 
-    -o ../test_data/outputs
     -s ../test_data/S288c_DSB_chrIV845464_Capture_APO1345
-    -oligos-input ../test_data/capture_oligo_positions.csv
-    -f ../test_data/fragments_list.txt
+    -f ../test_data/fragments_list_S288c_DSB_chrIV845464_Capture_APO1345_DpnIIHinfI_modified.txt
     -c ../test_data/S288c_chr_centro_coordinates.tsv 
-    -b 1000 10000 10000
+    -b 1000 2000 5000 10000 20000 50000 10000
+    -o ../test_data/oligo_positions_chrIV845464_APO1345.csv
     --window-size-centros 150000  
     --window-size-telos 150000 
     --excluded-chr chr2 chr3 chr5 2_micron mitochondrion, chr_artificial
@@ -93,18 +104,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Script that processes sshic samples data.")
 
-    parser.add_argument('-i', '--inputs-dir', type=str, required=True,
-                        help='Path to inputs directory that contains inputs files')
-    parser.add_argument('-o', '--outputs-dir', type=str, required=True,
-                        help='Path to outputs directory that contains outputs files for each sample')
     parser.add_argument('-s', '--samples-dir', type=str, required=True,
                         help='Path to inputs directory that contains samples files')
-    parser.add_argument('--oligos-input', type=str, required=True,
-                        help='name of the file that contains positions of oligos')
+    parser.add_argument('-o', '--oligos-input', type=str, required=True,
+                        help='Path to the file that contains positions of oligos')
     parser.add_argument('-f', '--fragments-list-input', type=str, required=True,
-                        help='name of the fragments_list file (hic_stuff output)')
+                        help='Path to the file fragments_list (hic_stuff output)')
     parser.add_argument('-c', '--centromeres-coordinates-input', type=str, required=True,
-                        help='name of the centromeres_coordinates file')
+                        help='Path to the file centromeres_coordinates')
     parser.add_argument('-b', '--binning-sizes-list', nargs='+', type=int, required=True,
                         help='desired bin size for the rebin step')
     parser.add_argument('--window-size-centros', type=int, required=True,
@@ -121,8 +128,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     main(
-        inputs_dir_path=args.inputs_dir,
-        samples_dir_path=args.outputs_dir,
+        samples_dir_path=args.samples_dir,
         oligos_path=args.oligos_input,
         fragments_list_path=args.fragments_list_input,
         centromeres_coordinates_path=args.centromeres_coordinates_input,

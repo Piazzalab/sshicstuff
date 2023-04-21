@@ -90,7 +90,6 @@ def sort_by_chr(
 
     df[col1] = df[col1].map(lambda x: order.index(x) if x in order else len(order))
     if col2 is not None:
-        df = df.sort_values(by=[col1, col2])
         if col3 is not None:
             df = df.sort_values(by=[col1, col2, col3])
         else:
