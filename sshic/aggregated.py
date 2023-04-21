@@ -110,6 +110,8 @@ def aggregate(
 
     for probe, row in df_probes.iterrows():
         fragment = row['frag_id']
+        if df_grouped[fragment].sum() == 0:
+            continue
         df_chr_centros_pivot: pd.DataFrame = df_grouped.pivot_table(
             index='chr_bins', columns='chr', values=fragment, fill_value=0)
         df_chr_centros_pivot.to_csv(
