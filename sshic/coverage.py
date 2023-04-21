@@ -15,7 +15,8 @@ def coverage(
     output_dir: str
 ):
 
-    sample_id = re.search(r"AD\d+", hic_contacts_path).group()
+    sample_filename = hic_contacts_path.split("/")[-1]
+    sample_id = re.search(r"AD\d+", sample_filename).group()
     output_path = os.path.join(output_dir, sample_id+'_coverage_per_fragment.tsv')
 
     df_fragments = pd.read_csv(fragments_path, sep='\t')

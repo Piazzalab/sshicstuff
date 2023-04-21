@@ -24,7 +24,8 @@ def main(
         inter_normalization: bool = True
 ):
 
-    my_samples = [f for f in os.listdir(samples_dir_path) if os.path.isfile(os.path.join(samples_dir_path, f))]
+    list_files = [f for f in os.listdir(samples_dir_path) if os.path.isfile(os.path.join(samples_dir_path, f))]
+    my_samples = [s for s in list_files if re.match(r'^AD\d+', s)]
     for samp in my_samples:
         samp_id = re.match(r'^AD\d+', samp).group()
         print(samp_id)
@@ -46,7 +47,8 @@ def main(
             output_dir=my_sample_output_dir)
 
         p2f(fragments_list_path=fragments_list_path, oligos_capture_path=oligos_path)
-        probes_to_fragments_path = os.path.join(os.path.dirname(samples_dir_path), "probes_to_fragments.tsv")
+        probes_to_fragments_path = os.path.join(samples_dir_path, "probes_to_fragments.tsv")
+
         organize_contacts(
             filtered_contacts_path=filtered_contacts_input,
             probes_to_fragments_path=probes_to_fragments_path)
@@ -89,11 +91,11 @@ def main(
 
 if __name__ == "__main__":
     """
-    -s ../test_data/S288c_DSB_chrIV845464_Capture_APO1345
-    -f ../test_data/fragments_list_S288c_DSB_chrIV845464_Capture_APO1345_DpnIIHinfI_modified.txt
-    -c ../test_data/S288c_chr_centro_coordinates.tsv 
+    -s ../test_data/AD357_AD356_classic
+    -f ../test_data/AD357_AD356_classic/fragments_list.txt
+    -c ../test_data/AD357_AD356_classic/S288c_chr_centro_coordinates.tsv 
+    -o ../test_data/AD357_AD356_classic/capture_oligo_positions.csv
     -b 1000 2000 5000 10000 20000 50000 10000
-    -o ../test_data/oligo_positions_chrIV845464_APO1345.csv
     --window-size-centros 150000  
     --window-size-telos 150000 
     --excluded-chr chr2 chr3 chr5 2_micron mitochondrion, chr_artificial

@@ -15,7 +15,8 @@ def get_stats(
         cis_range: int = 5000
 ):
 
-    sample_id = re.search(r"AD\d+", contacts_unbinned_path).group()
+    sample_filename = contacts_unbinned_path.split("/")[-1]
+    sample_id = re.search(r"AD\d+", sample_filename).group()
     output_dir = os.path.dirname(contacts_unbinned_path)
     output_path = os.path.join(output_dir, sample_id)
 

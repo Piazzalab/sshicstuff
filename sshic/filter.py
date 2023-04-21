@@ -132,7 +132,8 @@ def filter_contacts(
     Does the two joining (for 'frag_a' and 'frag_b') and then concatenate the two results
     """
 
-    sample_id = re.search(r"AD\d+", contacts_path).group()
+    sample_filename = contacts_path.split("/")[-1]
+    sample_id = re.search(r"AD\d+", sample_filename).group()
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, sample_id+'_filtered.tsv')
 

@@ -30,7 +30,8 @@ def organize_contacts(
         the current sample, made previously with the filter script
     """
 
-    sample_id = re.search(r"AD\d+", filtered_contacts_path).group()
+    sample_filename = filtered_contacts_path.split("/")[-1]
+    sample_id = re.search(r"AD\d+", sample_filename).group()
     output_dir = os.path.dirname(filtered_contacts_path)
     output_path = os.path.join(output_dir, sample_id)
 
