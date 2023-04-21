@@ -31,43 +31,67 @@ def main(
         print(samp_id)
         my_sample_output_dir = os.path.join(samples_dir_path, samp_id)
         os.makedirs(my_sample_output_dir, exist_ok=True)
-
         sparse_contacts_input = os.path.join(samples_dir_path, samp)
-        filter_contacts(
-            oligos_path=oligos_path,
-            fragments_path=fragments_list_path,
-            contacts_path=sparse_contacts_input,
-            output_dir=my_sample_output_dir)
 
-        filtered_contacts_input = os.path.join(my_sample_output_dir, samp_id+"_filtered.tsv")
+        """
+        Filtering Sparse matrix
+        """
+        filtered_contacts_input = os.path.join(my_sample_output_dir, samp_id + "_filtered.tsv")
+        if not os.path.exists(filtered_contacts_input):
+            filter_contacts(
+                oligos_path=oligos_path,
+                fragments_path=fragments_list_path,
+                contacts_path=sparse_contacts_input,
+                output_dir=my_sample_output_dir)
 
-        coverage(
-            hic_contacts_path=sparse_contacts_input,
-            fragments_path=fragments_list_path,
-            output_dir=my_sample_output_dir)
+        """
+        Computing coverage per digested fragments
+        """
+        cover = os.path.join(my_sample_output_dir, samp_id + "_coverage_per_fragment.bedgraph")
+        if not os.path.exists(cover):
+            coverage(
+                hic_contacts_path=sparse_contacts_input,
+                fragments_path=fragments_list_path,
+                output_dir=my_sample_output_dir)
 
-        p2f(fragments_list_path=fragments_list_path, oligos_capture_path=oligos_path)
+        """
+        Making link between probes (oligo) and fragment where it is contained 
+        """
         probes_to_fragments_path = os.path.join(samples_dir_path, "probes_to_fragments.tsv")
+        if not os.path.exists(probes_to_fragments_path):
+            p2f(fragments_list_path=fragments_list_path, oligos_capture_path=oligos_path)
 
+        """
+        Tidying contacts between probe and the rest of the genome (unbinned table)
+        """
         organize_contacts(
             filtered_contacts_path=filtered_contacts_input,
             probes_to_fragments_path=probes_to_fragments_path)
         unbinned_contacts_input = os.path.join(my_sample_output_dir, samp_id+"_unbinned_contacts.tsv")
         unbinned_frequencies_input = os.path.join(my_sample_output_dir, samp_id+"_unbinned_frequencies.tsv")
 
+        """
+        Computing some basic statistic about the contacts made
+        """
         get_stats(
             contacts_unbinned_path=unbinned_contacts_input,
             sparse_contacts_path=sparse_contacts_input,
             probes_to_fragments_path=probes_to_fragments_path)
 
+        """
+        Rebinning the unbinned table at n kb (aggregates contacts on regular range of bp)
+        """
         for bn in binning_size_list:
             rebin_contacts(
                 contacts_unbinned_path=unbinned_contacts_input,
                 chromosomes_coord_path=centromeres_coordinates_path,
                 bin_size=bn)
 
+        """
+        Aggregating contacts around centromeres
+        """
         aggregate(
-            binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_1kb_binned_frequencies.tsv"),
+            binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_10kb_binned_frequencies.tsv"),
             centros_coord_path=centromeres_coordinates_path,
             probes_to_fragments_path=probes_to_fragments_path,
             window_size=window_size_centromeres,
@@ -77,8 +101,11 @@ def main(
             inter_normalization=inter_normalization,
             plot=True)
 
+        """
+        Aggregating contacts around telomeres
+        """
         aggregate(
-            binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_1kb_binned_frequencies.tsv"),
+            binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_10kb_binned_frequencies.tsv"),
             centros_coord_path=centromeres_coordinates_path,
             probes_to_fragments_path=probes_to_fragments_path,
             window_size=window_size_telomeres,
@@ -87,14 +114,14 @@ def main(
             excluded_chr_list=excluded_chr_list,
             inter_normalization=inter_normalization,
             plot=True)
-            
+
 
 if __name__ == "__main__":
     """
-    -s ../test_data/AD357_AD356_classic
-    -f ../test_data/AD357_AD356_classic/fragments_list.txt
-    -c ../test_data/AD357_AD356_classic/S288c_chr_centro_coordinates.tsv 
-    -o ../test_data/AD357_AD356_classic/capture_oligo_positions.csv
+    -s ../test_data/S288c_DSB_chrIV845464_Capture_APO1345
+    -f ../test_data/S288c_DSB_chrIV845464_Capture_APO1345/fragments_list_APO1345_DpnIIHinfI_modified.txt
+    -c ../test_data/S288c_DSB_chrIV845464_Capture_APO1345/S288c_chr_centro_coordinates.tsv 
+    -o ../test_data/S288c_DSB_chrIV845464_Capture_APO1345/oligo_positions_chrIV845464_APO1345.csv
     -b 1000 2000 5000 10000 20000 50000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
