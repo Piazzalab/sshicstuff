@@ -120,7 +120,6 @@ def aggregate(
         if plot:
             mean = df_chr_centros_pivot.T.mean()
             std = df_chr_centros_pivot.T.std()
-            median = df_chr_centros_pivot.T.median()
 
             ymin = -np.max((mean + std)) * 0.01
             pos = mean.index
