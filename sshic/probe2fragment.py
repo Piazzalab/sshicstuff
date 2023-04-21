@@ -10,19 +10,25 @@ def associate_probes_to_fragments(
     oligos_capture_path: str
 ):
     """
-    This function aims at formatting and creating a correspondence between each probe (oligo capture) and
-    the fragments aka the read that contains it.
-    Complementary information are given such as chromosomes of the probe (basically the same as the fragment),
-    the position on the chromosome of the fragment and the probe, and the type (ss, ds, ds_neg etc ..) of the probe
+    Associate probes (oligo captures) with corresponding fragments (reads containing the probes).
 
-    The resulting dataframe is written in a tsv file, in the same location of that of the fragments_list.txt
+    This function formats and creates a correspondence between each probe (oligo capture) and
+    the fragment (read) that contains it. Additional information is provided, such as the chromosome of the probe
+    (essentially the same as the fragment), the position of the fragment and the probe on the chromosome, and the type
+    (ss, ds, ds_neg, etc.) of the probe.
 
-    ARGUMENTS
-    _______________________
+    The resulting DataFrame is written to a TSV file in the same location as the fragments_list.txt.
+
+    Parameters
+    ----------
     fragments_list_path : str
-        path to the digested fragments list based on a restriction enzyme or a fixed chunk size.
+        Path to the digested fragments list based on a restriction enzyme or a fixed chunk size.
     oligos_capture_path : str
-        path to the file containing the oligo-nucleotides capture information
+        Path to the file containing the oligo-nucleotides capture information.
+
+    Returns
+    -------
+    None
     """
 
     dirname = os.path.dirname(fragments_list_path)
@@ -55,6 +61,20 @@ def associate_probes_to_fragments(
 
 
 def main(argv=None):
+    """
+    Main function to run the associate_probes_to_fragments script.
+
+    Parses command line arguments and calls the associate_probes_to_fragments function.
+
+    Parameters
+    ----------
+    argv : list of str, optional
+        List of command line arguments, by default None.
+
+    Returns
+    -------
+    None
+    """
     if argv is None:
         argv = sys.argv[1:]
     if not argv:
