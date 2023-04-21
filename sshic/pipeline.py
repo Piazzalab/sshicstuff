@@ -118,10 +118,10 @@ def main(
 
 if __name__ == "__main__":
     """
-    -s ../test_data/S288c_DSB_chrIV845464_Capture_APO1345
-    -f ../test_data/S288c_DSB_chrIV845464_Capture_APO1345/fragments_list_APO1345_DpnIIHinfI_modified.txt
-    -c ../test_data/S288c_DSB_chrIV845464_Capture_APO1345/S288c_chr_centro_coordinates.tsv 
-    -o ../test_data/S288c_DSB_chrIV845464_Capture_APO1345/oligo_positions_chrIV845464_APO1345.csv
+    -s ../test_data/AD357_AD356_classic
+    -f ../test_data/AD357_AD356_classic/fragments_list.txt
+    -c ../test_data/AD357_AD356_classic/S288c_chr_centro_coordinates.tsv 
+    -o ../test_data/AD357_AD356_classic/capture_oligo_positions.csv
     -b 1000 2000 5000 10000 20000 50000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
