@@ -105,6 +105,9 @@ def main(
 
 
 if __name__ == "__main__":
+
+    #   Example :
+
     """
     -s ../test_data/sshic_pcrdupkept
     -f ../test_data/sshic_pcrdupkept/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
@@ -124,24 +127,34 @@ if __name__ == "__main__":
 
     parser.add_argument('-s', '--samples-dir', type=str, required=True,
                         help='Path to inputs directory that contains samples files')
+
     parser.add_argument('-o', '--oligos-input', type=str, required=True,
                         help='Path to the file that contains positions of oligos')
+
     parser.add_argument('-f', '--fragments-list-input', type=str, required=True,
                         help='Path to the file fragments_list (hic_stuff output)')
+
     parser.add_argument('-c', '--centromeres-coordinates-input', type=str, required=True,
                         help='Path to the file centromeres_coordinates')
+
     parser.add_argument('-b', '--binning-sizes-list', nargs='+', type=int, required=True,
                         help='desired bin size for the rebin step')
+
     parser.add_argument('-t', '--threads', type=int, required=True,
                         help='desired number of thread to parallelize')
+
     parser.add_argument('--window-size-centros', type=int, required=True,
                         help="window (in bp) that defines a focus region to aggregated centromeres")
+
     parser.add_argument('--window-size-telos', type=int, required=True,
                         help="window (in bp) that defines a focus region to aggregated telomeres")
+
     parser.add_argument('--excluded-chr', nargs='+', type=str, required=False,
                         help='list of chromosomes to excludes to prevent bias of contacts')
+
     parser.add_argument('--exclude-probe-chr', action='store_true', required=False,
                         help="exclude the chromosome where the probe comes from (oligo's chromosome)")
+
     parser.add_argument('--inter-norm', action='store_true', required=False,
                         help="normalize the contacts only on contacts made "
                              "on chromosomes that have not been excluded (inter)")
