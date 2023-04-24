@@ -70,6 +70,7 @@ def get_stats(
         df_stats.loc[index, "chr"] = df_probes.loc[probe, "chr"]
 
         sub_df = df_unbinned_contacts[['chr', 'start', 'sizes', probe]]
+        sub_df.insert(3,  'end', sub_df['start'] + sub_df['sizes'])
         cis_limits = [
             int(df_probes.loc[probe, 'probe_start']) - cis_range,
             int(df_probes.loc[probe, 'probe_end']) + cis_range
@@ -77,13 +78,11 @@ def get_stats(
         probe_contacts = np.sum(sub_df[probe].values)
         df_stats.loc[index, "contacts"] = probe_contacts
         df_stats.loc[index, 'coverage_over_hic_contacts'] = probe_contacts / total_sparse_contacts
-        probes_contacts_inter = np.sum(sub_df.query("chr != @self_chr")[probe].values)
+        probes_contacts_inter = sub_df.query("chr != @self_chr")[probe].sum()
 
         if probe_contacts > 0:
-            cis_freq = sub_df.loc[
-                               (sub_df["chr"] == self_chr) &
-                               (sub_df['start'] >= cis_limits[0]) &
-                               (sub_df['start'] + sub_df['sizes'] <= cis_limits[1]), probe].sum() / probe_contacts
+            cis_freq = sub_df.query("chr == @self_chr & start >= @cis_limits[0] & end <= @cis_limits[1]")[probe].sum()
+            cis_freq /= probe_contacts
 
             trans_freq = 1 - cis_freq
             inter_chr_freq = probes_contacts_inter / probe_contacts
