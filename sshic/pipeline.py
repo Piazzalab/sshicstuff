@@ -24,9 +24,10 @@ def main(
 ):
     my_sample_input_dir = os.path.dirname(my_sample_sparse_file_path)
     samp_id = re.match(r'^AD\d+', my_sample_sparse_file_path.split("/")[-1]).group()
-    print(samp_id)
     my_sample_output_dir = os.path.join(my_sample_input_dir, samp_id)
     os.makedirs(my_sample_output_dir, exist_ok=True)
+
+    print(samp_id)
 
     """
     Filtering Sparse matrix
