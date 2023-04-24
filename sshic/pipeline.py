@@ -4,7 +4,6 @@ import argparse
 
 from filter import filter_contacts
 from coverage import coverage
-from probe2fragment import associate_probes_to_fragments as p2f
 from fragments import organize_contacts
 from statistics import get_stats
 from binning import rebin_contacts
@@ -55,18 +54,11 @@ def main(
                 output_dir=my_sample_output_dir)
 
         """
-        Making link between probes (oligo) and fragment where it is contained 
-        """
-        probes_to_fragments_path = os.path.join(samples_dir_path, "probes_to_fragments.tsv")
-        if not os.path.exists(probes_to_fragments_path):
-            p2f(fragments_list_path=fragments_list_path, oligos_capture_path=oligos_path)
-
-        """
         Tidying contacts between probe and the rest of the genome (unbinned table)
         """
         organize_contacts(
             filtered_contacts_path=filtered_contacts_input,
-            probes_to_fragments_path=probes_to_fragments_path)
+            oligos_path=oligos_path)
         unbinned_contacts_input = os.path.join(my_sample_output_dir, samp_id+"_unbinned_contacts.tsv")
         unbinned_frequencies_input = os.path.join(my_sample_output_dir, samp_id+"_unbinned_frequencies.tsv")
 
@@ -76,7 +68,7 @@ def main(
         get_stats(
             contacts_unbinned_path=unbinned_contacts_input,
             sparse_contacts_path=sparse_contacts_input,
-            probes_to_fragments_path=probes_to_fragments_path)
+            oligos_path=oligos_path)
 
         """
         Rebinning the unbinned table at n kb (aggregates contacts on regular range of bp)
@@ -93,7 +85,7 @@ def main(
         aggregate(
             binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_10kb_binned_frequencies.tsv"),
             centros_coord_path=centromeres_coordinates_path,
-            probes_to_fragments_path=probes_to_fragments_path,
+            oligos_path=oligos_path,
             window_size=window_size_centromeres,
             on="centromeres",
             exclude_probe_chr=excluded_probe_chr,
@@ -107,7 +99,7 @@ def main(
         aggregate(
             binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_10kb_binned_frequencies.tsv"),
             centros_coord_path=centromeres_coordinates_path,
-            probes_to_fragments_path=probes_to_fragments_path,
+            oligos_path=oligos_path,
             window_size=window_size_telomeres,
             on="telomeres",
             exclude_probe_chr=excluded_probe_chr,
