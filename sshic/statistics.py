@@ -69,7 +69,7 @@ def get_stats(
         self_chr = df_probes.loc[probe, "chr"]
         df_stats.loc[index, "chr"] = df_probes.loc[probe, "chr"]
 
-        sub_df = df_unbinned_contacts[['chr', 'start', probe]]
+        sub_df = df_unbinned_contacts[['chr', 'start', 'sizes', probe]]
         cis_limits = [
             int(df_probes.loc[probe, 'probe_start']) - cis_range,
             int(df_probes.loc[probe, 'probe_end']) + cis_range
@@ -82,8 +82,8 @@ def get_stats(
         if probe_contacts > 0:
             cis_freq = sub_df.loc[
                                (sub_df["chr"] == self_chr) &
-                               (sub_df['start'] > cis_limits[0]) &
-                               (sub_df['start'] < cis_limits[1]), probe].sum() / probe_contacts
+                               (sub_df['start'] >= cis_limits[0]) &
+                               (sub_df['start'] + sub_df['sizes'] <= cis_limits[1]), probe].sum() / probe_contacts
 
             trans_freq = 1 - cis_freq
             inter_chr_freq = probes_contacts_inter / probe_contacts

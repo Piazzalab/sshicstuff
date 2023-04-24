@@ -118,11 +118,11 @@ def main(
 
 if __name__ == "__main__":
     """
-    -s ../test_data/AD357_AD356_classic
-    -f ../test_data/AD357_AD356_classic/fragments_list.txt
-    -c ../test_data/AD357_AD356_classic/S288c_chr_centro_coordinates.tsv 
-    -o ../test_data/AD357_AD356_classic/capture_oligo_positions.csv
-    -b 1000 2000 5000 10000 20000 50000 10000
+    -s ../test_data/AD162_classic
+    -f ../test_data/AD162_classic/fragments_list.txt
+    -c ../test_data/AD162_classic/S288c_chr_centro_coordinates.tsv 
+    -o ../test_data/AD162_classic/capture_oligo_positions.csv
+    -b 1000 2000 3000 5000 8000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
     --excluded-chr chr2 chr3 chr5 2_micron mitochondrion, chr_artificial
