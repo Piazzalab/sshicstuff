@@ -74,7 +74,7 @@ def get_stats(
             int(df_probes.loc[index, 'start']) - cis_range,
             int(df_probes.loc[index, 'end']) + cis_range
         ]
-        probe_contacts = np.sum(sub_df[probe].values)
+        probe_contacts = sub_df[probe].sum()
         df_stats.loc[index, "contacts"] = probe_contacts
         df_stats.loc[index, 'coverage_over_hic_contacts'] = probe_contacts / total_sparse_contacts
         probes_contacts_inter = sub_df.query("chr != @self_chr")[probe].sum()
