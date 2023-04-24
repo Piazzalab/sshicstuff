@@ -11,7 +11,7 @@ def get_stats(
         contacts_unbinned_path: str,
         sparse_contacts_path: str,
         oligos_path: str,
-        cis_range: int = 5000,
+        cis_range: int = 50000,
         wt_reference: Optional[str] = None,
 ):
     """
