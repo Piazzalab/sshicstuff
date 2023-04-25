@@ -37,7 +37,7 @@ app.index_string = '''
 '''
 
 # Load and set the data folders and files
-data_dir =  "../../test_data/AD162_classic/AD162"
+data_dir = "../../test_data/AD162_classic/AD162"
 binned_files = sorted([file for file in os.listdir(data_dir) if file.endswith("_binned_frequencies.tsv")],
                       key=lambda file: int(re.search(r'(\d+)kb', file).group(1)))
 
@@ -82,7 +82,7 @@ app.layout = dbc.Container([
 ])
 
 
-def update_figure(selected_probe, selected_binning, graph_number):
+def update_figure(selected_probe, selected_binning, graph_number, x_range=None, y_range=None):
     if not selected_probe:
         return go.Figure()
 
@@ -116,6 +116,11 @@ def update_figure(selected_probe, selected_binning, graph_number):
         yaxis=dict(title="Contact frequency"),
         hovermode='closest'
     )
+
+    if x_range:
+        fig.update_xaxes(range=x_range)
+    if y_range:
+        fig.update_yaxes(range=y_range)
 
     # Adding a vertical line to show chromosome
     chr_boundaries = [0] + df.loc[df['chr'].shift(-1) != df['chr'], x_col].tolist()
@@ -165,23 +170,44 @@ def limit_probe_selection(selected_probes):
 
 
 @app.callback(
-    Output('graph1', 'figure'),
+    [Output('graph1', 'figure'),
+     Output('graph2', 'figure')],
     [Input('probe-selector', 'value'),
-     Input('binning-selector', 'value')]
+     Input('binning-selector', 'value'),
+     Input('graph1', 'relayoutData'),
+     Input('graph2', 'relayoutData')]
 )
-def update_graph1(selected_probe, selected_binning):
-    fig = update_figure(selected_probe, selected_binning, 1)
-    return fig
+def sync_graphs(selected_probe, selected_binning, relayout_data1, relayout_data2):
+    ctx = dash.callback_context
+    input_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    x_range = None
+    y_range = None
 
-@app.callback(
-    Output('graph2', 'figure'),
-    [Input('probe-selector', 'value'),
-     Input('binning-selector', 'value')]
-)
-def update_graph2(selected_probe, selected_binning):
-    fig = update_figure(selected_probe, selected_binning, 2)
-    return fig
+    if input_id == 'graph1':
+        relayout_data = relayout_data1
+    elif input_id == 'graph2':
+        relayout_data = relayout_data2
+    else:
+        relayout_data = None
+
+    if relayout_data:
+        if 'xaxis.range[0]' in relayout_data and 'xaxis.range[1]' in relayout_data:
+            x_range = [relayout_data['xaxis.range[0]'], relayout_data['xaxis.range[1]']]
+        if 'yaxis.range[0]' in relayout_data and 'yaxis.range[1]' in relayout_data:
+            y_range = [relayout_data['yaxis.range[0]'], relayout_data['yaxis.range[1]']]
+
+    if len(selected_probe) >= 1:
+        updated_fig1 = update_figure(selected_probe, selected_binning, 1, x_range, y_range)
+    else:
+        updated_fig1 = go.Figure()
+
+    if len(selected_probe) >= 2:
+        updated_fig2 = update_figure(selected_probe, selected_binning, 2, x_range, y_range)
+    else:
+        updated_fig2 = go.Figure()
+
+    return updated_fig1, updated_fig2
 
 
 if __name__ == '__main__':
