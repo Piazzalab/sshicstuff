@@ -4,7 +4,7 @@ import dash
 from dash import html
 from dash import dcc
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 
 
@@ -82,7 +82,6 @@ def update_figure(selected_probe, selected_binning, fig):
             ),
             xref="x"
         )
-
     return fig
 
 
@@ -108,13 +107,13 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             dcc.Graph(id='graph1', config={'displayModeBar': True, 'scrollZoom': True}),
-        ], width=12, align='left'),
+        ], width=12, align='center'),
     ], style={'margin-top': '200px', 'margin-left': '0px'}),
 
     dbc.Row([
         dbc.Col([
             dcc.Graph(id='graph2', config={'displayModeBar': True, 'scrollZoom': True}),
-        ], width=12, align='left'),
+        ], width=12, align='center'),
     ], style={'margin-top': '200px', 'margin-left': '0px'})
 ])
 
@@ -132,21 +131,22 @@ def limit_probe_selection(selected_probes):
 @app.callback(
     Output('graph1', 'figure'),
     [Input('probe-selector', 'value'),
-     Input('binning-selector', 'value'),
-     Input('graph2', 'figure')]
+     Input('binning-selector', 'value')]
 )
-def update_graph1(selected_probe, selected_binning, graph2_figure):
-    return update_figure(selected_probe, selected_binning, graph2_figure)
+def update_graph1(selected_probe, selected_binning):
+    fig = update_figure(selected_probe, selected_binning, None)
+    return fig
 
 
 @app.callback(
     Output('graph2', 'figure'),
     [Input('probe-selector', 'value'),
-     Input('binning-selector', 'value'),
-     Input('graph1', 'figure')]
+     Input('binning-selector', 'value')],
+    [State('graph1', 'figure')]
 )
 def update_graph2(selected_probe, selected_binning, graph1_figure):
-    return update_figure(selected_probe, selected_binning, graph1_figure)
+    fig = update_figure(selected_probe, selected_binning, graph1_figure)
+    return fig
 
 
 if __name__ == '__main__':
