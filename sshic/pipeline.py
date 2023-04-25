@@ -110,11 +110,11 @@ if __name__ == "__main__":
     #   Example :
 
     """
-    -s ../test_data/sshic_pcrdupkept
-    -f ../test_data/sshic_pcrdupkept/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    -c ../test_data/sshic_pcrdupkept/S288c_chr_centro_coordinates.tsv 
-    -o ../test_data/sshic_pcrdupkept/capture_oligo_positions.csv
-    -t 14
+    -s ../test_data/sshic
+    -f ../test_data/sshic/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
+    -c ../test_data/sshic/S288c_chr_centro_coordinates.tsv 
+    -o ../test_data/sshic/capture_oligo_positions.csv
+    -t 15
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
