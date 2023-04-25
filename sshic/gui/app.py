@@ -1,4 +1,5 @@
 import os
+import re
 import pandas as pd
 import dash
 from dash import html
@@ -6,6 +7,7 @@ from dash import dcc
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
+
 
 # Create a Dash application instance:
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -35,8 +37,9 @@ app.index_string = '''
 '''
 
 # Load and set the data folders and files
-data_dir = "../../test_data/sshic/AD162/"
-binned_files = sorted([file for file in os.listdir(data_dir) if file.endswith("_binned_frequencies.tsv")])
+data_dir =  "../../test_data/AD162_classic/AD162"
+binned_files = sorted([file for file in os.listdir(data_dir) if file.endswith("_binned_frequencies.tsv")],
+                      key=lambda file: int(re.search(r'(\d+)kb', file).group(1)))
 
 # Load binned tables as dataframe
 binned_dfs = {file: pd.read_csv(os.path.join(data_dir, file), sep='\t') for file in binned_files}
@@ -100,15 +103,16 @@ def update_figure(selected_probe, selected_binning, graph_number):
             y=df[probe_to_display],
             name=probe_to_display,
             mode='lines+markers',
-            line=dict(width=1, color='blue' if graph_number == 1 else 'red'),
+            line=dict(width=1, color='rgba(0,0,255,0.4)' if graph_number == 1 else 'rgba(255,0,0,0.5)'),
             marker=dict(size=4)
         )
     )
 
     fig.update_layout(
-        width=1500,
+        width=2000,
         height=600,
-        xaxis=dict(title="Genome bins"),
+        title=f"{probe_to_display} contacts frequencies sshic binned at {get_binning_from_filename(selected_binning)}",
+        xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
         yaxis=dict(title="Contact frequency"),
         hovermode='closest'
     )
@@ -121,6 +125,10 @@ def update_figure(selected_probe, selected_binning, graph_number):
 
     # Adding chromosome names between vertical lines
     chr_names = df.loc[df['chr'].shift(-1) != df['chr'], 'chr'].tolist()
+    chr_colors = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9',
+                  '#f1c40f', '#d35400', '#e74c3c', '#c0392b', '#1abc9c', '#16a085', '#bdc3c7', '#2c3e50',
+                  '#7f8c8d', '#f39c12', '#27ae60']
+
     for i, boundary in enumerate(chr_boundaries[:-1]):
         name_pos = boundary + 100
         fig.add_annotation(
@@ -131,12 +139,19 @@ def update_figure(selected_probe, selected_binning, graph_number):
                 text=chr_names[i],
                 showarrow=False,
                 xanchor="center",
-                font=dict(size=10),
-                textangle=325
+                font=dict(size=11, color=chr_colors[i]),
+                textangle=330
             ),
             xref="x"
         )
     return fig
+
+
+def get_binning_from_filename(filename: str):
+    match = re.search(r"_(\d+kb)_", filename)
+    if match:
+        binning = match.group(1)
+        return binning
 
 
 @app.callback(
