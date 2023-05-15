@@ -7,8 +7,10 @@ import numpy as np
 
 
 def ponder_mutant(
-        sample_dir: str,
-        bins_size: int = 0
+        statistics_path: str,
+        contacts_path: str,
+        frequencies_path: str,
+        binned_type: str
 ):
 
     """
@@ -23,32 +25,24 @@ def ponder_mutant(
 
     """
 
-    bin_prefix = str(bins_size // 1000) + "kb"
-    sample_id = re.search(r"AD\d+", sample_dir).group()
-    output_path = os.path.join(sample_dir, sample_id)
+    sample_id = re.search(r"AD\d+", contacts_path.split("/")[-1]).group()
+    output_dir = os.path.dirname(contacts_path)
+    output_path = os.path.join(output_dir, sample_id)
 
-    df_stats: pd.DataFrame = pd.read_csv(
-        os.path.join(sample_dir, sample_id+"_global_statistics.tsv"), header=0, sep="\t", index_col=0)
+    df_stats: pd.DataFrame = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
+    df_contacts: pd.DataFrame = pd.read_csv(contacts_path, header=0, sep="\t")
+    df_frequencies: pd.DataFrame = pd.read_csv(frequencies_path, header=0, sep="\t")
 
-    if bin_prefix == "0kb":
-        bin_prefix = "unbinned"
-    else:
-        bin_prefix += "_binned"
-    df_contacts: pd.DataFrame = pd.read_csv(
-        os.path.join(sample_dir, sample_id+f"_{bin_prefix}_contacts.tsv"), header=0, sep="\t")
-    df_frequencies: pd.DataFrame = pd.read_csv(
-        os.path.join(sample_dir, sample_id+f"_{bin_prefix}_frequencies.tsv"), header=0, sep="\t")
-
-    fragments_list = df_stats['fragments'].unique()
-    for frag in fragments_list:
-        ponder_coefficient = df_stats.loc[frag, f"capture_efficiency_vs_wt"]
+    probes = df_stats['probe'].unique()
+    for probe in probes:
+        ponder_coefficient = df_stats.loc[df_stats["probe"] == probe, "capture_efficiency_vs_wt"].tolist()[0]
         if ponder_coefficient == np.nan:
             ponder_coefficient = 0
-        df_contacts.loc[:, frag] = df_contacts.loc[:, frag] * ponder_coefficient
-        df_frequencies.loc[:, frag] = df_frequencies.loc[:, frag] * ponder_coefficient
+        df_contacts.loc[:, probe] = df_contacts.loc[:, probe] * ponder_coefficient
+        df_frequencies.loc[:, probe] = df_frequencies.loc[:, probe] * ponder_coefficient
 
-    df_contacts.to_csv(output_path+f"_{bin_prefix}_contacts.tsv")
-    df_frequencies.to_csv(output_path + f"_{bin_prefix}_frequencies.tsv")
+    df_contacts.to_csv(output_path+f"_{binned_type}_pondered_contacts.tsv")
+    df_frequencies.to_csv(output_path + f"_{binned_type}_pondered_frequencies.tsv")
 
 
 def main(argv):
@@ -63,10 +57,6 @@ def main(argv):
     parser.add_argument('-b', '--binning', type=int, required=True, help='Binning size (in bp)')
 
     args = parser.parse_args(argv)
-    ponder_mutant(
-        sample_dir=args.sample_dir,
-        bins_size=args.binning
-    )
 
 
 if __name__ == "__main__":
