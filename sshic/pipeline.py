@@ -2,12 +2,16 @@ import re
 import os
 import argparse
 
+import pandas as pd
+
 from filter import filter_contacts
 from coverage import coverage
 from fragments import organize_contacts
 from statistics import get_stats
 from binning import rebin_contacts
+from ponder import ponder_mutant
 from aggregated import aggregate
+from utils import is_debug
 
 
 def main(
@@ -16,11 +20,12 @@ def main(
         fragments_list_path: str,
         centromeres_coordinates_path: str,
         binning_size_list: list,
+        df_mutant_vs_ref: pd.DataFrame,
         window_size_centromeres: int,
         window_size_telomeres: int,
         excluded_chr_list: list,
         excluded_probe_chr: bool = True,
-        inter_normalization: bool = True
+        inter_normalization: bool = True,
 ):
     my_sample_input_dir = os.path.dirname(my_sample_sparse_file_path)
     samp_id = re.match(r'^AD\d+', my_sample_sparse_file_path.split("/")[-1]).group()
@@ -28,6 +33,12 @@ def main(
     os.makedirs(my_sample_output_dir, exist_ok=True)
 
     print(samp_id)
+
+    mutants = df_mutant_vs_ref['sample'].values.tolist()
+    wt_to_compare_path = None
+    if samp_id in mutants:
+        ref = df_mutant_vs_ref.loc[df_mutant_vs_ref["sample"] == samp_id]["ref"].tolist()[0]
+        wt_to_compare_path = os.path.join(args.wt_dir, ref+".tsv")
 
     """
     Filtering Sparse matrix
@@ -65,7 +76,17 @@ def main(
     get_stats(
         contacts_unbinned_path=unbinned_contacts_input,
         sparse_contacts_path=my_sample_sparse_file_path,
-        oligos_path=oligos_path)
+        oligos_path=oligos_path,
+        wt_reference=wt_to_compare_path,
+    )
+    global_statistics_input = os.path.join(my_sample_output_dir, samp_id+"_global_statistics.tsv")
+
+    ponder_mutant(
+        statistics_path=global_statistics_input,
+        contacts_path=unbinned_contacts_input,
+        frequencies_path=unbinned_frequencies_input,
+        binned_type="unbinned"
+    )
 
     """
     Rebinning the unbinned table at n kb (aggregates contacts on regular range of bp)
@@ -75,6 +96,16 @@ def main(
             contacts_unbinned_path=unbinned_contacts_input,
             chromosomes_coord_path=centromeres_coordinates_path,
             bin_size=bn)
+
+        bin_suffix = str(bn // 1000) + "kb"
+        binned_contacts_input = os.path.join(my_sample_output_dir, samp_id + f"_{bin_suffix}_binned_contacts.tsv")
+        binned_frequencies_input = os.path.join(my_sample_output_dir, samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
+        ponder_mutant(
+            statistics_path=global_statistics_input,
+            contacts_path=binned_contacts_input,
+            frequencies_path=binned_frequencies_input,
+            binned_type=f"{bin_suffix}_binned"
+        )
 
     """
     Aggregating contacts around centromeres
@@ -110,10 +141,11 @@ if __name__ == "__main__":
     #   Example :
 
     """
-    -s ../test_data/sshic
-    -f ../test_data/sshic/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    -c ../test_data/sshic/S288c_chr_centro_coordinates.tsv 
-    -o ../test_data/sshic/capture_oligo_positions.csv
+    -s ../test_data/AD401_AD407_classic
+    -f ../test_data/AD401_AD407_classic/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
+    -c ../test_data/AD401_AD407_classic/S288c_chr_centro_coordinates.tsv 
+    -o ../test_data/AD401_AD407_classic/capture_oligo_positions.csv
+    --wt-dir ../test_data/AD401_AD407_classic/capture_efficiencies/
     -t 15
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
@@ -144,6 +176,9 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--threads', type=int, required=True,
                         help='desired number of thread to parallelize')
 
+    parser.add_argument('--wt-dir', type=str, required=True,
+                        help="Path to the wt_capture_efficiency dir.")
+
     parser.add_argument('--window-size-centros', type=int, required=True,
                         help="window (in bp) that defines a focus region to aggregated centromeres")
 
@@ -162,8 +197,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if is_debug():
+        args.threads = 1
+
     list_files = [f for f in os.listdir(args.samples_dir) if os.path.isfile(os.path.join(args.samples_dir, f))]
     my_samples = [os.path.join(args.samples_dir, s) for s in list_files if re.match(r'^AD\d+', s)]
+
+    df_mutant_vs_wt: pd.DataFrame = pd.read_csv(os.path.join(args.wt_dir, "mutants_vs_ref.csv"), sep="\t")
 
     if args.threads > 1:
         import multiprocessing as mp
@@ -174,6 +214,7 @@ if __name__ == "__main__":
                 args.fragments_list_input,
                 args.centromeres_coordinates_input,
                 args.binning_sizes_list,
+                df_mutant_vs_wt,
                 args.window_size_centros,
                 args.window_size_telos,
                 args.excluded_chr,
@@ -188,6 +229,7 @@ if __name__ == "__main__":
                 fragments_list_path=args.fragments_list_input,
                 centromeres_coordinates_path=args.centromeres_coordinates_input,
                 binning_size_list=args.binning_sizes_list,
+                df_mutant_vs_ref=df_mutant_vs_wt,
                 excluded_chr_list=args.excluded_chr,
                 excluded_probe_chr=args.exclude_probe_chr,
                 window_size_centromeres=args.window_size_centros,
