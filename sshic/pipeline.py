@@ -197,22 +197,21 @@ if __name__ == "__main__":
 
     df_mutant_vs_wt: pd.DataFrame = pd.read_csv(os.path.join(args.wt_dir, "mutants_vs_ref.csv"), sep="\t")
 
-    samples_data = []
-    for samp in my_samples:
-        path_bundle = PathBundle(samp, args.wt_dir)
-        aggregate_params_centros = AggregateParams(args.window_size_centros, args.exclude_probe_chr,
-                                                   args.excluded_chr, args.inter_norm)
-        aggregate_params_telos = AggregateParams(args.window_size_telos, args.exclude_probe_chr,
-                                                 args.excluded_chr, args.inter_norm)
-
-        samples_data.append((path_bundle, args.oligos_input, args.fragments_list_input,
-                             args.centromeres_coordinates_input, args.binning_sizes_list,
-                             aggregate_params_centros, aggregate_params_telos))
+    sample_data_list = []
+    for sample_file in my_samples:
+        sample_path_bundle = PathBundle(sample_file, args.wt_dir)
+        sample_aggregate_params_centros = AggregateParams(args.window_size_centros, args.exclude_probe_chr,
+                                                          args.excluded_chr, args.inter_norm)
+        sample_aggregate_params_telos = AggregateParams(args.window_size_telos, args.exclude_probe_chr,
+                                                        args.excluded_chr, args.inter_norm)
+        sample_data_list.append((sample_path_bundle, args.oligos_input, args.fragments_list_input,
+                                 args.centromeres_coordinates_input, args.binning_sizes_list,
+                                 sample_aggregate_params_centros, sample_aggregate_params_telos))
 
     if args.threads > 1:
         import multiprocessing as mp
         with mp.Pool(args.threads) as p:
-            p.starmap(main, samples_data)
+            p.starmap(main, sample_data_list)
     else:
-        for sample_data in samples_data:
-            main(*sample_data)
+        for single_sample_data in sample_data_list:
+            main(*single_sample_data)
