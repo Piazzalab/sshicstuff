@@ -138,7 +138,7 @@ def get_stats(
         df_stats[f"capture_efficiency_vs_wt"] = np.nan
         for index, row in df_stats.iterrows():
             probe = row['probe']
-            wt_capture_eff = df_wt.loc[df_wt['probes'] == probe, "Capture_efficiency_WT"]
+            wt_capture_eff = df_wt.loc[df_wt['probes'] == probe, "Capture_efficiency_WT"].tolist()[0]
             if wt_capture_eff > 0:
                 df_stats.loc[index, f"capture_efficiency_vs_wt"] = wt_capture_eff
 
