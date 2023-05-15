@@ -3,6 +3,7 @@ import os
 import argparse
 
 import pandas as pd
+from typing import List
 
 from filter import filter_contacts
 from coverage import coverage
@@ -14,125 +15,116 @@ from aggregated import aggregate
 from utils import is_debug
 
 
+class PathBundle:
+    def __init__(self, sample_sparse_file_path, wt_dir):
+        self.sample_sparse_file_path = sample_sparse_file_path
+        self.sample_input_dir = os.path.dirname(sample_sparse_file_path)
+        self.samp_id = re.match(r'^AD\d+', sample_sparse_file_path.split("/")[-1]).group()
+        self.sample_output_dir = os.path.join(self.sample_input_dir, self.samp_id)
+        os.makedirs(self.sample_output_dir, exist_ok=True)
+
+        self.filtered_contacts_input = os.path.join(self.sample_output_dir, self.samp_id + "_filtered.tsv")
+        self.cover = os.path.join(self.sample_output_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
+        self.unbinned_contacts_input = os.path.join(self.sample_output_dir, self.samp_id+"_unbinned_contacts.tsv")
+        self.unbinned_frequencies_input = os.path.join(self.sample_output_dir, self.samp_id+"_unbinned_frequencies.tsv")
+        self.global_statistics_input = os.path.join(self.sample_output_dir, self.samp_id+"_global_statistics.tsv")
+
+        mutants = pd.read_csv(os.path.join(wt_dir, "mutants_vs_ref.csv"), sep="\t")['sample'].values.tolist()
+        wt_to_compare_path = None
+        if self.samp_id in mutants:
+            ref = pd.read_csv(
+                os.path.join(wt_dir, "mutants_vs_ref.csv"), sep="\t").loc[pd.read_csv(
+                    os.path.join(wt_dir, "mutants_vs_ref.csv"), sep="\t")["sample"] == self.samp_id]["ref"].tolist()[0]
+            wt_to_compare_path = os.path.join(wt_dir, ref + ".tsv")
+
+        self.wt_to_compare_path = wt_to_compare_path
+
+
+class AggregateParams:
+    def __init__(self, window_size, excluded_probe_chr, excluded_chr_list, inter_normalization):
+        self.window_size = window_size
+        self.excluded_probe_chr = excluded_probe_chr
+        self.excluded_chr_list = excluded_chr_list
+        self.inter_normalization = inter_normalization
+
+
+def check_and_run(output_path, func, *args):
+    if not os.path.exists(output_path):
+        func(*args)
+
+
 def main(
-        my_sample_sparse_file_path: str,
+        path_bundle: PathBundle,
         oligos_path: str,
         fragments_list_path: str,
         centromeres_coordinates_path: str,
-        binning_size_list: list,
-        df_mutant_vs_ref: pd.DataFrame,
-        window_size_centromeres: int,
-        window_size_telomeres: int,
-        excluded_chr_list: list,
-        excluded_probe_chr: bool = True,
-        inter_normalization: bool = True,
+        binning_size_list: List[int],
+        aggregate_params_centros: AggregateParams,
+        aggregate_params_telos: AggregateParams,
 ):
-    my_sample_input_dir = os.path.dirname(my_sample_sparse_file_path)
-    samp_id = re.match(r'^AD\d+', my_sample_sparse_file_path.split("/")[-1]).group()
-    my_sample_output_dir = os.path.join(my_sample_input_dir, samp_id)
-    os.makedirs(my_sample_output_dir, exist_ok=True)
+    print(path_bundle.samp_id)
 
-    print(samp_id)
+    check_and_run(path_bundle.filtered_contacts_input,
+                  filter_contacts,
+                  oligos_path,
+                  fragments_list_path,
+                  path_bundle.sample_sparse_file_path,
+                  path_bundle.sample_output_dir)
 
-    mutants = df_mutant_vs_ref['sample'].values.tolist()
-    wt_to_compare_path = None
-    if samp_id in mutants:
-        ref = df_mutant_vs_ref.loc[df_mutant_vs_ref["sample"] == samp_id]["ref"].tolist()[0]
-        wt_to_compare_path = os.path.join(args.wt_dir, ref+".tsv")
+    check_and_run(path_bundle.cover, coverage,
+                  path_bundle.sample_sparse_file_path,
+                  fragments_list_path, path_bundle.sample_output_dir)
 
-    """
-    Filtering Sparse matrix
-    """
-    filtered_contacts_input = os.path.join(my_sample_output_dir, samp_id + "_filtered.tsv")
-    if not os.path.exists(filtered_contacts_input):
-        filter_contacts(
-            oligos_path=oligos_path,
-            fragments_path=fragments_list_path,
-            contacts_path=my_sample_sparse_file_path,
-            output_dir=my_sample_output_dir)
+    organize_contacts(filtered_contacts_path=path_bundle.filtered_contacts_input, oligos_path=oligos_path)
+    get_stats(contacts_unbinned_path=path_bundle.unbinned_contacts_input,
+              sparse_contacts_path=path_bundle.sample_sparse_file_path,
+              oligos_path=oligos_path,
+              wt_reference=path_bundle.wt_to_compare_path)
 
-    """
-    Computing coverage per digested fragments
-    """
-    cover = os.path.join(my_sample_output_dir, samp_id + "_coverage_per_fragment.bedgraph")
-    if not os.path.exists(cover):
-        coverage(
-            hic_contacts_path=my_sample_sparse_file_path,
-            fragments_path=fragments_list_path,
-            output_dir=my_sample_output_dir)
+    ponder_mutant(statistics_path=path_bundle.global_statistics_input,
+                  contacts_path=path_bundle.unbinned_contacts_input,
+                  frequencies_path=path_bundle.unbinned_frequencies_input,
+                  binned_type="unbinned")
 
-    """
-    Tidying contacts between probe and the rest of the genome (unbinned table)
-    """
-    organize_contacts(
-        filtered_contacts_path=filtered_contacts_input,
-        oligos_path=oligos_path)
-    unbinned_contacts_input = os.path.join(my_sample_output_dir, samp_id+"_unbinned_contacts.tsv")
-    unbinned_frequencies_input = os.path.join(my_sample_output_dir, samp_id+"_unbinned_frequencies.tsv")
-
-    """
-    Computing some basic statistic about the contacts made
-    """
-    get_stats(
-        contacts_unbinned_path=unbinned_contacts_input,
-        sparse_contacts_path=my_sample_sparse_file_path,
-        oligos_path=oligos_path,
-        wt_reference=wt_to_compare_path,
-    )
-    global_statistics_input = os.path.join(my_sample_output_dir, samp_id+"_global_statistics.tsv")
-
-    ponder_mutant(
-        statistics_path=global_statistics_input,
-        contacts_path=unbinned_contacts_input,
-        frequencies_path=unbinned_frequencies_input,
-        binned_type="unbinned"
-    )
-
-    """
-    Rebinning the unbinned table at n kb (aggregates contacts on regular range of bp)
-    """
     for bn in binning_size_list:
-        rebin_contacts(
-            contacts_unbinned_path=unbinned_contacts_input,
-            chromosomes_coord_path=centromeres_coordinates_path,
-            bin_size=bn)
-
+        rebin_contacts(contacts_unbinned_path=path_bundle.unbinned_contacts_input,
+                       chromosomes_coord_path=centromeres_coordinates_path,
+                       bin_size=bn)
         bin_suffix = str(bn // 1000) + "kb"
-        binned_contacts_input = os.path.join(my_sample_output_dir, samp_id + f"_{bin_suffix}_binned_contacts.tsv")
-        binned_frequencies_input = os.path.join(my_sample_output_dir, samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
+        binned_contacts_input = \
+            os.path.join(path_bundle.sample_output_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")
+        binned_frequencies_input = \
+            os.path.join(path_bundle.sample_output_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
+
         ponder_mutant(
-            statistics_path=global_statistics_input,
+            statistics_path=path_bundle.global_statistics_input,
             contacts_path=binned_contacts_input,
             frequencies_path=binned_frequencies_input,
             binned_type=f"{bin_suffix}_binned"
         )
 
-    """
-    Aggregating contacts around centromeres
-    """
     aggregate(
-        binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_10kb_binned_frequencies.tsv"),
+        binned_contacts_path=os.path.join(path_bundle.sample_output_dir,
+                                          path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
         centros_coord_path=centromeres_coordinates_path,
         oligos_path=oligos_path,
-        window_size=window_size_centromeres,
+        window_size=aggregate_params_centros.window_size,
         on="centromeres",
-        exclude_probe_chr=excluded_probe_chr,
-        excluded_chr_list=excluded_chr_list,
-        inter_normalization=inter_normalization,
+        exclude_probe_chr=aggregate_params_centros.excluded_probe_chr,
+        excluded_chr_list=aggregate_params_centros.excluded_chr_list,
+        inter_normalization=aggregate_params_centros.inter_normalization,
         plot=True)
 
-    """
-    Aggregating contacts around telomeres
-    """
     aggregate(
-        binned_contacts_path=os.path.join(my_sample_output_dir, samp_id+"_10kb_binned_frequencies.tsv"),
+        binned_contacts_path=os.path.join(path_bundle.sample_output_dir,
+                                          path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
         centros_coord_path=centromeres_coordinates_path,
         oligos_path=oligos_path,
-        window_size=window_size_telomeres,
+        window_size=aggregate_params_telos.window_size,
         on="telomeres",
-        exclude_probe_chr=excluded_probe_chr,
-        excluded_chr_list=excluded_chr_list,
-        inter_normalization=inter_normalization,
+        exclude_probe_chr=aggregate_params_telos.excluded_probe_chr,
+        excluded_chr_list=aggregate_params_telos.excluded_chr_list,
+        inter_normalization=aggregate_params_telos.inter_normalization,
         plot=True)
 
 
@@ -205,34 +197,22 @@ if __name__ == "__main__":
 
     df_mutant_vs_wt: pd.DataFrame = pd.read_csv(os.path.join(args.wt_dir, "mutants_vs_ref.csv"), sep="\t")
 
+    samples_data = []
+    for samp in my_samples:
+        path_bundle = PathBundle(samp, args.wt_dir)
+        aggregate_params_centros = AggregateParams(args.window_size_centros, args.exclude_probe_chr,
+                                                   args.excluded_chr, args.inter_norm)
+        aggregate_params_telos = AggregateParams(args.window_size_telos, args.exclude_probe_chr,
+                                                 args.excluded_chr, args.inter_norm)
+
+        samples_data.append((path_bundle, args.oligos_input, args.fragments_list_input,
+                             args.centromeres_coordinates_input, args.binning_sizes_list,
+                             aggregate_params_centros, aggregate_params_telos))
+
     if args.threads > 1:
         import multiprocessing as mp
         with mp.Pool(args.threads) as p:
-            p.starmap(main, [(
-                samp,
-                args.oligos_input,
-                args.fragments_list_input,
-                args.centromeres_coordinates_input,
-                args.binning_sizes_list,
-                df_mutant_vs_wt,
-                args.window_size_centros,
-                args.window_size_telos,
-                args.excluded_chr,
-                args.exclude_probe_chr,
-                args.inter_norm) for samp in my_samples])
-
+            p.starmap(main, samples_data)
     else:
-        for samp in my_samples:
-            main(
-                my_sample_sparse_file_path=samp,
-                oligos_path=args.oligos_input,
-                fragments_list_path=args.fragments_list_input,
-                centromeres_coordinates_path=args.centromeres_coordinates_input,
-                binning_size_list=args.binning_sizes_list,
-                df_mutant_vs_ref=df_mutant_vs_wt,
-                excluded_chr_list=args.excluded_chr,
-                excluded_probe_chr=args.exclude_probe_chr,
-                window_size_centromeres=args.window_size_centros,
-                window_size_telomeres=args.window_size_telos
-            )
-
+        for sample_data in samples_data:
+            main(*sample_data)
