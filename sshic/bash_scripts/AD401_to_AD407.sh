@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
-base_dir="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna"
-script="${base_dir}/sshic/pipeline.py"
+base_dir="/home/nicolas/Documents/Projects/ssHiC"
+script="${base_dir}/hic_ssdna/sshic/pipeline.py"
 
 fragments="${base_dir}/data/samples/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt"
 oligos="${base_dir}/data/samples/inputs/capture_oligo_positions.csv"
@@ -20,7 +20,7 @@ run_pipeline() {
                       -b $binning \
                       --window-size-centros $ws_centros \
                       --window-size-telos $ws_telos \
-                      --excluded-chr $excluded_chr \
+                      --excluded-chr "$excluded_chr" \
                       --inter-norm
 }
 
