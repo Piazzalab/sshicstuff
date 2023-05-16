@@ -81,6 +81,19 @@ python3 $script -s $sample \
                --excluded-chr $excluded_chr \
                --inter-norm
 
+# AD406
+sample="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna/data/samples/pcrfree/AD406_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
+reference="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna/data/samples/pcrfree/AD403/AD403_global_statistics.tsv"
+python3 $script -s $sample \
+               -f $fragments \
+               -o $oligos \
+               -c $centromeres \
+               -r $reference \
+               -b $binning \
+               --window-size-centros $ws_centros \
+               --window-size-telos $ws_telos \
+               --excluded-chr $excluded_chr \
+               --inter-norm
 
 # AD407
 sample="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna/data/samples/pcrfree/AD407_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"

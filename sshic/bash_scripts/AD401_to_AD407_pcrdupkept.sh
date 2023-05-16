@@ -80,11 +80,24 @@ python3 $script -s $sample \
                --window-size-telos $ws_telos \
                --excluded-chr $excluded_chr \
                --inter-norm
+# AD406
+sample="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna/data/samples/pcrdupkept/AD406_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q20.txt"
+reference="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna/data/samples/pcrdupkept/AD403/AD403_global_statistics.tsv"
+python3 $script -s $sample \
+               -f $fragments \
+               -o $oligos \
+               -c $centromeres \
+               -r $reference \
+               -b $binning \
+               --window-size-centros $ws_centros \
+               --window-size-telos $ws_telos \
+               --excluded-chr $excluded_chr \
+               --inter-norm
 
 
 # AD407
 sample="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna/data/samples/pcrdupkept/AD407_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q20.txt"
-reference="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna/data/samples/pcrdupkept/AD402/AD402_global_statistics.tsv"
+reference="/home/nicolas/Documents/Projects/ssHiC/hic_ssdna/data/samples/pcrdupkept/AD404/AD404_global_statistics.tsv"
 python3 $script -s $sample \
                -f $fragments \
                -o $oligos \
