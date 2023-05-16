@@ -9,7 +9,7 @@ from filter import filter_contacts
 from probe2fragment import associate_probes_to_fragments
 from coverage import coverage
 from fragments import organize_contacts
-from statistics import get_stats
+from statistics import get_stats, compare_to_wt
 from binning import rebin_contacts
 from ponder import ponder_mutant
 from aggregated import aggregate
@@ -17,7 +17,7 @@ from utils import is_debug
 
 
 class PathBundle:
-    def __init__(self, sample_sparse_file_path, wt_dir):
+    def __init__(self, sample_sparse_file_path, samples_wt_table_path: str):
         self.sample_sparse_file_path = sample_sparse_file_path
         self.sample_input_dir = os.path.dirname(sample_sparse_file_path)
         self.samp_id = re.match(r'^AD\d+', sample_sparse_file_path.split("/")[-1]).group()
@@ -30,15 +30,13 @@ class PathBundle:
         self.unbinned_frequencies_input = os.path.join(self.sample_output_dir, self.samp_id+"_unbinned_frequencies.tsv")
         self.global_statistics_input = os.path.join(self.sample_output_dir, self.samp_id+"_global_statistics.tsv")
 
-        mutants = pd.read_csv(os.path.join(wt_dir, "mutants_vs_ref.csv"), sep="\t")['sample'].values.tolist()
-        wt_to_compare_path = None
-        if self.samp_id in mutants:
-            ref = pd.read_csv(
-                os.path.join(wt_dir, "mutants_vs_ref.csv"), sep="\t").loc[pd.read_csv(
-                    os.path.join(wt_dir, "mutants_vs_ref.csv"), sep="\t")["sample"] == self.samp_id]["ref"].tolist()[0]
-            wt_to_compare_path = os.path.join(wt_dir, ref + ".tsv")
-
-        self.wt_to_compare_path = wt_to_compare_path
+        mutants_vs_wt: pd.DataFrame = pd.read_csv(samples_wt_table_path, sep="\t")
+        ref = mutants_vs_wt[mutants_vs_wt["sample"] == self.samp_id]["ref"].tolist()[0]
+        if re.match(r'^AD\d+', ref):
+            self.wt_to_compare_path = \
+                os.path.join(self.sample_input_dir, os.path.join(ref, os.path.join(f"{ref}_global_statistics.tsv")))
+        else:
+            self.wt_to_compare_path = os.path.join(self.sample_input_dir, f"wt/{ref}.tsv")
 
 
 class AggregateParams:
@@ -54,16 +52,11 @@ def check_and_run(output_path, func, *args):
         func(*args)
 
 
-def main(
+def step_one(
         path_bundle: PathBundle,
         oligos_path: str,
-        fragments_list_path: str,
-        centromeres_coordinates_path: str,
-        binning_size_list: List[int],
-        aggregate_params_centros: AggregateParams,
-        aggregate_params_telos: AggregateParams,
+        fragments_list_path: str
 ):
-    print(path_bundle.samp_id)
 
     check_and_run(path_bundle.filtered_contacts_input,
                   filter_contacts,
@@ -82,8 +75,19 @@ def main(
 
     get_stats(contacts_unbinned_path=path_bundle.unbinned_contacts_input,
               sparse_contacts_path=path_bundle.sample_sparse_file_path,
-              oligos_path=oligos_path,
-              wt_reference=path_bundle.wt_to_compare_path)
+              oligos_path=oligos_path)
+
+
+def step_two(
+        path_bundle: PathBundle,
+        oligos_path: str,
+        centromeres_coordinates_path: str,
+        binning_size_list: List[int],
+        aggregate_params_centros: AggregateParams,
+        aggregate_params_telos: AggregateParams,
+):
+
+    compare_to_wt(path_bundle.global_statistics_input, path_bundle.wt_to_compare_path)
 
     ponder_mutant(statistics_path=path_bundle.global_statistics_input,
                   contacts_path=path_bundle.unbinned_contacts_input,
@@ -108,8 +112,9 @@ def main(
         )
 
     aggregate(
-        binned_contacts_path=os.path.join(path_bundle.sample_output_dir,
-                                          path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
+        binned_contacts_path=os.path.join(
+            path_bundle.sample_output_dir,
+            path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
         centros_coord_path=centromeres_coordinates_path,
         oligos_path=oligos_path,
         window_size=aggregate_params_centros.window_size,
@@ -141,7 +146,7 @@ if __name__ == "__main__":
     -f ../data/AD401_AD407_classic/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
     -c ../data/AD401_AD407_classic/S288c_chr_centro_coordinates.tsv 
     -o ../data/AD401_AD407_classic/capture_oligo_positions.csv
-    --wt-dir ../data/AD401_AD407_classic/capture_efficiencies/
+    --samples-vs-wt ../data/AD401_AD407_classic/mutants_vs_ref.csv
     -t 15
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
@@ -172,8 +177,8 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--threads', type=int, required=True,
                         help='desired number of thread to parallelize')
 
-    parser.add_argument('--wt-dir', type=str, required=True,
-                        help="Path to the wt_capture_efficiency dir.")
+    parser.add_argument('--samples-vs-wt', type=str, required=True,
+                        help="Path to the table that associates for each sample a WT dir.")
 
     parser.add_argument('--window-size-centros', type=int, required=True,
                         help="window (in bp) that defines a focus region to aggregated centromeres")
@@ -199,23 +204,27 @@ if __name__ == "__main__":
     list_files = [f for f in os.listdir(args.samples_dir) if os.path.isfile(os.path.join(args.samples_dir, f))]
     my_samples = [os.path.join(args.samples_dir, s) for s in list_files if re.match(r'^AD\d+', s)]
 
-    df_mutant_vs_wt: pd.DataFrame = pd.read_csv(os.path.join(args.wt_dir, "mutants_vs_ref.csv"), sep="\t")
-
-    sample_data_list = []
+    step_one_list = []
+    step_two_list = []
     for sample_file in my_samples:
-        sample_path_bundle = PathBundle(sample_file, args.wt_dir)
+        sample_path_bundle = PathBundle(sample_file, args.samples_vs_wt)
+
         sample_aggregate_params_centros = AggregateParams(args.window_size_centros, args.exclude_probe_chr,
                                                           args.excluded_chr, args.inter_norm)
         sample_aggregate_params_telos = AggregateParams(args.window_size_telos, args.exclude_probe_chr,
                                                         args.excluded_chr, args.inter_norm)
-        sample_data_list.append((sample_path_bundle, args.oligos_input, args.fragments_list_input,
-                                 args.centromeres_coordinates_input, args.binning_sizes_list,
-                                 sample_aggregate_params_centros, sample_aggregate_params_telos))
 
-    if args.threads > 1:
-        import multiprocessing as mp
-        with mp.Pool(args.threads) as p:
-            p.starmap(main, sample_data_list)
-    else:
-        for single_sample_data in sample_data_list:
-            main(*single_sample_data)
+        step_one_list.append((sample_path_bundle, args.oligos_input, args.fragments_list_input))
+
+        step_two_list.append((sample_path_bundle, args.oligos_input, args.centromeres_coordinates_input,
+                              args.binning_sizes_list, sample_aggregate_params_centros, sample_aggregate_params_telos))
+
+    print("step 1 : ")
+    for single_sample_data in step_one_list:
+        print(single_sample_data[0].samp_id)
+        step_one(*single_sample_data)
+
+    print("step 2 : ")
+    for single_sample_data in step_two_list:
+        print(single_sample_data[0].samp_id)
+        step_two(*single_sample_data)
