@@ -147,13 +147,13 @@ def get_stats(
     df_chr_inter_only_nrm.to_csv(output_path + '_normalized_inter_chr_freq.tsv', sep='\t')
 
 
-def compare_to_wt(statistics_path: str, wt_reference_path: str):
+def compare_to_wt(statistics_path: str, reference_path: str):
     """
     wt_reference : Optional[str], default=None
             Path to the wt_capture_efficiency file (Optional, if you want to pondered sample).
     """
     df_stats: pd.DataFrame = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
-    df_wt: pd.DataFrame = pd.read_csv(wt_reference_path, sep='\t')
+    df_wt: pd.DataFrame = pd.read_csv(reference_path, sep='\t')
     df_stats[f"capture_efficiency_vs_wt"] = np.nan
     for index, row in df_stats.iterrows():
         probe = row['probe']
@@ -195,7 +195,6 @@ def main(argv):
         contacts_unbinned_path=args.contacts,
         sparse_contacts_path=args.sparse,
         oligos_path=args.oligos,
-        wt_reference=args.wildtype,
     )
 
 
