@@ -39,6 +39,7 @@ def organize_contacts(
 
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
     probes = df_probes['name'].to_list()
+    fragments = df_probes['fragment'].astype(str).to_list()
     df: pd.DataFrame = pd.read_csv(filtered_contacts_path, sep='\t')
     df_contacts: pd.DataFrame = pd.DataFrame(columns=['chr', 'start', 'sizes'])
     df_contacts: pd.DataFrame = df_contacts.astype(dtype={'chr': str, 'start': int, 'sizes': int})
@@ -65,14 +66,19 @@ def organize_contacts(
 
             df_contacts = pd.concat([df_contacts, tmp])
 
-    group: pd.Group = df_contacts.groupby(by=['chr', 'start', 'sizes'], as_index=False)
+    group = df_contacts.groupby(by=['chr', 'start', 'sizes'], as_index=False)
     df_contacts: pd.DataFrame = group.sum()
     df_contacts = sort_by_chr(df_contacts, 'chr', 'start')
     df_contacts.index = range(len(df_contacts))
 
+    for probe, frag in zip(probes, fragments):
+        df_contacts.rename(columns={probe: frag}, inplace=True)
+
+    df_contacts = df_contacts.loc[:, ~df_contacts.columns.duplicated()]
     df_frequencies = df_contacts.copy(deep=True)
-    for probe in probes:
-        df_frequencies[probe] /= sum(df_frequencies[probe])
+
+    for frag in fragments:
+        df_frequencies[frag] /= sum(df_frequencies[frag])
     #   Write into .tsv file contacts as there are and in the form of frequencies :
     df_contacts.to_csv(output_path + '_unbinned_contacts.tsv', sep='\t', index=False)
     df_frequencies.to_csv(output_path + '_unbinned_frequencies.tsv', sep='\t', index=False)

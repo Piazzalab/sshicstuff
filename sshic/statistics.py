@@ -57,30 +57,32 @@ def get_stats(
     chr_inter_only_contacts_nrm = {k: [] for k in chr_size_dict}
 
     df_stats: pd.DataFrame = pd.DataFrame(columns=[
-        "probe", "chr", "type", "contacts",
+        "probe", "chr", "fragment", "type", "contacts",
         "coverage_over_hic_contacts", "cis", "trans",
         "intra_chr", "inter_chr"])
 
     probes = df_probes['name'].to_list()
-    for index, probe in enumerate(probes):
+    fragments = df_probes['fragment'].astype(str).to_list()
+    for index, (probe, frag) in enumerate(zip(probes, fragments)):
         df_stats.loc[index, "probe"] = probe
+        df_stats.loc[index, "fragment"] = frag
         df_stats.loc[index, "type"] = df_probes.loc[index, "type"]
         self_chr = df_probes.loc[index, "chr"]
         df_stats.loc[index, "chr"] = self_chr
 
-        sub_df = df_unbinned_contacts[['chr', 'start', 'sizes', probe]]
+        sub_df = df_unbinned_contacts[['chr', 'start', 'sizes', frag]]
         sub_df.insert(3,  'end', sub_df['start'] + sub_df['sizes'])
         cis_limits = [
             int(df_probes.loc[index, 'start']) - cis_range,
             int(df_probes.loc[index, 'end']) + cis_range
         ]
-        probe_contacts = sub_df[probe].sum()
+        probe_contacts = sub_df[frag].sum()
         df_stats.loc[index, "contacts"] = probe_contacts
         df_stats.loc[index, 'coverage_over_hic_contacts'] = probe_contacts / total_sparse_contacts
-        probes_contacts_inter = sub_df.query("chr != @self_chr")[probe].sum()
+        probes_contacts_inter = sub_df.query("chr != @self_chr")[frag].sum()
 
         if probe_contacts > 0:
-            cis_freq = sub_df.query("chr == @self_chr & start >= @cis_limits[0] & end <= @cis_limits[1]")[probe].sum()
+            cis_freq = sub_df.query("chr == @self_chr & start >= @cis_limits[0] & end <= @cis_limits[1]")[frag].sum()
             cis_freq /= probe_contacts
 
             trans_freq = 1 - cis_freq
@@ -105,7 +107,7 @@ def get_stats(
             #   c1 : normalized contacts on chr_i for frag_j
             chrom_size = chr_size_dict[chrom]
             genome_size = sum([s for c, s in chr_size_dict.items() if c != self_chr])
-            n1 = sub_df.loc[sub_df['chr'] == chrom, probe].sum()
+            n1 = sub_df.loc[sub_df['chr'] == chrom, frag].sum()
             if n1 == 0:
                 chr_contacts_nrm[chrom].append(0)
             else:
@@ -118,7 +120,7 @@ def get_stats(
             #   c2 : normalized inter chr contacts on chr_i for frag_j
             n2 = sub_df.loc[
                 (sub_df['chr'] == chrom) &
-                (sub_df['chr'] != self_chr), probe].sum()
+                (sub_df['chr'] != self_chr), frag].sum()
 
             if n2 == 0:
                 chr_inter_only_contacts_nrm[chrom].append(0)
@@ -143,7 +145,7 @@ def get_stats(
                 df_stats.loc[index, f"capture_efficiency_vs_wt"] = wt_capture_eff
 
     df_chr_nrm = pd.DataFrame({
-        'probes': probes, 'type': df_probes["type"].values
+        "probe": probes, "fragment": fragments, "type": df_probes["type"].values
     })
 
     df_chr_inter_only_nrm = df_chr_nrm.copy(deep=True)

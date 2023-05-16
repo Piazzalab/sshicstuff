@@ -78,7 +78,6 @@ def rebin_contacts(
     bin_suffix = str(bin_size // 1000) + 'kb'
     output_path = os.path.join(output_dir, sample_id) + '_' + bin_suffix
 
-
     df_binned_template: pd.DataFrame = build_bins_from_genome(
         path_to_chr_coord=chromosomes_coord_path,
         bin_size=bin_size

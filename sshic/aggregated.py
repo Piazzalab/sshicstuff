@@ -75,6 +75,8 @@ def aggregate(
     df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep='\t')
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
     probes = df_probes['name'].to_list()
+    fragments = df_probes["fragment"].astype(str).tolist()
+    unique_fragments = df_probes["fragment"].astype(str).unique().tolist()
     bin_size = df_contacts.loc[1, "chr_bins"] - df_contacts.loc[0, "chr_bins"]
 
     if len(excluded_chr_list) > 0:
@@ -85,15 +87,16 @@ def aggregate(
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        for ii_probe, probe in enumerate(probes):
-            probe_chr = df_probes.loc[ii_probe, 'chr']
+        for ii_frag, frag in enumerate(unique_fragments):
+            probe_chr = df_probes.loc[ii_frag, 'chr']
             if probe_chr not in excluded_chr_list:
-                df_contacts.loc[df_contacts['chr'] == probe_chr, probe] = np.nan
+                df_contacts.loc[df_contacts['chr'] == probe_chr, frag] = np.nan
 
     if inter_normalization:
         norm_suffix = "inter"
         #   Inter normalization
-        df_contacts[probes] = df_contacts[probes].div(df_contacts[probes].sum(axis=0))
+        div = df_contacts[unique_fragments].div(df_contacts[unique_fragments].sum(axis=0))
+        df_contacts.loc[:, pd.unique(unique_fragments)] = div
     else:
         norm_suffix = "absolute"
 
@@ -138,11 +141,11 @@ def aggregate(
     df_aggregated_median.to_csv(
         os.path.join(dir_tables, f"aggregated_median_contacts_around_{on}_{norm_suffix}"), sep="\t")
 
-    for probe in probes:
-        if df_grouped[probe].sum() == 0:
+    for probe, frag in zip(probes, fragments):
+        if df_grouped[frag].sum() == 0:
             continue
         df_chr_centros_pivot: pd.DataFrame = df_grouped.pivot_table(
-            index='chr_bins', columns='chr', values=probe, fill_value=0)
+            index='chr_bins', columns='chr', values=frag, fill_value=0)
         df_chr_centros_pivot.to_csv(
             os.path.join(dir_tables, str(probe) + f"_contacts_around_{on}_per_chr_{norm_suffix}.tsv"), sep='\t')
 

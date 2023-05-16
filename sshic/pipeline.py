@@ -6,6 +6,7 @@ import pandas as pd
 from typing import List
 
 from filter import filter_contacts
+from probe2fragment import associate_probes_to_fragments
 from coverage import coverage
 from fragments import organize_contacts
 from statistics import get_stats
@@ -71,11 +72,14 @@ def main(
                   path_bundle.sample_sparse_file_path,
                   path_bundle.sample_output_dir)
 
+    associate_probes_to_fragments(fragments_list_path, oligos_path)
+
     check_and_run(path_bundle.cover, coverage,
                   path_bundle.sample_sparse_file_path,
                   fragments_list_path, path_bundle.sample_output_dir)
 
     organize_contacts(filtered_contacts_path=path_bundle.filtered_contacts_input, oligos_path=oligos_path)
+
     get_stats(contacts_unbinned_path=path_bundle.unbinned_contacts_input,
               sparse_contacts_path=path_bundle.sample_sparse_file_path,
               oligos_path=oligos_path,
@@ -133,11 +137,11 @@ if __name__ == "__main__":
     #   Example :
 
     """
-    -s ../test_data/AD401_AD407_classic
-    -f ../test_data/AD401_AD407_classic/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    -c ../test_data/AD401_AD407_classic/S288c_chr_centro_coordinates.tsv 
-    -o ../test_data/AD401_AD407_classic/capture_oligo_positions.csv
-    --wt-dir ../test_data/AD401_AD407_classic/capture_efficiencies/
+    -s ../data/AD401_AD407_classic
+    -f ../data/AD401_AD407_classic/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
+    -c ../data/AD401_AD407_classic/S288c_chr_centro_coordinates.tsv 
+    -o ../data/AD401_AD407_classic/capture_oligo_positions.csv
+    --wt-dir ../data/AD401_AD407_classic/capture_efficiencies/
     -t 15
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  

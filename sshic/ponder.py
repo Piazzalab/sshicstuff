@@ -30,16 +30,18 @@ def ponder_mutant(
     output_path = os.path.join(output_dir, sample_id)
 
     df_stats: pd.DataFrame = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
+    df_stats["fragment"] = df_stats["fragment"].astype(str)
     df_contacts: pd.DataFrame = pd.read_csv(contacts_path, header=0, sep="\t")
     df_frequencies: pd.DataFrame = pd.read_csv(frequencies_path, header=0, sep="\t")
 
-    probes = df_stats['probe'].unique()
-    for probe in probes:
-        ponder_coefficient = df_stats.loc[df_stats["probe"] == probe, "capture_efficiency_vs_wt"].tolist()[0]
+    probes = df_stats['probe'].tolist()
+    fragments = df_stats['fragment'].astype(str).tolist()
+    for frag in fragments:
+        ponder_coefficient = df_stats.loc[df_stats["fragment"] == frag, "capture_efficiency_vs_wt"].tolist()[0]
         if ponder_coefficient == np.nan:
             ponder_coefficient = 0
-        df_contacts.loc[:, probe] = df_contacts.loc[:, probe] * ponder_coefficient
-        df_frequencies.loc[:, probe] = df_frequencies.loc[:, probe] * ponder_coefficient
+        df_contacts.loc[:, frag] = df_contacts.loc[:, frag] * ponder_coefficient
+        df_frequencies.loc[:, frag] = df_frequencies.loc[:, frag] * ponder_coefficient
 
     df_contacts.to_csv(output_path+f"_{binned_type}_pondered_contacts.tsv")
     df_frequencies.to_csv(output_path + f"_{binned_type}_pondered_frequencies.tsv")
