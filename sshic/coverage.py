@@ -64,7 +64,7 @@ def coverage(
     df_frequencies_cov.rename(columns={"contacts": "frequencies"})
 
     df_contacts_cov.to_csv(output_path + "_contacts.bedgraph", sep='\t', index=False, header=False)
-    df_frequencies_cov.to_csv(output_path + "_frequencies_bedgraph", sep='\t', index=False, header=False)
+    df_frequencies_cov.to_csv(output_path + "_frequencies.bedgraph", sep='\t', index=False, header=False)
 
 
 def main(argv=None):
