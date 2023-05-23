@@ -11,6 +11,7 @@ def get_stats(
         contacts_unbinned_path: str,
         sparse_contacts_path: str,
         oligos_path: str,
+        output_dir: str,
         cis_range: int = 50000,
 ):
     """
@@ -26,11 +27,12 @@ def get_stats(
         Path to the oligos input CSV file.
     cis_range : int, default=5000
         Cis range to be considered around the probe.
+    output_dir : str
+        Path to the output directory.
     """
 
     sample_filename = contacts_unbinned_path.split("/")[-1]
     sample_id = re.search(r"AD\d+", sample_filename).group()
-    output_dir = os.path.dirname(contacts_unbinned_path)
     output_path = os.path.join(output_dir, sample_id)
 
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
@@ -130,7 +132,7 @@ def get_stats(
     #  by the mean of all other 'ds' oligos in the genome
     n3 = df_stats.loc[:, 'contacts']
     d3 = np.mean(df_stats.loc[df_stats['type'] == 'ds', 'contacts'])
-    df_stats['capture_efficiency_vs_dsdna'] = n3 / d3
+    df_stats['dsdna_norm_capture_efficiency'] = n3 / d3
 
     df_chr_nrm = pd.DataFrame({
         "probe": probes, "fragment": fragments, "type": df_probes["type"].values
@@ -141,6 +143,10 @@ def get_stats(
     for chr_id in chr_list:
         df_chr_nrm[chr_id] = chr_contacts_nrm[chr_id]
         df_chr_inter_only_nrm[chr_id] = chr_inter_only_contacts_nrm[chr_id]
+
+    df_stats.sort_values(by="fragment", ascending=True, inplace=True)
+    df_chr_nrm.sort_values(by="fragment", ascending=True, inplace=True)
+    df_chr_inter_only_nrm.sort_values(by="fragment", ascending=True, inplace=True)
 
     df_stats.to_csv(output_path + '_global_statistics.tsv', sep='\t')
     df_chr_nrm.to_csv(output_path + '_normalized_chr_freq.tsv', sep='\t')
@@ -157,10 +163,11 @@ def compare_to_wt(statistics_path: str, reference_path: str):
     df_stats[f"capture_efficiency_vs_wt"] = np.nan
     for index, row in df_stats.iterrows():
         probe = row['probe']
-        wt_capture_eff = df_wt.loc[df_wt['probe'] == probe, "capture_efficiency_vs_dsdna"].tolist()[0]
+        wt_capture_eff = df_wt.loc[df_wt['probe'] == probe, "dsdna_norm_capture_efficiency"].tolist()[0]
+
         if wt_capture_eff > 0:
             df_stats.loc[index, f"capture_efficiency_vs_wt"] = \
-                df_stats.loc[index, 'capture_efficiency_vs_dsdna'] / wt_capture_eff
+                df_stats.loc[index, 'dsdna_norm_capture_efficiency'] / wt_capture_eff
 
     df_stats.to_csv(statistics_path, sep='\t')
 

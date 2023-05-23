@@ -16,16 +16,22 @@ from aggregated import aggregate
 class PathBundle:
     def __init__(self, sample_sparse_file_path: str, reference_path):
 
+        ref_name = reference_path.split("/")[-1].split(".")[0]
+
         self.sample_sparse_file_path = sample_sparse_file_path
         self.samp_id = re.match(r'^AD\d+', sample_sparse_file_path.split("/")[-1]).group()
         parent_dir = os.path.dirname(sample_sparse_file_path)
         self.sample_dir = os.path.join(parent_dir, self.samp_id)
+        self.not_pondered_dir = os.path.join(self.sample_dir, "not_pondered")
+        self.pondered_dir = os.path.join(self.sample_dir, f"pondered_{ref_name}")
         os.makedirs(self.sample_dir, exist_ok=True)
+        os.makedirs(self.pondered_dir, exist_ok=True)
+        os.makedirs(self.not_pondered_dir, exist_ok=True)
 
         self.filtered_contacts_input = os.path.join(self.sample_dir, self.samp_id + "_filtered.tsv")
         self.cover = os.path.join(self.sample_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
-        self.unbinned_contacts_input = os.path.join(self.sample_dir, self.samp_id+"_unbinned_contacts.tsv")
-        self.unbinned_frequencies_input = os.path.join(self.sample_dir, self.samp_id+"_unbinned_frequencies.tsv")
+        self.unbinned_contacts_input = os.path.join(self.not_pondered_dir, self.samp_id+"_unbinned_contacts.tsv")
+        self.unbinned_frequencies_input = os.path.join(self.not_pondered_dir, self.samp_id+"_unbinned_frequencies.tsv")
         self.global_statistics_input = os.path.join(self.sample_dir, self.samp_id+"_global_statistics.tsv")
 
         if not os.path.exists(reference_path):
@@ -74,13 +80,13 @@ def do_it(
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
     organize_contacts(filtered_contacts_path=path_bundle.filtered_contacts_input,
                       oligos_path=oligos_path, chromosomes_coord_path=centromeres_coordinates_path,
-                      additional_path=additional_groups)
+                      output_dir=path_bundle.not_pondered_dir, additional_path=additional_groups)
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
     get_stats(
         contacts_unbinned_path=path_bundle.unbinned_contacts_input,
         sparse_contacts_path=path_bundle.sample_sparse_file_path,
-        oligos_path=oligos_path)
+        oligos_path=oligos_path, output_dir=path_bundle.sample_dir)
 
     print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
     compare_to_wt(statistics_path=path_bundle.global_statistics_input, reference_path=path_bundle.wt_to_compare_path)
@@ -89,38 +95,45 @@ def do_it(
     ponder_mutant(
         statistics_path=path_bundle.global_statistics_input, contacts_path=path_bundle.unbinned_contacts_input,
         frequencies_path=path_bundle.unbinned_frequencies_input, binned_type="unbinned",
-        additional_path=additional_groups)
+        output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
 
     print(f"Rebin and ponder the unbinned tables (contacts and frequencies) at : \n")
     for bn in binning_size_list:
         bin_suffix = str(bn // 1000) + "kb"
         print(bin_suffix)
         rebin_contacts(contacts_unbinned_path=path_bundle.unbinned_contacts_input,
-                       chromosomes_coord_path=centromeres_coordinates_path, bin_size=bn)
+                       chromosomes_coord_path=centromeres_coordinates_path, bin_size=bn,
+                       output_dir=path_bundle.not_pondered_dir)
+
         binned_contacts_input = \
-            os.path.join(path_bundle.sample_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")
+            os.path.join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")
         binned_frequencies_input = \
-            os.path.join(path_bundle.sample_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
+            os.path.join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
 
         ponder_mutant(
             statistics_path=path_bundle.global_statistics_input, contacts_path=binned_contacts_input,
-            frequencies_path=binned_frequencies_input, binned_type=f"{bin_suffix}_binned")
+            frequencies_path=binned_frequencies_input, binned_type=f"{bin_suffix}_binned",
+            output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
     print("\n")
 
     print("Make an aggregated of contacts around centromeres \n")
     aggregate(
-        binned_contacts_path=os.path.join(path_bundle.sample_dir, path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
+        binned_contacts_path=os.path.join(path_bundle.not_pondered_dir,
+                                          path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
         centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
         window_size=aggregate_params_centros.window_size, on="centromeres",
+        output_dir=path_bundle.sample_dir,
         exclude_probe_chr=aggregate_params_centros.excluded_probe_chr,
         excluded_chr_list=aggregate_params_centros.excluded_chr_list,
         inter_normalization=aggregate_params_centros.inter_normalization, plot=True)
 
     print("Make an aggregated of contacts around telomeres \n")
     aggregate(
-        binned_contacts_path=os.path.join(path_bundle.sample_dir, path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
+        binned_contacts_path=os.path.join(path_bundle.not_pondered_dir,
+                                          path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
         centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
         window_size=aggregate_params_telos.window_size, on="telomeres",
+        output_dir=path_bundle.sample_dir,
         exclude_probe_chr=aggregate_params_telos.excluded_probe_chr,
         excluded_chr_list=aggregate_params_telos.excluded_chr_list,
         inter_normalization=aggregate_params_telos.inter_normalization, plot=True)
@@ -132,11 +145,11 @@ if __name__ == "__main__":
 
     #   Command to enter for parameters (parse)
     """
-    -s ../../data/samples/pcrfree/AD404_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt
+    -s ../../data/samples/AD162_AD407/AD404_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt
     -f ../../data/samples/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
     -c ../../data/samples/inputs/S288c_chr_centro_coordinates.tsv 
     -o ../../data/samples/inputs/capture_oligo_positions.csv
-    -r ../../data/samples/inputs/wt4h_pcrfree.tsv
+    -r ../../data/samples/inputs/refs/ref_WT4h_v2.tsv
     -a ../../data/samples/inputs/additional_probe_groups.tsv
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  

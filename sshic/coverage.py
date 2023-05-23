@@ -30,36 +30,41 @@ def coverage(
 
     sample_filename = hic_contacts_path.split("/")[-1]
     sample_id = re.search(r"AD\d+", sample_filename).group()
-    output_path = os.path.join(output_dir, sample_id + f"_coverage_per_fragment.bedgraph")
+    output_path = os.path.join(output_dir, sample_id + f"_coverage_per_fragment")
 
-    df_fragments = pd.read_csv(fragments_path, sep='\t')
+    df_fragments: pd.DataFrame = pd.read_csv(fragments_path, sep='\t')
     df_fragments.rename(columns={'chrom': 'chr', 'start_pos': 'start', 'end_pos': 'end'}, inplace=True)
     df_fragments['id'] = df_fragments.index.values
-    df_hic_contacts = pd.read_csv(hic_contacts_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
+    df_hic_contacts: pd.DataFrame = pd.read_csv(hic_contacts_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
 
-    df_coverage = df_fragments[['chr', 'start', 'end']]
+    df_coverage: pd.DataFrame = df_fragments[['chr', 'start', 'end']]
     df_coverage['contacts'] = np.nan
 
-    df_merged_a = df_hic_contacts.merge(df_fragments[['id', 'chr', 'start', 'end']],
+    df_merged_a: pd.DataFrame = df_hic_contacts.merge(df_fragments[['id', 'chr', 'start', 'end']],
                                         left_on='frag_a',
                                         right_on='id',
                                         suffixes=('', '_a')).drop(columns=['frag_a', 'frag_b'])
 
-    df_merged_b = df_hic_contacts.merge(df_fragments[['id', 'chr', 'start', 'end']],
+    df_merged_b: pd.DataFrame = df_hic_contacts.merge(df_fragments[['id', 'chr', 'start', 'end']],
                                         left_on='frag_b',
                                         right_on='id',
                                         suffixes=('', '_b')).drop(columns=['frag_a', 'frag_b'])
 
-    df_grouped_a = df_merged_a.groupby(by=['id', 'chr', 'start', 'end'], as_index=False).sum()
-    df_grouped_b = df_merged_b.groupby(by=['id', 'chr', 'start', 'end'], as_index=False).sum()
+    df_grouped_a: pd.DataFrame = df_merged_a.groupby(by=['id', 'chr', 'start', 'end'], as_index=False).sum()
+    df_grouped_b: pd.DataFrame = df_merged_b.groupby(by=['id', 'chr', 'start', 'end'], as_index=False).sum()
 
-    df_grouped = pd.concat(
+    df_contacts_cov: pd.DataFrame = pd.concat(
         (df_grouped_a, df_grouped_b)).groupby(by=['id', 'chr', 'start', 'end'], as_index=False).sum()
 
-    df_grouped.index = df_grouped.id
-    df_grouped.drop(columns=['id'], inplace=True)
+    df_contacts_cov.index = df_contacts_cov.id
+    df_contacts_cov.drop(columns=['id'], inplace=True)
 
-    df_grouped.to_csv(output_path, sep='\t', index=False, header=False)
+    df_frequencies_cov: pd.DataFrame = df_contacts_cov.copy(deep=True)
+    df_frequencies_cov["contacts"] /= sum(df_frequencies_cov["contacts"])
+    df_frequencies_cov.rename(columns={"contacts": "frequencies"})
+
+    df_contacts_cov.to_csv(output_path + "_contacts.bedgraph", sep='\t', index=False, header=False)
+    df_frequencies_cov.to_csv(output_path + "_frequencies_bedgraph", sep='\t', index=False, header=False)
 
 
 def main(argv=None):

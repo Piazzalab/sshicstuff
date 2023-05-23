@@ -33,6 +33,7 @@ def aggregate(
         oligos_path: str,
         window_size: int,
         on: str,
+        output_dir: str,
         excluded_chr_list: Optional[List[str]] = None,
         exclude_probe_chr: bool = True,
         inter_normalization: bool = True,
@@ -53,6 +54,8 @@ def aggregate(
         Window (in bp) that defines the centromere region (on 5' and 3').
     on : str
         Aggregates around centromeres region or around telomeres region.
+    output_dir : str
+        Path to the output directory.
     excluded_chr_list : Optional[List[str]], optional, default=None
         List of chromosomes to exclude to prevent bias of contacts.
     exclude_probe_chr : bool, optional, default=True
@@ -63,7 +66,6 @@ def aggregate(
         Plot for each probe its aggregated mean of contacts around centromere, with standard deviation.
 
     """
-    output_dir = os.path.dirname(binned_contacts_path)
 
     aggregated_dir = os.path.join(output_dir, on)
     dir_tables, dir_plots = (os.path.join(aggregated_dir, 'tables'), os.path.join(aggregated_dir, 'plots'))
@@ -133,13 +135,13 @@ def aggregate(
 
     df_aggregated_mean: pd.DataFrame = df_grouped.groupby(by="chr_bins", as_index=False).mean(numeric_only=True)
     df_aggregated_mean.to_csv(
-        os.path.join(dir_tables, f"aggregated_mean_contacts_around_{on}_{norm_suffix}"), sep="\t")
+        os.path.join(dir_tables, f"aggregated_mean_contacts_around_{on}_{norm_suffix}.tsv"), sep="\t")
     df_aggregated_std: pd.DataFrame = df_grouped.groupby(by="chr_bins", as_index=False).std(numeric_only=True)
     df_aggregated_std.to_csv(
-        os.path.join(dir_tables, f"aggregated_std_contacts_around_{on}_{norm_suffix}"), sep="\t")
+        os.path.join(dir_tables, f"aggregated_std_contacts_around_{on}_{norm_suffix}.tsv"), sep="\t")
     df_aggregated_median: pd.DataFrame = df_grouped.groupby(by="chr_bins", as_index=False).median(numeric_only=True)
     df_aggregated_median.to_csv(
-        os.path.join(dir_tables, f"aggregated_median_contacts_around_{on}_{norm_suffix}"), sep="\t")
+        os.path.join(dir_tables, f"aggregated_median_contacts_around_{on}_{norm_suffix}.tsv"), sep="\t")
 
     for probe, frag in zip(probes, fragments):
         if df_grouped[frag].sum() == 0:
@@ -147,7 +149,7 @@ def aggregate(
         df_chr_centros_pivot: pd.DataFrame = df_grouped.pivot_table(
             index='chr_bins', columns='chr', values=frag, fill_value=0)
         df_chr_centros_pivot.to_csv(
-            os.path.join(dir_tables, str(probe) + f"_contacts_around_{on}_per_chr_{norm_suffix}.tsv"), sep='\t')
+            os.path.join(dir_tables, str(frag) + f"_contacts_around_{on}_per_chr_{norm_suffix}.tsv"), sep='\t')
 
         if plot:
             mean = df_chr_centros_pivot.T.mean()
@@ -159,12 +161,13 @@ def aggregate(
             plt.bar(pos, mean)
             plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
             plt.ylim((ymin, None))
-            plt.title(f"Aggregated frequencies for probe {probe} around {on} {norm_suffix} normalization")
+            plt.title(f"Aggregated frequencies for probe {probe} "
+                      f"(fragment {frag}) around {on} {norm_suffix} normalization")
             plt.xlabel("Bins around the centromeres (in kb), 5' to 3'")
             plt.xticks(rotation=45)
             plt.ylabel("Average frequency made and standard deviation")
             plt.savefig(
-                os.path.join(dir_plots, f"{probe}_{on}_aggregated_freq_plot_{norm_suffix}.jpg"), dpi=96)
+                os.path.join(dir_plots, f"{frag}_{on}_aggregated_freq_plot_{norm_suffix}.jpg"), dpi=96)
             plt.close()
 
 

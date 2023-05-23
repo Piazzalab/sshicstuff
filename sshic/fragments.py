@@ -16,6 +16,7 @@ def organize_contacts(
         filtered_contacts_path: str,
         oligos_path: str,
         chromosomes_coord_path: str,
+        output_dir: str,
         additional_path: Optional[str] = None
 ):
 
@@ -31,13 +32,14 @@ def organize_contacts(
         Path to the oligos input CSV file.
     chromosomes_coord_path : str
         Path to the input chr_centromeres_coordinates.tsv file.
+    output_dir : str
+        Path to the output directory.
     additional_path: Optional[str]
         Path to a csv file that contains groups of probes to sum, average etc ...
     """
 
     sample_filename = filtered_contacts_path.split("/")[-1]
     sample_id = re.search(r"AD\d+", sample_filename).group()
-    output_dir = os.path.dirname(filtered_contacts_path)
     output_path = os.path.join(output_dir, sample_id)
 
     df_chr_len: pd.DataFrame = pd.read_csv(chromosomes_coord_path, sep='\t', index_col=None)

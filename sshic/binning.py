@@ -58,6 +58,7 @@ def rebin_contacts(
         contacts_unbinned_path: str,
         chromosomes_coord_path: str,
         bin_size: int,
+        output_dir: str
 ):
     """
     Re-bin contacts from the input contacts file and create binned contacts and binned frequencies files.
@@ -70,11 +71,11 @@ def rebin_contacts(
         Path to the input chr_centromeres_coordinates.tsv file.
     bin_size : int
         Binning size (in base pairs).
-
+    output_dir : str
+        Path to the output directory.
     """
     sample_filename = contacts_unbinned_path.split("/")[-1]
     sample_id = re.search(r"AD\d+", sample_filename).group()
-    output_dir = os.path.dirname(contacts_unbinned_path)
     bin_suffix = str(bin_size // 1000) + 'kb'
     output_path = os.path.join(output_dir, sample_id) + '_' + bin_suffix
 
@@ -89,7 +90,7 @@ def rebin_contacts(
     df_binned_contacts: pd.DataFrame = df.groupby(["chr", "chr_bins"], as_index=False).sum()
     df_binned_contacts = sort_by_chr(df_binned_contacts, 'chr', 'chr_bins')
     df_binned_contacts = pd.merge(df_binned_template, df_binned_contacts,  on=['chr', 'chr_bins'], how='left')
-    df_binned_contacts = remove_columns(df_binned_contacts, exclusion=['start', 'end'])
+    df_binned_contacts = remove_columns(df_binned_contacts, exclusion=['start', 'end', 'genome_start'])
     df_binned_contacts.fillna(0, inplace=True)
 
     fragments = [c for c in df_binned_contacts.columns if c not in ['chr', 'chr_bins', "genome_bins"]]
