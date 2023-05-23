@@ -26,6 +26,10 @@ class PathBundle:
         self.sample_inputs_dir = os.path.join(self.sample_dir, "inputs")
         self.not_pondered_dir = os.path.join(self.sample_dir, "not_pondered")
         self.pondered_dir = os.path.join(self.sample_dir, f"pondered_{ref_name}")
+
+        if os.path.exists(self.sample_dir):
+            self.sample_dir += "_v2"
+
         os.makedirs(self.sample_dir, exist_ok=True)
         os.makedirs(self.sample_inputs_dir, exist_ok=True)
         os.makedirs(self.pondered_dir, exist_ok=True)
@@ -62,7 +66,7 @@ def copy_file(source_path, destination_path):
         shutil.copy(source_path, destination_path)
         print(f"File {source_path.split('/')[-1]} copied successfully.")
     except IOError as e:
-        print(f"Unable to copy file {source_path.split('/')[-1]}. Error: {e}")
+        print(f"Unable to copy file. Error: {e}")
 
 
 def do_it(

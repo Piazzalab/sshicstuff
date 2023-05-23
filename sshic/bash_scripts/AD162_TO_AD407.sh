@@ -89,11 +89,12 @@ samples=(
     "${samples_dir}/AD401_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
     "${samples_dir}/AD402_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
     "${samples_dir}/AD403_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
-    "${samples_dir}/AD404_S288c_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
-    "${samples_dir}/AD405_S288c_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
-    "${samples_dir}/AD406_S288c_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
-    "${samples_dir}/AD407_S288c_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
-    "${samples_dir}/AD407_S288c_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
+    "${samples_dir}/AD404_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
+    "${samples_dir}/AD405_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
+    "${samples_dir}/AD406_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
+    "${samples_dir}/AD407_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
+    "${samples_dir}/AD407_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt"
+
 )
 
 references=(
@@ -146,7 +147,6 @@ references=(
   "${refs_dir}/ref_WT2h_v2.tsv"
   "${refs_dir}/ref_WT4h_v2.tsv"
   "${refs_dir}/ref_WT2h_v2.tsv"
-  "${refs_dir}/ref_WT4h_v2.tsv"
   "${refs_dir}/ref_WT4h_v1.tsv"
   "${refs_dir}/ref_WT4h_v1.tsv"
   "${refs_dir}/ref_WT4h_v1.tsv"
