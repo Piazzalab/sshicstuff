@@ -60,9 +60,9 @@ def check_and_run(output_path, func, *args):
 def copy_file(source_path, destination_path):
     try:
         shutil.copy(source_path, destination_path)
-        print(f"File {source_path} copied successfully.")
+        print(f"File {source_path.split('/')[-1]} copied successfully.")
     except IOError as e:
-        print(f"Unable to copy file {source_path}. Error: {e}")
+        print(f"Unable to copy file {source_path.split('/')[-1]}. Error: {e}")
 
 
 def do_it(
@@ -76,7 +76,6 @@ def do_it(
     additional_groups: Optional[str] = None
 ):
     print(f" -- Sample {path_bundle.samp_id} -- \n")
-    print(f"Filter contacts \n")
 
     copy_file(fragments_list_path, path_bundle.sample_inputs_dir)
     copy_file(centromeres_coordinates_path, path_bundle.sample_inputs_dir)
@@ -84,7 +83,9 @@ def do_it(
     copy_file(oligos_path, path_bundle.sample_inputs_dir)
     copy_file(path_bundle.wt_to_compare_path, path_bundle.sample_inputs_dir)
     copy_file(path_bundle.sample_sparse_file_path, path_bundle.sample_inputs_dir)
+    print("\n")
 
+    print(f"Filter contacts \n")
     check_and_run(
         path_bundle.filtered_contacts_input, filter_contacts, oligos_path,
         fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_dir)
