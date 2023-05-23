@@ -1,7 +1,7 @@
 import re
 import os
 import argparse
-from typing import List
+from typing import List, Optional
 
 from filter import filter_contacts
 from probe2fragment import associate_probes_to_fragments
@@ -56,6 +56,7 @@ def do_it(
     binning_size_list: List[int],
     aggregate_params_centros: AggregateParams,
     aggregate_params_telos: AggregateParams,
+    additional_groups: Optional[str] = None
 ):
     print(f" -- Sample {path_bundle.samp_id} -- \n")
     print(f"Filter contacts \n")
@@ -72,7 +73,8 @@ def do_it(
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
     organize_contacts(filtered_contacts_path=path_bundle.filtered_contacts_input,
-                      oligos_path=oligos_path, chromosomes_coord_path=centromeres_coordinates_path)
+                      oligos_path=oligos_path, chromosomes_coord_path=centromeres_coordinates_path,
+                      additional_path=additional_groups)
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
     get_stats(
@@ -86,7 +88,8 @@ def do_it(
     print(f"Ponder the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
     ponder_mutant(
         statistics_path=path_bundle.global_statistics_input, contacts_path=path_bundle.unbinned_contacts_input,
-        frequencies_path=path_bundle.unbinned_frequencies_input, binned_type="unbinned")
+        frequencies_path=path_bundle.unbinned_frequencies_input, binned_type="unbinned",
+        additional_path=additional_groups)
 
     print(f"Rebin and ponder the unbinned tables (contacts and frequencies) at : \n")
     for bn in binning_size_list:
@@ -134,6 +137,7 @@ if __name__ == "__main__":
     -c ../../data/samples/inputs/S288c_chr_centro_coordinates.tsv 
     -o ../../data/samples/inputs/capture_oligo_positions.csv
     -r ../../data/samples/inputs/wt4h_pcrfree.tsv
+    -a ../../data/samples/inputs/additional_probe_groups.tsv
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
@@ -163,6 +167,9 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--reference', type=str, required=False,
                         help="Path to the reference WT to ponder the sample.")
 
+    parser.add_argument('-a', '--additional', type=str, required=False,
+                        help='Path to additional groups of probes table')
+
     parser.add_argument('--window-size-centros', type=int, required=True,
                         help="window (in bp) that defines a focus region to aggregated centromeres")
 
@@ -187,6 +194,7 @@ if __name__ == "__main__":
     sample_aggregate_params_telos = AggregateParams(
         args.window_size_telos, args.exclude_probe_chr, args.excluded_chr, args.inter_norm)
 
-    sample_data = [sample_path_bundle, args.oligos_input, args.fragments_list, args.centromeres_coordinates_input,
-                   args.binning_sizes_list, sample_aggregate_params_centros, sample_aggregate_params_telos]
+    sample_data = [
+        sample_path_bundle, args.oligos_input, args.fragments_list, args.centromeres_coordinates_input,
+        args.binning_sizes_list, sample_aggregate_params_centros, sample_aggregate_params_telos, args.additional]
     do_it(*sample_data)

@@ -92,29 +92,25 @@ def organize_contacts(
     df_frequencies = df_contacts.copy(deep=True)
     for frag in fragments:
         df_frequencies[frag] /= sum(df_frequencies[frag])
+
+    if additional_path:
+        probe_to_frag = dict(zip(probes, fragments))
+        df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
+        for index, row in df_additional.iterrows():
+            group_probes = row["probes"].split(",")
+            group_frags = pd.unique([probe_to_frag[probe] for probe in group_probes])
+            group_name = row["name"]
+            if row["action"] == "average":
+                df_contacts[group_name] = df_contacts[group_frags].mean(axis=1)
+            elif row["action"] == "sum":
+                df_contacts[group_name] = df_contacts[group_frags].sum(axis=1)
+            else:
+                continue
+            df_frequencies[group_name] = df_contacts[group_name].div(sum(df_contacts[group_name]))
+
     #   Write into .tsv file contacts as there are and in the form of frequencies :
     df_contacts.to_csv(output_path + '_unbinned_contacts.tsv', sep='\t', index=False)
     df_frequencies.to_csv(output_path + '_unbinned_frequencies.tsv', sep='\t', index=False)
-
-    if additional_path is not None:
-        df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
-        df_contacts_groups: pd.DataFrame = df_contacts[['chr', 'start', 'sizes']]
-        for index, row in df_additional.iterrows():
-            group_probes = row["probes"].split(",")
-            group_name = row["name"]
-            if row["action"] == "average":
-                df_contacts_groups[group_name] = df_contacts[group_probes].mean(axis=1)
-            elif row["action"] == "sum":
-                df_contacts_groups[group_name] = df_contacts[group_probes].sum(axis=1)
-            else:
-                continue
-
-        df_frequencies_groups = df_contacts_groups.copy(deep=True)
-        for group in df_additional["name"].values:
-            df_frequencies_groups[group] /= df_frequencies_groups[group].sum(axis=0)
-
-        df_contacts_groups.to_csv(output_path + '_unbinned_contacts_groups.tsv', sep='\t', index=False)
-        df_frequencies_groups.to_csv(output_path + '_unbinned_frequencies_groups.tsv', sep='\t', index=False)
 
 
 def main(argv):
