@@ -43,8 +43,8 @@ def ponder_mutant(
         df_contacts.loc[:, frag] = df_contacts.loc[:, frag] * ponder_coefficient
         df_frequencies.loc[:, frag] = df_frequencies.loc[:, frag] * ponder_coefficient
 
-    df_contacts.to_csv(output_path+f"_{binned_type}_pondered_contacts.tsv")
-    df_frequencies.to_csv(output_path + f"_{binned_type}_pondered_frequencies.tsv")
+    df_contacts.to_csv(output_path+f"_{binned_type}_pondered_contacts.tsv", sep='\t', index=False)
+    df_frequencies.to_csv(output_path + f"_{binned_type}_pondered_frequencies.tsv", sep='\t', index=False)
 
 
 def main(argv):
