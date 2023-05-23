@@ -71,7 +71,8 @@ def do_it(
         path_bundle.cover, coverage, path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_dir)
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
-    organize_contacts(filtered_contacts_path=path_bundle.filtered_contacts_input, oligos_path=oligos_path)
+    organize_contacts(filtered_contacts_path=path_bundle.filtered_contacts_input,
+                      oligos_path=oligos_path, chromosomes_coord_path=centromeres_coordinates_path)
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
     get_stats(
@@ -128,11 +129,11 @@ if __name__ == "__main__":
 
     #   Command to enter for parameters (parse)
     """
-    -s ../data/samples/pcrfree/AD404_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt
-    -f ../data/samples/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    -c ../data/samples/inputs/S288c_chr_centro_coordinates.tsv 
-    -o ../data/samples/inputs/capture_oligo_positions.csv
-    -r ../data/samples/inputs/wt4h_pcrfree.tsv
+    -s ../../data/samples/pcrfree/AD404_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt
+    -f ../../data/samples/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
+    -c ../../data/samples/inputs/S288c_chr_centro_coordinates.tsv 
+    -o ../../data/samples/inputs/capture_oligo_positions.csv
+    -r ../../data/samples/inputs/wt4h_pcrfree.tsv
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
