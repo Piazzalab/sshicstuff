@@ -9,7 +9,7 @@ import re
 pd.options.mode.chained_assignment = None
 
 
-def main(
+def chr_arm(
         df_chr_arm_sorted: pd.DataFrame,
         binned_contacts_path: str,
         telomeres_size: int,
