@@ -1,5 +1,6 @@
 import re
 import os
+from os.path import join
 import argparse
 import shutil
 from typing import List, Optional
@@ -22,24 +23,24 @@ class PathBundle:
         self.sample_sparse_file_path = sample_sparse_file_path
         self.samp_id = re.match(r'^AD\d+', sample_sparse_file_path.split("/")[-1]).group()
         parent_dir = os.path.dirname(sample_sparse_file_path)
-        self.sample_dir = os.path.join(parent_dir, self.samp_id)
+        self.sample_dir = join(parent_dir, self.samp_id)
         if os.path.exists(self.sample_dir):
             self.sample_dir += "_v2"
 
-        self.sample_inputs_dir = os.path.join(self.sample_dir, "inputs")
-        self.not_pondered_dir = os.path.join(self.sample_dir, "not_pondered")
-        self.pondered_dir = os.path.join(self.sample_dir, f"pondered_{ref_name}")
+        self.sample_inputs_dir = join(self.sample_dir, "inputs")
+        self.not_pondered_dir = join(self.sample_dir, "not_pondered")
+        self.pondered_dir = join(self.sample_dir, f"pondered_{ref_name}")
 
         os.makedirs(self.sample_dir, exist_ok=True)
         os.makedirs(self.sample_inputs_dir, exist_ok=True)
         os.makedirs(self.pondered_dir, exist_ok=True)
         os.makedirs(self.not_pondered_dir, exist_ok=True)
 
-        self.filtered_contacts_input = os.path.join(self.sample_dir, self.samp_id + "_filtered.tsv")
-        self.cover = os.path.join(self.sample_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
-        self.unbinned_contacts_input = os.path.join(self.not_pondered_dir, self.samp_id+"_unbinned_contacts.tsv")
-        self.unbinned_frequencies_input = os.path.join(self.not_pondered_dir, self.samp_id+"_unbinned_frequencies.tsv")
-        self.global_statistics_input = os.path.join(self.sample_dir, self.samp_id+"_global_statistics.tsv")
+        self.filtered_contacts_input = join(self.sample_dir, self.samp_id + "_filtered.tsv")
+        self.cover = join(self.sample_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
+        self.unbinned_contacts_input = join(self.not_pondered_dir, self.samp_id+"_unbinned_contacts.tsv")
+        self.unbinned_frequencies_input = join(self.not_pondered_dir, self.samp_id+"_unbinned_frequencies.tsv")
+        self.global_statistics_input = join(self.sample_dir, self.samp_id+"_global_statistics.tsv")
 
         if not os.path.exists(reference_path):
             raise ValueError(f"file {reference_path} doesnt exist. "
@@ -49,11 +50,10 @@ class PathBundle:
 
 
 class AggregateParams:
-    def __init__(self, window_size, excluded_probe_chr, excluded_chr_list, inter_normalization):
+    def __init__(self, window_size, excluded_probe_chr, excluded_chr_list):
         self.window_size = window_size
         self.excluded_probe_chr = excluded_probe_chr
         self.excluded_chr_list = excluded_chr_list
-        self.inter_normalization = inter_normalization
 
 
 def check_and_run(output_path, func, *args):
@@ -130,9 +130,9 @@ def do_it(
                        output_dir=path_bundle.not_pondered_dir)
 
         binned_contacts_input = \
-            os.path.join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")
+            join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")
         binned_frequencies_input = \
-            os.path.join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
+            join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
 
         ponder_mutant(
             statistics_path=path_bundle.global_statistics_input, contacts_path=binned_contacts_input,
@@ -140,27 +140,93 @@ def do_it(
             output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
     print("\n")
 
-    print("Make an aggregated of contacts around centromeres \n")
+    print("Make an aggregated of contacts around centromeres (not pondered, no normalization)")
     aggregate(
-        binned_contacts_path=os.path.join(path_bundle.not_pondered_dir,
-                                          path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
+        binned_contacts_path=join(
+            path_bundle.not_pondered_dir, path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
         centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
         window_size=aggregate_params_centros.window_size, on="centromeres",
-        output_dir=path_bundle.sample_dir,
+        output_dir=path_bundle.not_pondered_dir,
         exclude_probe_chr=aggregate_params_centros.excluded_probe_chr,
         excluded_chr_list=aggregate_params_centros.excluded_chr_list,
-        inter_normalization=aggregate_params_centros.inter_normalization, plot=True)
+        inter_normalization=False, plot=True)
 
-    print("Make an aggregated of contacts around telomeres \n")
+    print("Make an aggregated of contacts around telomeres (not pondered, no normalization)")
     aggregate(
-        binned_contacts_path=os.path.join(path_bundle.not_pondered_dir,
-                                          path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
+        binned_contacts_path=join(
+            path_bundle.not_pondered_dir, path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
         centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
         window_size=aggregate_params_telos.window_size, on="telomeres",
-        output_dir=path_bundle.sample_dir,
+        output_dir=path_bundle.not_pondered_dir,
         exclude_probe_chr=aggregate_params_telos.excluded_probe_chr,
         excluded_chr_list=aggregate_params_telos.excluded_chr_list,
-        inter_normalization=aggregate_params_telos.inter_normalization, plot=True)
+        inter_normalization=False, plot=True)
+
+    print("Make an aggregated of contacts around telomeres (pondered, no normalization)")
+    aggregate(
+        binned_contacts_path=join(
+            path_bundle.pondered_dir, path_bundle.samp_id+"_10kb_binned_pondered_frequencies.tsv"),
+        centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
+        window_size=aggregate_params_centros.window_size, on="centromeres",
+        output_dir=path_bundle.pondered_dir,
+        exclude_probe_chr=aggregate_params_centros.excluded_probe_chr,
+        excluded_chr_list=aggregate_params_centros.excluded_chr_list,
+        inter_normalization=False, plot=True)
+
+    print("Make an aggregated of contacts around telomeres (pondered, no normalization)\n")
+    aggregate(
+        binned_contacts_path=join(
+            path_bundle.pondered_dir, path_bundle.samp_id+"_10kb_binned_pondered_frequencies.tsv"),
+        centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
+        window_size=aggregate_params_telos.window_size, on="telomeres",
+        output_dir=path_bundle.pondered_dir,
+        exclude_probe_chr=aggregate_params_telos.excluded_probe_chr,
+        excluded_chr_list=aggregate_params_telos.excluded_chr_list,
+        inter_normalization=False, plot=True)
+
+    print("Make an aggregated of contacts around centromeres (not pondered, with normalization)")
+    aggregate(
+        binned_contacts_path=join(
+            path_bundle.not_pondered_dir, path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
+        centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
+        window_size=aggregate_params_centros.window_size, on="centromeres",
+        output_dir=path_bundle.not_pondered_dir,
+        exclude_probe_chr=aggregate_params_centros.excluded_probe_chr,
+        excluded_chr_list=aggregate_params_centros.excluded_chr_list,
+        inter_normalization=True, plot=True)
+
+    print("Make an aggregated of contacts around telomeres (not pondered, with normalization)")
+    aggregate(
+        binned_contacts_path=join(
+            path_bundle.not_pondered_dir, path_bundle.samp_id+"_10kb_binned_frequencies.tsv"),
+        centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
+        window_size=aggregate_params_telos.window_size, on="telomeres",
+        output_dir=path_bundle.not_pondered_dir,
+        exclude_probe_chr=aggregate_params_telos.excluded_probe_chr,
+        excluded_chr_list=aggregate_params_telos.excluded_chr_list,
+        inter_normalization=True, plot=True)
+
+    print("Make an aggregated of contacts around telomeres (pondered, with normalization)")
+    aggregate(
+        binned_contacts_path=join(
+            path_bundle.pondered_dir, path_bundle.samp_id+"_10kb_binned_pondered_frequencies.tsv"),
+        centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
+        window_size=aggregate_params_centros.window_size, on="centromeres",
+        output_dir=path_bundle.pondered_dir,
+        exclude_probe_chr=aggregate_params_centros.excluded_probe_chr,
+        excluded_chr_list=aggregate_params_centros.excluded_chr_list,
+        inter_normalization=True, plot=True)
+
+    print("Make an aggregated of contacts around telomeres (pondered, with normalization)\n")
+    aggregate(
+        binned_contacts_path=join(
+            path_bundle.pondered_dir, path_bundle.samp_id+"_10kb_binned_pondered_frequencies.tsv"),
+        centros_coord_path=centromeres_coordinates_path, oligos_path=oligos_path,
+        window_size=aggregate_params_telos.window_size, on="telomeres",
+        output_dir=path_bundle.pondered_dir,
+        exclude_probe_chr=aggregate_params_telos.excluded_probe_chr,
+        excluded_chr_list=aggregate_params_telos.excluded_chr_list,
+        inter_normalization=True, plot=True)
 
     print(f"--- {path_bundle.samp_id} DONE --- \n\n")
 
@@ -169,18 +235,17 @@ if __name__ == "__main__":
 
     #   Command to enter for parameters (parse)
     """
-    -s ../../data/samples/AD162_AD407/AD404_S288c_DSB_LY_Capture_artificial_cutsite_PCRfree_q20.txt
+    -s ../../data/samples/AD162_AD407/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30.txt
     -f ../../data/samples/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
     -c ../../data/samples/inputs/S288c_chr_centro_coordinates.tsv 
     -o ../../data/samples/inputs/capture_oligo_positions.csv
-    -r ../../data/samples/inputs/refs/ref_WT4h_v2.tsv
+    -r ../../data/samples/inputs/refs/ref_WT2h_v1.tsv
     -a ../../data/samples/inputs/additional_probe_groups.tsv
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
-    --excluded-chr chr2 chr3 chr5 2_micron mitochondrion chr_artificial
+    --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial
     --exclude-probe-chr 
-    --inter-norm
     """
 
     parser = argparse.ArgumentParser(
@@ -219,17 +284,13 @@ if __name__ == "__main__":
     parser.add_argument('--exclude-probe-chr', action='store_true', required=False,
                         help="exclude the chromosome where the probe comes from (oligo's chromosome)")
 
-    parser.add_argument('--inter-norm', action='store_true', required=False,
-                        help="normalize the contacts only on contacts made "
-                             "on chromosomes that have not been excluded (inter)")
-
     args = parser.parse_args()
 
     sample_path_bundle = PathBundle(args.sparse, args.reference)
     sample_aggregate_params_centros = AggregateParams(
-        args.window_size_centros, args.exclude_probe_chr, args.excluded_chr, args.inter_norm)
+        args.window_size_centros, args.exclude_probe_chr, args.excluded_chr)
     sample_aggregate_params_telos = AggregateParams(
-        args.window_size_telos, args.exclude_probe_chr, args.excluded_chr, args.inter_norm)
+        args.window_size_telos, args.exclude_probe_chr, args.excluded_chr)
 
     sample_data = [
         sample_path_bundle, args.oligos_input, args.fragments_list, args.centromeres_coordinates_input,
