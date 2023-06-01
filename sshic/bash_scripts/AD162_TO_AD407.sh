@@ -10,7 +10,7 @@ centromeres="${base_dir}/data/samples/inputs/S288c_chr_centro_coordinates.tsv"
 binning="1000 2000 3000 5000 10000 20000 40000 50000 80000 100000"
 ws_centros=150000
 ws_telos=150000
-excluded_chr="chr2 chr3 chr5 2_micron mitochondrion chr_artificial"
+excluded_chr="chr2 chr3 2_micron mitochondrion chr_artificial"
 
 run_pipeline() {
     python3 "$script" -s "$sample" \
@@ -22,7 +22,7 @@ run_pipeline() {
                       -a "$additional" \
                       --window-size-centros $ws_centros \
                       --window-size-telos $ws_telos \
-                      --excluded-chr "$excluded_chr" \
+                      --excluded-chr $excluded_chr \
                       --exclude-probe-chr
 }
 
