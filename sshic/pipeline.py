@@ -23,12 +23,12 @@ class PathBundle:
         self.samp_id = re.match(r'^AD\d+', sample_sparse_file_path.split("/")[-1]).group()
         parent_dir = os.path.dirname(sample_sparse_file_path)
         self.sample_dir = os.path.join(parent_dir, self.samp_id)
+        if os.path.exists(self.sample_dir):
+            self.sample_dir += "_v2"
+
         self.sample_inputs_dir = os.path.join(self.sample_dir, "inputs")
         self.not_pondered_dir = os.path.join(self.sample_dir, "not_pondered")
         self.pondered_dir = os.path.join(self.sample_dir, f"pondered_{ref_name}")
-
-        if os.path.exists(self.sample_dir):
-            self.sample_dir += "_v2"
 
         os.makedirs(self.sample_dir, exist_ok=True)
         os.makedirs(self.sample_inputs_dir, exist_ok=True)
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
-    --excluded-chr chr2 chr3 chr5 2_micron mitochondrion, chr_artificial
+    --excluded-chr chr2 chr3 chr5 2_micron mitochondrion chr_artificial
     --exclude-probe-chr 
     --inter-norm
     """
