@@ -102,7 +102,8 @@ def aggregate(
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        for ii_frag, frag in enumerate(unique_fragments):
+        for frag in unique_fragments:
+            ii_frag = df_probes.loc[df_probes["fragment"] == int(frag)].index[0]
             probe_chr = df_probes.loc[ii_frag, 'chr']
             if probe_chr not in excluded_chr_list:
                 df_contacts_10kb.loc[df_contacts_10kb['chr'] == probe_chr, frag] = np.nan
