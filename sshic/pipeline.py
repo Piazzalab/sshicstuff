@@ -165,7 +165,8 @@ def do_it(
             f"Make an aggregated of contacts around {region} ({'pondered' if is_pondered else 'not pondered'}, "
             f"{'with' if is_normalized else 'no'} normalization)")
         aggregate(
-            binned_contacts_path=binned_10kb_path,
+            binned_10kb_contacts_path=binned_10kb_path,
+            binned_1kb_contacts_path=binned_1kb_path,
             centros_coord_path=centromeres_coordinates_path,
             oligos_path=oligos_path,
             window_size=ws,
