@@ -23,8 +23,7 @@ run_pipeline() {
                       --window-size-centros $ws_centros \
                       --window-size-telos $ws_telos \
                       --excluded-chr "$excluded_chr" \
-                      --exclude-probe-chr \
-                      --inter-norm
+                      --exclude-probe-chr
 }
 
 samples_dir="${base_dir}/data/samples/AD162_AD407"
