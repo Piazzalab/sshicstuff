@@ -101,15 +101,14 @@ def do_it(
         path_bundle.cover, coverage, path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_dir)
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
-    organize_contacts(filtered_contacts_path=path_bundle.filtered_contacts_input,
-                      oligos_path=oligos_path, chromosomes_coord_path=centromeres_coordinates_path,
-                      output_dir=path_bundle.not_pondered_dir, additional_path=additional_groups)
+    check_and_run(
+        path_bundle.unbinned_contacts_input, organize_contacts, path_bundle.filtered_contacts_input,
+        oligos_path, centromeres_coordinates_path, path_bundle.not_pondered_dir, additional_groups)
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
-    get_stats(
-        contacts_unbinned_path=path_bundle.unbinned_contacts_input,
-        sparse_contacts_path=path_bundle.sample_sparse_file_path,
-        oligos_path=oligos_path, output_dir=path_bundle.sample_dir)
+    check_and_run(
+        path_bundle.global_statistics_input, get_stats, path_bundle.unbinned_contacts_input,
+        path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_dir)
 
     print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
     compare_to_wt(statistics_path=path_bundle.global_statistics_input, reference_path=path_bundle.wt_to_compare_path)
@@ -155,7 +154,7 @@ def do_it(
             path_bundle.pondered_dir if is_pondered else path_bundle.not_pondered_dir,
             path_bundle.samp_id+"_1kb_binned_pondered_frequencies.tsv"
             if is_pondered else path_bundle.samp_id+"_1kb_binned_frequencies.tsv"
-        ) if region == "telomeres" else None
+        )
 
         output_dir = path_bundle.pondered_dir if is_pondered else path_bundle.not_pondered_dir
         ws = aggregate_params.window_size_centromeres \
