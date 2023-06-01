@@ -23,6 +23,7 @@ run_pipeline() {
                       --window-size-centros $ws_centros \
                       --window-size-telos $ws_telos \
                       --excluded-chr "$excluded_chr" \
+                      --exclude-probe-chr \
                       --inter-norm
 }
 
