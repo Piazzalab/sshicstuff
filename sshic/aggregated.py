@@ -146,7 +146,7 @@ def aggregate(
 
         chr_arm(
             df_chr_arm=df_arms_size, df_telos=df_telos, df_contacts=df_contacts_1kb,
-            telomeres_size=30000, output_dir=aggregated_dir)
+            telomeres_size=30000, output_path=join(aggregated_dir, f"aggregated_by_arm_sizes_{norm_suffix}.tsv"))
 
     else:
         return
@@ -194,7 +194,7 @@ def chr_arm(
         df_telos: pd.DataFrame,
         df_contacts: pd.DataFrame,
         telomeres_size: int,
-        output_dir: str
+        output_path: str
 ):
 
     df_merged = pd.merge(df_contacts, df_telos, on='chr')
@@ -210,5 +210,5 @@ def chr_arm(
     df_grouped = df_merged2.groupby(by='category', as_index=False).mean(numeric_only=True)
     df_grouped.drop(columns=['chr_bins', 'genome_bins'], inplace=True)
     df_grouped = df_grouped.rename(columns={'category': 'fragments'}).T
-    df_grouped.to_csv(join(output_dir, "aggregated_by_arm_sizes.tsv"), sep='\t', header=False)
+    df_grouped.to_csv(output_path, sep='\t', header=False)
 
