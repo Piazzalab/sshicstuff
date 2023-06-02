@@ -17,7 +17,7 @@ from aggregated import aggregate
 
 
 class PathBundle:
-    def __init__(self, sample_sparse_file_path: str, reference_path):
+    def __init__(self, sample_sparse_file_path: str, reference_path: str):
 
         ref_name = reference_path.split("/")[-1].split(".")[0]
 
@@ -39,13 +39,14 @@ class PathBundle:
         self.cover = join(self.sample_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
         self.unbinned_contacts_input = join(self.not_pondered_dir, self.samp_id+"_unbinned_contacts.tsv")
         self.unbinned_frequencies_input = join(self.not_pondered_dir, self.samp_id+"_unbinned_frequencies.tsv")
-        self.global_statistics_input = join(self.sample_dir, self.samp_id+"_global_statistics.tsv")
+        self.global_statistics_input = join(self.sample_dir, f"{self.samp_id}_global_statistics.tsv")
 
         if not os.path.exists(reference_path):
             raise ValueError(f"file {reference_path} doesnt exist. "
                              f"Please be sure to first run the pipeline on the reference sample before")
         else:
-            self.wt_to_compare_path = reference_path
+            self.wt_reference_path = reference_path
+            self.wt_reference_name = ref_name
 
 
 class AggregateParams:
@@ -84,7 +85,7 @@ def do_it(
     copy_file(centromeres_coordinates_path, path_bundle.sample_inputs_dir)
     copy_file(additional_groups, path_bundle.sample_inputs_dir)
     copy_file(oligos_path, path_bundle.sample_inputs_dir)
-    copy_file(path_bundle.wt_to_compare_path, path_bundle.sample_inputs_dir)
+    copy_file(path_bundle.wt_reference_path, path_bundle.sample_inputs_dir)
     copy_file(path_bundle.sample_sparse_file_path, path_bundle.sample_inputs_dir)
     print("\n")
 
@@ -111,13 +112,16 @@ def do_it(
         path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_dir)
 
     print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
-    compare_to_wt(statistics_path=path_bundle.global_statistics_input, reference_path=path_bundle.wt_to_compare_path)
+    compare_to_wt(
+        statistics_path=path_bundle.global_statistics_input,
+        reference_path=path_bundle.wt_reference_path,
+        wt_ref_name=path_bundle.wt_reference_name)
 
     print(f"Ponder the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
     ponder_mutant(
-        statistics_path=path_bundle.global_statistics_input, contacts_path=path_bundle.unbinned_contacts_input,
-        frequencies_path=path_bundle.unbinned_frequencies_input, binned_type="unbinned",
-        output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
+        statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
+        contacts_path=path_bundle.unbinned_contacts_input, frequencies_path=path_bundle.unbinned_frequencies_input,
+        binned_type="unbinned", output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
 
     print(f"Rebin and ponder the unbinned tables (contacts and frequencies) at : \n")
     for bn in binning_size_list:
@@ -133,9 +137,9 @@ def do_it(
             join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
 
         ponder_mutant(
-            statistics_path=path_bundle.global_statistics_input, contacts_path=binned_contacts_input,
-            frequencies_path=binned_frequencies_input, binned_type=f"{bin_suffix}_binned",
-            output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
+            statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
+            contacts_path=binned_contacts_input, frequencies_path=binned_frequencies_input,
+            binned_type=f"{bin_suffix}_binned", output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
     print("\n")
 
     regions = ["centromeres", "telomeres"]

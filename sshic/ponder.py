@@ -9,6 +9,7 @@ from typing import Optional
 
 def ponder_mutant(
         statistics_path: str,
+        wt_ref_name: str,
         contacts_path: str,
         frequencies_path: str,
         binned_type: str,
@@ -39,8 +40,9 @@ def ponder_mutant(
     probes = df_stats['probe'].tolist()
     fragments = df_stats['fragment'].astype(str).tolist()
 
+    wt_colname = f"capture_efficiency_vs_{wt_ref_name}"
     for frag in fragments:
-        ponder_coefficient = df_stats.loc[df_stats["fragment"] == frag, "capture_efficiency_vs_wt"].tolist()[0]
+        ponder_coefficient = df_stats.loc[df_stats["fragment"] == frag, wt_colname].tolist()[0]
         if ponder_coefficient == np.nan:
             ponder_coefficient = 0
         df_contacts.loc[:, frag] = df_contacts.loc[:, frag] * ponder_coefficient

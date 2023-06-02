@@ -153,20 +153,20 @@ def get_stats(
     df_chr_inter_only_nrm.to_csv(output_path + '_normalized_inter_chr_freq.tsv', sep='\t')
 
 
-def compare_to_wt(statistics_path: str, reference_path: str):
+def compare_to_wt(statistics_path: str, reference_path: str, wt_ref_name: str):
     """
     wt_reference : Optional[str], default=None
             Path to the wt_capture_efficiency file (Optional, if you want to pondered sample).
     """
     df_stats: pd.DataFrame = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
     df_wt: pd.DataFrame = pd.read_csv(reference_path, sep='\t')
-    df_stats[f"capture_efficiency_vs_wt"] = np.nan
+    df_stats[f"capture_efficiency_vs_{wt_ref_name}"] = np.nan
     for index, row in df_stats.iterrows():
         probe = row['probe']
         wt_capture_eff = df_wt.loc[df_wt['probe'] == probe, "dsdna_norm_capture_efficiency"].tolist()[0]
 
         if wt_capture_eff > 0:
-            df_stats.loc[index, f"capture_efficiency_vs_wt"] = \
+            df_stats.loc[index, f"capture_efficiency_vs_{wt_ref_name}"] = \
                 df_stats.loc[index, 'dsdna_norm_capture_efficiency'] / wt_capture_eff
 
     df_stats.to_csv(statistics_path, sep='\t')
