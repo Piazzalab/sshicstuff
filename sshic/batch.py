@@ -1,8 +1,11 @@
 import os
 from os.path import join
 import subprocess
-import numpy as np
 import pandas as pd
+
+
+def check_nan(str_):
+    return str_ != str_
 
 
 def run_pipeline(sample, reference):
@@ -42,13 +45,15 @@ if __name__ == "__main__":
     samples_dir = join(data_dir, pcr_type)
     df_samp2ref: pd.DataFrame = pd.read_csv(join(inputs_dir, f"sample_vs_ref_ponder_{pcr_type}.tsv"), sep="\t")
     for samp in os.listdir(samples_dir):
+        if os.path.isdir(join(samples_dir, samp)):
+            continue
         samp_name = samp.split(".")[0]
         samp_path = join(samples_dir, samp)
-        ref1 = join(refs_dir, df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference1"].tolist()[0])
+        ref1 = df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference1"].tolist()[0]
         ref2 = df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference2"].tolist()[0]
 
         ref1_path = join(refs_dir, ref1) + '.tsv'
         run_pipeline(samp_path, ref1_path)
-        if ~np.isnan(ref2):
+        if not check_nan(ref2):
             ref2_path = join(refs_dir, ref2) + '.tsv'
             run_pipeline(samp_path, ref2_path)
