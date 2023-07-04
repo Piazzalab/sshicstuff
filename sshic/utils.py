@@ -109,3 +109,15 @@ def list_folders(directory_path):
             folders.append(item)
     return folders
 
+
+def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: dict):
+    for index, row in df_groups.iterrows():
+        group_probes = row["probes"].split(",")
+        group_frags = pd.unique([prob2frag[probe] for probe in group_probes])
+        group_name = row["name"]
+        if row["action"] == "average":
+            df[group_name] = df[group_frags].mean(axis=1)
+        elif row["action"] == "sum":
+            df[group_name] = df[group_frags].sum(axis=1)
+        else:
+            continue

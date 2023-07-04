@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import os
 from os.path import join 
 from typing import List, Optional
-from utils import sort_by_chr
+from utils import sort_by_chr, make_groups_of_probes
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -36,6 +36,7 @@ def aggregate(
         output_dir: str,
         excluded_chr_list: Optional[List[str]] = None,
         exclude_probe_chr: bool = True,
+        additional_path: Optional[str] = None,
         inter_normalization: bool = True,
         plot: bool = True
 ):
@@ -62,6 +63,8 @@ def aggregate(
         List of chromosomes to exclude to prevent bias of contacts.
     exclude_probe_chr : bool, optional, default=True
         Exclude the chromosome where the probe comes from (oligo's chromosome).
+    additional_path: str
+        Path to a csv file that contains groups of probes to sum, average etc ...
     inter_normalization : bool, optional, default=True
         Normalize the contacts only on contacts made on chromosomes that have not been excluded (inter).
     plot : bool, optional, default=True
@@ -118,6 +121,12 @@ def aggregate(
             df_contacts_1kb[unique_fragments].div(df_contacts_1kb[unique_fragments].sum(axis=0))
     else:
         norm_suffix = "absolute"
+
+    if additional_path:
+        df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
+        probes_to_fragments = dict(zip(probes, fragments))
+        make_groups_of_probes(df_additional, df_contacts_10kb, probes_to_fragments)
+        make_groups_of_probes(df_additional, df_contacts_1kb, probes_to_fragments)
 
     if on == "centromeres":
         df_merged: pd.DataFrame = pd.merge(df_contacts_10kb, df_centros, on='chr')

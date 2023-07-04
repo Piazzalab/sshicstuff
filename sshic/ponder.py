@@ -1,10 +1,9 @@
 import re
 import os
-import sys
-import argparse
 import pandas as pd
 import numpy as np
 from typing import Optional
+from utils import make_groups_of_probes
 
 
 def ponder_mutant(
@@ -49,42 +48,11 @@ def ponder_mutant(
         df_frequencies.loc[:, frag] = df_frequencies.loc[:, frag] * ponder_coefficient
 
     if additional_path:
-        probe_to_frag = dict(zip(probes, fragments))
         df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
-        for index, row in df_additional.iterrows():
-            group_probes = row["probes"].split(",")
-            group_frags = pd.unique([probe_to_frag[probe] for probe in group_probes])
-            group_name = row["name"]
-            if row["action"] == "average":
-                df_contacts[group_name] = df_contacts[group_frags].mean(axis=1)
-            elif row["action"] == "sum":
-                df_contacts[group_name] = df_contacts[group_frags].sum(axis=1)
-            else:
-                continue
-            df_frequencies[group_name] = df_contacts[group_name].div(sum(df_contacts[group_name]))
+        probes_to_fragments = dict(zip(probes, fragments))
+        make_groups_of_probes(df_additional, df_contacts, probes_to_fragments)
+        make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
     df_contacts.to_csv(output_path+f"_{binned_type}_pondered_contacts.tsv", sep='\t', index=False)
     df_frequencies.to_csv(output_path + f"_{binned_type}_pondered_frequencies.tsv", sep='\t', index=False)
-
-
-def main(argv):
-    if not argv:
-        print('Please enter arguments correctly')
-        exit(0)
-
-    parser = argparse.ArgumentParser(
-        description='Ponder a mutant sample by an efficiency coefficient over the wt')
-    parser.add_argument('-s', '--sample-dir', type=str, required=True,
-                        help='Path to the sample_directory (containing binned and unbinned contacts/frequencies tsv)')
-
-    parser.add_argument('-b', '--binning', type=int, required=True, help='Binning size (in bp)')
-
-    parser.add_argument('-a', '--additional', type=str, required=False,
-                        help='Path to additional groups of probes table')
-
-    args = parser.parse_args(argv)
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
 

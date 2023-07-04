@@ -177,6 +177,7 @@ def do_it(
             output_dir=output_dir,
             exclude_probe_chr=aggregate_params.excluded_probe_chr,
             excluded_chr_list=aggregate_params.excluded_chr_list,
+            additional_path=additional_groups,
             inter_normalization=is_normalized,
             plot=True
         )
@@ -188,12 +189,12 @@ if __name__ == "__main__":
 
     #   Command to enter for parameters (parse)
     """
-    -s ../../data/samples/AD162_AD407/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30.txt
-    -f ../../data/samples/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    -c ../../data/samples/inputs/S288c_chr_centro_coordinates.tsv 
-    -o ../../data/samples/inputs/capture_oligo_positions.csv
-    -r ../../data/samples/inputs/refs/ref_WT2h_v1.tsv
-    -a ../../data/samples/inputs/additional_probe_groups.tsv
+    -s ../../data/AD162/AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30.txt
+    -f ../../data/AD162/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
+    -c ../../data/AD162/S288c_chr_centro_coordinates.tsv 
+    -o ../../data/AD162/capture_oligo_positions.csv
+    -r ../../data/AD162/ref_WT4h_v1.tsv
+    -a ../../data/AD162/additional_probe_groups.tsv
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
