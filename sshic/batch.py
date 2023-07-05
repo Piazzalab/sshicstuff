@@ -31,7 +31,7 @@ if __name__ == "__main__":
     data_dir = join(base_dir, "data", "samples")
     inputs_dir = join(data_dir,  "inputs")
     refs_dir = join(inputs_dir, "refs")
-    pcr_type = "PCRfree"
+    pcr_type = "PCRdupkept"
 
     fragments = join(inputs_dir,  "fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt")
     oligos = join(inputs_dir, "capture_oligo_positions.csv")
@@ -43,11 +43,11 @@ if __name__ == "__main__":
     excluded_chr = ["chr2", "chr3", "2_micron", "mitochondrion", "chr_artificial"]
 
     samples_dir = join(data_dir, pcr_type)
-    df_samp2ref: pd.DataFrame = pd.read_csv(join(inputs_dir, f"sample_vs_ref_ponder_{pcr_type}.tsv"), sep="\t")
+    df_samp2ref: pd.DataFrame = pd.read_csv(join(inputs_dir, f"sample_vs_ref_ponder.tsv"), sep="\t")
     for samp in os.listdir(samples_dir):
         if os.path.isdir(join(samples_dir, samp)):
             continue
-        samp_name = samp.split(".")[0]
+        samp_name = samp.split("_")[0]
         samp_path = join(samples_dir, samp)
         ref1 = df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference1"].tolist()[0]
         ref2 = df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference2"].tolist()[0]
