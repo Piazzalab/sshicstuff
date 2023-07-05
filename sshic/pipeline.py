@@ -180,7 +180,7 @@ def do_it(
             excluded_chr_list=aggregate_params.excluded_chr_list,
             additional_path=additional_groups,
             inter_normalization=is_normalized,
-            plot=True
+            plot=False
         )
 
     print(f"--- {path_bundle.samp_id} DONE --- \n\n")
