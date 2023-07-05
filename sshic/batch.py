@@ -32,6 +32,7 @@ if __name__ == "__main__":
     inputs_dir = join(data_dir,  "inputs")
     refs_dir = join(inputs_dir, "refs")
     pcr_type = "PCRdupkept"
+    samples_only = ["AD405", "AD406"]
 
     fragments = join(inputs_dir,  "fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt")
     oligos = join(inputs_dir, "capture_oligo_positions.csv")
@@ -48,6 +49,8 @@ if __name__ == "__main__":
         if os.path.isdir(join(samples_dir, samp)):
             continue
         samp_name = samp.split("_")[0]
+        if samp_name not in samples_only:
+            continue
         samp_path = join(samples_dir, samp)
         ref1 = df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference1"].tolist()[0]
         ref2 = df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference2"].tolist()[0]
