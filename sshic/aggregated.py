@@ -96,6 +96,14 @@ def aggregate(
     fragments = df_probes["fragment"].astype(str).tolist()
     unique_fragments = df_probes["fragment"].astype(str).unique().tolist()
 
+    if additional_path:
+        df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
+        groups = df_additional['name'].to_list()
+        df_contacts_10kb.drop(columns=groups, inplace=True)
+        df_contacts_1kb.drop(columns=groups, inplace=True)
+    else:
+        df_additional: pd.DataFrame = pd.DataFrame()
+
     if len(excluded_chr_list) > 0:
         df_contacts_10kb = df_contacts_10kb[~df_contacts_10kb['chr'].isin(excluded_chr_list)]
         df_contacts_1kb = df_contacts_1kb[~df_contacts_1kb['chr'].isin(excluded_chr_list)]
@@ -123,7 +131,6 @@ def aggregate(
         norm_suffix = "absolute"
 
     if additional_path:
-        df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
         probes_to_fragments = dict(zip(probes, fragments))
         make_groups_of_probes(df_additional, df_contacts_10kb, probes_to_fragments)
         make_groups_of_probes(df_additional, df_contacts_1kb, probes_to_fragments)
@@ -220,4 +227,3 @@ def chr_arm(
     df_grouped.drop(columns=['chr_bins', 'genome_bins'], inplace=True)
     df_grouped = df_grouped.rename(columns={'category': 'fragments'}).T
     df_grouped.to_csv(output_path, sep='\t', header=False)
-

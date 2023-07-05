@@ -127,9 +127,10 @@ def do_it(
     for bn in binning_size_list:
         bin_suffix = str(bn // 1000) + "kb"
         print(bin_suffix)
-        rebin_contacts(contacts_unbinned_path=path_bundle.unbinned_contacts_input,
-                       chromosomes_coord_path=centromeres_coordinates_path, bin_size=bn,
-                       output_dir=path_bundle.not_pondered_dir)
+        rebin_contacts(
+            contacts_unbinned_path=path_bundle.unbinned_contacts_input,
+            chromosomes_coord_path=centromeres_coordinates_path, oligos_path=oligos_path, bin_size=bn,
+            output_dir=path_bundle.not_pondered_dir, additional_path=additional_groups)
 
         binned_contacts_input = \
             join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")

@@ -48,6 +48,7 @@ def organize_contacts(
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
     probes = df_probes['name'].to_list()
     fragments = df_probes['fragment'].astype(str).to_list()
+
     df: pd.DataFrame = pd.read_csv(filtered_contacts_path, sep='\t')
     df_contacts: pd.DataFrame = pd.DataFrame(columns=['chr', 'start', 'sizes'])
     df_contacts: pd.DataFrame = df_contacts.astype(dtype={'chr': str, 'start': int, 'sizes': int})
@@ -102,4 +103,3 @@ def organize_contacts(
     #   Write into .tsv file contacts as there are and in the form of frequencies :
     df_contacts.to_csv(output_path + '_unbinned_contacts.tsv', sep='\t', index=False)
     df_frequencies.to_csv(output_path + '_unbinned_frequencies.tsv', sep='\t', index=False)
-

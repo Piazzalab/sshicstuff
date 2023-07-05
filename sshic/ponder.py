@@ -38,6 +38,13 @@ def ponder_mutant(
 
     probes = df_stats['probe'].tolist()
     fragments = df_stats['fragment'].astype(str).tolist()
+    if additional_path:
+        df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
+        groups = df_additional['name'].to_list()
+        df_contacts.drop(columns=groups, inplace=True)
+        df_frequencies.drop(columns=groups, inplace=True)
+    else:
+        df_additional: pd.DataFrame = pd.DataFrame()
 
     wt_colname = f"capture_efficiency_vs_{wt_ref_name}"
     for frag in fragments:
@@ -48,11 +55,9 @@ def ponder_mutant(
         df_frequencies.loc[:, frag] = df_frequencies.loc[:, frag] * ponder_coefficient
 
     if additional_path:
-        df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
         probes_to_fragments = dict(zip(probes, fragments))
         make_groups_of_probes(df_additional, df_contacts, probes_to_fragments)
         make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
     df_contacts.to_csv(output_path+f"_{binned_type}_pondered_contacts.tsv", sep='\t', index=False)
     df_frequencies.to_csv(output_path + f"_{binned_type}_pondered_frequencies.tsv", sep='\t', index=False)
-
