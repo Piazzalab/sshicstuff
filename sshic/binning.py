@@ -93,6 +93,9 @@ def rebin_contacts(
     df_binned_contacts.fillna(0, inplace=True)
 
     df_binned_freq: pd.DataFrame = df_binned_contacts.copy(deep=True)
+    for frag in fragments:
+        df_binned_freq[frag] /= sum(df_binned_freq[frag])
+
     if additional_path:
         probes_to_fragments = dict(zip(probes, fragments))
         make_groups_of_probes(df_additional, df_binned_contacts, probes_to_fragments)
