@@ -1,4 +1,5 @@
 import os
+import re
 from os.path import join
 import subprocess
 import pandas as pd
@@ -26,12 +27,12 @@ def run_pipeline(sample, reference):
 
 
 if __name__ == "__main__":
-    base_dir = "/home/nicolas/Documents/Projects/ssHiC"
-    script = join(base_dir, "hic_ssdna", "sshic", "pipeline.py")
+    base_dir = "/home/nicolas/Documents/Projects/ssdna-hic"
+    script = join(base_dir, "sshic", "pipeline.py")
     data_dir = join(base_dir, "data", "samples")
     inputs_dir = join(data_dir,  "inputs")
     refs_dir = join(inputs_dir, "refs")
-    pcr_type = "PCRdupkept"
+    pcr_type = "PCRfree"
     samples_only = []
 
     fragments = join(inputs_dir,  "fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt")
@@ -43,11 +44,15 @@ if __name__ == "__main__":
     ws_telos = 150000
     excluded_chr = ["chr2", "chr3", "2_micron", "mitochondrion", "chr_artificial"]
 
-    samples_dir = join(data_dir, pcr_type)
     df_samp2ref: pd.DataFrame = pd.read_csv(join(inputs_dir, f"sample_vs_ref_ponder.tsv"), sep="\t")
-    for samp in os.listdir(samples_dir):
-        if os.path.isdir(join(samples_dir, samp)):
-            continue
+    samples_dir = join(data_dir, pcr_type)
+
+    sparse_list = sorted([
+            file for file in os.listdir(samples_dir) if not os.path.isdir(os.path.join(samples_dir, file))],
+        key=lambda x: int(re.search(r'AD(\d+)', x).group(1))
+    )
+
+    for samp in sparse_list:
         samp_name = samp.split("_")[0]
         if samp_name not in samples_only and len(samples_only) > 0:
             continue
