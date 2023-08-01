@@ -37,16 +37,19 @@ app.index_string = '''
 '''
 
 # Load and set the data folders and files
-data_dir = "../../test_data/AD162_classic/AD162"
+data_dir = "../../data/samples/pcrfree/AD162/not_pondered"
+oligos = "../../data/inputs/capture_oligo_positions.csv"
 binned_files = sorted([file for file in os.listdir(data_dir) if file.endswith("_binned_frequencies.tsv")],
                       key=lambda file: int(re.search(r'(\d+)kb', file).group(1)))
 
 # Load binned tables as dataframe
 binned_dfs = {file: pd.read_csv(os.path.join(data_dir, file), sep='\t') for file in binned_files}
+oligos_df = pd.read_csv(oligos, sep=',')
+oligos_df['fragment'] = oligos_df['fragment'].astype(str)
 
 # get list of probes
-not_a_probe_columns = ["chr", "sizes", "start", "chr_bins", "genome_bins"]
-probes = [col for col in binned_dfs[binned_files[0]].columns.values if col not in not_a_probe_columns]
+frag2probe: dict = oligos_df.set_index('fragment')['name'].to_dict()
+fragments = list(frag2probe.keys())
 
 app.layout = dbc.Container([
     dbc.Row([
@@ -54,8 +57,8 @@ app.layout = dbc.Container([
             html.Label("Select probes:"),
             dcc.Dropdown(
                 id='probe-selector',
-                options=[{'label': probe, 'value': probe} for probe in probes],
-                value=[probes[0], probes[1]],
+                options=[{'label': frag2probe[frag], 'value': frag} for frag in fragments],
+                value=[fragments[0], fragments[1]],
                 multi=True,
             ),
             html.Label("Select binning:"),
@@ -82,8 +85,8 @@ app.layout = dbc.Container([
 ])
 
 
-def update_figure(selected_probe, selected_binning, graph_number, x_range=None, y_range=None):
-    if not selected_probe:
+def update_figure(selected_frag, selected_binning, graph_number, x_range=None, y_range=None):
+    if not selected_frag:
         return go.Figure()
 
     df = binned_dfs[selected_binning]
@@ -91,16 +94,19 @@ def update_figure(selected_probe, selected_binning, graph_number, x_range=None, 
     fig = go.Figure()
 
     # Select probe to display based on graph number
-    probe_to_display = ""
+    frag_to_display = ""
     if graph_number == 1:
-        probe_to_display = selected_probe[0]
+        frag_to_display = selected_frag[0]
     elif graph_number == 2:
-        probe_to_display = selected_probe[1]
+        frag_to_display = selected_frag[1]
+
+    # get corresponding probe name for the title
+    probe_to_display = frag2probe[frag_to_display]
 
     fig.add_trace(
         go.Scattergl(
             x=df[x_col],
-            y=df[probe_to_display],
+            y=df[frag_to_display],
             name=probe_to_display,
             mode='lines+markers',
             line=dict(width=1, color='rgba(0,0,255,0.4)' if graph_number == 1 else 'rgba(255,0,0,0.5)'),
