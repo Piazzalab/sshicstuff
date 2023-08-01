@@ -1,42 +1,19 @@
-# app.py
+from flask import Flask
 import dash
 import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output
 
+# Import your page layouts here
 from home import layout as home_layout
 from binning import layout as binning_layout
 
 # Create a Dash application instance:
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = Flask(__name__, template_folder='templates')
+app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.config.suppress_callback_exceptions = True
 
-app.index_string = '''
-<!DOCTYPE html>
-<html>
-    <head>
-        {%metas%}
-        <title>{%title%}</title>
-        {%favicon%}
-        {%css%}
-        <style>
-            body {{
-                overflow-x: scroll;
-            }}
-        </style>
-    </head>
-    <body>
-        {%app_entry%}
-        <footer>
-            {%config%}
-            {%scripts%}
-            {%renderer%}
-        </footer>
-    </body>
-</html>
-'''
-
-
+# Set up the app layout
 app.layout = html.Div([
     dcc.Tabs(id="tabs", value='home', children=[
         dcc.Tab(label='Home', value='home'),
@@ -46,6 +23,7 @@ app.layout = html.Div([
 ])
 
 
+# Callback to update the page content based on the selected tab
 @app.callback(
     Output('page-content', 'children'),
     [Input('tabs', 'value')])
