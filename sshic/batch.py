@@ -27,12 +27,14 @@ def run_pipeline(sample, reference):
 
 
 if __name__ == "__main__":
+    pcr_type = "pcrfree"
+
     base_dir = "/home/nicolas/Documents/Projects/ssdna-hic"
     script = join(base_dir, "sshic", "pipeline.py")
-    data_dir = join(base_dir, "data", "samples")
+    data_dir = join(base_dir, "data")
     inputs_dir = join(data_dir,  "inputs")
     refs_dir = join(inputs_dir, "refs")
-    pcr_type = "PCRfree"
+    samples_dir = join(data_dir, "samples", pcr_type.lower())
     samples_only = []
 
     fragments = join(inputs_dir,  "fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt")
@@ -45,7 +47,6 @@ if __name__ == "__main__":
     excluded_chr = ["chr2", "chr3", "2_micron", "mitochondrion", "chr_artificial"]
 
     df_samp2ref: pd.DataFrame = pd.read_csv(join(inputs_dir, f"sample_vs_ref_ponder.tsv"), sep="\t")
-    samples_dir = join(data_dir, pcr_type)
 
     sparse_list = sorted([
             file for file in os.listdir(samples_dir) if not os.path.isdir(os.path.join(samples_dir, file))],
