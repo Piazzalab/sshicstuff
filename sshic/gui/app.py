@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc
 from dash.dependencies import Input, Output
 
+from home import layout as home_layout
 from binning import layout as binning_layout
 
 # Create a Dash application instance:
@@ -37,18 +38,21 @@ app.index_string = '''
 
 
 app.layout = html.Div([
-    dcc.Tabs(id="tabs", value='tab-1', children=[
-        dcc.Tab(label='Binning', value='tab-1'),
+    dcc.Tabs(id="tabs", value='home', children=[
+        dcc.Tab(label='Home', value='home'),
+        dcc.Tab(label='Binning', value='binning'),
     ]),
-    html.Div(id='tabs-content')
+    html.Div(id='page-content')
 ])
 
 
 @app.callback(
-    Output('tabs-content', 'children'),
-    Input('tabs', 'value'))
-def render_content(tab):
-    if tab == 'tab-1':
+    Output('page-content', 'children'),
+    [Input('tabs', 'value')])
+def display_page(value):
+    if value == 'home':
+        return home_layout
+    elif value == 'binning':
         return binning_layout
 
 
