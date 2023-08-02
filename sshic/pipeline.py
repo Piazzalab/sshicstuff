@@ -151,14 +151,12 @@ def do_it(
     for region, is_weighted, is_normalized in param_combinations:
         binned_10kb_path = join(
             path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir,
-            path_bundle.samp_id+"_10kb_binned_weighted_frequencies.tsv"
-            if is_weighted else path_bundle.samp_id+"_10kb_binned_frequencies.tsv"
+            path_bundle.samp_id+"_10kb_binned_frequencies.tsv"
         )
 
         binned_1kb_path = join(
             path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir,
-            path_bundle.samp_id+"_1kb_binned_weighted_frequencies.tsv"
-            if is_weighted else path_bundle.samp_id+"_1kb_binned_frequencies.tsv"
+            path_bundle.samp_id+"_1kb_binned_frequencies.tsv"
         )
 
         output_dir = path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir

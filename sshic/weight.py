@@ -59,5 +59,5 @@ def weight_mutant(
         make_groups_of_probes(df_additional, df_contacts, probes_to_fragments)
         make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
-    df_contacts.to_csv(output_path+f"_{binned_type}_weighted_contacts.tsv", sep='\t', index=False)
-    df_frequencies.to_csv(output_path + f"_{binned_type}_weighted_frequencies.tsv", sep='\t', index=False)
+    df_contacts.to_csv(output_path+f"_{binned_type}_contacts.tsv", sep='\t', index=False)
+    df_frequencies.to_csv(output_path + f"_{binned_type}_frequencies.tsv", sep='\t', index=False)
