@@ -41,20 +41,24 @@ layout = dbc.Container([
                 value=binned_files[0]
             ),
             html.Br(),
-        ], width=3, style={'position': 'absolute', 'top': '10px', 'left': '10px'}),
-    ], style={'margin-top': '10px'}),
+        ], width=3, style={'position': 'absolute', 'top': '100px', 'left': '25px'}),
+    ]),
 
     dbc.Row([
         dbc.Col([
-            dcc.Graph(id='graph1', config={'displayModeBar': True, 'scrollZoom': True}),
+            dcc.Graph(id='graph1',
+                      config={'displayModeBar': True, 'scrollZoom': True},
+                      style={'height': 'auto', 'width': '100%'}),
         ], width=12, align='center'),
     ], style={'margin-top': '200px', 'margin-left': '0px'}),
 
     dbc.Row([
         dbc.Col([
-            dcc.Graph(id='graph2', config={'displayModeBar': True, 'scrollZoom': True}),
+            dcc.Graph(id='graph2',
+                      config={'displayModeBar': True, 'scrollZoom': True},
+                      style={'height': 'auto', 'width': '100%'}),
         ], width=12, align='center'),
-    ], style={'margin-top': '200px', 'margin-left': '0px'})
+    ], style={'margin-top': '100px', 'margin-left': '0px'})
 ])
 
 
@@ -88,8 +92,8 @@ def update_figure(selected_frag, selected_binning, graph_number, x_range=None, y
     )
 
     fig.update_layout(
-        width=2000,
-        height=600,
+        width=1666,
+        height=500,
         title=f"{probe_to_display} contacts frequencies sshic binned at {get_binning_from_filename(selected_binning)}",
         xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
         yaxis=dict(title="Contact frequency"),
