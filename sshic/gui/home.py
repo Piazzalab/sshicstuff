@@ -1,13 +1,14 @@
 import os
 import re
-from os.path import join
+import dash
+from os.path import join, dirname, isdir
 from dash import html, dcc
 from dash import callback
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 
 
-data_dir = "../../data/samples"
+data_dir = join(dirname(dirname(os.getcwd())), 'data', 'samples')
 
 layout = html.Div([
     dbc.Container([
@@ -22,8 +23,7 @@ layout = html.Div([
                 html.Label("Select a PCR mode:"),
                 dcc.Dropdown(
                     id='pcr-selector',
-                    options=[{'label': d, 'value': d} for d in os.listdir(data_dir) if os.path.isdir(join(data_dir, d))],
-                    value=os.listdir(data_dir)[0],
+                    options=[{'label': d, 'value': d} for d in os.listdir(data_dir) if isdir(join(data_dir, d))],
                     multi=False,
                 ),
                 html.Br(),
@@ -49,7 +49,20 @@ layout = html.Div([
     [Input('pcr-selector', 'value')]
 )
 def update_sample_selector(pcr_value):
-    samples_dir = os.path.join(data_dir, pcr_value)
-    samples = sorted([s for s in os.listdir(samples_dir) if os.path.isdir(join(samples_dir, s))],
-                     key=lambda x: int(re.search(r'AD(\d+)', x).group(1)))
-    return [{'label': s, 'value': s} for s in samples]
+    if pcr_value:
+        samples_dir = join(data_dir, pcr_value)
+        samples = sorted([s for s in os.listdir(samples_dir) if isdir(join(samples_dir, s))],
+                         key=lambda x: int(re.search(r'AD(\d+)', x).group(1)))
+        return [{'label': s, 'value': s} for s in samples]
+    return dash.no_update
+
+
+@callback(
+    Output('sample-path', 'data'),
+    [Input('pcr-selector', 'value'),
+     Input('sample-selector', 'value')]
+)
+def get_sample_path(pcr_value, sample_value):
+    if pcr_value and sample_value:
+        return join(data_dir, pcr_value, sample_value)
+    return dash.no_update

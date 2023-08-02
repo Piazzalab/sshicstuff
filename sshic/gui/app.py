@@ -19,7 +19,8 @@ app.layout = html.Div([
         dcc.Tab(label='Home', value='home'),
         dcc.Tab(label='Binning', value='binning'),
     ]),
-    html.Div(id='page-content')
+    html.Div(id='page-content'),
+    dcc.Store(id='sample-path'),
 ])
 
 
