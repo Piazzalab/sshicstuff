@@ -46,7 +46,7 @@ if __name__ == "__main__":
     ws_telos = 150000
     excluded_chr = ["chr2", "chr3", "2_micron", "mitochondrion", "chr_artificial"]
 
-    df_samp2ref: pd.DataFrame = pd.read_csv(join(inputs_dir, f"sample_vs_ref_ponder.tsv"), sep="\t")
+    df_samp2ref: pd.DataFrame = pd.read_csv(join(inputs_dir, f"sample_vs_ref_weight.tsv"), sep="\t")
 
     sparse_list = sorted([
             file for file in os.listdir(samples_dir) if not os.path.isdir(os.path.join(samples_dir, file))],
