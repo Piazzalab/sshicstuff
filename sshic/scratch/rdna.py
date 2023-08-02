@@ -50,12 +50,12 @@ def main(
 if __name__ == "__main__":
     data_dir = os.path.dirname(os.getcwd()) + '/data/'
     sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
-    pondering_mode = ['not_pondered', 'pondered']
+    weighting_mode = ['not_weighted', 'weighted']
 
     outputs_dir = data_dir + 'outputs/'
     inputs_dir = data_dir + 'inputs/'
     binning_dir = outputs_dir + "binned/"
-    pondered_dir = outputs_dir + "pondered/"
+    weighted_dir = outputs_dir + "weighted/"
     rdna_dir = outputs_dir + "rdna/"
     probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
 
@@ -79,20 +79,20 @@ if __name__ == "__main__":
     print("Look at contacts between probes and rDNA regions")
     for sshic_dir in sshic_pcrdupt_dir:
         print(sshic_dir)
-        for ponder in pondering_mode:
+        for weight in weighting_mode:
             output_dir = ''
             samples_dir = ''
             samples = []
-            if ponder == 'not_pondered':
-                print('not pondered contacts')
-                output_dir = rdna_dir+'not_pondered/'+sshic_dir
+            if weight == 'not_weighted':
+                print('not weighted contacts')
+                output_dir = rdna_dir+'not_weighted/'+sshic_dir
                 samples_dir = binning_dir + sshic_dir + '1kb/'
                 samples = sorted([f for f in os.listdir(samples_dir) if 'frequencies' in f])
 
-            elif ponder == 'pondered':
-                print('pondered contacts')
-                output_dir = rdna_dir+'pondered/'+sshic_dir
-                samples_dir = pondered_dir + sshic_dir + '1kb/'
+            elif weight == 'weighted':
+                print('weighted contacts')
+                output_dir = rdna_dir+'weighted/'+sshic_dir
+                samples_dir = weighted_dir + sshic_dir + '1kb/'
                 samples = sorted([f for f in os.listdir(samples_dir) if 'frequencies' in f])
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)

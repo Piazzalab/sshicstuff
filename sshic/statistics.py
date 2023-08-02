@@ -156,7 +156,7 @@ def get_stats(
 def compare_to_wt(statistics_path: str, reference_path: str, wt_ref_name: str):
     """
     wt_reference : Optional[str], default=None
-            Path to the wt_capture_efficiency file (Optional, if you want to pondered sample).
+            Path to the wt_capture_efficiency file (Optional, if you want to weighted sample).
     """
     df_stats: pd.DataFrame = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
     df_wt: pd.DataFrame = pd.read_csv(reference_path, sep='\t')
@@ -194,7 +194,7 @@ def main(argv):
     parser.add_argument('--oligos', type=str, required=True,
                         help='Path to the oligos_input.csv file')
     parser.add_argument('-w', '--wildtype', type=str,
-                        help='Path to the wt_capture_efficiency file (Optional, if you want to pondered sample)')
+                        help='Path to the wt_capture_efficiency file (Optional, if you want to weighted sample)')
 
     args = parser.parse_args(argv)
 

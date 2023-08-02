@@ -108,7 +108,7 @@ if __name__ == "__main__":
     probes_and_fragments = inputs_dir + "probes_to_fragments.tsv"
     genes_list_path = inputs_dir + "genes_sacCer3.tsv"
     binning_dir = outputs_dir + "binned/"
-    pondered_dir = outputs_dir + "pondered/"
+    weighted_dir = outputs_dir + "weighted/"
     cohesins_dir = outputs_dir + "cohesins/"
     cohesins_peaks_path = inputs_dir + "HB65_reference_peaks_score50min.bed"
     centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"

@@ -12,7 +12,7 @@ from coverage import coverage
 from fragments import organize_contacts
 from statistics import get_stats, compare_to_wt
 from binning import rebin_contacts
-from ponder import ponder_mutant
+from weight import weight_mutant
 from aggregated import aggregate
 
 
@@ -27,18 +27,18 @@ class PathBundle:
         self.sample_dir = join(parent_dir, self.samp_id)
 
         self.sample_inputs_dir = join(self.sample_dir, "inputs")
-        self.not_pondered_dir = join(self.sample_dir, "not_pondered")
-        self.pondered_dir = join(self.sample_dir, f"pondered_{ref_name}")
+        self.not_weighted_dir = join(self.sample_dir, "not_weighted")
+        self.weighted_dir = join(self.sample_dir, f"weighted_{ref_name}")
 
         os.makedirs(self.sample_dir, exist_ok=True)
         os.makedirs(self.sample_inputs_dir, exist_ok=True)
-        os.makedirs(self.pondered_dir, exist_ok=True)
-        os.makedirs(self.not_pondered_dir, exist_ok=True)
+        os.makedirs(self.weighted_dir, exist_ok=True)
+        os.makedirs(self.not_weighted_dir, exist_ok=True)
 
         self.filtered_contacts_input = join(self.sample_dir, self.samp_id + "_filtered.tsv")
         self.cover = join(self.sample_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
-        self.unbinned_contacts_input = join(self.not_pondered_dir, self.samp_id+"_unbinned_contacts.tsv")
-        self.unbinned_frequencies_input = join(self.not_pondered_dir, self.samp_id+"_unbinned_frequencies.tsv")
+        self.unbinned_contacts_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_contacts.tsv")
+        self.unbinned_frequencies_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_frequencies.tsv")
         self.global_statistics_input = join(self.sample_dir, f"{self.samp_id}_global_statistics.tsv")
 
         if not os.path.exists(reference_path):
@@ -104,7 +104,7 @@ def do_it(
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
     check_and_run(
         path_bundle.unbinned_contacts_input, organize_contacts, path_bundle.filtered_contacts_input,
-        oligos_path, centromeres_coordinates_path, path_bundle.not_pondered_dir, additional_groups)
+        oligos_path, centromeres_coordinates_path, path_bundle.not_weighted_dir, additional_groups)
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
     check_and_run(
@@ -118,55 +118,55 @@ def do_it(
         wt_ref_name=path_bundle.wt_reference_name)
 
     print(f"Ponder the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
-    ponder_mutant(
+    weight_mutant(
         statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
         contacts_path=path_bundle.unbinned_contacts_input, frequencies_path=path_bundle.unbinned_frequencies_input,
-        binned_type="unbinned", output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
+        binned_type="unbinned", output_dir=path_bundle.weighted_dir, additional_path=additional_groups)
 
-    print(f"Rebin and ponder the unbinned tables (contacts and frequencies) at : \n")
+    print(f"Rebin and weight the unbinned tables (contacts and frequencies) at : \n")
     for bn in binning_size_list:
         bin_suffix = str(bn // 1000) + "kb"
         print(bin_suffix)
         rebin_contacts(
             contacts_unbinned_path=path_bundle.unbinned_contacts_input,
             chromosomes_coord_path=centromeres_coordinates_path, oligos_path=oligos_path, bin_size=bn,
-            output_dir=path_bundle.not_pondered_dir, additional_path=additional_groups)
+            output_dir=path_bundle.not_weighted_dir, additional_path=additional_groups)
 
         binned_contacts_input = \
-            join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")
+            join(path_bundle.not_weighted_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")
         binned_frequencies_input = \
-            join(path_bundle.not_pondered_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
+            join(path_bundle.not_weighted_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
 
-        ponder_mutant(
+        weight_mutant(
             statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
             contacts_path=binned_contacts_input, frequencies_path=binned_frequencies_input,
-            binned_type=f"{bin_suffix}_binned", output_dir=path_bundle.pondered_dir, additional_path=additional_groups)
+            binned_type=f"{bin_suffix}_binned", output_dir=path_bundle.weighted_dir, additional_path=additional_groups)
     print("\n")
 
     regions = ["centromeres", "telomeres"]
-    pondered = [True, False]
+    weighted = [True, False]
     normalization = [True, False]
 
-    param_combinations = list(itertools.product(regions, pondered, normalization))
-    for region, is_pondered, is_normalized in param_combinations:
+    param_combinations = list(itertools.product(regions, weighted, normalization))
+    for region, is_weighted, is_normalized in param_combinations:
         binned_10kb_path = join(
-            path_bundle.pondered_dir if is_pondered else path_bundle.not_pondered_dir,
-            path_bundle.samp_id+"_10kb_binned_pondered_frequencies.tsv"
-            if is_pondered else path_bundle.samp_id+"_10kb_binned_frequencies.tsv"
+            path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir,
+            path_bundle.samp_id+"_10kb_binned_weighted_frequencies.tsv"
+            if is_weighted else path_bundle.samp_id+"_10kb_binned_frequencies.tsv"
         )
 
         binned_1kb_path = join(
-            path_bundle.pondered_dir if is_pondered else path_bundle.not_pondered_dir,
-            path_bundle.samp_id+"_1kb_binned_pondered_frequencies.tsv"
-            if is_pondered else path_bundle.samp_id+"_1kb_binned_frequencies.tsv"
+            path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir,
+            path_bundle.samp_id+"_1kb_binned_weighted_frequencies.tsv"
+            if is_weighted else path_bundle.samp_id+"_1kb_binned_frequencies.tsv"
         )
 
-        output_dir = path_bundle.pondered_dir if is_pondered else path_bundle.not_pondered_dir
+        output_dir = path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir
         ws = aggregate_params.window_size_centromeres \
             if region == "centromeres" else aggregate_params.window_size_telomeres
 
         print(
-            f"Make an aggregated of contacts around {region} ({'pondered' if is_pondered else 'not pondered'}, "
+            f"Make an aggregated of contacts around {region} ({'weighted' if is_weighted else 'not weighted'}, "
             f"{'with' if is_normalized else 'no'} normalization)")
         aggregate(
             binned_10kb_contacts_path=binned_10kb_path,
@@ -222,7 +222,7 @@ if __name__ == "__main__":
                         help='desired bin size for the rebin step')
 
     parser.add_argument('-r', '--reference', type=str, required=False,
-                        help="Path to the reference WT to ponder the sample.")
+                        help="Path to the reference WT to weight the sample.")
 
     parser.add_argument('-a', '--additional', type=str, required=False,
                         help='Path to additional groups of probes table')

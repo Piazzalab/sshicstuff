@@ -6,7 +6,7 @@ from typing import Optional
 from utils import make_groups_of_probes
 
 
-def ponder_mutant(
+def weight_mutant(
         statistics_path: str,
         wt_ref_name: str,
         contacts_path: str,
@@ -17,7 +17,7 @@ def ponder_mutant(
 ):
 
     """
-    This function allows to ponder / normalize every sample that are a mutant (present in
+    This function allows to weight / normalize every sample that are a mutant (present in
     the dict samples_vs_wt) contacts by the normalized capture efficiency for each probe
     by using the newly made statistics table.
 
@@ -48,16 +48,16 @@ def ponder_mutant(
 
     wt_colname = f"capture_efficiency_vs_{wt_ref_name}"
     for frag in fragments:
-        ponder_coefficient = df_stats.loc[df_stats["fragment"] == frag, wt_colname].tolist()[0]
-        if ponder_coefficient == np.nan:
-            ponder_coefficient = 0
-        df_contacts.loc[:, frag] = df_contacts.loc[:, frag] * ponder_coefficient
-        df_frequencies.loc[:, frag] = df_frequencies.loc[:, frag] * ponder_coefficient
+        weight_coefficient = df_stats.loc[df_stats["fragment"] == frag, wt_colname].tolist()[0]
+        if weight_coefficient == np.nan:
+            weight_coefficient = 0
+        df_contacts.loc[:, frag] = df_contacts.loc[:, frag] * weight_coefficient
+        df_frequencies.loc[:, frag] = df_frequencies.loc[:, frag] * weight_coefficient
 
     if additional_path:
         probes_to_fragments = dict(zip(probes, fragments))
         make_groups_of_probes(df_additional, df_contacts, probes_to_fragments)
         make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
-    df_contacts.to_csv(output_path+f"_{binned_type}_pondered_contacts.tsv", sep='\t', index=False)
-    df_frequencies.to_csv(output_path + f"_{binned_type}_pondered_frequencies.tsv", sep='\t', index=False)
+    df_contacts.to_csv(output_path+f"_{binned_type}_weighted_contacts.tsv", sep='\t', index=False)
+    df_frequencies.to_csv(output_path + f"_{binned_type}_weighted_frequencies.tsv", sep='\t', index=False)
