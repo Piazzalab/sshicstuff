@@ -33,7 +33,7 @@ layout = html.Div([
             dbc.Col([
                 html.Label("Select a Sample:"),
                 dcc.Dropdown(
-                    id='sample-selector',
+                    id='sample-file-selector',
                     options=[],
                     multi=False,
                 ),
@@ -45,7 +45,7 @@ layout = html.Div([
 
 
 @callback(
-    Output('sample-selector', 'options'),
+    Output('sample-file-selector', 'options'),
     [Input('pcr-selector', 'value')]
 )
 def update_sample_selector(pcr_value):
@@ -60,7 +60,7 @@ def update_sample_selector(pcr_value):
 @callback(
     Output('sample-path', 'data'),
     [Input('pcr-selector', 'value'),
-     Input('sample-selector', 'value')]
+     Input('sample-file-selector', 'value')]
 )
 def get_sample_path(pcr_value, sample_value):
     if pcr_value and sample_value:

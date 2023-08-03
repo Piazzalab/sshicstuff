@@ -1,15 +1,13 @@
 import os
 import re
 import dash
+import shutil
 from os.path import join, dirname, isdir, isfile
 from dash import html, dcc
 from dash import callback
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 
-
-data_dir = join(dirname(dirname(os.getcwd())), 'data', 'samples')
-inputs_dir = join(dirname(dirname(os.getcwd())), 'data', 'inputs')
 
 layout = html.Div([
     dbc.Container([
@@ -20,12 +18,24 @@ layout = html.Div([
                 style={'text-align': 'center', 'margin-top': '50px', 'margin-bottom': '50px'}
             )
         ),
+        dbc.Row(
+            dbc.Col([
+                html.Label('Please specify the location of your data (absolute path) :',
+                           style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                dcc.Input(
+                    id='data-dir-input',
+                    type='text',
+                    placeholder='Input the folder path here',
+                    value=join(dirname(dirname(os.getcwd())), "data"),
+                    style={'width': '100%'}
+                ),
+            ], width=6, style={'margin-top': '50px', 'margin-bottom': '50px'}),
+        ),
         dbc.Row([
             dbc.Col([
-                html.Label("Select a PCR mode:"),
+                html.Label("Select a PCR duplicates filter :"),
                 dcc.Dropdown(
                     id='pcr-selector',
-                    options=[{'label': d, 'value': d} for d in os.listdir(data_dir) if isdir(join(data_dir, d))],
                     multi=False,
                 ),
                 html.Br(),
@@ -33,9 +43,9 @@ layout = html.Div([
         ]),
         dbc.Row([
             dbc.Col([
-                html.Label("Select a Sample:"),
+                html.Label("Select a Sample :"),
                 dcc.Dropdown(
-                    id='sample-selector',
+                    id='sample-file-selector',
                     options=[],
                     multi=False,
                 ),
@@ -55,16 +65,30 @@ layout = html.Div([
             ]),
         ]),
     ]),
+    dcc.Store(id='samp-dir-status'),
 ])
 
 
 @callback(
-    Output('sample-selector', 'options'),
-    Input('pcr-selector', 'value')
+    Output('pcr-selector', 'options'),
+    Input('data-samples-path', 'data')
 )
-def update_sample_selector(pcr_value):
-    if pcr_value:
-        samples_dir = join(data_dir, pcr_value)
+def update_pcr_filter_selector(data_dir_data):
+    if data_dir_data:
+        pcr_filters_dir_list = [pcr for pcr in os.listdir(data_dir_data)
+                                if isdir(join(data_dir_data, pcr)) and 'pcr' in pcr]
+        return [{'label': s, 'value': s} for s in pcr_filters_dir_list]
+    return dash.no_update
+
+
+@callback(
+    Output('sample-file-selector', 'options'),
+    [Input('data-samples-path', 'data'),
+     Input('pcr-selector', 'value')]
+)
+def update_sample_selector(data_dir_data, pcr_value):
+    if data_dir_data and pcr_value:
+        samples_dir = join(data_dir_data, pcr_value)
         samples = sorted([
             s for s in os.listdir(samples_dir) if isfile(join(samples_dir, s))
         ],
@@ -76,11 +100,12 @@ def update_sample_selector(pcr_value):
 
 @callback(
     Output('reference-selector', 'options'),
-    Input('sample-selector', 'value')
+    [Input('data-inputs-path', 'data'),
+     Input('sample-file-selector', 'value')]
 )
-def update_reference_selector(sample_value):
-    if sample_value:
-        refs_dir = join(inputs_dir, "references")
+def update_reference_selector(inputs_dir_data, sample_file_value):
+    if inputs_dir_data and sample_file_value:
+        refs_dir = join(inputs_dir_data, "references")
         references = sorted([
             r for r in os.listdir(refs_dir) if isfile(join(refs_dir, r))
         ])
@@ -89,20 +114,68 @@ def update_reference_selector(sample_value):
 
 
 @callback(
-    Output('sample-path', 'data'),
-    [Input('pcr-selector', 'value'),
-     Input('sample-selector', 'value')]
+    Output('data-samples-path', 'data'),
+    Output('data-inputs-path', 'data'),
+    Input('data-dir-input', 'value')
 )
-def get_sample_path(pcr_value, sample_value):
-    if pcr_value and sample_value:
-        return join(data_dir, pcr_value, sample_value)
+def get_data_samples_path(data_dir_value):
+    if data_dir_value:
+        samples_dir = join(data_dir_value, 'samples')
+        inputs_dir = join(data_dir_value, 'inputs')
+        return samples_dir, inputs_dir
+    return dash.no_update, dash.no_update
+
+
+@callback(
+    Output('sample-path', 'data'),
+    [Input('data-samples-path', 'data'),
+     Input('pcr-selector', 'value'),
+     Input('sample-file-selector', 'value')]
+)
+def get_sample_path(data_dir_data, pcr_value, sample_value):
+    if data_dir_data and pcr_value and sample_value:
+        return join(data_dir_data, pcr_value, sample_value)
     return dash.no_update
 
 
 @callback(
-    Output('reference-choice', 'data'),
-    Input('reference-selector', 'value')
+    Output('sample-id', 'data'),
+    Input('sample-file-selector', 'value')
 )
-def get_reference(reference_value):
-    return reference_value if reference_value else None
+def get_sample_id(sample_value):
+    if sample_value:
+        return re.search(r'AD\d+', sample_value).group()
+    return dash.no_update
+
+
+@callback(
+    Output('reference-path', 'data'),
+    [Input('data-inputs-path', 'data'),
+     Input('reference-selector', 'value')]
+)
+def get_reference(inputs_dir_data, reference_value):
+    if inputs_dir_data and reference_value:
+        return join(inputs_dir_data, "references", reference_value)
+    return None
+
+
+@callback(
+    Output('samp-dir-status', 'data'),
+    [Input('sample-id', 'data'),
+     Input('sample-path', 'data'),
+     Input('reference-path', 'data')]
+)
+def create_samp_dir(sample_name, sample_path, reference_path):
+    if sample_name:
+        samp_dir = join(dirname(sample_path), sample_name)
+        samp_in_dir = join(samp_dir, "inputs")
+        if not isdir(samp_dir):
+            os.mkdir(samp_dir)
+            os.mkdir(samp_in_dir)
+
+        if reference_path:
+            shutil.copy(reference_path, samp_in_dir)
+
+        return "Created"
+    return dash.no_update
 
