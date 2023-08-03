@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from utils import sort_by_chr
+from core.utils import sort_by_chr
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None

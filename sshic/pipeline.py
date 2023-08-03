@@ -6,14 +6,14 @@ import argparse
 import shutil
 from typing import List, Optional
 
-from filter import filter_contacts
-from probe2fragment import associate_probes_to_fragments
-from coverage import coverage
-from fragments import organize_contacts
-from statistics import get_stats, compare_to_wt
-from binning import rebin_contacts
-from weight import weight_mutant
-from aggregated import aggregate
+from core.filter import filter_contacts
+from core.probe2fragment import associate_probes_to_fragments
+from core.coverage import coverage
+from core.fragments import organize_contacts
+from core.statistics import get_stats, compare_to_wt
+from core.binning import rebin_contacts
+from core.weight import weight_mutant
+from core.aggregated import aggregate
 
 
 class PathBundle:
