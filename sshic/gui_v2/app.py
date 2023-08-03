@@ -21,6 +21,7 @@ app.layout = html.Div([
     ]),
     html.Div(id='page-content'),
     dcc.Store(id='sample-path'),
+    dcc.Store(id='reference-path'),
 ])
 
 
