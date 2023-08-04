@@ -33,7 +33,7 @@ layout = html.Div([
         ),
         dbc.Row([
             dbc.Col([
-                html.Label("Select a PCR duplicates filter :"),
+                html.Label("Select a PCR duplicates filter folder :"),
                 dcc.Dropdown(
                     id='pcr-selector',
                     multi=False,
@@ -65,7 +65,6 @@ layout = html.Div([
             ]),
         ]),
     ]),
-    dcc.Store(id='samp-dir-status'),
 ])
 
 
@@ -73,10 +72,10 @@ layout = html.Div([
     Output('pcr-selector', 'options'),
     Input('data-samples-path', 'data')
 )
-def update_pcr_filter_selector(data_dir_data):
-    if data_dir_data:
-        pcr_filters_dir_list = [pcr for pcr in os.listdir(data_dir_data)
-                                if isdir(join(data_dir_data, pcr)) and 'pcr' in pcr]
+def update_pcr_filter_selector(samples_dir_data):
+    if samples_dir_data:
+        pcr_filters_dir_list = [pcr for pcr in os.listdir(samples_dir_data)
+                                if isdir(join(samples_dir_data, pcr)) and 'pcr' in pcr]
         return [{'label': s, 'value': s} for s in pcr_filters_dir_list]
     return dash.no_update
 
@@ -86,9 +85,9 @@ def update_pcr_filter_selector(data_dir_data):
     [Input('data-samples-path', 'data'),
      Input('pcr-selector', 'value')]
 )
-def update_sample_selector(data_dir_data, pcr_value):
-    if data_dir_data and pcr_value:
-        samples_dir = join(data_dir_data, pcr_value)
+def update_sample_selector(samples_dir_data, pcr_value):
+    if samples_dir_data and pcr_value:
+        samples_dir = join(samples_dir_data, pcr_value)
         samples = sorted([
             s for s in os.listdir(samples_dir) if isfile(join(samples_dir, s))
         ],
@@ -127,19 +126,19 @@ def get_data_samples_path(data_dir_value):
 
 
 @callback(
-    Output('sample-path', 'data'),
+    Output('this-sample-path', 'data'),
     [Input('data-samples-path', 'data'),
      Input('pcr-selector', 'value'),
      Input('sample-file-selector', 'value')]
 )
-def get_sample_path(data_dir_data, pcr_value, sample_value):
-    if data_dir_data and pcr_value and sample_value:
-        return join(data_dir_data, pcr_value, sample_value)
+def get_samples_path_value(samples_dir_data, pcr_value, sample_path_value):
+    if samples_dir_data and pcr_value and sample_path_value:
+        return join(samples_dir_data, pcr_value, sample_path_value)
     return dash.no_update
 
 
 @callback(
-    Output('sample-id', 'data'),
+    Output('this-sample-id', 'data'),
     Input('sample-file-selector', 'value')
 )
 def get_sample_id(sample_value):
@@ -149,7 +148,7 @@ def get_sample_id(sample_value):
 
 
 @callback(
-    Output('reference-path', 'data'),
+    Output('this-sample-ref-path', 'data'),
     [Input('data-inputs-path', 'data'),
      Input('reference-selector', 'value')]
 )
@@ -160,14 +159,14 @@ def get_reference(inputs_dir_data, reference_value):
 
 
 @callback(
-    Output('samp-dir-status', 'data'),
-    [Input('sample-id', 'data'),
-     Input('sample-path', 'data'),
-     Input('reference-path', 'data')]
+    Output('this-sample-out-dir-path', 'data'),
+    [Input('this-sample-id', 'data'),
+     Input('this-sample-path', 'data'),
+     Input('this-sample-ref-path', 'data')]
 )
-def create_samp_dir(sample_name, sample_path, reference_path):
+def create_samp_dir(sample_name, sample_path_value, reference_path):
     if sample_name:
-        samp_dir = join(dirname(sample_path), sample_name)
+        samp_dir = join(dirname(sample_path_value), sample_name)
         samp_in_dir = join(samp_dir, "inputs")
         if not isdir(samp_dir):
             os.mkdir(samp_dir)
@@ -176,6 +175,6 @@ def create_samp_dir(sample_name, sample_path, reference_path):
         if reference_path:
             shutil.copy(reference_path, samp_in_dir)
 
-        return "Created"
+        return samp_dir
     return dash.no_update
 
