@@ -2,70 +2,105 @@ import os
 import re
 import dash
 import shutil
-from os.path import join, dirname, isdir, isfile
+from os.path import join, dirname, isdir
 from dash import html, dcc
 from dash import callback
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 
 
-layout = html.Div([
-    dbc.Container([
-        dbc.Row(
-            dbc.Col(
-                html.H1('Welcome to our single strand Hi-C (sshic) platform'),
-                width={'size': 6, 'offset': 3},
-                style={'text-align': 'center', 'margin-top': '50px', 'margin-bottom': '50px'}
-            )
-        ),
-        dbc.Row(
-            dbc.Col([
-                html.Label('Please specify the location of your data (absolute path) :',
-                           style={'margin-top': '10px', 'margin-bottom': '10px'}),
-                dcc.Input(
-                    id='data-dir-input',
-                    type='text',
-                    placeholder='Input the folder path here',
-                    value=join(dirname(dirname(os.getcwd())), "data"),
-                    style={'width': '100%'}
-                ),
-            ], width=6, style={'margin-top': '50px', 'margin-bottom': '50px'}),
-        ),
-        dbc.Row([
-            dbc.Col([
-                html.Label("Select a PCR duplicates filter folder :"),
-                dcc.Dropdown(
-                    id='pcr-selector',
-                    multi=False,
-                ),
-                html.Br(),
-            ]),
+def create_layout():
+    return html.Div([
+        dbc.Container([
+            create_header(),
+            create_data_dir_row(),
+            create_pcr_selector_row(),
+            create_sample_selector_row(),
+            create_reference_selector_row()
         ]),
-        dbc.Row([
-            dbc.Col([
-                html.Label("Select a Sample :"),
-                dcc.Dropdown(
-                    id='sample-file-selector',
-                    options=[],
-                    multi=False,
-                ),
-                html.Br(),
-            ]),
+    ])
+
+
+def create_header():
+    return dbc.Row(
+        dbc.Col(
+            html.H1('Welcome to our single strand Hi-C (sshic) platform'),
+            width={'size': 6, 'offset': 3},
+            style={'text-align': 'center', 'margin-top': '50px', 'margin-bottom': '50px'}
+        )
+    )
+
+
+def create_data_dir_row():
+    return dbc.Row(
+        dbc.Col([
+            html.Label('Please specify the location of your data (absolute path):',
+                       style={'margin-top': '10px', 'margin-bottom': '10px'}),
+            dcc.Input(
+                id='data-dir-input',
+                type='text',
+                placeholder='Input the folder path here',
+                value=join(dirname(dirname(os.getcwd())), "data"),
+                style={'width': '100%'}
+            ),
+        ], width=6, style={'margin-top': '50px', 'margin-bottom': '50px'}),
+    )
+
+
+def create_pcr_selector_row():
+    return dbc.Row([
+        dbc.Col([
+            html.Label("Select a PCR duplicates filter folder:"),
+            dcc.Dropdown(
+                id='pcr-selector',
+                multi=False,
+            ),
+            html.Br(),
         ]),
-        dbc.Row([
-            dbc.Col([
-                html.Label("Please indicate a WT reference if you wish to weight your contacts :"),
-                dcc.Dropdown(
-                    id='reference-selector',
-                    options=[],
-                    value=None,
-                    multi=False,
-                ),
-                html.Br(),
-            ]),
+    ])
+
+
+def create_sample_selector_row():
+    return dbc.Row([
+        dbc.Col([
+            html.Label("Select a Sample:"),
+            dcc.Dropdown(
+                id='sample-file-selector',
+                options=[],
+                multi=False,
+            ),
+            html.Br(),
         ]),
-    ]),
-])
+    ])
+
+
+def create_reference_selector_row():
+    return dbc.Row([
+        dbc.Col([
+            html.Label("Please indicate a WT reference if you wish to weight your contacts:"),
+            dcc.Dropdown(
+                id='reference-selector',
+                options=[],
+                value=None,
+                multi=False,
+            ),
+            html.Br(),
+        ]),
+    ])
+
+
+def get_files_from_dir(directory, filter_string=''):
+    return [
+        f for f in os.listdir(directory)
+        if isdir(join(directory, f)) and filter_string in f
+    ]
+
+
+def update_dropdown_options(directory_data, filter_string=''):
+    if directory_data:
+        dir_list = get_files_from_dir(directory_data, filter_string)
+        return [{'label': s, 'value': s} for s in dir_list]
+    return dash.no_update
 
 
 @callback(
@@ -73,11 +108,7 @@ layout = html.Div([
     Input('data-samples-path', 'data')
 )
 def update_pcr_filter_selector(samples_dir_data):
-    if samples_dir_data:
-        pcr_filters_dir_list = [pcr for pcr in os.listdir(samples_dir_data)
-                                if isdir(join(samples_dir_data, pcr)) and 'pcr' in pcr]
-        return [{'label': s, 'value': s} for s in pcr_filters_dir_list]
-    return dash.no_update
+    return update_dropdown_options(samples_dir_data, 'pcr')
 
 
 @callback(
@@ -88,11 +119,8 @@ def update_pcr_filter_selector(samples_dir_data):
 def update_sample_selector(samples_dir_data, pcr_value):
     if samples_dir_data and pcr_value:
         samples_dir = join(samples_dir_data, pcr_value)
-        samples = sorted([
-            s for s in os.listdir(samples_dir) if isfile(join(samples_dir, s))
-        ],
-            key=lambda x: int(re.search(r'AD(\d+)', x).group(1))
-        )
+        samples = sorted(get_files_from_dir(samples_dir),
+                         key=lambda x: int(re.search(r'AD(\d+)', x).group(1)))
         return [{'label': s, 'value': s} for s in samples]
     return dash.no_update
 
@@ -105,9 +133,7 @@ def update_sample_selector(samples_dir_data, pcr_value):
 def update_reference_selector(inputs_dir_data, sample_file_value):
     if inputs_dir_data and sample_file_value:
         refs_dir = join(inputs_dir_data, "references")
-        references = sorted([
-            r for r in os.listdir(refs_dir) if isfile(join(refs_dir, r))
-        ])
+        references = sorted(get_files_from_dir(refs_dir))
         return [{'label': r, 'value': r} for r in references]
     return dash.no_update
 
@@ -178,3 +204,5 @@ def create_samp_dir(sample_name, sample_path_value, reference_path):
         return samp_dir
     return dash.no_update
 
+
+layout = create_layout()
