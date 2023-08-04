@@ -33,7 +33,7 @@ if __name__ == "__main__":
     script = join(base_dir, "sshic", "pipeline.py")
     data_dir = join(base_dir, "data")
     inputs_dir = join(data_dir,  "inputs")
-    refs_dir = join(inputs_dir, "refs")
+    refs_dir = join(inputs_dir, "references")
     samples_dir = join(data_dir, "samples", pcr_type.lower())
     samples_only = []
 
