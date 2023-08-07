@@ -13,7 +13,7 @@ def display_sample_id(value):
 
 
 @callback(
-    [Output('fragments-selector', 'options'),
+    [Output('fragments-list-selector', 'options'),
      Output('oligo-selector', 'options')],
     Input('data-inputs-path', 'data')
 )
