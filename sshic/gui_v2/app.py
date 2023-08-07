@@ -17,12 +17,20 @@ app.config.suppress_callback_exceptions = True
 
 # Set up the app layout
 app.layout = html.Div([
-    dcc.Tabs(id="tabs", value='home', children=[
-        dcc.Tab(label='Home', value='home'),
-        dcc.Tab(label='Data Viewer', value='data-viewer'),
-        dcc.Tab(label='Organize Contacts', value='fragments'),
-        dcc.Tab(label='Bin Contacts', value='binning'),
-    ]),
+    dcc.Tabs(id="tabs",
+             value='home',
+             parent_className='custom-tabs',
+             className='custom-tabs-container',
+             children=[
+                 dcc.Tab(label='Home', value='home',
+                         className='custom-tab', selected_className='custom-tab--selected'),
+                 dcc.Tab(label='Data Viewer', value='data-viewer',
+                         className='custom-tab', selected_className='custom-tab--selected'),
+                 dcc.Tab(label='Organize Contacts', value='fragments',
+                         className='custom-tab', selected_className='custom-tab--selected'),
+                 dcc.Tab(label='Bin Contacts', value='binning',
+                         className='custom-tab', selected_className='custom-tab--selected'),
+             ]),
     html.Div(id='page-content'),
     dcc.Store(id='data-samples-path'),
     dcc.Store(id='data-inputs-path'),
