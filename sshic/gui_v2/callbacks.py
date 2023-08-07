@@ -6,7 +6,7 @@ from dash.dependencies import Input, Output
 
 @callback(
     Output('sample-id-output', 'children'),
-    Input('sample-id', 'data')
+    Input('this-sample-id', 'data')
 )
 def display_sample_id(value):
     return f"You are working on sample {value}"

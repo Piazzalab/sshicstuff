@@ -41,7 +41,7 @@ def update_fragments_table(file_path):
         data = df.to_dict('records')
         columns = [{"name": i, "id": i} for i in df.columns]
         return data, columns
-    return dash.no_update, dash.no_update
+    return None, None
 
 
 @callback(
@@ -54,7 +54,7 @@ def update_oligo_table(file_path):
         data = df.to_dict('records')
         columns = [{"name": i, "id": i} for i in df.columns]
         return data, columns
-    return dash.no_update, dash.no_update
+    return None, None
 
 
 # @callback(
