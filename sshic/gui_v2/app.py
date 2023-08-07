@@ -5,11 +5,10 @@ from dash import html, dcc
 from dash.dependencies import Input, Output
 
 # Import your page layouts here
-from home import layout as home_layout
-from data_viewer import layout as filter_layout
-from gui_fragments import layout as fragments_layout
-from gui_binning import layout as binning_layout
-
+import home
+import data_viewer
+import gui_fragments
+import gui_binning
 
 # Create a Dash application instance:
 server = Flask(__name__, template_folder='templates', )
@@ -40,13 +39,13 @@ app.layout = html.Div([
     [Input('tabs', 'value')])
 def display_page(value):
     if value == 'home':
-        return home_layout
+        return home.layout
     elif value == 'data-viewer':
-        return filter_layout
+        return data_viewer.layout
     elif value == 'fragments':
-        return fragments_layout
+        return gui_fragments.layout
     elif value == 'binning':
-        return binning_layout
+        return gui_binning.layout
 
 
 if __name__ == '__main__':
