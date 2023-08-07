@@ -24,12 +24,37 @@ layout = dbc.Container([
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})),
 
     dbc.Row([
-        dbc.Col(dash_table.DataTable(id='fragments-table'), width=4),
-        dbc.Col(dash_table.DataTable(id='oligo-table'), width=4),
-        dbc.Col(dash_table.DataTable(id='fragments-contacts-table'), width=4),
-    ]),
-])
+        dbc.Col([
+            dcc.Loading(
+                dash_table.DataTable(
+                    id='fragments-table',
+                    style_table={'overflowX': 'auto'},  # Add horizontal scroll bar
+                    page_size=10,  # Number of rows per page
+                )
+            )
+        ], width=4),
 
+        dbc.Col([
+            dcc.Loading(
+                dash_table.DataTable(
+                    id='oligo-table',
+                    style_table={'overflowX': 'auto'},  # Add horizontal scroll bar
+                    page_size=10,  # Number of rows per page
+                )
+            )
+        ], width=4),
+
+        dbc.Col([
+            dcc.Loading(
+                dash_table.DataTable(
+                    id='fragments-contacts-table',
+                    style_table={'overflowX': 'auto'},  # Add horizontal scroll bar
+                    page_size=10,  # Number of rows per page
+                )
+            )
+        ], width=4),
+    ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+], style={'max-width': '90%', 'margin': '0 auto'})
 
 @callback(
     Output('fragments-table', 'data'),
