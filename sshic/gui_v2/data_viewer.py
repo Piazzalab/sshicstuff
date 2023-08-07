@@ -84,22 +84,6 @@ layout = dbc.Container([
                 )
             )
         ], width=4),
-
-        dbc.Col([
-            dcc.Loading(
-                dash_table.DataTable(
-                    id='fragments-contacts-table',
-                    style_table={'overflowX': 'auto'},
-                    page_size=16,
-                    style_header={
-                        'backgroundColor': '#eaecee',
-                        'color': ' #3498db ',
-                        'fontWeight': 'bold'},
-                    sort_action='native',
-                    sort_mode='multi',
-                )
-            )
-        ], width=4),
     ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
 ], style={'max-width': '90%', 'margin': '0 auto'})
 
@@ -132,23 +116,3 @@ def update_oligo_table(file_path, delim):
         columns = [{"name": i, "id": i} for i in df.columns]
         return data, columns
     return None, None
-
-
-
-# @callback(
-#     Output('fragments-contacts-table', 'data'),
-#     Output('fragments-contacts-table', 'columns'),
-#     Input('fragments-table', 'data'),
-#     Input('oligo-table', 'data'))
-# def update_fragments_contacts_table(fragments_data, oligo_data):
-#     if fragments_data and oligo_data:
-#         fragments_df = pd.DataFrame(fragments_data)
-#         oligo_df = pd.DataFrame(oligo_data)
-#
-#         # use your function to filter contacts
-#         contacts_df = filter_contacts(fragments_df, oligo_df)
-#
-#         data = contacts_df.to_dict('records')
-#         columns = [{"name": i, "id": i} for i in contacts_df.columns]
-#         return data, columns
-#     return [], []
