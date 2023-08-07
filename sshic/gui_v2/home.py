@@ -2,7 +2,7 @@ import os
 import re
 import dash
 import shutil
-from os.path import join, dirname, isdir
+from os.path import join, dirname, isdir, isfile
 from dash import html, dcc
 from dash import callback
 import dash_bootstrap_components as dbc
@@ -89,16 +89,22 @@ def create_reference_selector_row():
     ])
 
 
-def get_files_from_dir(directory, filter_string=''):
-    return [
-        f for f in os.listdir(directory)
-        if isdir(join(directory, f)) and filter_string in f
-    ]
+def get_files_from_dir(directory, filter_string='', stamp="f"):
+    if stamp == "f":
+        return [
+            f for f in os.listdir(directory)
+            if isfile(join(directory, f)) and filter_string in f
+        ]
+    elif stamp == "d":
+        return [
+            f for f in os.listdir(directory)
+            if isdir(join(directory, f)) and filter_string in f
+        ]
 
 
 def update_dropdown_options(directory_data, filter_string=''):
     if directory_data:
-        dir_list = get_files_from_dir(directory_data, filter_string)
+        dir_list = get_files_from_dir(directory_data, filter_string, stamp='d')
         return [{'label': s, 'value': s} for s in dir_list]
     return dash.no_update
 
@@ -119,7 +125,7 @@ def update_pcr_filter_selector(samples_dir_data):
 def update_sample_selector(samples_dir_data, pcr_value):
     if samples_dir_data and pcr_value:
         samples_dir = join(samples_dir_data, pcr_value)
-        samples = sorted(get_files_from_dir(samples_dir),
+        samples = sorted(get_files_from_dir(samples_dir, stamp='f'),
                          key=lambda x: int(re.search(r'AD(\d+)', x).group(1)))
         return [{'label': s, 'value': s} for s in samples]
     return dash.no_update
@@ -133,7 +139,7 @@ def update_sample_selector(samples_dir_data, pcr_value):
 def update_reference_selector(inputs_dir_data, sample_file_value):
     if inputs_dir_data and sample_file_value:
         refs_dir = join(inputs_dir_data, "references")
-        references = sorted(get_files_from_dir(refs_dir))
+        references = sorted(get_files_from_dir(refs_dir, stamp='f'))
         return [{'label': r, 'value': r} for r in references]
     return dash.no_update
 
