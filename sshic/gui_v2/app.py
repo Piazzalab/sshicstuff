@@ -6,7 +6,7 @@ from dash.dependencies import Input, Output
 
 # Import your page layouts here
 from home import layout as home_layout
-from gui_filter import layout as filter_layout
+from data_viewer import layout as filter_layout
 from gui_fragments import layout as fragments_layout
 from gui_binning import layout as binning_layout
 
@@ -20,7 +20,7 @@ app.config.suppress_callback_exceptions = True
 app.layout = html.Div([
     dcc.Tabs(id="tabs", value='home', children=[
         dcc.Tab(label='Home', value='home'),
-        dcc.Tab(label='Filter Contacts', value='filter'),
+        dcc.Tab(label='Data Viewer', value='data-viewer'),
         dcc.Tab(label='Organize Contacts', value='fragments'),
         dcc.Tab(label='Bin Contacts', value='binning'),
     ]),
@@ -41,7 +41,7 @@ app.layout = html.Div([
 def display_page(value):
     if value == 'home':
         return home_layout
-    elif value == 'filter':
+    elif value == 'data-viewer':
         return filter_layout
     elif value == 'fragments':
         return fragments_layout
