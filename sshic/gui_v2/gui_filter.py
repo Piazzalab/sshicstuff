@@ -28,8 +28,14 @@ layout = dbc.Container([
             dcc.Loading(
                 dash_table.DataTable(
                     id='fragments-table',
-                    style_table={'overflowX': 'auto'},  # Add horizontal scroll bar
-                    page_size=10,  # Number of rows per page
+                    style_table={'overflowX': 'auto'},
+                    page_size=16,
+                    style_header={
+                        'backgroundColor': '#eaecee',
+                        'color': ' #3498db ',
+                        'fontWeight': 'bold'},
+                    sort_action='native',
+                    sort_mode='multi',
                 )
             )
         ], width=4),
@@ -38,8 +44,14 @@ layout = dbc.Container([
             dcc.Loading(
                 dash_table.DataTable(
                     id='oligo-table',
-                    style_table={'overflowX': 'auto'},  # Add horizontal scroll bar
-                    page_size=10,  # Number of rows per page
+                    style_table={'overflowX': 'auto'},
+                    page_size=16,
+                    style_header={
+                        'backgroundColor': '#eaecee',
+                        'color': ' #3498db ',
+                        'fontWeight': 'bold'},
+                    sort_action='native',
+                    sort_mode='multi',
                 )
             )
         ], width=4),
@@ -48,13 +60,20 @@ layout = dbc.Container([
             dcc.Loading(
                 dash_table.DataTable(
                     id='fragments-contacts-table',
-                    style_table={'overflowX': 'auto'},  # Add horizontal scroll bar
-                    page_size=10,  # Number of rows per page
+                    style_table={'overflowX': 'auto'},
+                    page_size=16,
+                    style_header={
+                        'backgroundColor': '#eaecee',
+                        'color': ' #3498db ',
+                        'fontWeight': 'bold'},
+                    sort_action='native',
+                    sort_mode='multi',
                 )
             )
         ], width=4),
     ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
 ], style={'max-width': '90%', 'margin': '0 auto'})
+
 
 @callback(
     Output('fragments-table', 'data'),
