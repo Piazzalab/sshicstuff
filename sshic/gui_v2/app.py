@@ -2,7 +2,7 @@ from flask import Flask
 import dash
 import dash_bootstrap_components as dbc
 from dash import html, dcc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 
 # Import your page layouts here
 import home
@@ -38,6 +38,7 @@ app.layout = html.Div([
     dcc.Store(id='this-sample-id'),
     dcc.Store(id='this-sample-out-dir-path'),
     dcc.Store(id='this-sample-ref-path'),
+    dcc.Store(id='home-store'),
 ])
 
 
@@ -54,6 +55,42 @@ def display_page(value):
         return gui_fragments.layout
     elif value == 'binning':
         return gui_binning.layout
+
+
+@app.callback(
+    Output('home-store', 'data'),
+    [Input('pcr-selector', 'value'),
+     Input('sample-file-selector', 'value'),
+     Input('reference-selector', 'value')]
+)
+def update_home_store(pcr_value, sample_value, reference_value):
+    return {
+        'pcr-selector': pcr_value,
+        'sample-file-selector': sample_value,
+        'reference-selector': reference_value,
+    }
+
+
+@app.callback(
+    [Output('pcr-selector', 'value'),
+     Output('sample-file-selector', 'value'),
+     Output('reference-selector', 'value')],
+    [Input('home-store', 'data')],
+    [State('tabs', 'value')]
+)
+def restore_home_state(home_data, current_tab):
+    if current_tab == 'home' and home_data:
+        return (
+            home_data.get('pcr-selector', None),
+            home_data.get('sample-file-selector', None),
+            home_data.get('reference-selector', None),
+        )
+    else:
+        return (
+            None,
+            None,
+            None,
+        )
 
 
 if __name__ == '__main__':
