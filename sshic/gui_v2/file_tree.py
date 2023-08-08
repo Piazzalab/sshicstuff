@@ -19,17 +19,14 @@ class FileTree:
             self.build_tree(self.filepath, isRoot=True),
             multiple=True)
 
-    @staticmethod
     def flatten(self, l):
         return [item for sublist in l for item in sublist]
 
-    @staticmethod
     def make_file(self, file_name):
         return dmc.Text(
             [DashIconify(icon="akar-icons:file"), " ", file_name], style={"paddingTop": '5px'}
         )
 
-    @staticmethod
     def make_folder(self, folder_name):
         return [DashIconify(icon="akar-icons:folder"), " ", folder_name]
 
