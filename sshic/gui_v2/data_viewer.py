@@ -1,4 +1,6 @@
 import dash
+import os
+from os.path import join, isfile
 import pandas as pd
 from dash import callback
 from dash import html, dcc, dash_table
@@ -6,21 +8,21 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
 from sshic.core.filter import filter_contacts
-from callbacks import display_sample_id, update_input_selectors
+
 
 layout = dbc.Container([
     dbc.Row([
-        html.Div(id='sample-id-output', style={'margin-top': '20px', 'margin-bottom': '20px'})
+        html.H3('Data Viewer', style={'margin-top': '20px', 'margin-bottom': '20px'})
     ]),
     dbc.Row([
         dbc.Col([
-            html.Label("Select the digested fragments list table:"),
-            dcc.Dropdown(id='fragments-list-selector', multi=False),
+            html.Label("Select an input file you'd like to visualize:"),
+            dcc.Dropdown(id='dataframe-selector-1', multi=False),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '25px'}),
         dbc.Col([
             html.Label("Specify a delimiter: "),
             dcc.Dropdown(
-                id='frag-list-delim-selector',
+                id='dataframe-delim-selector-1',
                 multi=False,
                 options=[{'label': 'Tab', 'value': '\t'},
                          {'label': 'Comma', 'value': ','},
@@ -31,16 +33,32 @@ layout = dbc.Container([
             ),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'})
     ]),
-
     dbc.Row([
         dbc.Col([
-            html.Label("Select oligos related information table:"),
-            dcc.Dropdown(id='oligo-selector', multi=False),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+            dcc.Loading(
+                dash_table.DataTable(
+                    id='dataframe-1',
+                    style_table={'overflowX': 'auto'},
+                    page_size=16,
+                    style_header={
+                        'backgroundColor': '#eaecee',
+                        'color': ' #3498db ',
+                        'fontWeight': 'bold'},
+                    sort_action='native',
+                    sort_mode='multi',
+                )
+            )
+        ], width=12),
+    ]),
+    dbc.Row([
+        dbc.Col([
+            html.Label("Select an input file you'd like to visualize:"),
+            dcc.Dropdown(id='dataframe-selector-2', multi=False),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '25px'}),
         dbc.Col([
             html.Label("Specify a delimiter: "),
             dcc.Dropdown(
-                id='oligo-delim-selector',
+                id='dataframe-delim-selector-2',
                 multi=False,
                 options=[{'label': 'Tab', 'value': '\t'},
                          {'label': 'Comma', 'value': ','},
@@ -51,12 +69,11 @@ layout = dbc.Container([
             ),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'})
     ]),
-
     dbc.Row([
         dbc.Col([
             dcc.Loading(
                 dash_table.DataTable(
-                    id='fragments-list-table',
+                    id='dataframe-2',
                     style_table={'overflowX': 'auto'},
                     page_size=16,
                     style_header={
@@ -67,32 +84,30 @@ layout = dbc.Container([
                     sort_mode='multi',
                 )
             )
-        ], width=4),
-
-        dbc.Col([
-            dcc.Loading(
-                dash_table.DataTable(
-                    id='oligo-table',
-                    style_table={'overflowX': 'auto'},
-                    page_size=16,
-                    style_header={
-                        'backgroundColor': '#eaecee',
-                        'color': ' #3498db ',
-                        'fontWeight': 'bold'},
-                    sort_action='native',
-                    sort_mode='multi',
-                )
-            )
-        ], width=4),
-    ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
-], style={'max-width': '90%', 'margin': '0 auto'})
+        ], width=12),
+    ])
+])
 
 
 @callback(
-    Output('fragments-list-table', 'data'),
-    Output('fragments-list-table', 'columns'),
-    [Input('fragments-list-selector', 'value'),
-     Input('frag-list-delim-selector', 'value')]
+    Output('dataframe-selector-1', 'options'),
+    Output('dataframe-selector-2', 'options'),
+    Input('data-basedir', 'data')
+)
+def update_input_selectors(data_value):
+    if data_value:
+        inputs_dir = join(data_value, 'inputs')
+        input_files = sorted([file for file in os.listdir(inputs_dir) if isfile(join(inputs_dir, file))])
+        options = [{'label': file, 'value': join(inputs_dir, file)} for file in input_files]
+        return options, options
+    return dash.no_update, dash.no_update
+
+
+@callback(
+    Output('dataframe-1', 'data'),
+    Output('dataframe-1', 'columns'),
+    [Input('dataframe-selector-1', 'value'),
+     Input('dataframe-delim-selector-1', 'value')]
 )
 def update_fragments_list_table(file_path, delim):
     if file_path and delim:
@@ -104,10 +119,10 @@ def update_fragments_list_table(file_path, delim):
 
 
 @callback(
-    Output('oligo-table', 'data'),
-    Output('oligo-table', 'columns'),
-    [Input('oligo-selector', 'value'),
-     Input('oligo-delim-selector', 'value')]
+    Output('dataframe-2', 'data'),
+    Output('dataframe-2', 'columns'),
+    [Input('dataframe-selector-2', 'value'),
+     Input('dataframe-delim-selector-2', 'value')]
 )
 def update_oligo_table(file_path, delim):
     if file_path and delim:
