@@ -58,9 +58,9 @@ def display_page(value):
 
 @app.callback(
     Output('home-store', 'data'),
-     Input('pcr-selector', 'value'),
-     Input('sample-file-selector', 'value'),
-     Input('reference-selector', 'value')
+    Input('pcr-selector', 'value'),
+    Input('sample-file-selector', 'value'),
+    Input('reference-selector', 'value')
 )
 def update_home_store(pcr_value, sample_value, reference_value):
     return {
@@ -71,16 +71,15 @@ def update_home_store(pcr_value, sample_value, reference_value):
 
 
 @app.callback(
-     Output('pcr-selector', 'value'),
-     Output('sample-file-selector', 'value'),
-     Output('reference-selector', 'value'),
+    Output('pcr-selector', 'value'),
+    Output('sample-file-selector', 'value'),
+    Output('reference-selector', 'value'),
     Input('home-store', 'data'),
     State('tabs', 'value')
 )
 def restore_home_state(home_data, current_tab):
     if current_tab == 'home' and home_data:
         return (
-            # home_data.get('data-dir-input', None),
             home_data.get('pcr-selector', None),
             home_data.get('sample-file-selector', None),
             home_data.get('reference-selector', None),
