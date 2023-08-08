@@ -1,8 +1,6 @@
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 
-from callbacks import display_sample_id, update_input_selectors
-
 layout = dbc.Container([
     dbc.Row(
         dbc.Col([
