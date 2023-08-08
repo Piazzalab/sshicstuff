@@ -5,7 +5,7 @@ import pandas as pd
 from dash import callback
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 
 
 def generate_data_table(id, data, columns):
@@ -66,27 +66,34 @@ layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.Label("Select an input file you'd like to visualize:"),
-            generate_input_selector('dataframe-selector-1', None),
+            generate_input_selector('dataframe-input-selector', None),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '25px'}),
         dbc.Col([
             html.Label("Specify a delimiter: "),
-            generate_delim_selector('dataframe-delim-selector-1'),
+            generate_delim_selector('dataframe-delim-input-selector'),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'}),
+    ]),
+    dbc.Row([
         dbc.Col([
-            dcc.Loading(generate_data_table('dataframe-1', [], []))
+            dcc.Loading(generate_data_table('dataframe-input', [], []))
         ], width=8),
     ]),
     dbc.Row([
         dbc.Col([
-            html.Label("Select an input file you'd like to visualize:"),
-            generate_input_selector('dataframe-selector-2', None),
+            html.Label("Select an output file you'd like to visualize:"),
+            generate_input_selector('dataframe-output-selector', None),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '25px'}),
         dbc.Col([
             html.Label("Specify a delimiter: "),
-            generate_delim_selector('dataframe-delim-selector-2'),
+            generate_delim_selector('dataframe-delim-output-selector'),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'}),
+    ]),
+    dbc.Row([
+        dbc.Col(id='output-subdir-dropdown')
+    ]),
+    dbc.Row([
         dbc.Col([
-            dcc.Loading(generate_data_table('dataframe-2', [], []))
+            dcc.Loading(generate_data_table('dataframe-output', [], []))
         ], width=8),
     ]),
 ])
@@ -101,34 +108,70 @@ def display_sample_id(value):
 
 
 @callback(
-    [Output('dataframe-selector-1', 'options'),
-     Output('dataframe-selector-2', 'options')],
+    Output('dataframe-input-selector', 'options'),
     Input('data-basedir', 'data')
 )
-def update_input_selectors(data_value):
-    if data_value:
-        inputs_dir = join(data_value, 'inputs')
+def update_input_selector(data_dir):
+    if data_dir:
+        inputs_dir = join(data_dir, 'inputs')
         input_files = sorted([file for file in os.listdir(inputs_dir) if isfile(join(inputs_dir, file))])
         options = [{'label': file, 'value': join(inputs_dir, file)} for file in input_files]
-        return options, options
-    return dash.no_update, dash.no_update
+        return options
+    return dash.no_update
 
 
 @callback(
-    [Output('dataframe-1', 'data'),
-     Output('dataframe-1', 'columns')],
-    [Input('dataframe-selector-1', 'value'),
-     Input('dataframe-delim-selector-1', 'value')]
+    Output('dataframe-output-selector', 'options'),
+    Input('this-sample-out-dir-path', 'data')
+)
+def update_outputs_selector(sample_dir):
+    if sample_dir:
+        options = [{'label': file, 'value': os.path.join(sample_dir, file)} for file in os.listdir(sample_dir)]
+        return options
+    return dash.no_update
+
+
+@callback(
+    Output('output-subdir-dropdown', 'children'),
+    Input('dataframe-output-selector', 'value')
+)
+def update_outputs_sub_folder_selector(value):
+    if value and os.path.isdir(value):
+        subdir_options = [{'label': file, 'value': os.path.join(value, file)} for file in os.listdir(value)]
+        return dcc.Dropdown(id='output-subdir-selector', options=subdir_options)
+    return dash.no_update
+
+
+
+# @callback(
+#     Output('subfolder-selector', 'options'),
+#     Input('subfolder-selector', 'value'),
+#     State('this-sample-out-dir-path', 'data')
+# )
+# def update_subfolder_selectors(selected_subfolder, sample_dir):
+#     if selected_subfolder:
+#         subfolder_path = os.path.join(sample_dir, selected_subfolder)
+#         subfolder_options = [{'label': item, 'value': os.path.join(subfolder_path, item)} for item in os.listdir(subfolder_path)]
+#         return subfolder_options
+#     return dash.no_update
+
+
+
+@callback(
+    [Output('dataframe-input', 'data'),
+     Output('dataframe-input', 'columns')],
+    [Input('dataframe-input-selector', 'value'),
+     Input('dataframe-delim-input-selector', 'value')]
 )
 def update_dataframe_1(file_path, delim):
     return update_table(file_path, delim)
 
 
 @callback(
-    [Output('dataframe-2', 'data'),
-     Output('dataframe-2', 'columns')],
-    [Input('dataframe-selector-2', 'value'),
-     Input('dataframe-delim-selector-2', 'value')]
+    [Output('dataframe-output', 'data'),
+     Output('dataframe-output', 'columns')],
+    [Input('dataframe-output-selector', 'value'),
+     Input('dataframe-delim-output-selector', 'value')]
 )
 def update_dataframe_2(file_path, delim):
     return update_table(file_path, delim)
