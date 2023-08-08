@@ -61,6 +61,9 @@ layout = dbc.Container([
         html.H3('Data Viewer', style={'margin-top': '20px', 'margin-bottom': '20px'})
     ]),
     dbc.Row([
+        html.Div(id='data-viewer-display-samp-id', style={'margin-top': '20px', 'margin-bottom': '20px'})
+    ]),
+    dbc.Row([
         dbc.Col([
             html.Label("Select an input file you'd like to visualize:"),
             generate_input_selector('dataframe-selector-1', None),
@@ -87,6 +90,14 @@ layout = dbc.Container([
         ], width=8),
     ]),
 ])
+
+
+@callback(
+    Output('data-viewer-display-samp-id', 'children'),
+    Input('this-sample-id', 'data')
+)
+def display_sample_id(value):
+    return f"You are currently working on sample {value}"
 
 
 @callback(
