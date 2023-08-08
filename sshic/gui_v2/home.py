@@ -92,7 +92,7 @@ def update_dropdown_options(directory_data, filter_string=''):
     Output('pcr-selector', 'options'),
     Input('data-samples-path', 'data')
 )
-def update_pcr_filter_selector(samples_dir_data):
+def update_pcr_selector(samples_dir_data):
     return update_dropdown_options(samples_dir_data, 'pcr')
 
 
