@@ -5,9 +5,55 @@ import pandas as pd
 from dash import callback
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output
 
-from sshic.core.filter import filter_contacts
+
+def generate_data_table(id, data, columns):
+    return dash_table.DataTable(
+        id=id,
+        data=data,
+        columns=columns,
+        style_table={'overflowX': 'auto'},
+        page_size=16,
+        style_header={
+            'backgroundColor': '#eaecee',
+            'color': ' #3498db ',
+            'fontWeight': 'bold'},
+        sort_action='native',
+        sort_mode='multi',
+    )
+
+
+def generate_input_selector(id, value):
+    return dcc.Dropdown(
+        id=id,
+        multi=False,
+        value=value,
+    )
+
+
+def generate_delim_selector(id):
+    return dcc.Dropdown(
+        id=id,
+        multi=False,
+        options=[
+            {'label': 'Tab', 'value': '\t'},
+            {'label': 'Comma', 'value': ','},
+            {'label': 'Space', 'value': ' '},
+            {'label': 'Semicolon', 'value': ';'},
+            {'label': 'Colon', 'value': ':'}
+        ],
+        value=None,
+    )
+
+
+def update_table(file_path, delim):
+    if file_path and delim:
+        df = pd.read_csv(file_path, sep=delim)
+        data = df.to_dict('records')
+        columns = [{"name": i, "id": i} for i in df.columns]
+        return data, columns
+    return None, None
 
 
 layout = dbc.Container([
@@ -17,81 +63,35 @@ layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.Label("Select an input file you'd like to visualize:"),
-            dcc.Dropdown(id='dataframe-selector-1', multi=False),
+            generate_input_selector('dataframe-selector-1', None),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '25px'}),
         dbc.Col([
             html.Label("Specify a delimiter: "),
-            dcc.Dropdown(
-                id='dataframe-delim-selector-1',
-                multi=False,
-                options=[{'label': 'Tab', 'value': '\t'},
-                         {'label': 'Comma', 'value': ','},
-                         {'label': 'Space', 'value': ' '},
-                         {'label': 'Semicolon', 'value': ';'},
-                         {'label': 'Colon', 'value': ':'}],
-                value=None,
-            ),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'})
-    ]),
-    dbc.Row([
+            generate_delim_selector('dataframe-delim-selector-1'),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'}),
         dbc.Col([
-            dcc.Loading(
-                dash_table.DataTable(
-                    id='dataframe-1',
-                    style_table={'overflowX': 'auto'},
-                    page_size=16,
-                    style_header={
-                        'backgroundColor': '#eaecee',
-                        'color': ' #3498db ',
-                        'fontWeight': 'bold'},
-                    sort_action='native',
-                    sort_mode='multi',
-                )
-            )
-        ], width=12),
+            dcc.Loading(generate_data_table('dataframe-1', [], []))
+        ], width=8),
     ]),
     dbc.Row([
         dbc.Col([
             html.Label("Select an input file you'd like to visualize:"),
-            dcc.Dropdown(id='dataframe-selector-2', multi=False),
+            generate_input_selector('dataframe-selector-2', None),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '25px'}),
         dbc.Col([
             html.Label("Specify a delimiter: "),
-            dcc.Dropdown(
-                id='dataframe-delim-selector-2',
-                multi=False,
-                options=[{'label': 'Tab', 'value': '\t'},
-                         {'label': 'Comma', 'value': ','},
-                         {'label': 'Space', 'value': ' '},
-                         {'label': 'Semicolon', 'value': ';'},
-                         {'label': 'Colon', 'value': ':'}],
-                value=None,
-            ),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'})
-    ]),
-    dbc.Row([
+            generate_delim_selector('dataframe-delim-selector-2'),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'}),
         dbc.Col([
-            dcc.Loading(
-                dash_table.DataTable(
-                    id='dataframe-2',
-                    style_table={'overflowX': 'auto'},
-                    page_size=16,
-                    style_header={
-                        'backgroundColor': '#eaecee',
-                        'color': ' #3498db ',
-                        'fontWeight': 'bold'},
-                    sort_action='native',
-                    sort_mode='multi',
-                )
-            )
-        ], width=12),
-    ])
+            dcc.Loading(generate_data_table('dataframe-2', [], []))
+        ], width=8),
+    ]),
 ])
 
 
 @callback(
-    Output('dataframe-selector-1', 'options'),
-    Output('dataframe-selector-2', 'options'),
+    [Output('dataframe-selector-1', 'options'),
+     Output('dataframe-selector-2', 'options')],
     Input('data-basedir', 'data')
 )
 def update_input_selectors(data_value):
@@ -104,30 +104,20 @@ def update_input_selectors(data_value):
 
 
 @callback(
-    Output('dataframe-1', 'data'),
-    Output('dataframe-1', 'columns'),
+    [Output('dataframe-1', 'data'),
+     Output('dataframe-1', 'columns')],
     [Input('dataframe-selector-1', 'value'),
      Input('dataframe-delim-selector-1', 'value')]
 )
-def update_fragments_list_table(file_path, delim):
-    if file_path and delim:
-        df = pd.read_csv(file_path, sep=delim)
-        data = df.to_dict('records')
-        columns = [{"name": i, "id": i} for i in df.columns]
-        return data, columns
-    return None, None
+def update_dataframe_1(file_path, delim):
+    return update_table(file_path, delim)
 
 
 @callback(
-    Output('dataframe-2', 'data'),
-    Output('dataframe-2', 'columns'),
+    [Output('dataframe-2', 'data'),
+     Output('dataframe-2', 'columns')],
     [Input('dataframe-selector-2', 'value'),
      Input('dataframe-delim-selector-2', 'value')]
 )
-def update_oligo_table(file_path, delim):
-    if file_path and delim:
-        df = pd.read_csv(file_path, sep=delim)
-        data = df.to_dict('records')
-        columns = [{"name": i, "id": i} for i in df.columns]
-        return data, columns
-    return None, None
+def update_dataframe_2(file_path, delim):
+    return update_table(file_path, delim)
