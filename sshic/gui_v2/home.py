@@ -23,7 +23,7 @@ layout = html.Div([
                 html.Label('Please specify the location of your data (absolute path):',
                            style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 dcc.Input(
-                    id='data-dir-path',
+                    id='data-dir-input',
                     type='text',
                     placeholder='Input the folder path here',
                     value=join(dirname(dirname(os.getcwd())), "data"),
@@ -83,11 +83,11 @@ def get_files_from_dir(directory, filter_string='', stamp="f"):
 
 @callback(
     Output('pcr-selector', 'options'),
-    Input('data-dir-path', 'value')
+    Input('data-dir-input', 'value')
 )
-def update_pcr_selector(data_dir):
-    if data_dir:
-        samples_dir = join(data_dir, "samples")
+def update_pcr_selector(data_value):
+    if data_value:
+        samples_dir = join(data_value, "samples")
         dir_list = get_files_from_dir(samples_dir, filter_string="pcr", stamp='d')
         return [{'label': s, 'value': s} for s in dir_list]
     return dash.no_update
@@ -95,12 +95,12 @@ def update_pcr_selector(data_dir):
 
 @callback(
     Output('sample-file-selector', 'options'),
-    [Input('data-dir-path', 'value'),
+    [Input('data-dir-input', 'value'),
      Input('pcr-selector', 'value')]
 )
-def update_sample_selector(data_dir, pcr_value):
-    if data_dir and pcr_value:
-        samples_dir = join(data_dir, "samples", pcr_value)
+def update_sample_selector(data_value, pcr_value):
+    if data_value and pcr_value:
+        samples_dir = join(data_value, "samples", pcr_value)
         samples = sorted(get_files_from_dir(samples_dir, stamp='f'),
                          key=lambda x: int(re.search(r'AD(\d+)', x).group(1)))
         return [{'label': s, 'value': s} for s in samples]
@@ -109,26 +109,36 @@ def update_sample_selector(data_dir, pcr_value):
 
 @callback(
     Output('reference-selector', 'options'),
-    [Input('data-dir-path', 'value'),
+    [Input('data-dir-input', 'value'),
      Input('sample-file-selector', 'value')]
 )
-def update_reference_selector(data_dir, sample_file_value):
-    if data_dir and sample_file_value:
-        refs_dir = join(data_dir, "inputs", "references")
+def update_reference_selector(data_value, sample_file_value):
+    if data_value and sample_file_value:
+        refs_dir = join(data_value, "inputs", "references")
         references = sorted(get_files_from_dir(refs_dir, stamp='f'))
         return [{'label': r, 'value': r} for r in references]
     return dash.no_update
 
 
 @callback(
+    Output('data-basedir', 'data'),
+    Input('data-dir-input', 'value')
+)
+def get_data_basedir(data_value):
+    if data_value:
+        return data_value
+    return dash.no_update
+
+
+@callback(
     Output('this-sample-path', 'data'),
-    [Input('data-dir-path', 'value'),
+    [Input('data-dir-input', 'value'),
      Input('pcr-selector', 'value'),
      Input('sample-file-selector', 'value')]
 )
-def get_samples_path_value(data_dir, pcr_value, sample_path_value):
-    if data_dir and pcr_value and sample_path_value:
-        return join(data_dir, "samples", pcr_value, sample_path_value)
+def get_sample_path_value(data_value, pcr_value, sample_path_value):
+    if data_value and pcr_value and sample_path_value:
+        return join(data_value, "samples", pcr_value, sample_path_value)
     return dash.no_update
 
 
@@ -144,12 +154,12 @@ def get_sample_id(sample_value):
 
 @callback(
     Output('this-sample-ref-path', 'data'),
-    [Input('data-dir-path', 'value'),
+    [Input('data-dir-input', 'value'),
      Input('reference-selector', 'value')]
 )
-def get_reference(data_dir, reference_value):
-    if data_dir and reference_value:
-        return join(data_dir, "inputs", "references", reference_value)
+def get_reference(data_value, reference_value):
+    if data_value and reference_value:
+        return join(data_value, "inputs", "references", reference_value)
     return None
 
 

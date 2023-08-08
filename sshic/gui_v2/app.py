@@ -32,6 +32,7 @@ app.layout = html.Div([
                          className='custom-tab', selected_className='custom-tab--selected'),
              ]),
     html.Div(id='page-content'),
+    dcc.Store(id='data-basedir'),
     dcc.Store(id='this-sample-path'),
     dcc.Store(id='this-sample-id'),
     dcc.Store(id='this-sample-out-dir-path'),
@@ -57,9 +58,9 @@ def display_page(value):
 
 @app.callback(
     Output('home-store', 'data'),
-    [Input('pcr-selector', 'value'),
+     Input('pcr-selector', 'value'),
      Input('sample-file-selector', 'value'),
-     Input('reference-selector', 'value')]
+     Input('reference-selector', 'value')
 )
 def update_home_store(pcr_value, sample_value, reference_value):
     return {
@@ -70,25 +71,22 @@ def update_home_store(pcr_value, sample_value, reference_value):
 
 
 @app.callback(
-    [Output('pcr-selector', 'value'),
+     Output('pcr-selector', 'value'),
      Output('sample-file-selector', 'value'),
-     Output('reference-selector', 'value')],
-    [Input('home-store', 'data')],
-    [State('tabs', 'value')]
+     Output('reference-selector', 'value'),
+    Input('home-store', 'data'),
+    State('tabs', 'value')
 )
 def restore_home_state(home_data, current_tab):
     if current_tab == 'home' and home_data:
         return (
+            # home_data.get('data-dir-input', None),
             home_data.get('pcr-selector', None),
             home_data.get('sample-file-selector', None),
             home_data.get('reference-selector', None),
         )
     else:
-        return (
-            None,
-            None,
-            None,
-        )
+        return None, None, None
 
 
 if __name__ == '__main__':

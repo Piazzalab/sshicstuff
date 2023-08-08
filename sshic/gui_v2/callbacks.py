@@ -15,12 +15,11 @@ def display_sample_id(value):
 @callback(
     [Output('fragments-list-selector', 'options'),
      Output('oligo-selector', 'options')],
-    Input('data-dir-path', 'data')
+    Input('data-basedir', 'data')
 )
-def update_input_selectors(data_dir):
-
-    if data_dir:
-        inputs_dir = join(data_dir, 'inputs')
+def update_input_selectors(data_value):
+    if data_value:
+        inputs_dir = join(data_value, 'inputs')
         input_files = sorted([file for file in listdir(inputs_dir) if isfile(join(inputs_dir, file))])
         options = [{'label': file, 'value': join(inputs_dir, file)} for file in input_files]
         return options, options
