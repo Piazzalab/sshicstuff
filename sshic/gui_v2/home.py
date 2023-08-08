@@ -9,84 +9,63 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 
 
-def create_layout():
-    return html.Div([
-        dbc.Container([
-            create_header(),
-            create_data_dir_row(),
-            create_pcr_selector_row(),
-            create_sample_selector_row(),
-            create_reference_selector_row()
+layout = html.Div([
+    dbc.Container([
+        dbc.Row(
+            dbc.Col(
+                html.H1('Welcome to our single strand Hi-C (sshic) platform'),
+                width={'size': 6, 'offset': 3},
+                style={'text-align': 'center', 'margin-top': '50px', 'margin-bottom': '50px'}
+            )
+        ),
+        dbc.Row(
+            dbc.Col([
+                html.Label('Please specify the location of your data (absolute path):',
+                           style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                dcc.Input(
+                    id='data-dir-input',
+                    type='text',
+                    placeholder='Input the folder path here',
+                    value=join(dirname(dirname(os.getcwd())), "data"),
+                    style={'width': '100%'}
+                ),
+            ], width=6, style={'margin-top': '50px', 'margin-bottom': '50px'}),
+        ),
+        dbc.Row([
+            dbc.Col([
+                html.Label("Select a PCR duplicates filter folder:"),
+                dcc.Dropdown(
+                    id='pcr-selector',
+                    multi=False,
+                ),
+                html.Br(),
+            ]),
         ]),
-    ])
-
-
-def create_header():
-    return dbc.Row(
-        dbc.Col(
-            html.H1('Welcome to our single strand Hi-C (sshic) platform'),
-            width={'size': 6, 'offset': 3},
-            style={'text-align': 'center', 'margin-top': '50px', 'margin-bottom': '50px'}
-        )
-    )
-
-
-def create_data_dir_row():
-    return dbc.Row(
-        dbc.Col([
-            html.Label('Please specify the location of your data (absolute path):',
-                       style={'margin-top': '10px', 'margin-bottom': '10px'}),
-            dcc.Input(
-                id='data-dir-input',
-                type='text',
-                placeholder='Input the folder path here',
-                value=join(dirname(dirname(os.getcwd())), "data"),
-                style={'width': '100%'}
-            ),
-        ], width=6, style={'margin-top': '50px', 'margin-bottom': '50px'}),
-    )
-
-
-def create_pcr_selector_row():
-    return dbc.Row([
-        dbc.Col([
-            html.Label("Select a PCR duplicates filter folder:"),
-            dcc.Dropdown(
-                id='pcr-selector',
-                multi=False,
-            ),
-            html.Br(),
+        dbc.Row([
+            dbc.Col([
+                html.Label("Select a Sample:"),
+                dcc.Dropdown(
+                    id='sample-file-selector',
+                    options=[],
+                    multi=False,
+                ),
+                html.Br(),
+            ]),
         ]),
-    ])
-
-
-def create_sample_selector_row():
-    return dbc.Row([
-        dbc.Col([
-            html.Label("Select a Sample:"),
-            dcc.Dropdown(
-                id='sample-file-selector',
-                options=[],
-                multi=False,
-            ),
-            html.Br(),
+        dbc.Row([
+            dbc.Col([
+                html.Label("Please indicate a WT reference if you wish to weight your contacts:"),
+                dcc.Dropdown(
+                    id='reference-selector',
+                    options=[],
+                    value=None,
+                    multi=False,
+                ),
+                html.Br(),
+            ]),
         ]),
-    ])
-
-
-def create_reference_selector_row():
-    return dbc.Row([
-        dbc.Col([
-            html.Label("Please indicate a WT reference if you wish to weight your contacts:"),
-            dcc.Dropdown(
-                id='reference-selector',
-                options=[],
-                value=None,
-                multi=False,
-            ),
-            html.Br(),
-        ]),
-    ])
+    ]),
+])
 
 
 def get_files_from_dir(directory, filter_string='', stamp="f"):
@@ -209,6 +188,3 @@ def create_samp_dir(sample_name, sample_path_value, reference_path):
 
         return samp_dir
     return dash.no_update
-
-
-layout = create_layout()
