@@ -1,8 +1,12 @@
 body {
     font-family: sans-serif;
 }
-h1, h2, h3, h4, h5, h6 {
+h1, h2, h3 {
     color: #3a83fd;
+}
+
+h4, h5, h6 {
+    color: #000000;
 }
 
 .app-header {
