@@ -2,7 +2,7 @@ import dash
 import os
 import base64
 from urllib.parse import quote as urlquote
-from os.path import join, isfile
+from os.path import join, isfile, isdir, dirname
 import pandas as pd
 from dash import callback
 from dash import html, dcc, dash_table
@@ -10,10 +10,10 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
 
-UPLOAD_DIRECTORY = "/home/nicolas/Téléchargements/uploaded_files"
+TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
 
-if not os.path.exists(UPLOAD_DIRECTORY):
-    os.makedirs(UPLOAD_DIRECTORY)
+if not os.path.exists(TEMPORARY_DIRECTORY):
+    os.makedirs(TEMPORARY_DIRECTORY)
 
 layout = dbc.Container([
     html.H3('Data Viewer', style={'margin-top': '20px', 'margin-bottom': '20px'}),
@@ -63,15 +63,15 @@ layout = dbc.Container([
 def save_file(name, content):
     """Decode and store a file uploaded with Plotly Dash."""
     data = content.encode("utf8").split(b";base64,")[1]
-    with open(os.path.join(UPLOAD_DIRECTORY, name), "wb") as fp:
+    with open(os.path.join(TEMPORARY_DIRECTORY, name), "wb") as fp:
         fp.write(base64.decodebytes(data))
 
 
 def uploaded_files():
     """List the files in the upload directory."""
     files = []
-    for filename in os.listdir(UPLOAD_DIRECTORY):
-        path = os.path.join(UPLOAD_DIRECTORY, filename)
+    for filename in os.listdir(TEMPORARY_DIRECTORY):
+        path = os.path.join(TEMPORARY_DIRECTORY, filename)
         if os.path.isfile(path):
             files.append(filename)
     return files
@@ -85,7 +85,8 @@ def file_download_link(filename):
 
 @callback(
     Output("file-list", "children"),
-    [Input("upload-data", "filename"), Input("upload-data", "contents")],
+    [Input("upload-data", "filename"),
+     Input("upload-data", "contents")],
 )
 def update_output(uploaded_filenames, uploaded_file_contents):
     """Save uploaded files and regenerate the file list."""
