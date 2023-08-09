@@ -1,5 +1,7 @@
 import dash
 import os
+import base64
+from urllib.parse import quote as urlquote
 from os.path import join, isfile
 import pandas as pd
 from dash import callback
@@ -8,30 +10,10 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
 
-def generate_data_table(id, data, columns):
-    return dash_table.DataTable(
-        id=id,
-        data=data,
-        columns=columns,
-        style_table={'overflowX': 'auto'},
-        page_size=16,
-        style_header={
-            'backgroundColor': '#eaecee',
-            'color': ' #3498db ',
-            'fontWeight': 'bold'},
-        sort_action='native',
-        sort_mode='multi',
-    )
+UPLOAD_DIRECTORY = "/home/nicolas/Téléchargements/uploaded_files"
 
-
-def update_table(file_path, delim):
-    if file_path and delim:
-        df = pd.read_csv(file_path, sep=delim)
-        data = df.to_dict('records')
-        columns = [{"name": i, "id": i} for i in df.columns]
-        return data, columns
-    return None, None
-
+if not os.path.exists(UPLOAD_DIRECTORY):
+    os.makedirs(UPLOAD_DIRECTORY)
 
 layout = dbc.Container([
     html.H3('Data Viewer', style={'margin-top': '20px', 'margin-bottom': '20px'}),
@@ -69,19 +51,51 @@ layout = dbc.Container([
                 ],
                 value=None,
             )
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px'}),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px', 'margin-left': '40px'}),
     ]),
     dbc.Row([
-        dbc.Col([
-            dcc.Loading(generate_data_table('dataframe-input', [], []))
-        ], width=8),
+        html.H2("File List"),
+        html.Ul(id="file-list"),
     ]),
 ])
 
 
+def save_file(name, content):
+    """Decode and store a file uploaded with Plotly Dash."""
+    data = content.encode("utf8").split(b";base64,")[1]
+    with open(os.path.join(UPLOAD_DIRECTORY, name), "wb") as fp:
+        fp.write(base64.decodebytes(data))
+
+
+def uploaded_files():
+    """List the files in the upload directory."""
+    files = []
+    for filename in os.listdir(UPLOAD_DIRECTORY):
+        path = os.path.join(UPLOAD_DIRECTORY, filename)
+        if os.path.isfile(path):
+            files.append(filename)
+    return files
+
+
+def file_download_link(filename):
+    """Create a Plotly Dash 'A' element that downloads a file from the app."""
+    location = "/download/{}".format(urlquote(filename))
+    return html.A(filename, href=location)
+
+
 @callback(
-    Output('upload-data', 'multiple'),
-    Input('data-basedir', 'data')
+    Output("file-list", "children"),
+    [Input("upload-data", "filename"), Input("upload-data", "contents")],
 )
-def update_upload(multiple):
-    return not multiple
+def update_output(uploaded_filenames, uploaded_file_contents):
+    """Save uploaded files and regenerate the file list."""
+
+    if uploaded_filenames is not None and uploaded_file_contents is not None:
+        for name, data in zip(uploaded_filenames, uploaded_file_contents):
+            save_file(name, data)
+
+    files = uploaded_files()
+    if len(files) == 0:
+        return [html.Li("No files yet!")]
+    else:
+        return [html.Li(file_download_link(filename)) for filename in files]
