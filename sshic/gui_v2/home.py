@@ -9,6 +9,9 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 
 
+TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
+
+
 layout = html.Div([
     dbc.Container([
         dbc.Row(
@@ -18,7 +21,7 @@ layout = html.Div([
                 style={'text-align': 'center', 'margin-top': '50px', 'margin-bottom': '50px'}
             )
         ),
-        dbc.Row(
+        dbc.Row([
             dbc.Col([
                 html.Label('Please specify the location of your data (absolute path):',
                            style={'margin-top': '10px', 'margin-bottom': '10px'}),
@@ -27,10 +30,26 @@ layout = html.Div([
                     type='text',
                     placeholder='Input the folder path here',
                     value=join(dirname(dirname(os.getcwd())), "data"),
-                    style={'width': '100%'}
+                    style={
+                        'width': '100%',
+                        'border': '1px solid #ccc',
+                        'border-radius': '4px',
+                        'padding': '10px',
+                        'font-size': '16px',
+                        'background-color': '#fff',
+                        'color': '#333',
+                    }
                 ),
             ], width=6, style={'margin-top': '50px', 'margin-bottom': '50px'}),
-        ),
+
+            dbc.Col([
+                html.Button(
+                    id="clear-cache",
+                    className="btn btn-danger",
+                    children="Clear Cache",
+                ),
+            ], style={'margin-top': '96px', 'margin-bottom': '0px', 'margin-left': '40px'}),
+        ]),
         dbc.Row([
             dbc.Col([
                 html.Label("Select a PCR duplicates filter folder:"),
@@ -182,3 +201,15 @@ def create_samp_dir(sample_name, sample_path_value, reference_path):
 
         return samp_dir
     return dash.no_update
+
+
+@callback(
+    Output('clear-cache', 'n_clicks'),
+    Input('clear-cache', 'n_clicks')
+)
+def clear_cache_contents(n_clicks):
+    if n_clicks is not None:
+        if n_clicks > 0:
+            for filename in os.listdir(TEMPORARY_DIRECTORY):
+                os.remove(os.path.join(TEMPORARY_DIRECTORY, filename))
+    return 0
