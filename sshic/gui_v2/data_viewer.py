@@ -14,9 +14,6 @@ TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
 
 if not os.path.exists(TEMPORARY_DIRECTORY):
     os.makedirs(TEMPORARY_DIRECTORY)
-else:
-    for filename in os.listdir(TEMPORARY_DIRECTORY):
-        os.remove(os.path.join(TEMPORARY_DIRECTORY, filename))
 
 
 def generate_data_table(id, data, columns):
