@@ -15,6 +15,7 @@ TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
 if not os.path.exists(TEMPORARY_DIRECTORY):
     os.makedirs(TEMPORARY_DIRECTORY)
 
+
 layout = dbc.Container([
     html.H3('Data Viewer', style={'margin-top': '20px', 'margin-bottom': '20px'}),
     dbc.Row([
@@ -54,8 +55,18 @@ layout = dbc.Container([
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '25px', 'margin-left': '40px'}),
     ]),
     dbc.Row([
-        html.H2("File List"),
-        html.Ul(id="file-list"),
+        dbc.Col([
+            html.H2("File List"),
+            html.Ul(id="file-list"),
+        ]),
+        dbc.Col([
+            html.Button(
+                id="clear-list",
+                className="btn btn-danger",
+                children="Clear List",
+                style={'margin-top': '10px', 'margin-bottom': '10px'},
+            )
+        ]),
     ]),
 ])
 
@@ -83,20 +94,63 @@ def file_download_link(filename):
     return html.A(filename, href=location)
 
 
+# @callback(
+#     Output("file-list", "children"),
+#     [Input("upload-data", "filename"),
+#      Input("upload-data", "contents")],
+# )
+# def update_output(uploaded_filenames, uploaded_file_contents):
+#     """Save uploaded files and regenerate the file list."""
+#
+#     if uploaded_filenames is not None and uploaded_file_contents is not None:
+#         for name, data in zip(uploaded_filenames, uploaded_file_contents):
+#             save_file(name, data)
+#
+#     files = uploaded_files()
+#     if len(files) == 0:
+#         return [html.Li("No files yet!")]
+#     else:
+#         return [html.Li(file_download_link(filename)) for filename in files]
+#
+#
+# @callback(
+#     Output("file-list", "children"),
+#     Input("clear-list", "n_clicks"),
+# )
+# def clear_list_callback(n_clicks):
+#     """Clear the file list and delete the files in the TEMPORARY_DIRECTORY."""
+#     if n_clicks > 0:
+#         files = uploaded_files()
+#         for filename in files:
+#             os.remove(os.path.join(TEMPORARY_DIRECTORY, filename))
+#         files = []
+#         return [html.Li("No files yet!")]
+
+
 @callback(
     Output("file-list", "children"),
+    Output("clear-list", "n_clicks"),
     [Input("upload-data", "filename"),
-     Input("upload-data", "contents")],
+     Input("upload-data", "contents"),
+     Input("clear-list", "n_clicks")],
 )
-def update_output(uploaded_filenames, uploaded_file_contents):
-    """Save uploaded files and regenerate the file list."""
+def update_output(uploaded_filenames, uploaded_file_contents, n_clicks):
+    """Save uploaded files, clear the file list, and regenerate the file list."""
 
     if uploaded_filenames is not None and uploaded_file_contents is not None:
         for name, data in zip(uploaded_filenames, uploaded_file_contents):
             save_file(name, data)
 
+    if n_clicks is not None:
+        if n_clicks > 0:
+            files = uploaded_files()
+            for filename in files:
+                os.remove(os.path.join(TEMPORARY_DIRECTORY, filename))
+            files = []
+
+    n_clicks = 0
     files = uploaded_files()
     if len(files) == 0:
-        return [html.Li("No files yet!")]
+        return [html.Li("No files yet!")], n_clicks
     else:
-        return [html.Li(file_download_link(filename)) for filename in files]
+        return [html.Li(file_download_link(filename)) for filename in files], n_clicks
