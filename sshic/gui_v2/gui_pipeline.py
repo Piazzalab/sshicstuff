@@ -1,14 +1,33 @@
 import os
 import re
 import dash
+import pandas as pd
 from os.path import isfile, join
 import dash_bootstrap_components as dbc
 from dash import callback
-from dash import html, dcc
+from dash import html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 
+import utils
 import filter
 import coverage
+import probe2fragment
+
+
+def generate_data_table(id, data, columns):
+    return dash_table.DataTable(
+        id=id,
+        data=data,
+        columns=columns,
+        style_table={'overflowX': 'auto'},
+        page_size=8,
+        style_header={
+            'backgroundColor': '#eaecee',
+            'color': ' #3498db ',
+            'fontWeight': 'bold'},
+        sort_action='native',
+        sort_mode='multi',
+    )
 
 
 layout = dbc.Container([
@@ -30,6 +49,33 @@ layout = dbc.Container([
             html.Label("Chromosome coordinates:"),
             dcc.Dropdown(id='pp-chr-coords', multi=False),
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'})
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='pp-p2f-dataframe-title',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            dcc.Loading(generate_data_table('pp-p2f-dataframe', [], []))
+        ], width=4, style={'margin-top': '20px', 'margin-bottom': '25px'}),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(
+                id="pp-p2f",
+                className="blue-button",
+                children="Probes to fragments",
+            ),
+            dbc.Tooltip(
+                "Create a columns in the oligo table with the corresponding fragment",
+                target="pp-p2f",
+                className="custom-tooltip",
+                placement="right",
+            ),
+        ], width=3, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            html.Div(id='pp-p2f-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
     ]),
 
     dbc.Row([
@@ -98,6 +144,45 @@ def update_dropdowns(data_basedir):
     return options, options, options
 
 
+def prepare_dataframe_for_output(dataframe):
+    selected_columns = ['name', 'fragment']
+    df_output = dataframe[selected_columns]
+    data = df_output.to_dict('records')
+    columns = [{"name": col, "id": col} for col in selected_columns]
+    return data, columns
+
+
+@callback(
+    [Output('pp-p2f', 'n_clicks'),
+     Output('pp-p2f-output', 'children'),
+     Output('pp-p2f-dataframe-title', 'children'),
+     Output('pp-p2f-dataframe', 'data'),
+     Output('pp-p2f-dataframe', 'columns')],
+    [Input('pp-p2f', 'n_clicks')],
+    [State('pp-fragments-selector', 'value'),
+     State('pp-oligo-selector', 'value')]
+)
+def oligo_and_fragments(n_clicks, fragments_file, oligo_file):
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+    if fragments_file is None or oligo_file is None:
+        return 0, "Select both fragments and capture oligos files", dash.no_update, dash.no_update, dash.no_update
+
+    df_oli = pd.read_csv(oligo_file, sep=utils.detect_delimiter(oligo_file))
+    df_frag = pd.read_csv(fragments_file, sep=utils.detect_delimiter(fragments_file))
+
+    title = html.H6("Oligo probes VS. Fragments ID:")
+    if 'fragment' in df_oli.columns:
+        data, columns = prepare_dataframe_for_output(df_oli)
+        return 0, "Capture oligos table already contains a fragment column", title, data, columns
+    else:
+        probe2fragment.associate_probes_to_fragments(fragments_file, oligo_file)
+        df_p2f = pd.read_csv(oligo_file, sep=utils.detect_delimiter(oligo_file))
+        data, columns = prepare_dataframe_for_output(df_p2f)
+        return 0, "Associated probes to fragments successfully", title, data, columns
+
+
 @callback(
     [Output('pp-filter', 'n_clicks'),
      Output('pp-filter-output', 'children')],
@@ -155,3 +240,4 @@ def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file):
 
     coverage.coverage(sparse_matrix, fragments_file, output_dir)
     return 0, "Coverage file created successfully"
+
