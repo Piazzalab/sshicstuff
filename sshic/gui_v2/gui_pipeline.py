@@ -8,6 +8,7 @@ from dash import html, dcc
 from dash.dependencies import Input, Output, State
 
 import filter
+import coverage
 
 
 layout = dbc.Container([
@@ -45,10 +46,30 @@ layout = dbc.Container([
                 className="custom-tooltip",
                 placement="right",
             ),
-        ], width=1, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px'}),
 
         dbc.Col([
             html.Div(id='pp-filter-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(
+                id="pp-coverage",
+                className="blue-button",
+                children="Coverage",
+            ),
+            dbc.Tooltip(
+                "Calculate the coverage per oligo fragment and save the result as a bed-graph file",
+                target="pp-coverage",
+                className="custom-tooltip",
+                placement="right",
+            ),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            html.Div(id='pp-coverage-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
     ])
 ])
@@ -103,8 +124,34 @@ def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_
         return 0, "Select a digested fragments file"
     if oligos_file is None:
         return 0, "Select a capture oligos file"
-    if sparse_matrix is None:
-        return 0, "Please select a sample sparse matrix (in home tab)"
 
     filter.filter_contacts(oligos_file, fragments_file, sparse_matrix, output_dir)
     return 0, "Filtered contacts file created successfully"
+
+
+@callback(
+    [Output('pp-coverage', 'n_clicks'),
+     Output('pp-coverage-output', 'children')],
+    [Input('pp-coverage', 'n_clicks')],
+    [State('this-sample-out-dir-path', 'data'),
+     State('this-sample-path', 'data'),
+     State('pp-fragments-selector', 'value')]
+)
+def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file):
+    if output_dir is None:
+        return dash.no_update, "Please select a sample sparse matrix (in home tab)"
+
+    pattern = re.compile(r'.+_coverage_')
+    if n_clicks == 1:
+        for file in os.listdir(output_dir):
+            if pattern.match(file):
+                return n_clicks, "Coverage bed-graph file already exists (click again to overwrite)"
+
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update
+
+    if fragments_file is None:
+        return 0, "Select a digested fragments file"
+
+    coverage.coverage(sparse_matrix, fragments_file, output_dir)
+    return 0, "Coverage file created successfully"
