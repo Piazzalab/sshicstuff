@@ -41,14 +41,6 @@ layout = html.Div([
                     }
                 ),
             ], width=6, style={'margin-top': '50px', 'margin-bottom': '50px'}),
-
-            dbc.Col([
-                html.Button(
-                    id="clear-cache",
-                    className="btn btn-danger",
-                    children="Clear Cache",
-                ),
-            ], style={'margin-top': '96px', 'margin-bottom': '0px', 'margin-left': '40px'}),
         ]),
         dbc.Row([
             dbc.Col([
@@ -201,15 +193,3 @@ def create_samp_dir(sample_name, sample_path_value, reference_path):
 
         return samp_dir
     return dash.no_update
-
-
-@callback(
-    Output('clear-cache', 'n_clicks'),
-    Input('clear-cache', 'n_clicks')
-)
-def clear_cache_contents(n_clicks):
-    if n_clicks is not None:
-        if n_clicks > 0:
-            for filename in os.listdir(TEMPORARY_DIRECTORY):
-                os.remove(os.path.join(TEMPORARY_DIRECTORY, filename))
-    return 0
