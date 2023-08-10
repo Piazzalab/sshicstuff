@@ -53,6 +53,18 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
+            html.Label("Please indicate a WT reference if you wish to weight your contacts:"),
+            dcc.Dropdown(
+                id='pp-reference-selector',
+                options=[],
+                value=None,
+                multi=False,
+            ),
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
             html.Div(id='pp-p2f-dataframe-title',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
             dcc.Loading(generate_data_table('pp-p2f-dataframe', [], []))
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
@@ -117,6 +129,27 @@ layout = dbc.Container([
         dbc.Col([
             html.Div(id='pp-coverage-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
+    ], style={'margin-bottom': '10px'}),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(
+                id="pp-orga-contacts",
+                className="blue-button",
+                children="Organize contacts",
+            ),
+            dbc.Tooltip(
+                "Organize the contacts made by each probe with the genome and save "
+                "the results as two .tsv files one for contacts and one for frequencies.",
+                target="pp-orga-contacts",
+                className="custom-tooltip",
+                placement="right",
+            ),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            html.Div(id='pp-orga-contacts-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
     ], style={'margin-bottom': '10px'})
 ])
 
@@ -133,15 +166,20 @@ def display_sample_id(sample_id):
     Output('pp-fragments-selector', 'options'),
     Output('pp-oligo-selector', 'options'),
     Output('pp-chr-coords', 'options'),
+    Output('pp-reference-selector', 'options'),
     Input('data-basedir', 'data')
 )
 def update_dropdowns(data_basedir):
     if data_basedir is None:
-        return [], [], []
+        return [], [], [], []
     inputs_dir = join(data_basedir, "inputs")
-    inputs_files = sorted([f for f in os.listdir(inputs_dir) if isfile(join(inputs_dir, f))])
+    inputs_files = sorted([f for f in os.listdir(inputs_dir) if isfile(join(inputs_dir, f))],
+                          key=lambda x: x.lower())
     options = [{'label': f, 'value': join(inputs_dir, f)} for f in inputs_files]
-    return options, options, options
+
+    reference_dir = join(inputs_dir, "references")
+    ref_options = sorted([f for f in os.listdir(reference_dir) if isfile(join(reference_dir, f))])
+    return options, options, options, ref_options
 
 
 def prepare_dataframe_for_output(dataframe):
@@ -194,7 +232,7 @@ def oligo_and_fragments(n_clicks, fragments_file, oligo_file):
 )
 def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_file):
     if output_dir is None:
-        return dash.no_update, "Please select a sample sparse matrix (in home tab)"
+        return dash.no_update, dash.no_update
 
     pattern = re.compile(r'.+_filtered\.tsv')
     if n_clicks == 1:
@@ -222,9 +260,9 @@ def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_
      State('this-sample-path', 'data'),
      State('pp-fragments-selector', 'value')]
 )
-def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file):
+def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
     if output_dir is None:
-        return dash.no_update, "Please select a sample sparse matrix (in home tab)"
+        return dash.no_update, dash.no_update
 
     pattern = re.compile(r'.+_coverage_')
     if n_clicks == 1:
