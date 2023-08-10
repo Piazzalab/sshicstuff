@@ -36,7 +36,7 @@ layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             dcc.Upload(
-                id="upload-data",
+                id="dv-upload-data",
                 children=html.Div(
                     ["Drag and drop or click to select a file to upload."]
                 ),
@@ -58,7 +58,7 @@ layout = dbc.Container([
         dbc.Col([
             html.H4("File List"),
             dcc.Dropdown(
-                id='file-list-selector',
+                id='dv-file-list-selector',
                 options=[],
                 multi=False,
             ),
@@ -66,7 +66,7 @@ layout = dbc.Container([
         dbc.Col([
             html.H4('Select a delimiter :'),
             dcc.Dropdown(
-                id='delim-selector',
+                id='dv-delim-selector',
                 multi=False,
                 options=[
                     {'label': 'Tab', 'value': '\t'},
@@ -81,7 +81,7 @@ layout = dbc.Container([
 
         dbc.Col([
             html.Button(
-                id="clear-list",
+                id="dv-clear-list",
                 className="btn btn-danger",
                 children="Clear List",
             )
@@ -90,7 +90,7 @@ layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.H4("Data Preview"),
-            dcc.Loading(generate_data_table('dataframe', [], []))
+            dcc.Loading(generate_data_table('dv-dataframe', [], []))
         ], width=12, style={'margin-top': '20px', 'margin-bottom': '25px'}),
     ]),
 ])
@@ -114,11 +114,11 @@ def uploaded_files():
 
 
 @callback(
-    Output("file-list-selector", "options"),
-    Output("clear-list", "n_clicks"),
-    [Input("upload-data", "filename"),
-     Input("upload-data", "contents"),
-     Input("clear-list", "n_clicks")],
+    Output("dv-file-list-selector", "options"),
+    Output("dv-clear-list", "n_clicks"),
+    [Input("dv-upload-data", "filename"),
+     Input("dv-upload-data", "contents"),
+     Input("dv-clear-list", "n_clicks")],
 )
 def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
     if uploaded_filenames is not None and uploaded_file_contents is not None:
@@ -152,10 +152,10 @@ def update_table(file_path, delim):
 
 
 @callback(
-    [Output('dataframe', 'data'),
-     Output('dataframe', 'columns')],
-    [Input('file-list-selector', 'value'),
-     Input('delim-selector', 'value')]
+    [Output('dv-dataframe', 'data'),
+     Output('dv-dataframe', 'columns')],
+    [Input('dv-file-list-selector', 'value'),
+     Input('dv-delim-selector', 'value')]
 )
 def update_dataframe(file_path, delim):
     if file_path is not None and delim is not None:
