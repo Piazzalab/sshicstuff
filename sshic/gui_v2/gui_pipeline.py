@@ -35,9 +35,16 @@ layout = dbc.Container([
                 id="pp-filter",
                 className="blue-button",
                 children="Filter",
-            )
-        ]),
-    ]),
+            ),
+            dbc.Tooltip(
+                "Filter the contacts based on the oligos and fragments data, "
+                "and save the filtered contacts to a TSV file.",
+                target="pp-filter",
+                className="custom-tooltip",
+                placement="right",
+            ),
+        ], width=1, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+    ])
 ])
 
 
