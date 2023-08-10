@@ -36,7 +36,6 @@ app.layout = html.Div([
     dcc.Store(id='this-sample-path'),
     dcc.Store(id='this-sample-id'),
     dcc.Store(id='this-sample-out-dir-path'),
-    dcc.Store(id='this-sample-ref-path')
 ])
 
 

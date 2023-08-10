@@ -63,18 +63,6 @@ layout = html.Div([
                 html.Br(),
             ]),
         ]),
-        dbc.Row([
-            dbc.Col([
-                html.Label("Please indicate a WT reference if you wish to weight your contacts:"),
-                dcc.Dropdown(
-                    id='reference-selector',
-                    options=[],
-                    value=None,
-                    multi=False,
-                ),
-                html.Br(),
-            ]),
-        ]),
     ]),
 ])
 
@@ -162,34 +150,18 @@ def get_sample_id(sample_value):
         return re.search(r'AD\d+', sample_value).group()
     return dash.no_update
 
-
-@callback(
-    Output('this-sample-ref-path', 'data'),
-    [Input('data-dir-input', 'value'),
-     Input('reference-selector', 'value')]
-)
-def get_reference(data_value, reference_value):
-    if data_value and reference_value:
-        return join(data_value, "inputs", "references", reference_value)
-    return None
-
-
 @callback(
     Output('this-sample-out-dir-path', 'data'),
     [Input('this-sample-id', 'data'),
-     Input('this-sample-path', 'data'),
-     Input('this-sample-ref-path', 'data')]
+     Input('this-sample-path', 'data')]
 )
-def create_samp_dir(sample_name, sample_path_value, reference_path):
+def create_samp_dir(sample_name, sample_path_value):
     if sample_name:
         samp_dir = join(dirname(sample_path_value), sample_name)
         samp_in_dir = join(samp_dir, "inputs")
         if not isdir(samp_dir):
             os.mkdir(samp_dir)
             os.mkdir(samp_in_dir)
-
-        if reference_path:
-            shutil.copy(reference_path, samp_in_dir)
 
         return samp_dir
     return dash.no_update
