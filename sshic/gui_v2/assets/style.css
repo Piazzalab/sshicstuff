@@ -52,3 +52,13 @@ h4, h5, h6 {
     border-right: 1px solid lightgrey;
     border-top: 3px solid #e36209;
 }
+
+.blue-button {
+    background-color: #2f99c0;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}

@@ -28,6 +28,16 @@ layout = dbc.Container([
             dcc.Dropdown(id='pp-chr-coords', multi=False),
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'})
     ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(
+                id="pp-filter",
+                className="blue-button",
+                children="Filter",
+            )
+        ]),
+    ]),
 ])
 
 
@@ -52,3 +62,5 @@ def update_dropdowns(data_basedir):
     inputs_files = sorted([f for f in os.listdir(inputs_dir) if isfile(join(inputs_dir, f))])
     options = [{'label': f, 'value': join(inputs_dir, f)} for f in inputs_files]
     return options, options, options
+
+
