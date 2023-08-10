@@ -83,12 +83,14 @@ layout = dbc.Container([
                 className="custom-tooltip",
                 placement="right",
             ),
-        ], width=3, style={'margin-top': '0px', 'margin-bottom': '40px'}),
+        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+    ]),
 
+    dbc.Row([
         dbc.Col([
-            html.Div(id='pp-p2f-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
-    ], style={'margin-bottom': '10px'}),
+            html.Div(id='pp-p2f-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ]),
 
     dbc.Row([
         dbc.Col([
@@ -104,12 +106,13 @@ layout = dbc.Container([
                 className="custom-tooltip",
                 placement="right",
             ),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px'}),
-
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+    ]),
+    dbc.Row([
         dbc.Col([
-            html.Div(id='pp-filter-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
-    ], style={'margin-bottom': '10px'}),
+            html.Div(id='pp-filter-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ]),
 
     dbc.Row([
         dbc.Col([
@@ -124,12 +127,13 @@ layout = dbc.Container([
                 className="custom-tooltip",
                 placement="right",
             ),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px'}),
-
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+    ]),
+    dbc.Row([
         dbc.Col([
-            html.Div(id='pp-coverage-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
-    ], style={'margin-bottom': '10px'}),
+            html.Div(id='pp-coverage-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ]),
 
     dbc.Row([
         dbc.Col([
@@ -145,12 +149,13 @@ layout = dbc.Container([
                 className="custom-tooltip",
                 placement="right",
             ),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px'}),
-
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+    ]),
+    dbc.Row([
         dbc.Col([
-            html.Div(id='pp-orga-contacts-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
-    ], style={'margin-bottom': '10px'})
+            html.Div(id='pp-orga-contacts-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ])
 ])
 
 
@@ -231,17 +236,16 @@ def oligo_and_fragments(n_clicks, fragments_file, oligo_file):
      State('pp-oligo-selector', 'value')]
 )
 def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_file):
-    if output_dir is None:
-        return dash.no_update, dash.no_update
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update
 
     pattern = re.compile(r'.+_filtered\.tsv')
     if n_clicks == 1:
+        if output_dir is None:
+            return dash.no_update, "You have to select a sample first"
         for file in os.listdir(output_dir):
             if pattern.match(file):
                 return n_clicks, "Filtered contacts file already exists (click again to overwrite)"
-
-    if n_clicks is None or n_clicks == 0:
-        return 0, dash.no_update
 
     if fragments_file is None:
         return 0, "Select a digested fragments file"
@@ -261,17 +265,16 @@ def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_
      State('pp-fragments-selector', 'value')]
 )
 def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
-    if output_dir is None:
-        return dash.no_update, dash.no_update
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update
 
     pattern = re.compile(r'.+_coverage_')
     if n_clicks == 1:
+        if output_dir is None:
+            return dash.no_update, "You have to select a sample first"
         for file in os.listdir(output_dir):
             if pattern.match(file):
                 return n_clicks, "Coverage bed-graph file already exists (click again to overwrite)"
-
-    if n_clicks is None or n_clicks == 0:
-        return 0, dash.no_update
 
     if fragments_file is None:
         return 0, "Select a digested fragments file"
