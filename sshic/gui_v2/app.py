@@ -7,7 +7,7 @@ from dash.dependencies import Input, Output
 # Import your page layouts here
 import home
 import data_viewer
-import gui_fragments
+import gui_pipeline
 import gui_binning
 
 # Create a Dash application instance:
@@ -50,7 +50,7 @@ def display_page(value):
     elif value == 'data-viewer':
         return data_viewer.layout
     elif value == 'fragments':
-        return gui_fragments.layout
+        return gui_pipeline.layout
     elif value == 'binning':
         return gui_binning.layout
 
