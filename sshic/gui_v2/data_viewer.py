@@ -1,13 +1,12 @@
 import dash
 import os
 import base64
-from urllib.parse import quote as urlquote
 from os.path import join, dirname
 import pandas as pd
 from dash import callback
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output
 
 
 TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
