@@ -1,12 +1,10 @@
 import os
 import re
 import dash
-import pandas as pd
 from os.path import isfile, join
-from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 from dash import callback
-from dash import html, dcc, dash_table
+from dash import html, dcc
 from dash.dependencies import Input, Output, State
 
 import filter
