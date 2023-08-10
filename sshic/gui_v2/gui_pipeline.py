@@ -41,8 +41,8 @@ layout = dbc.Container([
                 children="Filter",
             ),
             dbc.Tooltip(
-                "Filter the contacts based on the oligos and fragments data, "
-                "and save the filtered contacts to a TSV file.",
+                "This module filters the contacts by removing contacts "
+                "that do not concern digested fragments containing oligos",
                 target="pp-filter",
                 className="custom-tooltip",
                 placement="right",
