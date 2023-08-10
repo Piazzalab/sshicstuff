@@ -1,11 +1,15 @@
 import os
+import re
+import dash
 import pandas as pd
 from os.path import isfile, join
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 from dash import callback
 from dash import html, dcc, dash_table
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
+
+import filter
 
 
 layout = dbc.Container([
@@ -44,6 +48,10 @@ layout = dbc.Container([
                 placement="right",
             ),
         ], width=1, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            html.Div(id='pp-filter-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
     ])
 ])
 
@@ -71,3 +79,34 @@ def update_dropdowns(data_basedir):
     return options, options, options
 
 
+@callback(
+    [Output('pp-filter', 'n_clicks'),
+     Output('pp-filter-output', 'children')],
+    [Input('pp-filter', 'n_clicks')],
+    [State('this-sample-out-dir-path', 'data'),
+     State('this-sample-path', 'data'),
+     State('pp-fragments-selector', 'value'),
+     State('pp-oligo-selector', 'value')]
+)
+def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_file):
+    if output_dir is None:
+        return dash.no_update, "Please select a sample sparse matrix (in home tab)"
+
+    pattern = re.compile(r'.+_filtered\.tsv')
+    if n_clicks == 1:
+        for file in os.listdir(output_dir):
+            if pattern.match(file):
+                return n_clicks, "Filtered contacts file already exists (click again to overwrite)"
+
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update
+
+    if fragments_file is None:
+        return 0, "Select a digested fragments file"
+    if oligos_file is None:
+        return 0, "Select a capture oligos file"
+    if sparse_matrix is None:
+        return 0, "Please select a sample sparse matrix (in home tab)"
+
+    filter.filter_contacts(oligos_file, fragments_file, sparse_matrix, output_dir)
+    return 0, "Filtered contacts file created successfully"
