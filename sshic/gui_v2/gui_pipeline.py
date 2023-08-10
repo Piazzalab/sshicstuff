@@ -55,7 +55,7 @@ layout = dbc.Container([
         dbc.Col([
             html.Div(id='pp-p2f-dataframe-title',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
             dcc.Loading(generate_data_table('pp-p2f-dataframe', [], []))
-        ], width=4, style={'margin-top': '20px', 'margin-bottom': '25px'}),
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
     ]),
 
     dbc.Row([
@@ -66,17 +66,17 @@ layout = dbc.Container([
                 children="Probes to fragments",
             ),
             dbc.Tooltip(
-                "Create a columns in the oligo table with the corresponding fragment",
+                "Create a column in the oligo table with the corresponding fragment",
                 target="pp-p2f",
                 className="custom-tooltip",
                 placement="right",
             ),
-        ], width=3, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+        ], width=3, style={'margin-top': '0px', 'margin-bottom': '40px'}),
 
         dbc.Col([
             html.Div(id='pp-p2f-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
-    ]),
+    ], style={'margin-bottom': '10px'}),
 
     dbc.Row([
         dbc.Col([
@@ -97,7 +97,7 @@ layout = dbc.Container([
         dbc.Col([
             html.Div(id='pp-filter-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
-    ]),
+    ], style={'margin-bottom': '10px'}),
 
     dbc.Row([
         dbc.Col([
@@ -117,7 +117,7 @@ layout = dbc.Container([
         dbc.Col([
             html.Div(id='pp-coverage-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '30px'})
-    ])
+    ], style={'margin-bottom': '10px'})
 ])
 
 

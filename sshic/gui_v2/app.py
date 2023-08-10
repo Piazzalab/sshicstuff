@@ -26,9 +26,9 @@ app.layout = html.Div([
                          className='custom-tab', selected_className='custom-tab--selected'),
                  dcc.Tab(label='Data Viewer', value='data-viewer',
                          className='custom-tab', selected_className='custom-tab--selected'),
-                 dcc.Tab(label='Organize Contacts', value='fragments',
+                 dcc.Tab(label='Pipeline', value='pipeline',
                          className='custom-tab', selected_className='custom-tab--selected'),
-                 dcc.Tab(label='Bin Contacts', value='binning',
+                 dcc.Tab(label='Probes Viewer', value='probes-viewer',
                          className='custom-tab', selected_className='custom-tab--selected'),
              ]),
     html.Div(id='page-content'),
@@ -49,9 +49,9 @@ def display_page(value):
         return home.layout
     elif value == 'data-viewer':
         return data_viewer.layout
-    elif value == 'fragments':
+    elif value == 'pipeline':
         return gui_pipeline.layout
-    elif value == 'binning':
+    elif value == 'probes-viewer':
         return gui_binning.layout
 
 
