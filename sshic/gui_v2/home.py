@@ -149,6 +149,7 @@ def get_sample_id(sample_value):
         return re.search(r'AD\d+', sample_value).group()
     return dash.no_update
 
+
 @callback(
     Output('this-sample-out-dir-path', 'data'),
     [Input('this-sample-id', 'data'),
@@ -157,10 +158,10 @@ def get_sample_id(sample_value):
 def create_samp_dir(sample_name, sample_path_value):
     if sample_name:
         samp_dir = join(dirname(sample_path_value), sample_name)
-        samp_in_dir = join(samp_dir, "inputs")
+        samp_input_dir = join(samp_dir, "inputs")
         if not isdir(samp_dir):
             os.mkdir(samp_dir)
-            os.mkdir(samp_in_dir)
+            os.mkdir(samp_input_dir)
 
         return samp_dir
     return dash.no_update

@@ -2,7 +2,8 @@ import os
 import re
 import dash
 import pandas as pd
-from os.path import isfile, join
+from os.path import basename, join, isfile
+from shutil import copyfile
 import dash_bootstrap_components as dbc
 from dash import callback
 from dash import html, dcc, dash_table
@@ -168,6 +169,40 @@ def display_sample_id(sample_id):
 
 
 @callback(
+    Output('dummy-output', 'data'),
+    [Input('pp-fragments-selector', 'value'),
+     Input('pp-oligo-selector', 'value'),
+     Input('pp-chr-coords', 'value'),
+     Input('pp-reference-selector', 'value')],
+    State('this-sample-out-dir-path', 'data')
+)
+def copy_input_files(fragments_file, oligo_file, chr_coords_file, reference_file, sample_out_dir):
+    if sample_out_dir is None:
+        return None
+    if fragments_file is None or oligo_file is None or chr_coords_file is None:
+        return None
+    inputs_dir = join(sample_out_dir, "inputs")
+    if not os.path.exists(inputs_dir):
+        os.makedirs(inputs_dir)
+    fragments_file_name = basename(fragments_file)
+    oligo_file_name = basename(oligo_file)
+    chr_coords_file_name = basename(chr_coords_file)
+    if reference_file is not None:
+        reference_file_name = basename(reference_file)
+        reference_dir = join(inputs_dir, "references")
+        if not os.path.exists(reference_dir):
+            os.makedirs(reference_dir)
+        copyfile(reference_file, join(reference_dir, reference_file_name))
+    copyfile(fragments_file, join(inputs_dir, fragments_file_name))
+    copyfile(oligo_file, join(inputs_dir, oligo_file_name))
+    copyfile(chr_coords_file, join(inputs_dir, chr_coords_file_name))
+
+    return None
+
+
+
+
+@callback(
     Output('pp-fragments-selector', 'options'),
     Output('pp-oligo-selector', 'options'),
     Output('pp-chr-coords', 'options'),
@@ -183,7 +218,8 @@ def update_dropdowns(data_basedir):
     options = [{'label': f, 'value': join(inputs_dir, f)} for f in inputs_files]
 
     reference_dir = join(inputs_dir, "references")
-    ref_options = sorted([f for f in os.listdir(reference_dir) if isfile(join(reference_dir, f))])
+    references = sorted([f for f in os.listdir(reference_dir) if isfile(join(reference_dir, f))])
+    ref_options = [{'label': f, 'value': join(reference_dir, f)} for f in references]
     return options, options, options, ref_options
 
 
