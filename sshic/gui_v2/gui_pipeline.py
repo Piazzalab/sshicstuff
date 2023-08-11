@@ -9,10 +9,11 @@ from dash import callback
 from dash import html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 
-import utils
-import filter
-import coverage
-import probe2fragment
+import core.utils
+import core.filter
+import core.coverage
+import core.fragments
+import core.probe2fragment
 
 
 def generate_data_table(id, data, columns, rows):
@@ -146,7 +147,9 @@ layout = dbc.Container([
         dbc.Col([
             html.Div(id='pp-orga-contacts-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
-    ])
+    ]),
+    dcc.Store(id='this-sample-filtered'),
+    dcc.Store(id='this-sample-unbinned'),
 ])
 
 
@@ -260,16 +263,16 @@ def oligo_and_fragments(n_clicks, fragments_file, oligo_file):
     if fragments_file is None or oligo_file is None:
         return 0, "Select both fragments and capture oligos files", dash.no_update, dash.no_update, dash.no_update
 
-    df_oli = pd.read_csv(oligo_file, sep=utils.detect_delimiter(oligo_file))
-    df_frag = pd.read_csv(fragments_file, sep=utils.detect_delimiter(fragments_file))
+    df_oli = pd.read_csv(oligo_file, sep=core.utils.detect_delimiter(oligo_file))
+    df_frag = pd.read_csv(fragments_file, sep=core.utils.detect_delimiter(fragments_file))
 
     title = html.H6("Oligo probes VS. Fragments ID:")
     if 'fragment' in df_oli.columns:
         data, columns = prepare_dataframe_for_output(df_oli, ["name", "fragment"])
         return 0, "Capture oligos table already contains a fragment column", title, data, columns
     else:
-        probe2fragment.associate_probes_to_fragments(fragments_file, oligo_file)
-        df_p2f = pd.read_csv(oligo_file, sep=utils.detect_delimiter(oligo_file))
+        core.probe2fragment.associate_probes_to_fragments(fragments_file, oligo_file)
+        df_p2f = pd.read_csv(oligo_file, sep=core.utils.detect_delimiter(oligo_file))
         data, columns = prepare_dataframe_for_output(df_p2f, ["name", "fragment"])
         return 0, "Associated probes to fragments successfully", title, data, columns
 
@@ -292,7 +295,8 @@ def probe_groups(groups_file):
 
 @callback(
     [Output('pp-filter', 'n_clicks'),
-     Output('pp-filter-output', 'children')],
+     Output('pp-filter-output', 'children'),
+     Output('this-sample-filtered', 'data')],
     [Input('pp-filter', 'n_clicks')],
     [State('this-sample-out-dir-path', 'data'),
      State('this-sample-path', 'data'),
@@ -301,23 +305,23 @@ def probe_groups(groups_file):
 )
 def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_file):
     if n_clicks is None or n_clicks == 0:
-        return 0, dash.no_update
+        return 0, dash.no_update, None
 
     pattern = re.compile(r'.+_filtered\.tsv')
     if n_clicks == 1:
         if output_dir is None:
-            return dash.no_update, "You have to select a sample first"
+            return dash.no_update, "You have to select a sample first", None
         for file in os.listdir(output_dir):
             if pattern.match(file):
-                return n_clicks, "Filtered contacts file already exists (click again to overwrite)"
+                return n_clicks, "Filtered contacts file already exists (click again to overwrite)", None
 
     if fragments_file is None:
-        return 0, "Select a digested fragments file"
+        return 0, "Select a digested fragments file", None
     if oligos_file is None:
-        return 0, "Select a capture oligos file"
+        return 0, "Select a capture oligos file", None
 
-    filter.filter_contacts(oligos_file, fragments_file, sparse_matrix, output_dir)
-    return 0, "Filtered contacts file created successfully"
+    core.filter.filter_contacts(oligos_file, fragments_file, sparse_matrix, output_dir)
+    return 0, "Filtered contacts file created successfully", None
 
 
 @callback(
@@ -343,6 +347,45 @@ def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
     if fragments_file is None:
         return 0, "Select a digested fragments file"
 
-    coverage.coverage(sparse_matrix, fragments_file, output_dir)
+    core.coverage.coverage(sparse_matrix, fragments_file, output_dir)
+    return 0, "Coverage file created successfully"
+
+
+@callback(
+    [Output('pp-orga-contacts', 'n_clicks'),
+     Output('pp-orga-contacts-output', 'children')],
+    [Input('pp-orga-contacts', 'n_clicks'),
+     Input('this-sample-out-dir-path', 'data'),
+     Input('this-sample-path', 'data'),
+     Input('pp-fragments-selector', 'value'),
+     Input('pp-oligo-selector', 'value'),
+     Input('pp-chr-coords', 'value'),
+     Input('pp-probe-groups', 'value')]
+)
+def fragment_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_file, chr_coords, groups_file):
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update
+
+    output_dir = join(output_dir, 'not_weighted')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    if sparse_matrix is None:
+        return 0, "Select a sample"
+    if fragments_file is None:
+        return 0, "Select a digested fragments file"
+    if oligos_file is None:
+        return 0, "Select a capture oligos file"
+    if chr_coords is None:
+        return 0, "Select a chromosome coordinates file"
+
+    pattern = re.compile(r'.+_unbinned_contacts')
+    if n_clicks == 1:
+        if output_dir is None:
+            return dash.no_update, "You have to select a sample first"
+        for file in os.listdir(output_dir):
+            if pattern.match(file):
+                return n_clicks, "Coverage bed-graph file already exists (click again to overwrite)"
+
+    core.fragments.organize_contacts(sparse_matrix, fragments_file, oligos_file, output_dir, groups_file)
     return 0, "Coverage file created successfully"
 
