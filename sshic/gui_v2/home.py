@@ -1,7 +1,6 @@
 import os
 import re
 import dash
-import shutil
 from os.path import join, dirname, isdir, isfile
 from dash import html, dcc
 from dash import callback
