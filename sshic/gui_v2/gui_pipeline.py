@@ -15,13 +15,14 @@ import coverage
 import probe2fragment
 
 
-def generate_data_table(id, data, columns):
+def generate_data_table(id, data, columns, rows):
     return dash_table.DataTable(
         id=id,
         data=data,
         columns=columns,
+        style_cell={'textAlign': 'left'},
         style_table={'overflowX': 'auto'},
-        page_size=8,
+        page_size=rows,
         style_header={
             'backgroundColor': '#eaecee',
             'color': ' #3498db ',
@@ -35,6 +36,7 @@ layout = dbc.Container([
     dbc.Row([
         html.Div(id='pp-sample-id-output',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
     ]),
+
     dbc.Row([
         dbc.Col([
             html.Label("Digested fragments list:"),
@@ -54,36 +56,44 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            html.Label("Please indicate a WT reference if you wish to weight your contacts:"),
-            dcc.Dropdown(
-                id='pp-reference-selector',
-                options=[],
-                value=None,
-                multi=False,
-            ),
+            html.Label("WT reference (if any) :"),
+            dcc.Dropdown(id='pp-reference-selector', options=[], value=None, multi=False),
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            html.Label("Additional groups of probes (if any) :"),
+            dcc.Dropdown(id='pp-probe-groups', options=[], value=None, multi=False),
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
     ]),
 
     dbc.Row([
         dbc.Col([
             html.Div(id='pp-p2f-dataframe-title',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
-            dcc.Loading(generate_data_table('pp-p2f-dataframe', [], []))
+            dcc.Loading(generate_data_table('pp-p2f-dataframe', [], [], 10))
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            html.Div(id='pp-groups-dataframe-title', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            dcc.Loading(generate_data_table('pp-groups-dataframe', [], [], 10))
+        ], width=7, style={'margin-top': '0px', 'margin-bottom': '30px', 'margin-left': '30px'}),
     ]),
 
     dbc.Row([
         dbc.Col([
-            html.Button(
-                id="pp-p2f",
-                className="blue-button",
-                children="Probes to fragments",
-            ),
+            html.Button(id="pp-copy-inputs", className="green-button", children="Copy files"),
+            dbc.Tooltip(
+                "Once you have selected all the inputs file you selected, you can copy them "
+                "into the sample output directory to keep trace.",
+                target="pp-copy-inputs", className="custom-tooltip", placement="right"),
+        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(id="pp-p2f", className="blue-button", children="Probes to fragments"),
             dbc.Tooltip(
                 "Create a column in the oligo table with the corresponding fragment",
-                target="pp-p2f",
-                className="custom-tooltip",
-                placement="right",
-            ),
+                target="pp-p2f", className="custom-tooltip", placement="right"),
         ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
 
@@ -95,18 +105,11 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            html.Button(
-                id="pp-filter",
-                className="blue-button",
-                children="Filter",
-            ),
+            html.Button(id="pp-filter", className="blue-button", children="Filter"),
             dbc.Tooltip(
                 "This module filters the contacts by removing contacts "
                 "that do not concern digested fragments containing oligos",
-                target="pp-filter",
-                className="custom-tooltip",
-                placement="right",
-            ),
+                target="pp-filter", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
     dbc.Row([
@@ -118,16 +121,10 @@ layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.Button(
-                id="pp-coverage",
-                className="blue-button",
-                children="Coverage",
-            ),
+                id="pp-coverage", className="blue-button", children="Coverage"),
             dbc.Tooltip(
                 "Calculate the coverage per oligo fragment and save the result as a bed-graph file",
-                target="pp-coverage",
-                className="custom-tooltip",
-                placement="right",
-            ),
+                target="pp-coverage", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
     dbc.Row([
@@ -138,18 +135,11 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            html.Button(
-                id="pp-orga-contacts",
-                className="blue-button",
-                children="Organize contacts",
-            ),
+            html.Button(id="pp-orga-contacts", className="blue-button", children="Organize contacts"),
             dbc.Tooltip(
                 "Organize the contacts made by each probe with the genome and save "
                 "the results as two .tsv files one for contacts and one for frequencies.",
-                target="pp-orga-contacts",
-                className="custom-tooltip",
-                placement="right",
-            ),
+                target="pp-orga-contacts", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
     dbc.Row([
@@ -169,49 +159,66 @@ def display_sample_id(sample_id):
 
 
 @callback(
-    Output('dummy-output', 'data'),
-    [Input('pp-fragments-selector', 'value'),
-     Input('pp-oligo-selector', 'value'),
-     Input('pp-chr-coords', 'value'),
-     Input('pp-reference-selector', 'value')],
-    State('this-sample-out-dir-path', 'data')
+    Output('pp-copy-inputs', 'n_clicks'),
+    [Input('pp-copy-inputs', 'n_clicks')],
+    [State('this-sample-path', 'data'),
+     State('pp-fragments-selector', 'value'),
+     State('pp-oligo-selector', 'value'),
+     State('pp-chr-coords', 'value'),
+     State('pp-reference-selector', 'value'),
+     State('this-sample-out-dir-path', 'data')]
 )
-def copy_input_files(fragments_file, oligo_file, chr_coords_file, reference_file, sample_out_dir):
-    if sample_out_dir is None:
+def copy_input_files(
+        n_clicks,
+        sample_matrix,
+        fragments_file, oligo_file,
+        chr_coords_file,
+        reference_file,
+        sample_out_dir
+):
+    if n_clicks is None or n_clicks == 0:
         return None
-    if fragments_file is None or oligo_file is None or chr_coords_file is None:
-        return None
-    inputs_dir = join(sample_out_dir, "inputs")
-    if not os.path.exists(inputs_dir):
-        os.makedirs(inputs_dir)
-    fragments_file_name = basename(fragments_file)
-    oligo_file_name = basename(oligo_file)
-    chr_coords_file_name = basename(chr_coords_file)
-    if reference_file is not None:
-        reference_file_name = basename(reference_file)
-        reference_dir = join(inputs_dir, "references")
-        if not os.path.exists(reference_dir):
-            os.makedirs(reference_dir)
-        copyfile(reference_file, join(reference_dir, reference_file_name))
-    copyfile(fragments_file, join(inputs_dir, fragments_file_name))
-    copyfile(oligo_file, join(inputs_dir, oligo_file_name))
-    copyfile(chr_coords_file, join(inputs_dir, chr_coords_file_name))
 
-    return None
+    if n_clicks > 0:
+        if sample_out_dir is None:
+            return None
 
+        files_to_copy = []
+        inputs_dir = join(sample_out_dir, "inputs")
+        if not os.path.exists(inputs_dir):
+            os.makedirs(inputs_dir)
+        if fragments_file is not None:
+            files_to_copy.append(fragments_file)
+        if oligo_file is not None:
+            files_to_copy.append(oligo_file)
+        if chr_coords_file is not None:
+            files_to_copy.append(chr_coords_file)
+        if sample_matrix is not None:
+            files_to_copy.append(sample_matrix)
 
+        for file in files_to_copy:
+            copyfile(file, join(inputs_dir, basename(file)))
+
+        if reference_file is not None:
+            reference_file_name = basename(reference_file)
+            reference_dir = join(inputs_dir, "references")
+            if not os.path.exists(reference_dir):
+                os.makedirs(reference_dir)
+            copyfile(reference_file, join(reference_dir, reference_file_name))
+        return 0
 
 
 @callback(
-    Output('pp-fragments-selector', 'options'),
-    Output('pp-oligo-selector', 'options'),
-    Output('pp-chr-coords', 'options'),
-    Output('pp-reference-selector', 'options'),
+    [Output('pp-fragments-selector', 'options'),
+     Output('pp-oligo-selector', 'options'),
+     Output('pp-chr-coords', 'options'),
+     Output('pp-probe-groups', 'options'),
+     Output('pp-reference-selector', 'options')],
     Input('data-basedir', 'data')
 )
 def update_dropdowns(data_basedir):
     if data_basedir is None:
-        return [], [], [], []
+        return [], [], [], [], []
     inputs_dir = join(data_basedir, "inputs")
     inputs_files = sorted([f for f in os.listdir(inputs_dir) if isfile(join(inputs_dir, f))],
                           key=lambda x: x.lower())
@@ -220,14 +227,19 @@ def update_dropdowns(data_basedir):
     reference_dir = join(inputs_dir, "references")
     references = sorted([f for f in os.listdir(reference_dir) if isfile(join(reference_dir, f))])
     ref_options = [{'label': f, 'value': join(reference_dir, f)} for f in references]
-    return options, options, options, ref_options
+    return options, options, options, options, ref_options
 
 
-def prepare_dataframe_for_output(dataframe):
-    selected_columns = ['name', 'fragment']
-    df_output = dataframe[selected_columns]
-    data = df_output.to_dict('records')
-    columns = [{"name": col, "id": col} for col in selected_columns]
+def prepare_dataframe_for_output(dataframe, selected_columns=None):
+    if dataframe is None:
+        return None, None
+    if selected_columns:
+        df_output = dataframe[selected_columns]
+        data = df_output.to_dict('records')
+        columns = [{"name": col, "id": col} for col in selected_columns]
+    else:
+        data = dataframe.to_dict('records')
+        columns = [{"name": col, "id": col} for col in dataframe.columns]
     return data, columns
 
 
@@ -253,13 +265,29 @@ def oligo_and_fragments(n_clicks, fragments_file, oligo_file):
 
     title = html.H6("Oligo probes VS. Fragments ID:")
     if 'fragment' in df_oli.columns:
-        data, columns = prepare_dataframe_for_output(df_oli)
+        data, columns = prepare_dataframe_for_output(df_oli, ["name", "fragment"])
         return 0, "Capture oligos table already contains a fragment column", title, data, columns
     else:
         probe2fragment.associate_probes_to_fragments(fragments_file, oligo_file)
         df_p2f = pd.read_csv(oligo_file, sep=utils.detect_delimiter(oligo_file))
-        data, columns = prepare_dataframe_for_output(df_p2f)
+        data, columns = prepare_dataframe_for_output(df_p2f, ["name", "fragment"])
         return 0, "Associated probes to fragments successfully", title, data, columns
+
+
+@callback(
+    [Output('pp-groups-dataframe-title', 'children'),
+     Output('pp-groups-dataframe', 'data'),
+     Output('pp-groups-dataframe', 'columns')],
+    [Input('pp-probe-groups', 'value')]
+)
+def probe_groups(groups_file):
+    if groups_file is None:
+        return dash.no_update, dash.no_update, dash.no_update
+
+    df_groups = pd.read_csv(groups_file, sep='\t')
+    data, columns = prepare_dataframe_for_output(df_groups)
+    title = html.H6("Probe groups:")
+    return title, data, columns
 
 
 @callback(

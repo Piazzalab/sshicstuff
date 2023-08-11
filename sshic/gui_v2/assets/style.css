@@ -64,6 +64,18 @@ h4, h5, h6 {
     width: 220px;
 }
 
+.green-button {
+    background-color: #64c279;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 140px;
+}
+
+
 .custom-tooltip {
     left: 10px !important;
     width: 600px !important;
