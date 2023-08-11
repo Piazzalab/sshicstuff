@@ -71,12 +71,12 @@ def get_files_from_dir(directory, filter_string='', stamp="f"):
     if stamp == "f":
         return [
             f for f in os.listdir(directory)
-            if isfile(join(directory, f)) and filter_string in f
+            if isfile(join(directory, f)) and filter_string in f.lower()
         ]
     elif stamp == "d":
         return [
             f for f in os.listdir(directory)
-            if isdir(join(directory, f)) and filter_string in f
+            if isdir(join(directory, f)) and filter_string in f.lower()
         ]
 
 
