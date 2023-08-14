@@ -148,8 +148,7 @@ layout = dbc.Container([
             html.Div(id='pp-orga-contacts-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
     ]),
-    dcc.Store(id='this-sample-filtered'),
-    dcc.Store(id='this-sample-unbinned'),
+    dcc.Store(id='this-sample-filtered-path')
 ])
 
 
@@ -296,14 +295,18 @@ def probe_groups(groups_file):
 @callback(
     [Output('pp-filter', 'n_clicks'),
      Output('pp-filter-output', 'children'),
-     Output('this-sample-filtered', 'data')],
+     Output('this-sample-filtered-path', 'data')],
     [Input('pp-filter', 'n_clicks')],
     [State('this-sample-out-dir-path', 'data'),
+     State('this-sample-id', 'data'),
      State('this-sample-path', 'data'),
      State('pp-fragments-selector', 'value'),
      State('pp-oligo-selector', 'value')]
 )
-def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_file):
+def filter_contacts(n_clicks, output_dir, sample_id, sparse_matrix, fragments_file, oligos_file):
+    if sample_id is None:
+        return 0, "You have to select a sample first", None
+
     if n_clicks is None or n_clicks == 0:
         return 0, dash.no_update, None
 
@@ -313,7 +316,8 @@ def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_
             return dash.no_update, "You have to select a sample first", None
         for file in os.listdir(output_dir):
             if pattern.match(file):
-                return n_clicks, "Filtered contacts file already exists (click again to overwrite)", None
+                return n_clicks, "Filtered contacts file already exists (click again to overwrite)", \
+                    join(output_dir, f"{sample_id}_filtered.tsv")
 
     if fragments_file is None:
         return 0, "Select a digested fragments file", None
@@ -321,7 +325,7 @@ def filter_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_
         return 0, "Select a capture oligos file", None
 
     core.filter.filter_contacts(oligos_file, fragments_file, sparse_matrix, output_dir)
-    return 0, "Filtered contacts file created successfully", None
+    return 0, "Filtered contacts file created successfully", join(output_dir, f"{sample_id}_filtered.tsv")
 
 
 @callback(
@@ -356,23 +360,20 @@ def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
      Output('pp-orga-contacts-output', 'children')],
     [Input('pp-orga-contacts', 'n_clicks'),
      Input('this-sample-out-dir-path', 'data'),
-     Input('this-sample-path', 'data'),
-     Input('pp-fragments-selector', 'value'),
+     Input('this-sample-filtered-path', 'data'),
      Input('pp-oligo-selector', 'value'),
      Input('pp-chr-coords', 'value'),
      Input('pp-probe-groups', 'value')]
 )
-def fragment_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligos_file, chr_coords, groups_file):
+def fragment_contacts(n_clicks, output_dir, filtered_sample, oligos_file, chr_coords, groups_file):
     if n_clicks is None or n_clicks == 0:
         return 0, dash.no_update
 
     output_dir = join(output_dir, 'not_weighted')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    if sparse_matrix is None:
-        return 0, "Select a sample"
-    if fragments_file is None:
-        return 0, "Select a digested fragments file"
+    if filtered_sample is None:
+        return 0, "You need to filter the sample first"
     if oligos_file is None:
         return 0, "Select a capture oligos file"
     if chr_coords is None:
@@ -386,6 +387,6 @@ def fragment_contacts(n_clicks, output_dir, sparse_matrix, fragments_file, oligo
             if pattern.match(file):
                 return n_clicks, "Coverage bed-graph file already exists (click again to overwrite)"
 
-    core.fragments.organize_contacts(sparse_matrix, fragments_file, oligos_file, output_dir, groups_file)
+    core.fragments.organize_contacts(filtered_sample, oligos_file, chr_coords, output_dir, groups_file)
     return 0, "Coverage file created successfully"
 
