@@ -304,11 +304,12 @@ def probe_groups(groups_file):
      State('pp-oligo-selector', 'value')]
 )
 def filter_contacts(n_clicks, output_dir, sample_id, sparse_matrix, fragments_file, oligos_file):
-    if sample_id is None:
-        return 0, "You have to select a sample first", None
 
     if n_clicks is None or n_clicks == 0:
         return 0, dash.no_update, None
+
+    if sample_id is None:
+        return 0, "You have to select a sample first", None
 
     pattern = re.compile(r'.+_filtered\.tsv')
     if n_clicks == 1:
