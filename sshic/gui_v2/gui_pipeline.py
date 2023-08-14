@@ -252,15 +252,15 @@ def prepare_dataframe_for_output(dataframe, selected_columns=None):
      Output('pp-p2f-dataframe', 'data'),
      Output('pp-p2f-dataframe', 'columns')],
     [Input('pp-p2f', 'n_clicks')],
-    [State('pp-fragments-selector', 'value'),
-     State('pp-oligo-selector', 'value')]
+    [Input('pp-fragments-selector', 'value'),
+     Input('pp-oligo-selector', 'value')]
 )
 def oligo_and_fragments(n_clicks, fragments_file, oligo_file):
     if n_clicks is None or n_clicks == 0:
-        return 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return 0, None, None, [], []
 
     if fragments_file is None or oligo_file is None:
-        return 0, "Select both fragments and capture oligos files", dash.no_update, dash.no_update, dash.no_update
+        return 0, "Select both fragments and capture oligos files", None, [], []
 
     df_oli = pd.read_csv(oligo_file, sep=core.utils.detect_delimiter(oligo_file))
     df_frag = pd.read_csv(fragments_file, sep=core.utils.detect_delimiter(fragments_file))
@@ -284,7 +284,7 @@ def oligo_and_fragments(n_clicks, fragments_file, oligo_file):
 )
 def probe_groups(groups_file):
     if groups_file is None:
-        return dash.no_update, dash.no_update, dash.no_update
+        return None, [], []
 
     df_groups = pd.read_csv(groups_file, sep='\t')
     data, columns = prepare_dataframe_for_output(df_groups)
