@@ -160,4 +160,4 @@ def update_table(file_path, delim):
 def update_dataframe(file_path, delim):
     if file_path is not None and delim is not None:
         return update_table(file_path, delim)
-    return dash.no_update, dash.no_update
+    return [], []
