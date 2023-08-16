@@ -171,20 +171,23 @@ layout = dbc.Container([
 
 
         dbc.Col([
-            html.Button('Specify a binning (kb)', id='pp-binning-add-button', n_clicks=0),
-            dcc.Input(id='pp-binning-input-box', type='number', value='', step='1'),
+            dcc.Input(id='pp-binning-input-box', type='number', value='', step='1',
+                      placeholder='Specify binning (in kb)',
+                      style={
+                        'width': '100%',
+                        'border': '1px solid #ccc',
+                        'border-radius': '4px',
+                        'padding': '10px',
+                        'font-size': '16px',
+                        'background-color': '#fff',
+                        'color': '#333'
+                      }),
             dcc.Store(id='pp-stored-bins', data=[])
         ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'}),
 
         dbc.Col([
             html.Div(id='pp-bins-list', style={'display': 'flex', 'flexWrap': 'wrap'})
-        ])
-    ]),
-
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='pp-binning-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '20px'}),
     ]),
 
     dcc.Store(id='this-sample-filtered-path')
@@ -435,12 +438,12 @@ def fragment_contacts(n_clicks, output_dir, filtered_sample, oligos_file, chr_co
     [Output('pp-bins-list', 'children'),
      Output('pp-binning-input-box', 'value'),
      Output('pp-stored-bins', 'data')],
-    Input('pp-binning-add-button', 'n_clicks'),
     Input({'type': 'delete-button', 'index': ALL}, 'n_clicks'),
-    State('pp-stored-bins', 'data'),
-    State('pp-binning-input-box', 'value')
+    Input('pp-binning-input-box', 'n_submit'),
+    State('pp-binning-input-box', 'value'),
+    State('pp-stored-bins', 'data')
 )
-def update_numbers_list(add_n_clicks, delete_n_clicks_list, stored_numbers, input_value):
+def update_numbers_list(delete_n_clicks_list, n_submit, input_value, stored_numbers):
     ctx = dash.callback_context
 
     if not ctx.triggered:
@@ -448,7 +451,7 @@ def update_numbers_list(add_n_clicks, delete_n_clicks_list, stored_numbers, inpu
 
     triggered_id = ctx.triggered[0]['prop_id']
 
-    if triggered_id == 'pp-binning-add-button.n_clicks' and input_value:
+    if triggered_id == 'pp-binning-input-box.n_submit' and input_value:
         if int(input_value) in stored_numbers:
             return dash.no_update
         stored_numbers.append(int(input_value))
@@ -461,7 +464,7 @@ def update_numbers_list(add_n_clicks, delete_n_clicks_list, stored_numbers, inpu
         html.Div([
             f"{number} kb ",
             html.Button("❌", id={'type': 'delete-button', 'index': index})
-        ], style={'display': 'inline-block', 'margin': '5px', 'width': '120px', 'height': '50px'})
+        ], style={'display': 'inline-block', 'margin': '0px', 'width': '100px', 'height': '40px'})
         for index, number in enumerate(stored_numbers)
     ]
 
