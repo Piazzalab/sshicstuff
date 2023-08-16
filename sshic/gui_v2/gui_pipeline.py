@@ -6,7 +6,6 @@ import pandas as pd
 from os.path import basename, join, isfile
 from shutil import copyfile
 import dash_bootstrap_components as dbc
-from dash.exceptions import PreventUpdate
 from dash import callback
 from dash import html, dcc, dash_table
 from dash.dependencies import Input, Output, State, ALL
@@ -115,6 +114,7 @@ layout = dbc.Container([
                 target="pp-filter", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
+
     dbc.Row([
         dbc.Col([
             html.Div(id='pp-filter-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
@@ -145,6 +145,7 @@ layout = dbc.Container([
                 target="pp-orga-contacts", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
+
     dbc.Row([
         dbc.Col([
             html.Div(id='pp-orga-contacts-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
@@ -158,17 +159,6 @@ layout = dbc.Container([
                 "Change the resolution of contacts tables (1kb, 5kb, 10kb etc ...)",
                 target="pp-binning", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
-
-        # dbc.Col([
-        #     html.Label("Select binning (kb):", style={'margin-top': '0px', 'margin-bottom': '0px'}),
-        #     dcc.Slider(
-        #         id='pp-binning-slider',
-        #         min=1, max=100, step=1, value=10, marks={1: "1"} | {i: str(i) for i in range(10, 101, 10)},
-        #         included=False,
-        #     ),
-        #     html.Div(id='pp-binning-slider-output'),
-        # width=4, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'})
-
 
         dbc.Col([
             dcc.Input(id='pp-binning-input-box', type='number', value='', step='1',
@@ -190,7 +180,11 @@ layout = dbc.Container([
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '20px'}),
     ]),
 
-    dcc.Store(id='this-sample-filtered-path')
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='pp-binning-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ]),
 ])
 
 
@@ -336,8 +330,7 @@ def probe_groups(groups_file):
 
 @callback(
     [Output('pp-filter', 'n_clicks'),
-     Output('pp-filter-output', 'children'),
-     Output('this-sample-filtered-path', 'data')],
+     Output('pp-filter-output', 'children')],
     [Input('pp-filter', 'n_clicks')],
     [State('this-sample-out-dir-path', 'data'),
      State('this-sample-id', 'data'),
@@ -348,27 +341,26 @@ def probe_groups(groups_file):
 def filter_contacts(n_clicks, output_dir, sample_id, sparse_matrix, fragments_file, oligos_file):
 
     if n_clicks is None or n_clicks == 0:
-        return 0, dash.no_update, None
+        return 0, dash.no_update
 
     if sample_id is None:
-        return 0, "You have to select a sample first", None
+        return 0, "You have to select a sample first"
 
     pattern = re.compile(r'.+_filtered\.tsv')
     if n_clicks == 1:
         if output_dir is None:
-            return dash.no_update, "You have to select a sample first", None
+            return dash.no_update, "You have to select a sample first"
         for file in os.listdir(output_dir):
             if pattern.match(file):
-                return n_clicks, "Filtered contacts file already exists (click again to overwrite)", \
-                    join(output_dir, f"{sample_id}_filtered.tsv")
+                return n_clicks, "Filtered contacts file already exists (click again to overwrite)"
 
     if fragments_file is None:
-        return 0, "Select a digested fragments file", None
+        return 0, "Select a digested fragments file"
     if oligos_file is None:
-        return 0, "Select a capture oligos file", None
+        return 0, "Select a capture oligos file"
 
     core.filter.filter_contacts(oligos_file, fragments_file, sparse_matrix, output_dir)
-    return 0, "Filtered contacts file created successfully", join(output_dir, f"{sample_id}_filtered.tsv")
+    return 0, "Filtered contacts file created successfully"
 
 
 @callback(
@@ -403,18 +395,20 @@ def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
      Output('pp-orga-contacts-output', 'children')],
     [Input('pp-orga-contacts', 'n_clicks'),
      Input('this-sample-out-dir-path', 'data'),
-     Input('this-sample-filtered-path', 'data'),
-     Input('pp-oligo-selector', 'value'),
-     Input('pp-chr-coords', 'value'),
-     Input('pp-probe-groups', 'value')]
+     Input('this-sample-id', 'data'),
+     State('pp-oligo-selector', 'value'),
+     State('pp-chr-coords', 'value'),
+     State('pp-probe-groups', 'value')]
 )
-def fragment_contacts(n_clicks, output_dir, filtered_sample, oligos_file, chr_coords, groups_file):
+def fragment_contacts(n_clicks, sample_output_dir, sample_id, oligos_file, chr_coords, groups_file):
     if n_clicks is None or n_clicks == 0:
         return 0, dash.no_update
 
-    output_dir = join(output_dir, 'not_weighted')
+    output_dir = join(sample_output_dir, 'not_weighted')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    filtered_sample = join(sample_output_dir, f"{sample_id}_filtered.tsv")
     if filtered_sample is None:
         return 0, "You need to filter the sample first"
     if oligos_file is None:
@@ -425,13 +419,13 @@ def fragment_contacts(n_clicks, output_dir, filtered_sample, oligos_file, chr_co
     pattern = re.compile(r'.+_unbinned_contacts')
     if n_clicks == 1:
         if output_dir is None:
-            return dash.no_update, "You have to select a sample first"
+            return dash.no_update, "You need to select a sample first"
         for file in os.listdir(output_dir):
             if pattern.match(file):
-                return n_clicks, "Coverage bed-graph file already exists (click again to overwrite)"
+                return n_clicks, "Contacts file already exists (click again to overwrite)"
 
     core.fragments.organize_contacts(filtered_sample, oligos_file, chr_coords, output_dir, groups_file)
-    return 0, "Coverage file created successfully"
+    return 0, "Contacts file created successfully"
 
 
 @callback(
