@@ -1,13 +1,15 @@
 import os
 import re
 import dash
+import json
 import pandas as pd
 from os.path import basename, join, isfile
 from shutil import copyfile
 import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
 from dash import callback
 from dash import html, dcc, dash_table
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output, State, ALL
 
 import core.utils
 import core.filter
@@ -148,6 +150,41 @@ layout = dbc.Container([
             html.Div(id='pp-orga-contacts-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
     ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(id="pp-binning", className="blue-button", children="Binning"),
+            dbc.Tooltip(
+                "Change the resolution of contacts tables (1kb, 5kb, 10kb etc ...)",
+                target="pp-binning", className="custom-tooltip", placement="right"),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+
+        # dbc.Col([
+        #     html.Label("Select binning (kb):", style={'margin-top': '0px', 'margin-bottom': '0px'}),
+        #     dcc.Slider(
+        #         id='pp-binning-slider',
+        #         min=1, max=100, step=1, value=10, marks={1: "1"} | {i: str(i) for i in range(10, 101, 10)},
+        #         included=False,
+        #     ),
+        #     html.Div(id='pp-binning-slider-output'),
+        # width=4, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'})
+
+
+        dbc.Col([
+            dcc.Input(id='pp-binning-input-box', type='number', value='', step='1'),
+            html.Button('Specify a binning (in kb)', id='pp-binning-add-button', n_clicks=0),
+            html.Div(id='pp-bins-list'),
+            dcc.Store(id='pp-stored-bins', data=[])
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'})
+
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='pp-binning-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ]),
+
     dcc.Store(id='this-sample-filtered-path')
 ])
 
@@ -391,3 +428,37 @@ def fragment_contacts(n_clicks, output_dir, filtered_sample, oligos_file, chr_co
     core.fragments.organize_contacts(filtered_sample, oligos_file, chr_coords, output_dir, groups_file)
     return 0, "Coverage file created successfully"
 
+
+@callback(
+    [Output('pp-bins-list', 'children'),
+     Output('pp-binning-input-box', 'value'),
+     Output('pp-stored-bins', 'data')],
+    Input('pp-binning-add-button', 'n_clicks'),
+    Input({'type': 'delete-button', 'index': ALL}, 'n_clicks'),
+    State('pp-stored-bins', 'data'),
+    State('pp-binning-input-box', 'value')
+)
+def update_numbers_list(add_n_clicks, delete_n_clicks_list, stored_numbers, input_value):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        return dash.no_update
+
+    triggered_id = ctx.triggered[0]['prop_id']
+
+    if triggered_id == 'pp-binning-add-button.n_clicks' and input_value:
+        stored_numbers.append(int(input_value))
+
+    if 'delete-button' in triggered_id:
+        clicked_button = int(json.loads(triggered_id.split('.n_clicks')[0])["index"])
+        stored_numbers.pop(clicked_button)
+
+    numbers_list = [
+        html.Div([
+            f"{number} kb",
+            html.Button("❌", id={'type': 'delete-button', 'index': index})
+        ])
+        for index, number in enumerate(stored_numbers)
+    ]
+
+    return numbers_list, '', stored_numbers
