@@ -171,12 +171,14 @@ layout = dbc.Container([
 
 
         dbc.Col([
+            html.Button('Specify a binning (kb)', id='pp-binning-add-button', n_clicks=0),
             dcc.Input(id='pp-binning-input-box', type='number', value='', step='1'),
-            html.Button('Specify a binning (in kb)', id='pp-binning-add-button', n_clicks=0),
-            html.Div(id='pp-bins-list'),
             dcc.Store(id='pp-stored-bins', data=[])
-        ], width=4, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'})
+        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'}),
 
+        dbc.Col([
+            html.Div(id='pp-bins-list', style={'display': 'flex', 'flexWrap': 'wrap'})
+        ])
     ]),
 
     dbc.Row([
@@ -447,6 +449,8 @@ def update_numbers_list(add_n_clicks, delete_n_clicks_list, stored_numbers, inpu
     triggered_id = ctx.triggered[0]['prop_id']
 
     if triggered_id == 'pp-binning-add-button.n_clicks' and input_value:
+        if int(input_value) in stored_numbers:
+            return dash.no_update
         stored_numbers.append(int(input_value))
 
     if 'delete-button' in triggered_id:
@@ -455,9 +459,9 @@ def update_numbers_list(add_n_clicks, delete_n_clicks_list, stored_numbers, inpu
 
     numbers_list = [
         html.Div([
-            f"{number} kb",
+            f"{number} kb ",
             html.Button("❌", id={'type': 'delete-button', 'index': index})
-        ])
+        ], style={'display': 'inline-block', 'margin': '5px', 'width': '120px', 'height': '50px'})
         for index, number in enumerate(stored_numbers)
     ]
 
