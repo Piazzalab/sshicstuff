@@ -437,7 +437,7 @@ def fragment_contacts(n_clicks, sample_output_dir, sample_id, oligos_file, chr_c
     State('pp-binning-input-box', 'value'),
     State('pp-stored-bins', 'data')
 )
-def update_numbers_list(delete_n_clicks_list, n_submit, input_value, stored_numbers):
+def update_bins_list(delete_n_clicks_list, n_submit, input_value, stored_numbers):
     ctx = dash.callback_context
 
     if not ctx.triggered:
@@ -463,3 +463,21 @@ def update_numbers_list(delete_n_clicks_list, n_submit, input_value, stored_numb
     ]
 
     return numbers_list, '', stored_numbers
+
+
+@callback(
+    [Output('pp-binning-output', 'children'),
+     Output('pp-binning', 'n_click')],
+    [Input('pp-binning', 'n_click'),
+     Input('pp-stored-bins', 'data'),
+     Input('this-sample-out-dir-path', 'data'),
+     Input('this-sample-id', 'data')],
+    [State('pp-oligo-selector', 'value'),
+     State('pp-chr-coords', 'value'),
+     State('pp-probe-groups', 'value')]
+)
+def make_rebin(n_click, bins_list, sample_output_dir, sample_id, oligos_file, chr_coords, groups_file):
+    for b in bins_list:
+        pass
+
+    return 0, None
