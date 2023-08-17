@@ -97,50 +97,53 @@ layout = dbc.Container([
     ]),
 
     dbc.Row([
-        dbc.Col([
-            html.Button(id="pp-p2f-button", className="blue-button", children="Probes to fragments"),
-            dbc.Tooltip(
-                "Create a column in the oligo table with the corresponding fragment",
-                target="pp-p2f-button", className="custom-tooltip", placement="right"),
-        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
-    ]),
+        dbc.Col(
+            dbc.Card([
+                dbc.CardHeader("Prepare Data"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Button(id="pp-p2f-button", className="blue-button", children="Probes to frags"),
+                            dbc.Tooltip(
+                                "Create a column in the oligo table with the corresponding fragment",
+                                target="pp-p2f-button", className="custom-tooltip", placement="right"),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px'}),
 
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='pp-p2f-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
-    ]),
+                        dbc.Col([
+                            html.Button(id="pp-filter-button", className="blue-button", children="Filter"),
+                            dbc.Tooltip(
+                                "This module filters the contacts by removing contacts "
+                                "that do not concern digested fragments containing oligos",
+                                target="pp-filter-button", className="custom-tooltip", placement="right"),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px'}),
 
-    dbc.Row([
-        dbc.Col([
-            html.Button(id="pp-filter-button", className="blue-button", children="Filter"),
-            dbc.Tooltip(
-                "This module filters the contacts by removing contacts "
-                "that do not concern digested fragments containing oligos",
-                target="pp-filter-button", className="custom-tooltip", placement="right"),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
-    ]),
+                        dbc.Col([
+                            html.Button(
+                                id="pp-coverage-button", className="blue-button", children="Coverage"),
+                            dbc.Tooltip(
+                                "Calculate the coverage per oligo fragment and save the result as a bed-graph file",
+                                target="pp-coverage-button", className="custom-tooltip", placement="right"),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px'}),
+                    ]),
 
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='pp-filter-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
-    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div(id='pp-p2f-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
 
-    dbc.Row([
-        dbc.Col([
-            html.Button(
-                id="pp-coverage-button", className="blue-button", children="Coverage"),
-            dbc.Tooltip(
-                "Calculate the coverage per oligo fragment and save the result as a bed-graph file",
-                target="pp-coverage-button", className="custom-tooltip", placement="right"),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
-    ]),
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='pp-coverage-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
-    ]),
+                        dbc.Col([
+                            html.Div(id='pp-filter-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+
+                        dbc.Col([
+                            html.Div(id='pp-coverage-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'})
+
+                    ])
+                ])
+            ])
+        )
+    ], style={'margin-top': '0px', 'margin-bottom': '50px'}),
 
     dbc.Row([
         dbc.Col([
