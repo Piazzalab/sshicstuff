@@ -2,8 +2,9 @@ import os
 import re
 import dash
 import json
+
 import pandas as pd
-from os.path import basename, join, isfile
+from os.path import basename, join, isfile, isdir
 from shutil import copyfile
 import dash_bootstrap_components as dbc
 from dash import callback
@@ -18,6 +19,8 @@ import core.probe2fragment
 import core.binning
 import core.statistics
 import core.weight
+import core.aggregated
+import utils
 
 
 def generate_data_table(id, data, columns, rows):
@@ -231,6 +234,72 @@ layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.Div(id='pp-weight-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(id="pp-aggregate-button", className="blue-button", children="Aggregate"),
+            dbc.Tooltip("Aggregate contacts made by probes around centromeres and/or telomeres",
+                        target="pp-aggregate-button", className="custom-tooltip", placement="right"),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            dcc.Dropdown(id='pp-aggr-weight-selector', options=[], value=None, multi=False),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            dcc.Dropdown(id='pp-aggr-on-selector', options=["centromeres", "telomeres"], value=None, multi=False),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            dcc.Input(id='pp-aggr-window', type='number', value="", step='1',
+                      placeholder="Specify window region (in bp)",
+                      style={
+                          'width': '100%',
+                          'height': '36px',
+                          'border': '1px solid #ccc',
+                          'border-radius': '4px',
+                          'padding': '10px',
+                          'font-size': '14px',
+                          'background-color': '#fff',
+                          'color': '#333'
+                      }),
+            dbc.Tooltip("Window (in bp) that defines the centromere or telomere region (on 5' and 3')",
+                        target='pp-aggr-window', className="custom-tooltip", placement="right"),
+        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '0px'}),
+
+        dbc.Col([
+            dcc.Dropdown(id='pp-aggr-chr-exclusion-selector', options=[], value=None, multi=True),
+            dbc.Tooltip("Enter the chromosome you want to exclude from aggregation.",
+                        target='pp-chr-exclusion-selector', className="custom-tooltip", placement="right"),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '0px'}),
+
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            dcc.Checklist(id='pp-aggr-self-chr-checkbox',
+                          options=[{'label': ' Exclude probe located chr', 'value': 'checked'}], value=[]),
+        ], width=3, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            dcc.Checklist(id='pp-aggr-inter-norm-checkbox',
+                          options=[{'label': ' Inter-norm', 'value': 'checked'}], value=[]),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '30px', 'margin-left': '-70px'}),
+
+        dbc.Col([
+            dcc.Checklist(id='pp-aggr-plot-checkbox',
+                          options=[{'label': ' Plot', 'value': 'checked'}], value=[]),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '-70px'}),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='pp-aggregate-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
     ]),
 ])
@@ -634,4 +703,31 @@ def make_statistics(n_clicks, sample_output_dir, sample_id, reference, groups_fi
                 f"{bin_suffix}_binned", weighted_dir, groups_file)
 
         return 0, "Weighted files created successfully"
+
+
+@callback(
+    [Output('pp-aggr-weight-selector', 'options')],
+    [Input('this-sample-out-dir-path', 'data')]
+)
+def update_aggr_weight_selector(sample_output_dir):
+    if sample_output_dir is None:
+        return dash.no_update
+
+    weighted_dirs = [d for d in os.listdir(sample_output_dir) if 'weighted' in d and isdir(join(sample_output_dir, d))]
+    options = [{'label': d, 'value': join(sample_output_dir, d)} for d in weighted_dirs]
+    return [options]
+
+
+@callback(
+    [Output('pp-aggr-chr-exclusion-selector', 'options')],
+    [Input('pp-chr-coords', 'value')]
+)
+def update_aggr_chr_exclusion_selector(chr_coords):
+    if chr_coords is None:
+        return dash.no_update
+
+    df_chr_coords = pd.read_csv(chr_coords, sep=utils.detect_delimiter(chr_coords))
+    chr_list = df_chr_coords['chr'].to_list()
+    options = [{'label': c, 'value': c} for c in chr_list]
+    return [options]
 
