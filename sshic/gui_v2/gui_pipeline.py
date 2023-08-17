@@ -16,6 +16,8 @@ import core.coverage
 import core.fragments
 import core.probe2fragment
 import core.binning
+import core.statistics
+import core.weight
 
 
 def generate_data_table(id, data, columns, rows):
@@ -210,6 +212,27 @@ layout = dbc.Container([
                         target="pp-stats-cis-range-input-box", className="custom-tooltip", placement="right"),
         ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'}),
     ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='pp-stats-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(id="pp-weight-button", className="blue-button", children="Weight"),
+            dbc.Tooltip("Weight a sample by normalizing its contacts by a coefficient of capture "
+                        "efficiency compared to a reference WT",
+                        target="pp-weight-button", className="custom-tooltip", placement="right"),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='pp-weight-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
+    ]),
 ])
 
 
@@ -264,10 +287,9 @@ def copy_input_files(
 
         if reference_file is not None:
             reference_file_name = basename(reference_file)
-            reference_dir = join(inputs_dir, "references")
-            if not os.path.exists(reference_dir):
-                os.makedirs(reference_dir)
-            copyfile(reference_file, join(reference_dir, reference_file_name))
+            if not os.path.exists(inputs_dir):
+                os.makedirs(inputs_dir)
+            copyfile(reference_file, join(inputs_dir, reference_file_name))
         return 0
 
 
@@ -528,3 +550,88 @@ def make_rebin(n_clicks, bins_list, sample_output_dir, sample_id, oligos_file, c
             core.binning.rebin_contacts(unbinned_contacts, chr_coords, oligos_file, bin_bp, output_dir, groups_file)
 
     return 0, "Binned contacts files created successfully"
+
+
+@callback(
+    [Output('pp-stats-button', 'n_clicks'),
+     Output('pp-stats-output', 'children')],
+    [Input('pp-stats-button', 'n_clicks')],
+    [State('this-sample-out-dir-path', 'data'),
+     State('this-sample-id', 'data'),
+     State('this-sample-path', 'data'),
+     State('pp-oligo-selector', 'value'),
+     State('pp-reference-selector', 'value'),
+     State('pp-stats-cis-range-input-box', 'value')]
+)
+def make_statistics(n_clicks, sample_output_dir, sample_id, sample_path, oligos_file, reference, cis_range):
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update
+    if sample_id is None or sample_path is None:
+        return 0, "You need to select a sample first"
+    if oligos_file is None:
+        return 0, "Select a capture oligos file"
+    if cis_range < 0:
+        return 0, "Cis range must be positive integer"
+
+    output_dir = sample_output_dir
+    sparse_matrix = sample_path
+    unbinned_contacts = join(output_dir, 'not_weighted', f"{sample_id}_unbinned_contacts.tsv")
+
+    global_stats = join(output_dir, f"{sample_id}_global_statistics.tsv")
+
+    if n_clicks == 1:
+        if global_stats in os.listdir(output_dir):
+            return n_clicks, "Statistics file already exists (click again to overwrite)"
+
+    core.statistics.get_stats(unbinned_contacts, sparse_matrix, oligos_file, output_dir, cis_range)
+    if reference is not None:
+        ref_name = reference.split('/')[-1].split('.')[0]
+        core.statistics.compare_to_wt(global_stats, reference, ref_name)
+
+        return 0, "Statistics files created successfully and compared to wild type reference"
+    return 0, "Statistics files created successfully"
+
+
+@callback(
+    [Output('pp-weight-button', 'n_clicks'),
+     Output('pp-weight-output', 'children')],
+    [Input('pp-weight-button', 'n_clicks')],
+    [State('this-sample-out-dir-path', 'data'),
+     State('this-sample-id', 'data'),
+     State('pp-reference-selector', 'value'),
+     State('pp-probe-groups', 'value')]
+)
+def make_statistics(n_clicks, sample_output_dir, sample_id, reference, groups_file):
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update
+    if sample_id is None:
+        return 0, "You need to select a sample first"
+    if reference is None:
+        return 0, "You need first to select a reference WT to weight with"
+
+    global_stats = join(sample_output_dir, f"{sample_id}_global_statistics.tsv")
+    ref_name = reference.split('/')[-1].split('.')[0]
+
+    not_weighted_dir = join(sample_output_dir, 'not_weighted')
+    weighted_dir = join(sample_output_dir, f'weighted_{ref_name}')
+    binned_contacts_list = [f for f in os.listdir(not_weighted_dir) if '_binned_contacts' in f]
+    binned_frequencies_list = [f for f in os.listdir(not_weighted_dir) if '_binned_frequencies' in f]
+    unbinned_contacts = join(not_weighted_dir, f"{sample_id}_unbinned_contacts.tsv")
+    unbinned_frequencies = join(not_weighted_dir, f"{sample_id}_unbinned_frequencies.tsv")
+
+    if n_clicks == 1:
+        if not os.path.exists(weighted_dir):
+            os.makedirs(weighted_dir)
+
+        core.weight.weight_mutant(
+            global_stats, ref_name, unbinned_contacts, unbinned_frequencies,
+            "unbinned", weighted_dir, groups_file)
+
+        for binned_c, binned_f in zip(binned_contacts_list, binned_frequencies_list):
+            bin_suffix = re.search(r'(\d+)kb', binned_c).group(1) + 'kb'
+            core.weight.weight_mutant(
+                global_stats, ref_name, join(not_weighted_dir, binned_c), join(not_weighted_dir, binned_f),
+                f"{bin_suffix}_binned", weighted_dir, groups_file)
+
+        return 0, "Weighted files created successfully"
+
