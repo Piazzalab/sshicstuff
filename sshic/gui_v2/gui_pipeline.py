@@ -15,6 +15,7 @@ import core.filter
 import core.coverage
 import core.fragments
 import core.probe2fragment
+import core.binning
 
 
 def generate_data_table(id, data, columns, rows):
@@ -394,8 +395,8 @@ def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
     [Output('pp-orga-contacts', 'n_clicks'),
      Output('pp-orga-contacts-output', 'children')],
     [Input('pp-orga-contacts', 'n_clicks'),
-     Input('this-sample-out-dir-path', 'data'),
-     Input('this-sample-id', 'data'),
+     State('this-sample-out-dir-path', 'data'),
+     State('this-sample-id', 'data'),
      State('pp-oligo-selector', 'value'),
      State('pp-chr-coords', 'value'),
      State('pp-probe-groups', 'value')]
@@ -403,6 +404,9 @@ def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
 def fragment_contacts(n_clicks, sample_output_dir, sample_id, oligos_file, chr_coords, groups_file):
     if n_clicks is None or n_clicks == 0:
         return 0, dash.no_update
+
+    if sample_id is None:
+        return 0, "You need to select a sample first"
 
     output_dir = join(sample_output_dir, 'not_weighted')
     if not os.path.exists(output_dir):
@@ -418,8 +422,6 @@ def fragment_contacts(n_clicks, sample_output_dir, sample_id, oligos_file, chr_c
 
     pattern = re.compile(r'.+_unbinned_contacts')
     if n_clicks == 1:
-        if output_dir is None:
-            return dash.no_update, "You need to select a sample first"
         for file in os.listdir(output_dir):
             if pattern.match(file):
                 return n_clicks, "Contacts file already exists (click again to overwrite)"
@@ -466,18 +468,39 @@ def update_bins_list(delete_n_clicks_list, n_submit, input_value, stored_numbers
 
 
 @callback(
-    [Output('pp-binning-output', 'children'),
-     Output('pp-binning', 'n_click')],
-    [Input('pp-binning', 'n_click'),
-     Input('pp-stored-bins', 'data'),
-     Input('this-sample-out-dir-path', 'data'),
-     Input('this-sample-id', 'data')],
+    [Output('pp-binning', 'n_clicks'),
+     Output('pp-binning-output', 'children')],
+    [Input('pp-binning', 'n_clicks'),
+     State('pp-stored-bins', 'data'),
+     State('this-sample-out-dir-path', 'data'),
+     State('this-sample-id', 'data')],
     [State('pp-oligo-selector', 'value'),
      State('pp-chr-coords', 'value'),
      State('pp-probe-groups', 'value')]
 )
-def make_rebin(n_click, bins_list, sample_output_dir, sample_id, oligos_file, chr_coords, groups_file):
-    for b in bins_list:
-        pass
+def make_rebin(n_clicks, bins_list, sample_output_dir, sample_id, oligos_file, chr_coords, groups_file):
 
-    return 0, None
+    if n_clicks is None or n_clicks == 0:
+        return 0, dash.no_update
+    if sample_id is None:
+        return 0, "You need to select a sample first"
+    if oligos_file is None:
+        return 0, "Select a capture oligos file"
+    if chr_coords is None:
+        return 0, "Select a chromosome coordinates file"
+    if len(bins_list) == 0:
+        return 0, "Select at least one bin size (in kb)"
+
+    unbinned_contacts = join(sample_output_dir, 'not_weighted', f"{sample_id}_unbinned_contacts.tsv")
+    if not os.path.exists(unbinned_contacts):
+        return 0, "You need to create fragment contacts tables (unbinned) first"
+    output_dir = join(sample_output_dir, 'not_weighted')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    if n_clicks == 1:
+        for bin_kb in bins_list:
+            bin_bp = int(bin_kb) * 1000
+            core.binning.rebin_contacts(unbinned_contacts, chr_coords, oligos_file, bin_bp, output_dir, groups_file)
+
+    return 0, "Binned contacts files created successfully"
