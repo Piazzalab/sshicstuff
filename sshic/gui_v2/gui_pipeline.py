@@ -83,20 +83,20 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            html.Button(id="pp-copy-inputs", className="green-button", children="Copy files"),
+            html.Button(id="pp-copy-inputs-button", className="green-button", children="Copy files"),
             dbc.Tooltip(
                 "Once you have selected all the inputs file you selected, you can copy them "
                 "into the sample output directory to keep trace.",
-                target="pp-copy-inputs", className="custom-tooltip", placement="right"),
+                target="pp-copy-inputs-button", className="custom-tooltip", placement="right"),
         ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
 
     dbc.Row([
         dbc.Col([
-            html.Button(id="pp-p2f", className="blue-button", children="Probes to fragments"),
+            html.Button(id="pp-p2f-button", className="blue-button", children="Probes to fragments"),
             dbc.Tooltip(
                 "Create a column in the oligo table with the corresponding fragment",
-                target="pp-p2f", className="custom-tooltip", placement="right"),
+                target="pp-p2f-button", className="custom-tooltip", placement="right"),
         ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
 
@@ -108,11 +108,11 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            html.Button(id="pp-filter", className="blue-button", children="Filter"),
+            html.Button(id="pp-filter-button", className="blue-button", children="Filter"),
             dbc.Tooltip(
                 "This module filters the contacts by removing contacts "
                 "that do not concern digested fragments containing oligos",
-                target="pp-filter", className="custom-tooltip", placement="right"),
+                target="pp-filter-button", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
 
@@ -125,10 +125,10 @@ layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.Button(
-                id="pp-coverage", className="blue-button", children="Coverage"),
+                id="pp-coverage-button", className="blue-button", children="Coverage"),
             dbc.Tooltip(
                 "Calculate the coverage per oligo fragment and save the result as a bed-graph file",
-                target="pp-coverage", className="custom-tooltip", placement="right"),
+                target="pp-coverage-button", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
     dbc.Row([
@@ -139,11 +139,11 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            html.Button(id="pp-orga-contacts", className="blue-button", children="Organize contacts"),
+            html.Button(id="pp-orga-contacts-button", className="blue-button", children="Organize contacts"),
             dbc.Tooltip(
                 "Organize the contacts made by each probe with the genome and save "
                 "the results as two .tsv files one for contacts and one for frequencies.",
-                target="pp-orga-contacts", className="custom-tooltip", placement="right"),
+                target="pp-orga-contacts-button", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
     ]),
 
@@ -155,10 +155,10 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            html.Button(id="pp-binning", className="blue-button", children="Binning"),
+            html.Button(id="pp-binning-button", className="blue-button", children="Binning"),
             dbc.Tooltip(
                 "Change the resolution of contacts tables (1kb, 5kb, 10kb etc ...)",
-                target="pp-binning", className="custom-tooltip", placement="right"),
+                target="pp-binning-button", className="custom-tooltip", placement="right"),
         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
 
         dbc.Col([
@@ -198,8 +198,8 @@ def display_sample_id(sample_id):
 
 
 @callback(
-    Output('pp-copy-inputs', 'n_clicks'),
-    [Input('pp-copy-inputs', 'n_clicks')],
+    Output('pp-copy-inputs-button', 'n_clicks'),
+    [Input('pp-copy-inputs-button', 'n_clicks')],
     [State('this-sample-path', 'data'),
      State('pp-fragments-selector', 'value'),
      State('pp-oligo-selector', 'value'),
@@ -283,12 +283,12 @@ def prepare_dataframe_for_output(dataframe, selected_columns=None):
 
 
 @callback(
-    [Output('pp-p2f', 'n_clicks'),
+    [Output('pp-p2f-button', 'n_clicks'),
      Output('pp-p2f-output', 'children'),
      Output('pp-p2f-dataframe-title', 'children'),
      Output('pp-p2f-dataframe', 'data'),
      Output('pp-p2f-dataframe', 'columns')],
-    [Input('pp-p2f', 'n_clicks')],
+    [Input('pp-p2f-button', 'n_clicks')],
     [Input('pp-fragments-selector', 'value'),
      Input('pp-oligo-selector', 'value')]
 )
@@ -330,9 +330,9 @@ def probe_groups(groups_file):
 
 
 @callback(
-    [Output('pp-filter', 'n_clicks'),
+    [Output('pp-filter-button', 'n_clicks'),
      Output('pp-filter-output', 'children')],
-    [Input('pp-filter', 'n_clicks')],
+    [Input('pp-filter-button', 'n_clicks')],
     [State('this-sample-out-dir-path', 'data'),
      State('this-sample-id', 'data'),
      State('this-sample-path', 'data'),
@@ -365,9 +365,9 @@ def filter_contacts(n_clicks, output_dir, sample_id, sparse_matrix, fragments_fi
 
 
 @callback(
-    [Output('pp-coverage', 'n_clicks'),
+    [Output('pp-coverage-button', 'n_clicks'),
      Output('pp-coverage-output', 'children')],
-    [Input('pp-coverage', 'n_clicks')],
+    [Input('pp-coverage-button', 'n_clicks')],
     [State('this-sample-out-dir-path', 'data'),
      State('this-sample-path', 'data'),
      State('pp-fragments-selector', 'value')]
@@ -392,9 +392,9 @@ def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
 
 
 @callback(
-    [Output('pp-orga-contacts', 'n_clicks'),
+    [Output('pp-orga-contacts-button', 'n_clicks'),
      Output('pp-orga-contacts-output', 'children')],
-    [Input('pp-orga-contacts', 'n_clicks'),
+    [Input('pp-orga-contacts-button', 'n_clicks'),
      State('this-sample-out-dir-path', 'data'),
      State('this-sample-id', 'data'),
      State('pp-oligo-selector', 'value'),
@@ -468,9 +468,9 @@ def update_bins_list(delete_n_clicks_list, n_submit, input_value, stored_numbers
 
 
 @callback(
-    [Output('pp-binning', 'n_clicks'),
+    [Output('pp-binning-button', 'n_clicks'),
      Output('pp-binning-output', 'children')],
-    [Input('pp-binning', 'n_clicks'),
+    [Input('pp-binning-button', 'n_clicks'),
      State('pp-stored-bins', 'data'),
      State('this-sample-out-dir-path', 'data'),
      State('this-sample-id', 'data')],
