@@ -186,6 +186,30 @@ layout = dbc.Container([
             html.Div(id='pp-binning-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
     ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(id="pp-stats-button", className="blue-button", children="Statistics"),
+            dbc.Tooltip("Generate statistics and normalization for contacts made by each probe",
+                        target="pp-stats-button", className="custom-tooltip", placement="right"),
+        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+
+        dbc.Col([
+            dcc.Input(id='pp-stats-cis-range-input-box', type='number', value="", step='1',
+                      placeholder='Specify a cis range (in bp)',
+                      style={
+                          'width': '100%',
+                          'border': '1px solid #ccc',
+                          'border-radius': '4px',
+                          'padding': '10px',
+                          'font-size': '16px',
+                          'background-color': '#fff',
+                          'color': '#333'
+                      }),
+            dbc.Tooltip("Range of bp around the probes (both left and right) to consider as cis contacts",
+                        target="pp-stats-cis-range-input-box", className="custom-tooltip", placement="right"),
+        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'}),
+    ]),
 ])
 
 
