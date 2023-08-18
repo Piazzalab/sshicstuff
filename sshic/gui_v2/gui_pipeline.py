@@ -41,9 +41,36 @@ def generate_data_table(id, data, columns, rows):
 
 
 layout = dbc.Container([
+    # dbc.Row([
+    #     html.Div(id='pp-sample-id-output',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
+    # ]),
+
     dbc.Row([
-        html.Div(id='pp-sample-id-output',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
-    ]),
+        dbc.Col(
+            dbc.Card([
+                dbc.CardHeader("Samples"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select a sample : "),
+                            dcc.Dropdown(id='pp-sample-selector', options=[], value=None, multi=False),
+                            html.Div(id='pp-current-sample-id-output',
+                                     style={'margin-top': '20px', 'margin-bottom': '20px'})
+                        ], width=4, style={'margin-top': '0px', 'margin-bottom': '0px'}),
+
+                        dbc.Col([
+                            html.Div(id='pp-current-sample-files',
+                                     style={'margin-top': '0px', 'margin-bottom': '20px'}),
+                        ]),
+                    ]),
+                    dcc.Store(id='pp-current-sample-id'),
+                    dcc.Store(id='pp-current-sample-file-path'),
+                    dcc.Store(id='pp-current-sample-in-dir-path'),
+                    dcc.Store(id='pp-current-sample-out-dir-path')
+                ])
+            ])
+        )
+    ], style={'margin-top': '20px', 'margin-bottom': '50px'}),
 
     dbc.Row([
         dbc.Col([
@@ -340,22 +367,75 @@ layout = dbc.Container([
 
 
 @callback(
-    Output('pp-sample-id-output', 'children'),
-    Input('this-sample-id', 'data')
+    Output('pp-sample-selector', 'options'),
+    Input('selected-samples', 'data'),
 )
-def display_sample_id(sample_id):
-    return f"You are working on sample : {sample_id}"
+def update_sample_selector(selected_samples):
+    if selected_samples is None:
+        return []
+    options = [{'label': s, 'value': s} for s in selected_samples]
+    return options
+
+
+@callback(
+    Output('pp-current-sample-id-output', 'children'),
+    Output('pp-current-sample-id', 'data'),
+    Input('pp-sample-selector', 'value')
+)
+def update_current_sample_id_output(sample_id):
+    if sample_id is None:
+        return None, None
+    return f"Current sample ID: {sample_id}", sample_id
+
+
+@callback(
+    Output('pp-current-sample-files', 'children'),
+    Input('pp-sample-selector', 'value'),
+    State('data-basedir', 'data')
+)
+def display_samples_files(sample_id, data_basedir):
+    if sample_id is None:
+        return None
+
+    samples_dir = join(data_basedir, "samples")
+    current_samp_files = [
+        f for f in os.listdir(samples_dir) if isfile(join(samples_dir, f)) and sample_id.lower() in f.lower()
+    ]
+    return html.Div([
+        html.Label("Select a file : "),
+        dcc.Dropdown(
+            id='pp-current-sample-file-selector',
+            options=current_samp_files, value=None, multi=False),
+    ])
+
+
+@callback(
+    Output('pp-current-sample-file-path', 'data'),
+    Output('pp-current-sample-in-dir-path', 'data'),
+    Output('pp-current-sample-out-dir-path', 'data'),
+    Input('pp-current-sample-file-selector', 'value'),
+    State('data-basedir', 'data'),
+    State('pp-current-sample-id', 'data')
+)
+def update_current_sample_paths(sample_file, data_basedir, sample_id):
+    if sample_file is None or data_basedir is None or sample_id is None:
+        return None, None, None
+
+    sample_file_path = join(data_basedir, "samples", sample_file)
+    sample_input_dir = join(data_basedir, "samples", sample_id, "inputs")
+    sample_output_dir = join(data_basedir, "samples", sample_id, "outputs")
+    return sample_file_path, sample_input_dir, sample_output_dir
 
 
 @callback(
     Output('pp-copy-inputs-button', 'n_clicks'),
     [Input('pp-copy-inputs-button', 'n_clicks')],
-    [State('this-sample-path', 'data'),
+    [State('pp-current-sample-file-selector', 'data'),
      State('pp-fragments-selector', 'value'),
      State('pp-oligo-selector', 'value'),
      State('pp-chr-coords', 'value'),
      State('pp-reference-selector', 'value'),
-     State('this-sample-out-dir-path', 'data')]
+     State('pp-current-sample-out-dir-path', 'data')]
 )
 def copy_input_files(
         n_clicks,

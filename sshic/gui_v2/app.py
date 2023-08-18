@@ -32,7 +32,6 @@ app.layout = html.Div([
                          className='custom-tab', selected_className='custom-tab--selected'),
              ]),
     html.Div(id='page-content'),
-    dcc.Store(id="dummy-output"),
     dcc.Store(id='data-basedir'),
     dcc.Store(id='selected-samples')
 ])

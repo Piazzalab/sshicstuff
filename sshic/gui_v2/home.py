@@ -119,3 +119,13 @@ def get_data_basedir(data_value):
         return data_value
     return dash.no_update
 
+
+@callback(
+    Output('selected-samples', 'data'),
+    Input('samples-checklist', 'value')
+)
+def get_selected_samples(samples_value):
+    if samples_value:
+        return samples_value
+    return dash.no_update
+
