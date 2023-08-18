@@ -27,14 +27,13 @@ def run_pipeline(sample, reference):
 
 
 if __name__ == "__main__":
-    pcr_type = "pcrfree"
 
     base_dir = "/home/nicolas/Documents/Projects/ssdna-hic"
     script = join(base_dir, "sshic", "pipeline.py")
     data_dir = join(base_dir, "data")
     inputs_dir = join(data_dir,  "inputs")
     refs_dir = join(inputs_dir, "references")
-    samples_dir = join(data_dir, "samples", pcr_type.lower())
+    samples_dir = join(data_dir, "samples")
     samples_only = []
 
     fragments = join(inputs_dir,  "fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt")
