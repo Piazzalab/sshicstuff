@@ -608,7 +608,8 @@ def update_bins_list(delete_n_clicks_list, n_submit, input_value, stored_numbers
     numbers_list = [
         html.Div([
             f"{number} kb ",
-            html.Button("❌", id={'type': 'delete-button', 'index': index})
+            html.Button("❌", className="custom-delete-button",
+                        id={'type': 'delete-button', 'index': index})
         ], style={'display': 'inline-block', 'margin': '0px', 'width': '100px', 'height': '40px'})
         for index, number in enumerate(stored_numbers)
     ]

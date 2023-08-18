@@ -79,5 +79,21 @@ h4, h5, h6 {
 .custom-tooltip {
     left: 10px !important;
     width: 600px !important;
+}
 
+
+.custom-delete-button {
+  background-color: rgba(200, 200, 200, 0.5);
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+.custom-delete-button:hover {
+  background-color: rgba(180, 180, 180, 0.7);
+  transform: scale(1.05);
 }
