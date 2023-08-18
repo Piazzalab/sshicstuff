@@ -8,9 +8,6 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 
 
-TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
-
-
 layout = html.Div([
     dbc.Container([
         dbc.Row(
