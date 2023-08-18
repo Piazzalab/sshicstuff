@@ -8,7 +8,7 @@ from dash.dependencies import Input, Output
 import home
 import data_viewer
 import gui_pipeline
-import gui_binning
+import probes_viewer
 
 # Create a Dash application instance:
 server = Flask(__name__, template_folder='templates', )
@@ -52,7 +52,7 @@ def display_page(value):
     elif value == 'pipeline':
         return gui_pipeline.layout
     elif value == 'probes-viewer':
-        return gui_binning.layout
+        return probes_viewer.layout
 
 
 if __name__ == '__main__':

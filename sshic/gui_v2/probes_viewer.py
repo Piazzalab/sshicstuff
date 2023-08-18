@@ -14,29 +14,135 @@ import plotly.graph_objs as go
 layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            html.Label("Select probes :", style={'margin-top': '20px', 'margin-bottom': '20px'}),
-            dcc.Dropdown(
-                id='probe-selector',
-                multi=True,
-            ),
+            dbc.Card([
+                dbc.CardHeader("Probe #1"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select PCR mode:",
+                                       style={'margin-top': '0px', 'margin-bottom': '5px'}),
+                            dcc.Dropdown(
+                                id='pv-pcr-selector-1',
+                                multi=False,
+                            )
+                        ]),
+                    ]),
+
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select sample:",
+                                       style={'margin-top': '10px', 'margin-bottom': '5px'}),
+                            dcc.Dropdown(
+                                id='pv-sample-selector-1',
+                                multi=False,
+                            )
+                        ]),
+                    ]),
+
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select weight :",
+                                       style={'margin-top': '10px', 'margin-bottom': '5px'}),
+                            dcc.Dropdown(
+                                id='pv-weight-selector-1',
+                                multi=False,
+                            )
+                        ]),
+                    ]),
+
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select probes :",
+                                       style={'margin-top': '10px', 'margin-bottom': '5px'}),
+                            dcc.Dropdown(
+                                id='pv-probe-selector-1',
+                                multi=False,
+                            )
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ], width=6),
+
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader("Probe #2"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select PCR mode:",
+                                       style={'margin-top': '0px', 'margin-bottom': '5px'}),
+                            dcc.Dropdown(
+                                id='pv-pcr-selector-2',
+                                multi=False,
+                            )
+                        ]),
+                    ]),
+
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select sample:",
+                                       style={'margin-top': '10px', 'margin-bottom': '5px'}),
+                            dcc.Dropdown(
+                                id='pv-sample-selector-2',
+                                multi=False,
+                            )
+                        ]),
+                    ]),
+
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select weight :",
+                                       style={'margin-top': '10px', 'margin-bottom': '5px'}),
+                            dcc.Dropdown(
+                                id='pv-weight-selector-2',
+                                multi=False,
+                            )
+                        ]),
+                    ]),
+
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Select probes :",
+                                       style={'margin-top': '10px', 'margin-bottom': '5px'}),
+                            dcc.Dropdown(
+                                id='pv-probe-selector-2',
+                                multi=False,
+                            )
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ], width=6),
+    ], style={'margin-top': '20px', 'margin-bottom': '10px'}),
+
+
+
+    dbc.Row([
+        dbc.Col([
             html.Label("Select binning :", style={'margin-top': '20px', 'margin-bottom': '20px'}),
             dcc.Slider(
-                id='binning-slider',
+                id='pv-binning-slider',
                 min=1,
                 max=100,
                 step=1,
                 value=10,
                 marks={1: "1"} | {i: str(i) for i in range(10, 101, 10)},
-                included=False,
-            ),
-            html.Div(id='slider-output-container'),
-            html.Br(),
-        ], width=4, style={'position': 'absolute', 'top': '100px', 'left': '25px'}),
+                included=False
+            )
+        ], width=6),
     ]),
 
     dbc.Row([
         dbc.Col([
-            dcc.Graph(id='graph1',
+            html.Div(id='pv-slider-output-container'),
+            html.Br(),
+        ], width=4, style={'margin-top': '10px', 'margin-bottom': '0px', 'margin-left': '20px'}),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            dcc.Graph(id='pv-graph1',
                       config={'displayModeBar': True, 'scrollZoom': True},
                       style={'height': 'auto', 'width': '100%'}),
         ], width=12, align='center'),
@@ -44,7 +150,7 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            dcc.Graph(id='graph2',
+            dcc.Graph(id='pv-graph2',
                       config={'displayModeBar': True, 'scrollZoom': True},
                       style={'height': 'auto', 'width': '100%'}),
         ], width=12, align='center'),
@@ -53,10 +159,18 @@ layout = dbc.Container([
 
 
 @callback(
-    Output('slider-output-container', 'children'),
-    [Input('binning-slider', 'value')])
+    Output('pv-slider-output-container', 'children'),
+    [Input('pv-binning-slider', 'value')])
 def update_output(value):
     return 'You have selected a binning of {} kb'.format(value)
+
+
+# @callback(
+#     Output('pv-probe-selector', 'options'),
+#     Input('this-sample-out-dir-path', 'data')
+# )
+# def update_probe_selector(sample_out_dir_path):
+#     pass
 
 
 # @callback(
