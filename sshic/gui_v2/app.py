@@ -34,9 +34,7 @@ app.layout = html.Div([
     html.Div(id='page-content'),
     dcc.Store(id="dummy-output"),
     dcc.Store(id='data-basedir'),
-    dcc.Store(id='this-sample-path'),
-    dcc.Store(id='this-sample-id'),
-    dcc.Store(id='this-sample-out-dir-path'),
+    dcc.Store(id='selected-samples')
 ])
 
 

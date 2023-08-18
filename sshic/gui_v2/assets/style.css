@@ -97,3 +97,14 @@ h4, h5, h6 {
   background-color: rgba(180, 180, 180, 0.7);
   transform: scale(1.05);
 }
+
+
+.custom-checkbox-label {
+    align-items: center;
+    margin: 10px;
+    font-size: 16px;
+}
+
+.custom-checkbox-label input[type="checkbox"] {
+    margin-right: 5px;
+}

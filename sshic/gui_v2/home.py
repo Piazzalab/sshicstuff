@@ -1,8 +1,7 @@
 import os
-import re
 import dash
 import numpy as np
-from os.path import join, dirname, isdir, isfile
+from os.path import join, dirname
 from dash import html, dcc
 from dash import callback
 import dash_bootstrap_components as dbc
@@ -42,53 +41,73 @@ layout = html.Div([
         dbc.Row([
             dbc.Col([
                 html.Label("Select your sample(s):"),
-                dcc.Dropdown(
-                    id='sample-file-selector',
-                    options=[],
-                    multi=True
+                dcc.Input(
+                    id='sample-search-input',
+                    type='text',
+                    placeholder='Search...',
+                    style={
+                        'width': '20%',
+                        'border': '1px solid #ccc',
+                        'border-radius': '4px',
+                        'margin-left': '20px',
+                        'padding': '4px',
+                        'font-size': '14px',
+                        'background-color': '#fff',
+                        'color': '#333',
+                    }
                 ),
-            ], width=8),
+                dcc.Checklist(
+                    id='select-all-checkbox',
+                    options=[{"label": "Select All", "value": "All"}],
+                    value=[],
+                    inline=True,
+                    className='custom-checkbox-label',
+                    labelStyle={"margin": "5px"}
+                ),
+
+                html.Div(
+                    children=[
+                        dcc.Checklist(
+                            id='samples-checklist',
+                            options=[],
+                            value=[],
+                            inline=True,
+                            className='custom-checkbox-label',
+                            labelStyle={"margin": "5px"}
+                        )
+                    ],
+                ),
+            ], width=10,),
         ]),
     ]),
 ])
 
 
-def get_files_from_dir(directory, filter_string='', stamp="f"):
-    if stamp == "f":
-        return [
-            f for f in os.listdir(directory)
-            if isfile(join(directory, f)) and filter_string in f.lower()
-        ]
-    elif stamp == "d":
-        return [
-            f for f in os.listdir(directory)
-            if isdir(join(directory, f)) and filter_string in f.lower()
-        ]
-
-
 @callback(
-    Output('sample-file-selector', 'options'),
-    Input('data-dir-input', 'value')
+    Output('samples-checklist', 'options'),
+    Input('data-dir-input', 'value'),
+    Input('sample-search-input', 'value')
 )
-def update_sample_selector(data_value):
+def update_samples_checklist(data_value, search_value):
     if data_value:
         samples_dir = join(data_value, "samples")
         samples = sorted(np.unique([f.split("_")[0] for f in os.listdir(samples_dir)]))
+        if search_value:
+            samples = [s for s in samples if search_value in s]
         return [{'label': s, 'value': s} for s in samples]
     return dash.no_update
 
 
 @callback(
-    Output('reference-selector', 'options'),
-    [Input('data-dir-input', 'value'),
-     Input('sample-file-selector', 'value')]
+    Output('samples-checklist', 'value'),
+    Input('samples-checklist', 'options'),
+    Input('select-all-checkbox', 'value'),
+    prevent_initial_call=True
 )
-def update_reference_selector(data_value, sample_file_value):
-    if data_value and sample_file_value:
-        refs_dir = join(data_value, "inputs", "references")
-        references = sorted(get_files_from_dir(refs_dir, stamp='f'))
-        return [{'label': r, 'value': r} for r in references]
-    return dash.no_update
+def update_checklist_selection(checkbox_options, all_selected):
+    if all_selected:
+        return [option['value'] for option in checkbox_options]
+    return []
 
 
 @callback(
@@ -100,40 +119,3 @@ def get_data_basedir(data_value):
         return data_value
     return dash.no_update
 
-
-@callback(
-    Output('this-sample-path', 'data'),
-    [Input('data-dir-input', 'value'),
-     Input('sample-file-selector', 'value')]
-)
-def get_sample_path_value(data_value, sample_path_value):
-    if data_value and sample_path_value:
-        return join(data_value, "samples", sample_path_value)
-    return dash.no_update
-
-
-@callback(
-    Output('this-sample-id', 'data'),
-    Input('sample-file-selector', 'value')
-)
-def get_sample_id(sample_value):
-    if sample_value:
-        return re.search(r'AD\d+', sample_value).group()
-    return dash.no_update
-
-
-@callback(
-    Output('this-sample-out-dir-path', 'data'),
-    [Input('this-sample-id', 'data'),
-     Input('this-sample-path', 'data')]
-)
-def create_samp_dir(sample_name, sample_path_value):
-    if sample_name:
-        samp_dir = join(dirname(sample_path_value), sample_name)
-        samp_input_dir = join(samp_dir, "inputs")
-        if not isdir(samp_dir):
-            os.mkdir(samp_dir)
-            os.mkdir(samp_input_dir)
-
-        return samp_dir
-    return dash.no_update
