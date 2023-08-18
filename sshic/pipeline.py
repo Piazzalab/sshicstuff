@@ -1,6 +1,6 @@
 import re
 import os
-from os.path import join
+from os.path import join, dirname
 import itertools
 import argparse
 import shutil
@@ -23,23 +23,32 @@ class PathBundle:
 
         self.sample_sparse_file_path = sample_sparse_file_path
         self.samp_id = re.match(r'^AD\d+', sample_sparse_file_path.split("/")[-1]).group()
-        parent_dir = os.path.dirname(sample_sparse_file_path)
-        self.sample_dir = join(parent_dir, self.samp_id)
+        parent_dir = dirname(dirname(sample_sparse_file_path))
+        outputs_dir = join(parent_dir, "outputs")
+
+        self.sample_dir = join(outputs_dir, self.samp_id)
+        if 'pcrfree' in self.sample_sparse_file_path.split("/")[-1].lower():
+            self.sample_output_dir = join(self.sample_dir, "pcrfree")
+        elif 'pcrdupkept' in self.sample_sparse_file_path.split("/")[-1].lower():
+            self.sample_output_dir = join(self.sample_dir, "pcrdupkept")
+        else:
+            self.sample_output_dir = self.sample_dir
 
         self.sample_inputs_dir = join(self.sample_dir, "inputs")
-        self.not_weighted_dir = join(self.sample_dir, "not_weighted")
-        self.weighted_dir = join(self.sample_dir, f"weighted_{ref_name}")
+        self.not_weighted_dir = join(self.sample_output_dir, "not_weighted")
+        self.weighted_dir = join(self.sample_output_dir, f"weighted_{ref_name}")
 
         os.makedirs(self.sample_dir, exist_ok=True)
+        os.makedirs(self.sample_output_dir, exist_ok=True)
         os.makedirs(self.sample_inputs_dir, exist_ok=True)
         os.makedirs(self.weighted_dir, exist_ok=True)
         os.makedirs(self.not_weighted_dir, exist_ok=True)
 
-        self.filtered_contacts_input = join(self.sample_dir, self.samp_id + "_filtered.tsv")
-        self.cover = join(self.sample_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
+        self.filtered_contacts_input = join(self.sample_output_dir, self.samp_id + "_filtered.tsv")
+        self.cover = join(self.sample_output_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
         self.unbinned_contacts_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_contacts.tsv")
         self.unbinned_frequencies_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_frequencies.tsv")
-        self.global_statistics_input = join(self.sample_dir, f"{self.samp_id}_global_statistics.tsv")
+        self.global_statistics_input = join(self.sample_output_dir, f"{self.samp_id}_global_statistics.tsv")
 
         if not os.path.exists(reference_path):
             raise ValueError(f"file {reference_path} doesnt exist. "
@@ -70,7 +79,7 @@ def copy_file(source_path, destination_path):
         print(f"Unable to copy file. Error: {e}")
 
 
-def do_it(
+def pypeline(
     path_bundle: PathBundle,
     oligos_path: str,
     fragments_list_path: str,
@@ -92,14 +101,15 @@ def do_it(
     print(f"Filter contacts \n")
     check_and_run(
         path_bundle.filtered_contacts_input, filter_contacts, oligos_path,
-        fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_dir)
+        fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_output_dir)
 
     print(f"Associate the fragment name to probe where it is located \n")
     associate_probes_to_fragments(fragments_list_path, oligos_path)
 
     print(f"Make the coverage \n")
     check_and_run(
-        path_bundle.cover, coverage, path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_dir)
+        path_bundle.cover, coverage, path_bundle.sample_sparse_file_path,
+        fragments_list_path, path_bundle.sample_output_dir)
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
     check_and_run(
@@ -109,7 +119,7 @@ def do_it(
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
     check_and_run(
         path_bundle.global_statistics_input, get_stats, path_bundle.unbinned_contacts_input,
-        path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_dir)
+        path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_output_dir)
 
     print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
     compare_to_wt(
@@ -188,12 +198,12 @@ if __name__ == "__main__":
 
     #   Command to enter for parameters (parse)
     """
-    -s ../../data/AD162/AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30.txt
-    -f ../../data/AD162/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    -c ../../data/AD162/S288c_chr_centro_coordinates.tsv 
-    -o ../../data/AD162/capture_oligo_positions.csv
-    -r ../../data/AD162/ref_WT4h_v1.tsv
-    -a ../../data/AD162/additional_probe_groups.tsv
+    -s ../data/samples/AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt
+    -f ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
+    -c ../data/inputs/S288c_chr_centro_coordinates.tsv 
+    -o ../data/inputs/capture_oligo_positions.csv
+    -r ../data/inputs/references/ref_WT4h_v1.tsv
+    -a ../data/inputs/additional_probe_groups.tsv
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
     --window-size-telos 150000 
@@ -246,4 +256,4 @@ if __name__ == "__main__":
     sample_data = [
         sample_path_bundle, args.oligos_input, args.fragments_list, args.centromeres_coordinates_input,
         args.binning_sizes_list, sample_aggregate_params_centros, args.additional]
-    do_it(*sample_data)
+    pypeline(*sample_data)
