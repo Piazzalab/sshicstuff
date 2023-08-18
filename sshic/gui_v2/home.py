@@ -33,8 +33,8 @@ layout = html.Div([
                         'width': '100%',
                         'border': '1px solid #ccc',
                         'border-radius': '4px',
-                        'padding': '10px',
-                        'font-size': '16px',
+                        'padding': '6px',
+                        'font-size': '14px',
                         'background-color': '#fff',
                         'color': '#333',
                     }
