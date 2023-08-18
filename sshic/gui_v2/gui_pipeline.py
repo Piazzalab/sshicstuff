@@ -121,7 +121,8 @@ layout = dbc.Container([
                             html.Button(
                                 id="pp-coverage-button", className="blue-button", children="Coverage"),
                             dbc.Tooltip(
-                                "Calculate the coverage per oligo fragment and save the result as a bed-graph file",
+                                "Calculate the coverage per oligo fragment and "
+                                "save the result as a bed-graph file",
                                 target="pp-coverage-button", className="custom-tooltip", placement="right"),
                         ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px'}),
                     ]),
@@ -146,99 +147,117 @@ layout = dbc.Container([
     ], style={'margin-top': '0px', 'margin-bottom': '50px'}),
 
     dbc.Row([
-        dbc.Col([
-            html.Button(id="pp-orga-contacts-button", className="blue-button", children="Organize contacts"),
-            dbc.Tooltip(
-                "Organize the contacts made by each probe with the genome and save "
-                "the results as two .tsv files one for contacts and one for frequencies.",
-                target="pp-orga-contacts-button", className="custom-tooltip", placement="right"),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
-    ]),
+        dbc.Col(
+            dbc.Card([
+                dbc.CardHeader("Contacts Resolution"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Button(id="pp-orga-contacts-button",
+                                        className="blue-button", children="Organize contacts"),
+                            dbc.Tooltip(
+                                "Organize the contacts made by each probe with the genome and save "
+                                "the results as two .tsv files one for contacts and one for frequencies.",
+                                target="pp-orga-contacts-button", className="custom-tooltip", placement="right"),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+
+                        dbc.Col([
+                            html.Button(id="pp-binning-button", className="blue-button", children="Binning"),
+                            dbc.Tooltip(
+                                "Change the resolution of contacts tables (1kb, 5kb, 10kb etc ...)",
+                                target="pp-binning-button", className="custom-tooltip", placement="right"),
+                        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+
+                        dbc.Col([
+                            dcc.Input(id='pp-binning-input-box', type='number', value='', step='1',
+                                      placeholder='Specify binning (in kb)',
+                                      style={
+                                          'width': '100%',
+                                          'border': '1px solid #ccc',
+                                          'border-radius': '4px',
+                                          'padding': '10px',
+                                          'font-size': '16px',
+                                          'background-color': '#fff',
+                                          'color': '#333'
+                                      }),
+                            dcc.Store(id='pp-stored-bins', data=[])
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '0px'}),
+
+                        dbc.Col([
+                            html.Div(id='pp-bins-list', style={'display': 'flex', 'flexWrap': 'wrap'})
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '0px'}),
+
+                    ]),
+
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div(id='pp-orga-contacts-output',
+                                     style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+
+                        dbc.Col([
+                            html.Div(id='pp-binning-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'})
+                    ]),
+                ])
+            ])
+        )
+    ], style={'margin-top': '0px', 'margin-bottom': '50px'}),
 
     dbc.Row([
-        dbc.Col([
-            html.Div(id='pp-orga-contacts-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
-    ]),
+        dbc.Col(
+            dbc.Card([
+                dbc.CardHeader("Capture Efficiency"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Button(id="pp-stats-button", className="blue-button", children="Statistics"),
+                            dbc.Tooltip("Generate statistics and normalization for contacts made by each probe",
+                                        target="pp-stats-button", className="custom-tooltip", placement="right"),
+                        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
 
-    dbc.Row([
-        dbc.Col([
-            html.Button(id="pp-binning-button", className="blue-button", children="Binning"),
-            dbc.Tooltip(
-                "Change the resolution of contacts tables (1kb, 5kb, 10kb etc ...)",
-                target="pp-binning-button", className="custom-tooltip", placement="right"),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+                        dbc.Col([
+                            dcc.Input(id='pp-stats-cis-range-input-box', type='number', value="", step='1',
+                                      placeholder='Specify a cis range (in bp)',
+                                      style={
+                                          'width': '80%',
+                                          'border': '1px solid #ccc',
+                                          'border-radius': '4px',
+                                          'padding': '10px',
+                                          'font-size': '16px',
+                                          'background-color': '#fff',
+                                          'color': '#333'
+                                      }),
+                            dbc.Tooltip("Range of bp around the probes (both left and right) "
+                                        "to consider as cis contacts",
+                                        target="pp-stats-cis-range-input-box",
+                                        className="custom-tooltip", placement="right"),
+                        ], width=4, style={'margin-top': '0px', 'margin-bottom': '0px'}),
 
-        dbc.Col([
-            dcc.Input(id='pp-binning-input-box', type='number', value='', step='1',
-                      placeholder='Specify binning (in kb)',
-                      style={
-                        'width': '100%',
-                        'border': '1px solid #ccc',
-                        'border-radius': '4px',
-                        'padding': '10px',
-                        'font-size': '16px',
-                        'background-color': '#fff',
-                        'color': '#333'
-                      }),
-            dcc.Store(id='pp-stored-bins', data=[])
-        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'}),
+                        dbc.Col([
+                            html.Button(id="pp-weight-button", className="blue-button", children="Weight"),
+                            dbc.Tooltip("Weight a sample by normalizing its contacts"
+                                        " by a coefficient of capture"
+                                        "efficiency compared to a reference WT",
+                                        target="pp-weight-button", className="custom-tooltip", placement="right"),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'}),
+                    ]),
 
-        dbc.Col([
-            html.Div(id='pp-bins-list', style={'display': 'flex', 'flexWrap': 'wrap'})
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '20px'}),
-    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div(id='pp-stats-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'}),
 
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='pp-binning-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
-    ]),
+                        dbc.Col([
+                            html.Div(id='pp-weight-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                        ], width=3, style={'margin-top': '0px', 'margin-bottom': '10px'})
+                    ]),
+                ])
+            ])
+        )
+    ], style={'margin-top': '0px', 'margin-bottom': '50px'}),
 
-    dbc.Row([
-        dbc.Col([
-            html.Button(id="pp-stats-button", className="blue-button", children="Statistics"),
-            dbc.Tooltip("Generate statistics and normalization for contacts made by each probe",
-                        target="pp-stats-button", className="custom-tooltip", placement="right"),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
 
-        dbc.Col([
-            dcc.Input(id='pp-stats-cis-range-input-box', type='number', value="", step='1',
-                      placeholder='Specify a cis range (in bp)',
-                      style={
-                          'width': '100%',
-                          'border': '1px solid #ccc',
-                          'border-radius': '4px',
-                          'padding': '10px',
-                          'font-size': '16px',
-                          'background-color': '#fff',
-                          'color': '#333'
-                      }),
-            dbc.Tooltip("Range of bp around the probes (both left and right) to consider as cis contacts",
-                        target="pp-stats-cis-range-input-box", className="custom-tooltip", placement="right"),
-        ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '50px'}),
-    ]),
-
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='pp-stats-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
-    ]),
-
-    dbc.Row([
-        dbc.Col([
-            html.Button(id="pp-weight-button", className="blue-button", children="Weight"),
-            dbc.Tooltip("Weight a sample by normalizing its contacts by a coefficient of capture "
-                        "efficiency compared to a reference WT",
-                        target="pp-weight-button", className="custom-tooltip", placement="right"),
-        ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
-    ]),
-
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='pp-weight-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px'})
-    ]),
 
     dbc.Row([
         dbc.Col(
@@ -251,7 +270,6 @@ layout = dbc.Container([
                             dbc.Tooltip("Aggregate contacts made by probes around centromeres and/or telomeres",
                                         target="pp-aggregate-button", className="custom-tooltip", placement="right"),
                         ], width=2, style={'margin-top': '0px', 'margin-bottom': '10px'}),
-
                     ]),
 
                     dbc.Row([
@@ -277,7 +295,8 @@ layout = dbc.Container([
                                           'background-color': '#fff',
                                           'color': '#333'
                                       }),
-                            dbc.Tooltip("Window (in bp) that defines the centromere or telomere region (on 5' and 3')",
+                            dbc.Tooltip("Window (in bp) that defines the centromere or "
+                                        "telomere region (on 5' and 3')",
                                         target='pp-aggr-window', className="custom-tooltip", placement="right"),
                         ], width=3, style={'margin-top': '0px', 'margin-bottom': '0px', 'margin-left': '0px'}),
 
