@@ -20,6 +20,10 @@ h4, h5, h6 {
     padding-left: 5px;
 }
 
+.custom-container {
+    max-width: 1500px;
+}
+
 .custom-tabs-container {
     width: 85%;
 }
@@ -45,7 +49,7 @@ h4, h5, h6 {
     align-items: center;
     justify-content: center;
 }
-.custom-tab--selected {
+.custom-tab-selected {
     color: black;
     box-shadow: 1px 1px 0px white;
     border-left: 1px solid lightgrey;
