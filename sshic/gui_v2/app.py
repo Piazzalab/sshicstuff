@@ -8,7 +8,7 @@ from dash.dependencies import Input, Output
 import home
 import data_viewer
 import gui_pipeline
-import probes_viewer
+import samples_viewer
 
 # Create a Dash application instance:
 server = Flask(__name__, template_folder='templates', )
@@ -23,13 +23,13 @@ app.layout = html.Div([
              className='custom-tabs-container',
              children=[
                  dcc.Tab(label='Home', value='home',
-                         className='custom-tab', selected_className='custom-tab--selected'),
+                         className='custom-tab', selected_className='custom-tab-selected'),
                  dcc.Tab(label='Data Viewer', value='data-viewer',
-                         className='custom-tab', selected_className='custom-tab--selected'),
+                         className='custom-tab', selected_className='custom-tab-selected'),
                  dcc.Tab(label='Pipeline', value='pipeline',
-                         className='custom-tab', selected_className='custom-tab--selected'),
-                 dcc.Tab(label='Probes Viewer', value='probes-viewer',
-                         className='custom-tab', selected_className='custom-tab--selected'),
+                         className='custom-tab', selected_className='custom-tab-selected'),
+                 dcc.Tab(label='Samples Viewer', value='samples-viewer',
+                         className='custom-tab', selected_className='custom-tab-selected'),
              ]),
     html.Div(id='page-content'),
     dcc.Store(id='data-basedir'),
@@ -48,8 +48,8 @@ def display_page(value):
         return data_viewer.layout
     elif value == 'pipeline':
         return gui_pipeline.layout
-    elif value == 'probes-viewer':
-        return probes_viewer.layout
+    elif value == 'samples-viewer':
+        return samples_viewer.layout
 
 
 if __name__ == '__main__':
