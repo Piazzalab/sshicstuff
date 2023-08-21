@@ -127,5 +127,5 @@ def get_data_basedir(data_value):
 def get_selected_samples(samples_value):
     if samples_value:
         return samples_value
-    return dash.no_update
+    return None
 

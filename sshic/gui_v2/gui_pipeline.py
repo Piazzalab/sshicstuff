@@ -61,7 +61,9 @@ layout = dbc.Container([
                         dbc.Col([
                             html.Div(id='pp-current-sample-files',
                                      style={'margin-top': '0px', 'margin-bottom': '20px'}),
-                        ]),
+                            html.Div(id='pp-current-sample-pcr-output',
+                                     style={'margin-top': '20px', 'margin-bottom': '20px'})
+                        ], width=8),
                     ]),
                     dcc.Store(id='pp-current-sample-id'),
                     dcc.Store(id='pp-current-sample-file-path'),
@@ -413,37 +415,56 @@ def display_samples_files(sample_id, data_basedir):
     Output('pp-current-sample-file-path', 'data'),
     Output('pp-current-sample-in-dir-path', 'data'),
     Output('pp-current-sample-out-dir-path', 'data'),
+    Output('pp-current-sample-pcr-output', 'children'),
     Input('pp-current-sample-file-selector', 'value'),
     State('data-basedir', 'data'),
     State('pp-current-sample-id', 'data')
 )
 def update_current_sample_paths(sample_file, data_basedir, sample_id):
     if sample_file is None or data_basedir is None or sample_id is None:
-        return None, None, None
+        return None, None, None, None
 
     sample_file_path = join(data_basedir, "samples", sample_file)
-    sample_input_dir = join(data_basedir, "samples", sample_id, "inputs")
-    sample_output_dir = join(data_basedir, "samples", sample_id, "outputs")
-    return sample_file_path, sample_input_dir, sample_output_dir
+
+    sample_dir = join(data_basedir, "outputs", sample_id)
+    sample_input_dir = join(sample_dir, "inputs")
+    pcr_output = None
+    if "pcrfree" in sample_file.lower():
+        sample_output_dir = join(sample_dir, "pcrfree")
+        pcr_output = "pcrfree"
+    elif "pcrdupkept" in sample_file.lower():
+        sample_output_dir = join(sample_dir, "pcrdupkept")
+        pcr_output = "pcrdupkept"
+    else:
+        sample_output_dir = sample_dir
+
+    if not os.path.exists(sample_output_dir):
+        os.makedirs(sample_output_dir)
+    if not os.path.exists(sample_input_dir):
+        os.makedirs(sample_input_dir)
+    return sample_file_path, sample_input_dir, sample_output_dir, pcr_output
 
 
 @callback(
     Output('pp-copy-inputs-button', 'n_clicks'),
     [Input('pp-copy-inputs-button', 'n_clicks')],
-    [State('pp-current-sample-file-selector', 'data'),
+    [State('pp-current-sample-file-path', 'data'),
      State('pp-fragments-selector', 'value'),
      State('pp-oligo-selector', 'value'),
      State('pp-chr-coords', 'value'),
      State('pp-reference-selector', 'value'),
-     State('pp-current-sample-out-dir-path', 'data')]
+     State('pp-current-sample-out-dir-path', 'data'),
+     State('pp-current-sample-in-dir-path', 'data')]
 )
 def copy_input_files(
         n_clicks,
         sample_matrix,
-        fragments_file, oligo_file,
+        fragments_file,
+        oligo_file,
         chr_coords_file,
         reference_file,
-        sample_out_dir
+        sample_out_dir,
+        sample_in_dir
 ):
     if n_clicks is None or n_clicks == 0:
         return None
@@ -453,9 +474,6 @@ def copy_input_files(
             return None
 
         files_to_copy = []
-        inputs_dir = join(sample_out_dir, "inputs")
-        if not os.path.exists(inputs_dir):
-            os.makedirs(inputs_dir)
         if fragments_file is not None:
             files_to_copy.append(fragments_file)
         if oligo_file is not None:
@@ -466,13 +484,11 @@ def copy_input_files(
             files_to_copy.append(sample_matrix)
 
         for file in files_to_copy:
-            copyfile(file, join(inputs_dir, basename(file)))
+            copyfile(file, join(sample_in_dir, basename(file)))
 
         if reference_file is not None:
             reference_file_name = basename(reference_file)
-            if not os.path.exists(inputs_dir):
-                os.makedirs(inputs_dir)
-            copyfile(reference_file, join(inputs_dir, reference_file_name))
+            copyfile(reference_file, join(sample_in_dir, reference_file_name))
         return 0
 
 
@@ -562,9 +578,9 @@ def probe_groups(groups_file):
     [Output('pp-filter-button', 'n_clicks'),
      Output('pp-filter-output', 'children')],
     [Input('pp-filter-button', 'n_clicks')],
-    [State('this-sample-out-dir-path', 'data'),
-     State('this-sample-id', 'data'),
-     State('this-sample-path', 'data'),
+    [State('pp-current-sample-out-dir-path', 'data'),
+     State('pp-current-sample-id', 'data'),
+     State('pp-current-sample-file-path', 'data'),
      State('pp-fragments-selector', 'value'),
      State('pp-oligo-selector', 'value')]
 )
@@ -597,8 +613,8 @@ def filter_contacts(n_clicks, output_dir, sample_id, sparse_matrix, fragments_fi
     [Output('pp-coverage-button', 'n_clicks'),
      Output('pp-coverage-output', 'children')],
     [Input('pp-coverage-button', 'n_clicks')],
-    [State('this-sample-out-dir-path', 'data'),
-     State('this-sample-path', 'data'),
+    [State('pp-current-sample-out-dir-path', 'data'),
+     State('pp-current-sample-file-path', 'data'),
      State('pp-fragments-selector', 'value')]
 )
 def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
@@ -624,8 +640,8 @@ def compute_cover(n_clicks, output_dir, sparse_matrix, fragments_file):
     [Output('pp-orga-contacts-button', 'n_clicks'),
      Output('pp-orga-contacts-output', 'children')],
     [Input('pp-orga-contacts-button', 'n_clicks'),
-     State('this-sample-out-dir-path', 'data'),
-     State('this-sample-id', 'data'),
+     State('pp-current-sample-out-dir-path', 'data'),
+     State('pp-current-sample-id', 'data'),
      State('pp-oligo-selector', 'value'),
      State('pp-chr-coords', 'value'),
      State('pp-probe-groups', 'value')]
@@ -702,8 +718,8 @@ def update_bins_list(delete_n_clicks_list, n_submit, input_value, stored_numbers
      Output('pp-binning-output', 'children')],
     [Input('pp-binning-button', 'n_clicks'),
      State('pp-stored-bins', 'data'),
-     State('this-sample-out-dir-path', 'data'),
-     State('this-sample-id', 'data')],
+     State('pp-current-sample-out-dir-path', 'data'),
+     State('pp-current-sample-id', 'data')],
     [State('pp-oligo-selector', 'value'),
      State('pp-chr-coords', 'value'),
      State('pp-probe-groups', 'value')]
@@ -740,9 +756,9 @@ def make_rebin(n_clicks, bins_list, sample_output_dir, sample_id, oligos_file, c
     [Output('pp-stats-button', 'n_clicks'),
      Output('pp-stats-output', 'children')],
     [Input('pp-stats-button', 'n_clicks')],
-    [State('this-sample-out-dir-path', 'data'),
-     State('this-sample-id', 'data'),
-     State('this-sample-path', 'data'),
+    [State('pp-current-sample-out-dir-path', 'data'),
+     State('pp-current-sample-id', 'data'),
+     State('pp-current-sample-file-path', 'data'),
      State('pp-oligo-selector', 'value'),
      State('pp-reference-selector', 'value'),
      State('pp-stats-cis-range-input-box', 'value')]
@@ -780,8 +796,8 @@ def make_statistics(n_clicks, sample_output_dir, sample_id, sample_path, oligos_
     [Output('pp-weight-button', 'n_clicks'),
      Output('pp-weight-output', 'children')],
     [Input('pp-weight-button', 'n_clicks')],
-    [State('this-sample-out-dir-path', 'data'),
-     State('this-sample-id', 'data'),
+    [State('pp-current-sample-out-dir-path', 'data'),
+     State('pp-current-sample-id', 'data'),
      State('pp-reference-selector', 'value'),
      State('pp-probe-groups', 'value')]
 )
@@ -822,7 +838,7 @@ def make_statistics(n_clicks, sample_output_dir, sample_id, reference, groups_fi
 
 @callback(
     [Output('pp-aggr-weight-selector', 'options')],
-    [Input('this-sample-out-dir-path', 'data')]
+    [Input('pp-current-sample-out-dir-path', 'data')]
 )
 def update_aggr_weight_selector(sample_output_dir):
     if sample_output_dir is None:
