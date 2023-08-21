@@ -41,10 +41,6 @@ def generate_data_table(id, data, columns, rows):
 
 
 layout = dbc.Container([
-    # dbc.Row([
-    #     html.Div(id='pp-sample-id-output',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
-    # ]),
-
     dbc.Row([
         dbc.Col(
             dbc.Card([
