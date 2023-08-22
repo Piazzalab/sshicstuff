@@ -84,10 +84,7 @@ def update_probes_cards(n_cards, data_basedir):
                     dbc.Row([
                         dbc.Col([
                             dcc.Checklist(
-                                options=[
-                                    {'label': 'pcrfree', 'value': 'pcrfree'},
-                                    {'label': 'pcrdupkept', 'value': 'pcrdupkept'}
-                                ],
+                                options=[],
                                 value=[],
                                 id={'type': 'pcr-checkboxes', 'index': i},
                                 inline=True,
@@ -98,10 +95,7 @@ def update_probes_cards(n_cards, data_basedir):
 
                         dbc.Col([
                             dcc.Checklist(
-                                options=[
-                                    {'label': 'weighted', 'value': 'weighted'},
-                                    {'label': 'not_weighted', 'value': 'not_weighted'}
-                                ],
+                                options=[],
                                 value=[],
                                 id={'type': 'weight-checkboxes', 'index': i},
                                 inline=True,
@@ -110,6 +104,12 @@ def update_probes_cards(n_cards, data_basedir):
                             )
                         ]),
                     ]),
+
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div(id={'type': 'probe-card-missing-file-output', 'index': i})
+                        ])
+                    ])
                 ])
             ])
         )
@@ -124,6 +124,27 @@ def update_probes_cards(n_cards, data_basedir):
 
 
 @callback(
+    Output({'type': 'pcr-checkboxes', 'index': ALL}, 'options'),
+    Input({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    State('data-basedir', 'data')
+)
+def update_pcr_checkboxes_options(sample_values, data_basedir):
+    nb_cards = len(sample_values)
+    samples_results_dir = join(data_basedir, 'outputs')
+    pcr_options = []
+    for i in range(nb_cards):
+        if sample_values[i] is None:
+            pcr_options.append([])
+            continue
+        pcr_dirs = os.listdir(join(samples_results_dir, sample_values[i]))
+        pcr_dirs_path = [join(samples_results_dir, sample_values[i], d) for d in pcr_dirs
+                         if os.path.isdir(join(samples_results_dir, sample_values[i], d))]
+
+        pcr_options.append([{'label': d, 'value': p} for d, p in zip(pcr_dirs, pcr_dirs_path) if 'pcr' in d.lower()])
+    return pcr_options
+
+
+@callback(
     Output({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
     Input({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
 )
@@ -131,13 +152,25 @@ def update_pcr_checkboxes(pcr_values):
     for i in range(len(pcr_values)):
         if not pcr_values[i]:
             continue
-        if pcr_values[i][-1] == 'pcrfree':
-            pcr_values[i] = ['pcrfree']
-        elif pcr_values[i][-1] == 'pcrdupkept':
-            pcr_values[i] = ['pcrdupkept']
-        else:
-            pcr_values[i] = []
+        pcr_values[i] = [pcr_values[i][-1]]
     return pcr_values
+
+
+@callback(
+    Output({'type': 'weight-checkboxes', 'index': ALL}, 'options'),
+    Input({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
+)
+def update_weight_checkboxes_options(pcr_values):
+    nb_cards = len(pcr_values)
+    weight_options = []
+    for i in range(nb_cards):
+        if pcr_values[i] is None or pcr_values[i] == []:
+            weight_options.append([])
+            continue
+        weight_dirs = [w for w in os.listdir(pcr_values[i][-1]) if os.path.isdir(join(pcr_values[i][-1], w))]
+        weight_dirs_path = [join(pcr_values[i][-1], w) for w in weight_dirs]
+        weight_options.append([{'label': d, 'value': p} for d, p in zip(weight_dirs, weight_dirs_path)])
+    return weight_options
 
 
 @callback(
@@ -148,12 +181,7 @@ def update_weight_checkboxes(weight_values):
     for i in range(len(weight_values)):
         if not weight_values[i]:
             continue
-        if weight_values[i][-1] == 'weighted':
-            weight_values[i] = ['weighted']
-        elif weight_values[i][-1] == 'not_weighted':
-            weight_values[i] = ['not_weighted']
-        else:
-            weight_values[i] = []
+        weight_values[i] = [weight_values[i][-1]]
     return weight_values
 
 
@@ -180,3 +208,5 @@ def update_probe_card_header(sample_values, probe_values, pcr_values, weight_val
         samp_id = sample_values[i].split('/')[-1]
         probes_headers[i] = f"{samp_id} - {probe_values[i]} - {pcr_values[i][-1]} - {weight_values[i][-1]}"
     return probes_headers
+
+
