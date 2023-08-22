@@ -16,26 +16,37 @@ import plotly.graph_objs as go
 layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            html.Button(id="pv-add-card-button", className="blue-button", children="Add probe"),
-            dbc.Tooltip("Click to select another probe to display",
-                        target="pv-add-card-button", className="custom-tooltip", placement="right"),
-        ], width=2, className="ml-auto mt-2"),
+            dcc.Input(id='pv-number-probes', type='number', value=None, step='1',
+                      placeholder='How many probes to compare :',
+                      style={
+                          'width': '100%',
+                          'border': '1px solid #ccc',
+                          'border-radius': '4px',
+                          'padding': '10px',
+                          'font-size': '16px',
+                          'background-color': '#fff',
+                          'color': '#333'
+                      }),
+
+            dbc.Tooltip("Specify the number of probes you want to compare",
+                        target="pv-number-probes", className="custom-tooltip", placement="right"),
+        ], width=4, className="ml-auto mt-2"),
     ]),
-    html.Div(id='pv-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'})
+    html.Div(id='pv-dynamic-probes-cards', children=[],
+             style={'margin-top': '20px', 'margin-bottom': '20px'})
 ])
 
 
 @callback(
     Output('pv-dynamic-probes-cards', 'children'),
-    Output('pv-add-card-button', 'n_clicks'),
-    Input('pv-add-card-button', 'n_clicks')
+    Input('pv-number-probes', 'value')
 )
-def update_probes_cards(n_clicks):
-    if n_clicks is None:
-        return [], dash.no_update
+def update_probes_cards(n_cards):
+    if n_cards is None or n_cards == 0:
+        return []
 
     probes_cards = []
-    for i in range(n_clicks):
+    for i in range(n_cards):
         sample_card = dbc.Col(
             dbc.Card([
                 dbc.CardHeader(html.Div(id={'type': 'probe-card-header', 'index': i})),
@@ -101,17 +112,16 @@ def update_probes_cards(n_clicks):
     for i in range(0, len(probes_cards), 3):
         row = dbc.Row(probes_cards[i:i+3], style={'margin-top': '20px', 'margin-bottom': '20px'})
         rows.append(row)
-
-    return rows, n_clicks
+    return rows
 
 
 @callback(
     Output({'type': 'sample-dropdown', 'index': ALL}, 'options'),
-    Input('pv-add-card-button', 'n_clicks'),
+    Input('pv-number-probes', 'value'),
     State('data-basedir', 'data')
 )
-def update_sample_dropdown(n_clicks, data_basedir):
-    if n_clicks is None or n_clicks == 0:
+def update_sample_dropdown(n_cards, data_basedir):
+    if n_cards is None or n_cards == 0:
         return [dash.no_update] * dash.callback_context.inputs_list[0]["value"]
 
     samples_results_dir = join(data_basedir, 'outputs')
@@ -125,11 +135,10 @@ def update_sample_dropdown(n_clicks, data_basedir):
 
 @callback(
     Output({'type': 'probe-dropdown', 'index': ALL}, 'options'),
-    Input('pv-add-card-button', 'n_clicks'),
-    State('data-basedir', 'data')
+    Input('pv-number-probes', 'value'),
 )
-def update_probe_dropdown(n_clicks, data_basedir):
-    if n_clicks is None or n_clicks == 0:
+def update_probe_dropdown(n_cards):
+    if n_cards is None or n_cards == 0:
         return [dash.no_update] * dash.callback_context.inputs_list[0]["value"]
 
     options = [{'label': "TBD", 'value': "TBD"}]
