@@ -9,7 +9,7 @@ from dash import html
 from dash import dcc
 from dash import callback
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State, ALL
+from dash.dependencies import Input, Output, State, ALL, MATCH
 import plotly.graph_objs as go
 
 
@@ -21,98 +21,109 @@ layout = dbc.Container([
                         target="pv-add-card-button", className="custom-tooltip", placement="right"),
         ], width=2, className="ml-auto mt-2"),
     ]),
+    dcc.Store(id='pv-stored-probes-cards', data={}),
     html.Div(id='pv-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'})
 ])
 
 
 @callback(
     Output('pv-dynamic-probes-cards', 'children'),
-    Output('pv-add-card-button', 'n_clicks'),
-    Input('pv-add-card-button', 'n_clicks')
+    Output('pv-stored-probes-cards', 'data'),
+    Input('pv-add-card-button', 'n_clicks'),
+    State('pv-stored-probes-cards', 'data'),
 )
-def update_probes_cards(n_clicks):
-    if n_clicks is None:
-        return [], dash.no_update
+def update_probes_cards(n_clicks, stored_cards):
+    if n_clicks is None or n_clicks == 0:
+        return dash.no_update, stored_cards
 
-    probes_cards = []
-    for i in range(n_clicks):
-        sample_card = dbc.Col(
-            dbc.Card([
-                dbc.CardHeader(html.Div(id={'type': 'probe-card-header', 'index': i})),
-                dbc.CardBody([
-                    dbc.Row([
-                        dbc.Col([
-                            dcc.Dropdown(
-                                options=[],
-                                value=None,
-                                placeholder="Select sample",
-                                id={'type': 'sample-dropdown', 'index': i},
-                                multi=False,
-                            )
-                        ]),
-
-                        dbc.Col([
-                            dcc.Dropdown(
-                                options=[],
-                                value=None,
-                                placeholder="Select probe",
-                                id={'type': 'probe-dropdown', 'index': i},
-                                multi=False,
-                            )
-                        ]),
-                    ]),
-
-                    dbc.Row([
-                        dbc.Col([
-                            dcc.Checklist(
-                                options=[
-                                    {'label': 'pcrfree', 'value': 'pcrfree'},
-                                    {'label': 'pcrdupkept', 'value': 'pcrdupkept'}
-                                ],
-                                value=[],
-                                id={'type': 'pcr-checkboxes', 'index': i},
-                                inline=True,
-                                className='custom-checkbox-label',
-                                labelStyle={"margin": "5px"}
-                            )
-                        ]),
-
-                        dbc.Col([
-                            dcc.Checklist(
-                                options=[
-                                    {'label': 'weighted', 'value': 'weighted'},
-                                    {'label': 'not_weighted', 'value': 'not_weighted'}
-                                ],
-                                value=[],
-                                id={'type': 'weight-checkboxes', 'index': i},
-                                inline=True,
-                                className='custom-checkbox-label',
-                                labelStyle={"margin": "5px"}
-                            )
-                        ]),
-                    ]),
-                ])
-            ])
-        )
-
-        probes_cards.append(sample_card)
+    new_card = create_sample_card(n_clicks)
+    stored_cards[str(n_clicks)] = new_card
 
     rows = []
-    for i in range(0, len(probes_cards), 3):
-        row = dbc.Row(probes_cards[i:i+3], style={'margin-top': '20px', 'margin-bottom': '20px'})
+    card_indices = sorted([int(k) for k in stored_cards.keys()])
+    for i in range(0, len(card_indices), 3):
+        card_row = [stored_cards[str(index)] for index in card_indices[i:i + 3] if str(index) in stored_cards]
+        row = dbc.Row(card_row, style={'margin-top': '20px', 'margin-bottom': '20px'})
         rows.append(row)
 
-    return rows, n_clicks
+    return rows, stored_cards
+
+
+def create_sample_card(index):
+    sample_card = dbc.Col(
+        dbc.Card([
+            dbc.CardHeader(html.Div(id={'type': 'probe-card-header', 'index': index})),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Dropdown(
+                            options=[],
+                            value=None,
+                            placeholder="Select sample",
+                            id={'type': 'sample-dropdown', 'index': index},
+                            multi=False,
+                        )
+                    ]),
+
+                    dbc.Col([
+                        dcc.Dropdown(
+                            options=[],
+                            value=None,
+                            placeholder="Select probe",
+                            id={'type': 'probe-dropdown', 'index': index},
+                            multi=False,
+                        )
+                    ]),
+                ]),
+
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Checklist(
+                            options=[
+                                {'label': 'pcrfree', 'value': 'pcrfree'},
+                                {'label': 'pcrdupkept', 'value': 'pcrdupkept'}
+                            ],
+                            value=[],
+                            id={'type': 'pcr-checkboxes', 'index': index},
+                            inline=True,
+                            className='custom-checkbox-label',
+                            labelStyle={"margin": "5px"}
+                        )
+                    ]),
+
+                    dbc.Col([
+                        dcc.Checklist(
+                            options=[
+                                {'label': 'weighted', 'value': 'weighted'},
+                                {'label': 'not_weighted', 'value': 'not_weighted'}
+                            ],
+                            value=[],
+                            id={'type': 'weight-checkboxes', 'index': index},
+                            inline=True,
+                            className='custom-checkbox-label',
+                            labelStyle={"margin": "5px"}
+                        )
+                    ]),
+                ]),
+            ])
+        ])
+    )
+    return sample_card
 
 
 @callback(
-    Output({'type': 'sample-dropdown', 'index': ALL}, 'options'),
+    Output({'type': 'sample-dropdown', 'index': MATCH}, 'options'),
     Input('pv-add-card-button', 'n_clicks'),
-    State('data-basedir', 'data')
+    State('data-basedir', 'data'),
+    State('pv-stored-probes-cards', 'data')
 )
-def update_sample_dropdown(n_clicks, data_basedir):
+def update_sample_dropdown(n_clicks, data_basedir, stored_cards):
     if n_clicks is None or n_clicks == 0:
-        return [dash.no_update] * dash.callback_context.inputs_list[0]["value"]
+        return dash.no_update
+
+    card_index = str(n_clicks)
+    if card_index not in stored_cards:
+        return dash.no_update
 
     samples_results_dir = join(data_basedir, 'outputs')
     samples_dirs_path = [join(samples_results_dir, d) for d in listdir(samples_results_dir)]
@@ -120,20 +131,24 @@ def update_sample_dropdown(n_clicks, data_basedir):
     samples_id = [d.split("/")[-1] for d in samples_dirs_path]
 
     options = [{'label': s, 'value': p} for s, p in zip(samples_id, samples_dirs_path)]
-    return [options] * dash.callback_context.inputs_list[0]["value"]
+    return options
 
 
 @callback(
-    Output({'type': 'probe-dropdown', 'index': ALL}, 'options'),
+    Output({'type': 'probe-dropdown', 'index': MATCH}, 'options'),
     Input('pv-add-card-button', 'n_clicks'),
-    State('data-basedir', 'data')
+    State('pv-stored-probes-cards', 'data')
 )
-def update_probe_dropdown(n_clicks, data_basedir):
+def update_probe_dropdown(n_clicks, stored_cards):
     if n_clicks is None or n_clicks == 0:
-        return [dash.no_update] * dash.callback_context.inputs_list[0]["value"]
+        return dash.no_update
+
+    card_index = str(n_clicks)
+    if card_index not in stored_cards:
+        return dash.no_update
 
     options = [{'label': "TBD", 'value': "TBD"}]
-    return [options] * dash.callback_context.inputs_list[0]["value"]
+    return options
 
 
 @callback(
@@ -175,9 +190,10 @@ def update_weight_checkboxes(weight_values):
     Input({'type': 'sample-dropdown', 'index': ALL}, 'value'),
     Input({'type': 'probe-dropdown', 'index': ALL}, 'value'),
     Input({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
-    Input({'type': 'weight-checkboxes', 'index': ALL}, 'value')
+    Input({'type': 'weight-checkboxes', 'index': ALL}, 'value'),
+    State('pv-stored-probes-cards', 'data')
 )
-def update_probe_card_header(sample_values, probe_values, pcr_values, weight_values):
+def update_probe_card_header(sample_values, probe_values, pcr_values, weight_values, stored_cards):
     nb_samples = len(sample_values)
     probes_headers = ["" for _ in range(nb_samples)]
     for i in range(nb_samples):
@@ -191,5 +207,7 @@ def update_probe_card_header(sample_values, probe_values, pcr_values, weight_val
             continue
 
         samp_id = sample_values[i].split('/')[-1]
-        probes_headers[i] = f"{samp_id} - {probe_values[i]} - {pcr_values[i][-1]} - {weight_values[i][-1]}"
+        header_text = f"{samp_id} - {probe_values[i]} - {pcr_values[i][-1]} - {weight_values[i][-1]}"
+        stored_cards[i]['props']['children'][0]['props']['children'] = header_text
+        probes_headers[i] = header_text
     return probes_headers
