@@ -16,7 +16,7 @@ import plotly.graph_objs as go
 layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            dcc.Input(id='pv-number-probes', type='number', value=None, step='1',
+            dcc.Input(id='pv-number-probes', type='number', value=2, step='1',
                       placeholder='How many probes to compare :',
                       style={
                           'width': '100%',
