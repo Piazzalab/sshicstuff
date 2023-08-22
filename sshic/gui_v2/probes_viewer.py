@@ -39,11 +39,19 @@ layout = dbc.Container([
 
 @callback(
     Output('pv-dynamic-probes-cards', 'children'),
-    Input('pv-number-probes', 'value')
+    Input('pv-number-probes', 'value'),
+    State('data-basedir', 'data')
 )
-def update_probes_cards(n_cards):
+def update_probes_cards(n_cards, data_basedir):
     if n_cards is None or n_cards == 0:
         return []
+
+    samples_results_dir = join(data_basedir, 'outputs')
+    samples_dirs_path = [join(samples_results_dir, d) for d in listdir(samples_results_dir)]
+    samples_dirs_path = sorted([d for d in samples_dirs_path if os.path.isdir(d)])
+    samples_id = [d.split("/")[-1] for d in samples_dirs_path]
+
+    samples_options = [{'label': s, 'value': p} for s, p in zip(samples_id, samples_dirs_path)]
 
     probes_cards = []
     for i in range(n_cards):
@@ -54,7 +62,7 @@ def update_probes_cards(n_cards):
                     dbc.Row([
                         dbc.Col([
                             dcc.Dropdown(
-                                options=[],
+                                options=samples_options,
                                 value=None,
                                 placeholder="Select sample",
                                 id={'type': 'sample-dropdown', 'index': i},
@@ -64,7 +72,7 @@ def update_probes_cards(n_cards):
 
                         dbc.Col([
                             dcc.Dropdown(
-                                options=[],
+                                options=[{'label': "TBD", 'value': "TBD"}],
                                 value=None,
                                 placeholder="Select probe",
                                 id={'type': 'probe-dropdown', 'index': i},
@@ -113,36 +121,6 @@ def update_probes_cards(n_cards):
         row = dbc.Row(probes_cards[i:i+3], style={'margin-top': '20px', 'margin-bottom': '20px'})
         rows.append(row)
     return rows
-
-
-@callback(
-    Output({'type': 'sample-dropdown', 'index': ALL}, 'options'),
-    Input('pv-number-probes', 'value'),
-    State('data-basedir', 'data')
-)
-def update_sample_dropdown(n_cards, data_basedir):
-    if n_cards is None or n_cards == 0:
-        return [dash.no_update] * dash.callback_context.inputs_list[0]["value"]
-
-    samples_results_dir = join(data_basedir, 'outputs')
-    samples_dirs_path = [join(samples_results_dir, d) for d in listdir(samples_results_dir)]
-    samples_dirs_path = sorted([d for d in samples_dirs_path if os.path.isdir(d)])
-    samples_id = [d.split("/")[-1] for d in samples_dirs_path]
-
-    options = [{'label': s, 'value': p} for s, p in zip(samples_id, samples_dirs_path)]
-    return [options] * dash.callback_context.inputs_list[0]["value"]
-
-
-@callback(
-    Output({'type': 'probe-dropdown', 'index': ALL}, 'options'),
-    Input('pv-number-probes', 'value'),
-)
-def update_probe_dropdown(n_cards):
-    if n_cards is None or n_cards == 0:
-        return [dash.no_update] * dash.callback_context.inputs_list[0]["value"]
-
-    options = [{'label': "TBD", 'value': "TBD"}]
-    return [options] * dash.callback_context.inputs_list[0]["value"]
 
 
 @callback(
