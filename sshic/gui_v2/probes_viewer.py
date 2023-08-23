@@ -12,7 +12,8 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL
 import plotly.graph_objs as go
 
-from common import generate_data_table
+from common import generate_data_table, prepare_dataframe_for_output
+import core.utils
 
 
 layout = dbc.Container([
@@ -35,19 +36,6 @@ layout = dbc.Container([
         dbc.Col([
             html.Label("Additional groups of probes (if any) :"),
         ], width=4, style={'margin-top': '10px', 'margin-bottom': '0px'})
-        ]),
-
-
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='pv-p2f-dataframe-title',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
-            dcc.Loading(generate_data_table('pp-p2f-dataframe', [], [], 10))
-        ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
-
-        dbc.Col([
-            html.Div(id='pv-groups-dataframe-title', style={'margin-top': '20px', 'margin-bottom': '20px'}),
-            dcc.Loading(generate_data_table('pp-groups-dataframe', [], [], 10))
-        ], width=7, style={'margin-top': '0px', 'margin-bottom': '30px', 'margin-left': '30px'}),
     ]),
 
     dbc.Row([
@@ -73,9 +61,22 @@ layout = dbc.Container([
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '20px'}),
 
         dbc.Col([
-            dcc.Dropdown(id='pv-probe-groups', options=[], value=None, multi=False),
+            dcc.Dropdown(id='pv-probe-groups-selector', options=[], value=None, multi=False),
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
     ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='pv-p2f-dataframe-title', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            dcc.Loading(generate_data_table('pv-p2f-dataframe', [], [], 5))
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            html.Div(id='pv-groups-dataframe-title', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            dcc.Loading(generate_data_table('pv-groups-dataframe', [], [], 5))
+        ], width=7, style={'margin-top': '0px', 'margin-bottom': '30px', 'margin-left': '30px'}),
+    ]),
+
     html.Div(id='pv-dynamic-probes-cards', children=[],
              style={'margin-top': '20px', 'margin-bottom': '20px'})
 ])
@@ -83,7 +84,7 @@ layout = dbc.Container([
 
 @callback(
     Output('pv-oligo-selector', 'options'),
-    Output('pv-probe-groups', 'options'),
+    Output('pv-probe-groups-selector', 'options'),
     Input('data-basedir', 'data')
 )
 def update_oligo_selector(data_basedir):
@@ -95,6 +96,42 @@ def update_oligo_selector(data_basedir):
 
     options = [{'label': f, 'value': join(inputs_dir, f)} for f in inputs_files]
     return options, options
+
+
+@callback(
+     Output('pv-p2f-dataframe-title', 'children'),
+     Output('pv-p2f-dataframe', 'data'),
+     Output('pv-p2f-dataframe', 'columns'),
+     Input('pv-oligo-selector', 'value')
+)
+def oligo_and_fragments(oligo_file):
+
+    if oligo_file is None:
+        return None, [], []
+
+    df_oli = pd.read_csv(oligo_file, sep=core.utils.detect_delimiter(oligo_file))
+    title = html.H6("Oligo probes VS. Fragments ID:")
+    if 'fragment' not in df_oli.columns:
+        return "Select a capture oligos file first", [], []
+
+    data, columns = prepare_dataframe_for_output(df_oli, ["name", "fragment"])
+    return title, data, columns
+
+
+@callback(
+    [Output('pv-groups-dataframe-title', 'children'),
+     Output('pv-groups-dataframe', 'data'),
+     Output('pv-groups-dataframe', 'columns')],
+    [Input('pv-probe-groups-selector', 'value')]
+)
+def display_df_probe_groups(groups_file):
+    if groups_file is None:
+        return None, [], []
+
+    df_groups = pd.read_csv(groups_file, sep='\t')
+    data, columns = prepare_dataframe_for_output(df_groups)
+    title = html.H6("Probe groups :")
+    return title, data, columns
 
 
 @callback(
