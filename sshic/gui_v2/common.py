@@ -1,6 +1,19 @@
 from dash import dash_table
 
 
+def prepare_dataframe_for_output(dataframe, selected_columns=None):
+    if dataframe is None:
+        return None, None
+    if selected_columns:
+        df_output = dataframe[selected_columns]
+        data = df_output.to_dict('records')
+        columns = [{"name": col, "id": col} for col in selected_columns]
+    else:
+        data = dataframe.to_dict('records')
+        columns = [{"name": col, "id": col} for col in dataframe.columns]
+    return data, columns
+
+
 def generate_data_table(id, data, columns, rows):
     return dash_table.DataTable(
         id=id,

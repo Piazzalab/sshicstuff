@@ -22,7 +22,7 @@ import core.weight
 import core.aggregated
 import utils
 
-from common import generate_data_table
+from common import generate_data_table, prepare_dataframe_for_output
 
 layout = dbc.Container([
     dbc.Row([
@@ -494,19 +494,6 @@ def update_dropdowns(data_basedir):
     return options, options, options, options, ref_options
 
 
-def prepare_dataframe_for_output(dataframe, selected_columns=None):
-    if dataframe is None:
-        return None, None
-    if selected_columns:
-        df_output = dataframe[selected_columns]
-        data = df_output.to_dict('records')
-        columns = [{"name": col, "id": col} for col in selected_columns]
-    else:
-        data = dataframe.to_dict('records')
-        columns = [{"name": col, "id": col} for col in dataframe.columns]
-    return data, columns
-
-
 @callback(
     [Output('pp-p2f-button', 'n_clicks'),
      Output('pp-p2f-output', 'children'),
@@ -550,7 +537,7 @@ def probe_groups(groups_file):
 
     df_groups = pd.read_csv(groups_file, sep='\t')
     data, columns = prepare_dataframe_for_output(df_groups)
-    title = html.H6("Probe groups:")
+    title = html.H6("Probe groups :")
     return title, data, columns
 
 
