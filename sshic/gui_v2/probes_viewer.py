@@ -91,7 +91,7 @@ def update_oligo_selector(data_basedir):
     if data_basedir is None:
         return [], []
     inputs_dir = join(data_basedir, 'inputs')
-    inputs_files = sorted([f for f in os.listdir(inputs_dir) if os.path.isfile(join(inputs_dir, f))],
+    inputs_files = sorted([f for f in listdir(inputs_dir) if os.path.isfile(join(inputs_dir, f))],
                      key=lambda x: x.lower())
 
     options = [{'label': f, 'value': join(inputs_dir, f)} for f in inputs_files]
@@ -144,7 +144,7 @@ def update_probes_cards(n_cards, data_basedir):
         return []
 
     pp_outputs_dir = join(data_basedir, 'outputs')
-    all_samples_items = sorted(os.listdir(pp_outputs_dir))
+    all_samples_items = sorted(listdir(pp_outputs_dir))
     samples_options = [{'label': s, 'value': s} for s in all_samples_items]
 
     probes_cards = []
@@ -230,7 +230,7 @@ def update_pcr_checkboxes_options(samples_values, data_basedir):
         if samples_values[i] is None:
             pcr_options.append([])
             continue
-        all_items = os.listdir(join(pp_outputs_dir, samples_values[i]))
+        all_items = listdir(join(pp_outputs_dir, samples_values[i]))
         pcr_dirs = [item for item in all_items if os.path.isdir(join(pp_outputs_dir, samples_values[i], item))]
         pcr_options.append([{'label': d, 'value': d} for d in pcr_dirs if 'pcr' in d.lower()])
     return pcr_options
@@ -266,7 +266,7 @@ def update_weight_checkboxes_options(pcr_values, samples_values, data_basedir):
             weight_options.append([])
             continue
         pcr_dir = join(pp_outputs_dir, samples_values[i], pcr_values[i][-1])
-        weight_dirs = [w for w in os.listdir(pcr_dir) if os.path.isdir(join(pcr_dir, w))]
+        weight_dirs = [w for w in listdir(pcr_dir) if os.path.isdir(join(pcr_dir, w))]
         weight_options.append([{'label': d, 'value': d} for d in weight_dirs])
     return weight_options
 
