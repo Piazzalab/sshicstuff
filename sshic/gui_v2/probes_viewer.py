@@ -267,7 +267,7 @@ def update_probe_dropdown_options(weight_values, samples_values, pcr_values, dat
     Input({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
     Input({'type': 'weight-checkboxes', 'index': ALL}, 'value')
 )
-def update_probe_card_header(sample_values, probe_values, pcr_values, weight_values):
+def update_card_header(sample_values, probe_values, pcr_values, weight_values):
     nb_samples = len(sample_values)
     probes_headers = ["" for _ in range(nb_samples)]
     for i in range(nb_samples):
