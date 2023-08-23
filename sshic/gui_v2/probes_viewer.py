@@ -12,6 +12,8 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL
 import plotly.graph_objs as go
 
+from common import generate_data_table
+
 
 layout = dbc.Container([
     dbc.Row([
@@ -34,6 +36,19 @@ layout = dbc.Container([
             html.Label("Additional groups of probes (if any) :"),
         ], width=4, style={'margin-top': '10px', 'margin-bottom': '0px'})
         ]),
+
+
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='pv-p2f-dataframe-title',  style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            dcc.Loading(generate_data_table('pp-p2f-dataframe', [], [], 10))
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+
+        dbc.Col([
+            html.Div(id='pv-groups-dataframe-title', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            dcc.Loading(generate_data_table('pp-groups-dataframe', [], [], 10))
+        ], width=7, style={'margin-top': '0px', 'margin-bottom': '30px', 'margin-left': '30px'}),
+    ]),
 
     dbc.Row([
         dbc.Col([
