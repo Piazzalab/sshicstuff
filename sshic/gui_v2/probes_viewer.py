@@ -46,12 +46,9 @@ def update_probes_cards(n_cards, data_basedir):
     if n_cards is None or n_cards == 0:
         return []
 
-    samples_results_dir = join(data_basedir, 'outputs')
-    samples_dirs_path = [join(samples_results_dir, d) for d in listdir(samples_results_dir)]
-    samples_dirs_path = sorted([d for d in samples_dirs_path if os.path.isdir(d)])
-    samples_id = [d.split("/")[-1] for d in samples_dirs_path]
-
-    samples_options = [{'label': s, 'value': p} for s, p in zip(samples_id, samples_dirs_path)]
+    pp_outputs_dir = join(data_basedir, 'outputs')
+    all_samples_items = sorted(os.listdir(pp_outputs_dir))
+    samples_options = [{'label': s, 'value': s} for s in all_samples_items]
 
     probes_cards = []
     for i in range(n_cards):
@@ -128,19 +125,17 @@ def update_probes_cards(n_cards, data_basedir):
     Input({'type': 'sample-dropdown', 'index': ALL}, 'value'),
     State('data-basedir', 'data')
 )
-def update_pcr_checkboxes_options(sample_values, data_basedir):
-    nb_cards = len(sample_values)
-    samples_results_dir = join(data_basedir, 'outputs')
+def update_pcr_checkboxes_options(samples_values, data_basedir):
+    nb_cards = len(samples_values)
+    pp_outputs_dir = join(data_basedir, 'outputs')
     pcr_options = []
     for i in range(nb_cards):
-        if sample_values[i] is None:
+        if samples_values[i] is None:
             pcr_options.append([])
             continue
-        pcr_dirs = os.listdir(join(samples_results_dir, sample_values[i]))
-        pcr_dirs_path = [join(samples_results_dir, sample_values[i], d) for d in pcr_dirs
-                         if os.path.isdir(join(samples_results_dir, sample_values[i], d))]
-
-        pcr_options.append([{'label': d, 'value': p} for d, p in zip(pcr_dirs, pcr_dirs_path) if 'pcr' in d.lower()])
+        all_items = os.listdir(join(pp_outputs_dir, samples_values[i]))
+        pcr_dirs = [item for item in all_items if os.path.isdir(join(pp_outputs_dir, samples_values[i], item))]
+        pcr_options.append([{'label': d, 'value': d} for d in pcr_dirs if 'pcr' in d.lower()])
     return pcr_options
 
 
@@ -159,17 +154,23 @@ def update_pcr_checkboxes(pcr_values):
 @callback(
     Output({'type': 'weight-checkboxes', 'index': ALL}, 'options'),
     Input({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
+    State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    State('data-basedir', 'data')
 )
-def update_weight_checkboxes_options(pcr_values):
-    nb_cards = len(pcr_values)
+def update_weight_checkboxes_options(pcr_values, samples_values, data_basedir):
+    nb_cards = len(samples_values)
+    pp_outputs_dir = join(data_basedir, 'outputs')
     weight_options = []
     for i in range(nb_cards):
+        if samples_values[i] is None:
+            weight_options.append([])
+            continue
         if pcr_values[i] is None or pcr_values[i] == []:
             weight_options.append([])
             continue
-        weight_dirs = [w for w in os.listdir(pcr_values[i][-1]) if os.path.isdir(join(pcr_values[i][-1], w))]
-        weight_dirs_path = [join(pcr_values[i][-1], w) for w in weight_dirs]
-        weight_options.append([{'label': d, 'value': p} for d, p in zip(weight_dirs, weight_dirs_path)])
+        pcr_dir = join(pp_outputs_dir, samples_values[i], pcr_values[i][-1])
+        weight_dirs = [w for w in os.listdir(pcr_dir) if os.path.isdir(join(pcr_dir, w))]
+        weight_options.append([{'label': d, 'value': d} for d in weight_dirs])
     return weight_options
 
 
