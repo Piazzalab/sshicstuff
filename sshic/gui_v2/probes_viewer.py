@@ -16,13 +16,34 @@ import plotly.graph_objs as go
 layout = dbc.Container([
     dbc.Row([
         dbc.Col([
+            html.H1('Probes Viewer'),
+        ], width=12, style={'text-align': 'center',
+                            'margin-top': '20px', 'margin-bottom': '20px'})
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Label("Select number of cards to display:")
+        ], width=4, style={'margin-top': '10px', 'margin-bottom': '0px'}),
+
+        dbc.Col([
+            html.Label("Select capture oligos table:")
+        ], width=4, style={'margin-top': '10px', 'margin-bottom': '0px'}),
+
+        dbc.Col([
+            html.Label("Additional groups of probes (if any) :"),
+        ], width=4, style={'margin-top': '10px', 'margin-bottom': '0px'})
+        ]),
+
+    dbc.Row([
+        dbc.Col([
             dcc.Input(id='pv-number-probes', type='number', value=2, step='1',
                       placeholder='How many probes to compare :',
                       style={
                           'width': '100%',
                           'border': '1px solid #ccc',
                           'border-radius': '4px',
-                          'padding': '10px',
+                          'padding': '6px',
                           'font-size': '16px',
                           'background-color': '#fff',
                           'color': '#333'
@@ -30,11 +51,35 @@ layout = dbc.Container([
 
             dbc.Tooltip("Specify the number of probes you want to compare",
                         target="pv-number-probes", className="custom-tooltip", placement="right"),
-        ], width=4, className="ml-auto mt-2"),
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '20px'}),
+
+        dbc.Col([
+            dcc.Dropdown(id='pv-oligo-selector', multi=False),
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '20px'}),
+
+        dbc.Col([
+            dcc.Dropdown(id='pv-probe-groups', options=[], value=None, multi=False),
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
     ]),
     html.Div(id='pv-dynamic-probes-cards', children=[],
              style={'margin-top': '20px', 'margin-bottom': '20px'})
 ])
+
+
+@callback(
+    Output('pv-oligo-selector', 'options'),
+    Output('pv-probe-groups', 'options'),
+    Input('data-basedir', 'data')
+)
+def update_oligo_selector(data_basedir):
+    if data_basedir is None:
+        return [], []
+    inputs_dir = join(data_basedir, 'inputs')
+    inputs_files = sorted([f for f in os.listdir(inputs_dir) if os.path.isfile(join(inputs_dir, f))],
+                     key=lambda x: x.lower())
+
+    options = [{'label': f, 'value': join(inputs_dir, f)} for f in inputs_files]
+    return options, options
 
 
 @callback(
@@ -69,7 +114,7 @@ def update_probes_cards(n_cards, data_basedir):
 
                         dbc.Col([
                             dcc.Dropdown(
-                                options=[{'label': "TBD", 'value': "TBD"}],
+                                options=[],
                                 value=None,
                                 placeholder="Select probe",
                                 id={'type': 'probe-dropdown', 'index': i},
@@ -184,6 +229,35 @@ def update_weight_checkboxes(weight_values):
             continue
         weight_values[i] = [weight_values[i][-1]]
     return weight_values
+
+
+@callback(
+    Output({'type': 'probe-dropdown', 'index': ALL}, 'options'),
+    Input({'type': 'weight-checkboxes', 'index': ALL}, 'value'),
+    State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    State({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
+    State('data-basedir', 'data')
+)
+def update_probe_dropdown_options(weight_values, samples_values, pcr_values, data_basedir):
+    nb_cards = len(samples_values)
+    pp_outputs_dir = join(data_basedir, 'outputs')
+    probe_options = []
+    for i in range(nb_cards):
+        if samples_values[i] is None:
+            probe_options.append([])
+            continue
+        if pcr_values[i] is None or pcr_values[i] == []:
+            probe_options.append([])
+            continue
+        if weight_values[i] is None or weight_values[i] == []:
+            probe_options.append([])
+            continue
+
+        items_dir = join(pp_outputs_dir, samples_values[i], pcr_values[i][-1], weight_values[i][-1])
+        df = pd.read_csv(join(items_dir, f"{samples_values[i]}_unbinned_contacts.tsv"), sep='\t')
+        probes = [c for c in df.columns if c not in ['chr', 'start', 'sizes', 'genome_start', 'end']]
+        probe_options.append([{'label': f, 'value': f} for f in probes])
+    return probe_options
 
 
 @callback(
