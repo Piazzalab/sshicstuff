@@ -95,6 +95,9 @@ layout = dbc.Container([
     ]),
 
     html.Div(id='pv-dynamic-probes-cards', children=[],
+             style={'margin-top': '20px', 'margin-bottom': '20px'}),
+
+    html.Div(id='pv-graphs', children=[],
              style={'margin-top': '20px', 'margin-bottom': '20px'})
 ])
 
@@ -175,7 +178,7 @@ def update_probes_cards(n_cards, data_basedir):
     for i in range(n_cards):
         sample_card = dbc.Col(
             dbc.Card([
-                dbc.CardHeader(html.Div(id={'type': 'probe-card-header', 'index': i})),
+                dbc.CardHeader(html.Div(id={'type': 'pv-probe-card-header', 'index': i})),
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
@@ -225,7 +228,7 @@ def update_probes_cards(n_cards, data_basedir):
 
                     dbc.Row([
                         dbc.Col([
-                            html.Div(id={'type': 'probe-card-missing-file-output', 'index': i})
+                            html.Div(id={'type': 'pv-display-graph-selector', 'index': i})
                         ])
                     ])
                 ])
@@ -337,27 +340,37 @@ def update_probe_dropdown_options(weight_values, samples_values, pcr_values, dat
 
 
 @callback(
-    Output({'type': 'probe-card-header', 'index': ALL}, 'children'),
-    Input({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    Output({'type': 'pv-probe-card-header', 'index': ALL}, 'children'),
+    Output({'type': 'pv-display-graph-selector', 'index': ALL}, 'children'),
     Input({'type': 'probe-dropdown', 'index': ALL}, 'value'),
-    Input({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
-    Input({'type': 'weight-checkboxes', 'index': ALL}, 'value')
+    State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    State({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
+    State({'type': 'weight-checkboxes', 'index': ALL}, 'value')
 )
-def update_card_header(sample_values, probe_values, pcr_values, weight_values):
+def update_card_header(probe_values, sample_values, pcr_values, weight_values):
     nb_samples = len(sample_values)
     probes_headers = ["" for _ in range(nb_samples)]
+    graph_selector = ["" for _ in range(nb_samples)]
+
     for i in range(nb_samples):
-        if sample_values[i] is None:
+        if sample_values[i] is None or probe_values[i] is None:
             continue
-        if probe_values[i] is None:
-            continue
-        if pcr_values[i] is None or pcr_values[i] == []:
-            continue
-        if weight_values[i] is None or weight_values[i] == []:
+        if pcr_values[i] is None or pcr_values[i] == [] or weight_values[i] is None or weight_values[i] == []:
             continue
 
         samp_id = sample_values[i].split('/')[-1]
         probes_headers[i] = f"{samp_id} - {probe_values[i]} - {pcr_values[i][-1]} - {weight_values[i][-1]}"
-    return probes_headers
+        graph_selector[i] = dbc.Row([
+            dbc.Col([
+                dcc.Dropdown(
+                    options=[{'label': f'graph {x}', 'value': f'graph {x}'} for x in range(nb_samples)],
+                    value=None,
+                    placeholder="Select graph",
+                    id={'type': 'graph-selector', 'index': i},
+                    multi=False
+                )
+            ])
+        ])
 
+    return probes_headers, graph_selector
 
