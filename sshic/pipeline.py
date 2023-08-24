@@ -121,17 +121,18 @@ def pypeline(
         path_bundle.global_statistics_input, get_stats, path_bundle.unbinned_contacts_input,
         path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_output_dir)
 
-    print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
-    compare_to_wt(
-        statistics_path=path_bundle.global_statistics_input,
-        reference_path=path_bundle.wt_reference_path,
-        wt_ref_name=path_bundle.wt_reference_name)
+    if path_bundle.wt_reference_path is not None or path_bundle.wt_reference_path != '':
+        print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
+        compare_to_wt(
+            statistics_path=path_bundle.global_statistics_input,
+            reference_path=path_bundle.wt_reference_path,
+            wt_ref_name=path_bundle.wt_reference_name)
 
-    print(f"Ponder the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
-    weight_mutant(
-        statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
-        contacts_path=path_bundle.unbinned_contacts_input, frequencies_path=path_bundle.unbinned_frequencies_input,
-        binned_type="unbinned", output_dir=path_bundle.weighted_dir, additional_path=additional_groups)
+        print(f"Weight the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
+        weight_mutant(
+            statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
+            contacts_path=path_bundle.unbinned_contacts_input, frequencies_path=path_bundle.unbinned_frequencies_input,
+            binned_type="unbinned", output_dir=path_bundle.weighted_dir, additional_path=additional_groups)
 
     print(f"Rebin and weight the unbinned tables (contacts and frequencies) at : \n")
     for bn in binning_size_list:
@@ -147,10 +148,13 @@ def pypeline(
         binned_frequencies_input = \
             join(path_bundle.not_weighted_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
 
-        weight_mutant(
-            statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
-            contacts_path=binned_contacts_input, frequencies_path=binned_frequencies_input,
-            binned_type=f"{bin_suffix}_binned", output_dir=path_bundle.weighted_dir, additional_path=additional_groups)
+        if path_bundle.wt_reference_path is not None or path_bundle.wt_reference_path != '':
+            weight_mutant(
+                statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
+                contacts_path=binned_contacts_input, frequencies_path=binned_frequencies_input,
+                binned_type=f"{bin_suffix}_binned", output_dir=path_bundle.weighted_dir,
+                additional_path=additional_groups)
+
     print("\n")
 
     regions = ["centromeres", "telomeres"]
