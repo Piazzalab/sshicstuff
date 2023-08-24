@@ -69,12 +69,30 @@ layout = dbc.Container([
         dbc.Col([
             html.Div(id='pv-p2f-dataframe-title', style={'margin-top': '20px', 'margin-bottom': '20px'}),
             dcc.Loading(generate_data_table('pv-p2f-dataframe', [], [], 5))
-        ], width=4, style={'margin-top': '0px', 'margin-bottom': '30px'}),
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '20px'}),
 
         dbc.Col([
             html.Div(id='pv-groups-dataframe-title', style={'margin-top': '20px', 'margin-bottom': '20px'}),
             dcc.Loading(generate_data_table('pv-groups-dataframe', [], [], 5))
-        ], width=7, style={'margin-top': '0px', 'margin-bottom': '30px', 'margin-left': '30px'}),
+        ], width=7, style={'margin-top': '0px', 'margin-bottom': '20px', 'margin-left': '30px'}),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Label("Select binning :", style={'margin-top': '0px', 'margin-bottom': '10px'}),
+            dcc.Slider(
+                id='pv-binning-slider',
+                min=1,
+                max=100,
+                step=1,
+                value=10,
+                marks={1: "1"} | {i: str(i) for i in range(10, 101, 10)},
+                included=False,
+            ),
+            html.Div(id='pv-slider-output-container',
+                     style={'margin-top': '10px', 'font-size': '14px'}),
+            html.Br(),
+        ], width=4, style={'margin-top': '0px', 'margin-bottom': '10px', 'margin-left': '20px'}),
     ]),
 
     html.Div(id='pv-dynamic-probes-cards', children=[],
@@ -132,6 +150,13 @@ def display_df_probe_groups(groups_file):
     data, columns = prepare_dataframe_for_output(df_groups)
     title = html.H6("Probe groups :")
     return title, data, columns
+
+
+@callback(
+    Output('pv-slider-output-container', 'children'),
+    [Input('pv-binning-slider', 'value')])
+def update_output(value):
+    return f'You have selected a binning of {value} kb'
 
 
 @callback(
