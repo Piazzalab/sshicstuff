@@ -25,6 +25,13 @@ import utils
 from common import generate_data_table, prepare_dataframe_for_output
 
 layout = dbc.Container([
+
+    dbc.Row([
+        dbc.Col([
+            html.H2('Pipeline'),
+        ], width=12, style={'margin-top': '20px', 'margin-bottom': '20px'})
+    ]),
+
     dbc.Row([
         dbc.Col(
             dbc.Card([

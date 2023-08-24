@@ -19,9 +19,8 @@ import core.utils
 layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            html.H1('Probes Viewer'),
-        ], width=12, style={'text-align': 'center',
-                            'margin-top': '20px', 'margin-bottom': '20px'})
+            html.H2('Probes Viewer'),
+        ], width=12, style={'margin-top': '20px', 'margin-bottom': '20px'})
     ]),
 
     dbc.Row([
