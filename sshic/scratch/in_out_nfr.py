@@ -160,7 +160,7 @@ def run(
 
     df_contacts = pd.read_csv(formatted_contacts_path, sep='\t', index_col=False)
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
-    sample_id = re.search(r"AD\d+", formatted_contacts_path).group()
+    sample_id = re.search(r"AD\d+[A-Z]", formatted_contacts_path).group()
 
     df_fragments_in_nfr = pd.read_csv(fragments_in_nfr_path, sep='\t', index_col=0)
     df_fragments_out_nfr = pd.read_csv(fragments_out_nfr_path, sep='\t', index_col=0)

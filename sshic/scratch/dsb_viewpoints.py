@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     for samp in samples:
         #   just the name of the sample (AD157, AD254, ...)
-        samp_id = re.search(r"AD\d+", samp).group()
+        samp_id = re.search(r"AD\d+[A-Z]", samp).group()
         print(samp_id)
         #   df0: raw dataframe, dense matrix
         #   may require a lot of time to import the table as it is heavy table

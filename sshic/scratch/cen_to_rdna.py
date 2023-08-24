@@ -47,7 +47,7 @@ if __name__ == "__main__":
     ]
 
     for samp in samples:
-        samp_id = re.search(r"AD\d+", samp).group()
+        samp_id = re.search(r"AD\d+[A-Z]", samp).group()
         df0 = pd.read_csv(samples_dir+samp, sep=' ', header=None)
         mat = df0.to_numpy(dtype=float)
 

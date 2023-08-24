@@ -61,7 +61,7 @@ def main(
     fragments_path: str,
     output_dir: str
 ):
-    samples_id = re.search(r"AD\d+", fragments_path).group()
+    samples_id = re.search(r"AD\d+[A-Z]", fragments_path).group()
     fragments = pd.unique(df_probes['frag_id'].astype(str))
     fragments_of_interest = ["18535", "18589", "18605", "18611", "18614", "18666", "18694"]
 
@@ -196,7 +196,7 @@ if __name__ == "__main__":
 
         wt_df = {}
         for samp in samples:
-            samp_id = re.search(r"AD\d+", samp).group()
+            samp_id = re.search(r"AD\d+[A-Z]", samp).group()
             if samp_id in ["AD162", "AD242", "AD296", "AD300"]:
                 print(samp_id)
                 df, df_b10, df_t10 = main(

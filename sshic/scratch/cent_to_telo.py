@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     del df_merged1, df_merged2, df_merged3, df_fragments_filtered3r, df_fragments_filtered3l
     for samp in samples:
-        samp_id = re.search(r"AD\d+", samp).group()
+        samp_id = re.search(r"AD\d+[A-Z]", samp).group()
         df0 = pd.read_csv(samples_dir+samp, sep=' ', header=None)
         mat = df0.to_numpy(dtype=float)
 

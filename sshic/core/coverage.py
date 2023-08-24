@@ -29,7 +29,7 @@ def coverage(
     """
 
     sample_filename = hic_contacts_path.split("/")[-1]
-    sample_id = re.search(r"AD\d+", sample_filename).group()
+    sample_id = re.search(r"AD\d+[A-Z]", sample_filename).group()
     output_path = os.path.join(output_dir, sample_id + f"_coverage_per_fragment")
 
     df_fragments: pd.DataFrame = pd.read_csv(fragments_path, sep='\t')

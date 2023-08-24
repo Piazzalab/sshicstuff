@@ -17,7 +17,7 @@ def main(
         fragments_path: str,
         output_dir: str
 ):
-    samples_id = re.search(r"AD\d+", fragments_path).group()
+    samples_id = re.search(r"AD\d+[A-Z]", fragments_path).group()
     fragments = pd.unique(df_probes['frag_id'].astype(str))
     probes_high_quality_sum = ["18535", "18589", "18605", "18611", "18614", "18666", "18694"]
     probes_to_average = {
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
         # wt_df = {}
         for samp in samples:
-            samp_id = re.search(r"AD\d+", samp).group()
+            samp_id = re.search(r"AD\d+[A-Z]", samp).group()
             print(samp_id)
             df_aggregated = main(
                 df_peaks=new_df,

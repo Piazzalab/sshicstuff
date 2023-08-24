@@ -32,7 +32,7 @@ def get_stats(
     """
 
     sample_filename = contacts_unbinned_path.split("/")[-1]
-    sample_id = re.search(r"AD\d+", sample_filename).group()
+    sample_id = re.search(r"AD\d+[A-Z]", sample_filename).group()
     output_path = os.path.join(output_dir, sample_id)
 
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
