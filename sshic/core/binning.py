@@ -44,7 +44,7 @@ def rebin_contacts(
 ):
 
     sample_filename = os.path.basename(contacts_unbinned_path)
-    sample_id = re.search(r"AD\d+[A-Z]", sample_filename).group()
+    sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
     bin_suffix = f'{bin_size // 1000}kb'
     output_path = os.path.join(output_dir, f'{sample_id}_{bin_suffix}_binned')
 

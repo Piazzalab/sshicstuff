@@ -28,7 +28,7 @@ def weight_mutant(
 
     """
 
-    sample_id = re.search(r"AD\d+[A-Z]", contacts_path.split("/")[-1]).group()
+    sample_id = re.search(r"AD\d+[A-Z]*", contacts_path.split("/")[-1]).group()
     output_path = os.path.join(output_dir, sample_id)
 
     df_stats: pd.DataFrame = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)

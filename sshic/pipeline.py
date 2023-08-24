@@ -22,7 +22,7 @@ class PathBundle:
         ref_name = reference_path.split("/")[-1].split(".")[0]
 
         self.sample_sparse_file_path = sample_sparse_file_path
-        self.samp_id = re.match(r"AD\d+[A-Z]", sample_sparse_file_path.split("/")[-1]).group()
+        self.samp_id = re.match(r"AD\d+[A-Z]*", sample_sparse_file_path.split("/")[-1]).group()
         parent_dir = dirname(dirname(sample_sparse_file_path))
         outputs_dir = join(parent_dir, "outputs")
 

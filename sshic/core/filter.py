@@ -243,7 +243,7 @@ def filter_contacts(
     None
     """
     sample_filename = contacts_path.split("/")[-1]
-    sample_id = re.search(r"AD\d+[A-Z]", sample_filename).group()
+    sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, sample_id+'_filtered.tsv')
 

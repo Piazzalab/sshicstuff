@@ -14,7 +14,7 @@ def main(
         output_dir: str
 ):
 
-    samp_id = re.search(r"AD\d+[A-Z]", binned_contacts_path).group()
+    samp_id = re.search(r"AD\d+[A-Z]*", binned_contacts_path).group()
     print(samp_id)
     df_contacts = pd.read_csv(binned_contacts_path, sep='\t')
     fragments = pd.unique(df_probes['frag_id'].astype(str))

@@ -104,7 +104,7 @@ def main(
     df_probes = pd.read_csv(probes_to_fragments_path, sep='\t', index_col=0)
     fragments = pd.unique(df_probes['frag_id'].astype(str))
 
-    sample_id = re.search(r"AD\d+[A-Z]", formatted_contacts_path).group()
+    sample_id = re.search(r"AD\d+[A-Z]*", formatted_contacts_path).group()
     output_dir += sample_id + '/'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
