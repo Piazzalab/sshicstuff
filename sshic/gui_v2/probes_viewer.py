@@ -172,7 +172,7 @@ def update_probes_cards(n_cards, data_basedir):
 
     pp_outputs_dir = join(data_basedir, 'outputs')
     all_samples_items = sorted(listdir(pp_outputs_dir))
-    samples_options = [{'label': s, 'value': s} for s in all_samples_items]
+    samples_options = [{'label': s, 'value': s} for s in all_samples_items if os.path.isdir(join(pp_outputs_dir, s))]
 
     probes_cards = []
     for i in range(n_cards):
