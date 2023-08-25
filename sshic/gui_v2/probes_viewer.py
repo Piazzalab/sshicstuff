@@ -245,22 +245,17 @@ def update_probes_cards(n_cards, data_basedir):
 
 
 @callback(
-    Output({'type': 'pcr-checkboxes', 'index': ALL}, 'options'),
-    Input({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    Output({'type': 'pcr-checkboxes', 'index': MATCH}, 'options'),
+    Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
     State('data-basedir', 'data')
 )
-def update_pcr_checkboxes_options(samples_values, data_basedir):
-    nb_cards = len(samples_values)
+def update_pcr_checkboxes_options(sample_value, data_basedir):
     pp_outputs_dir = join(data_basedir, 'outputs')
-    pcr_options = []
-    for i in range(nb_cards):
-        if samples_values[i] is None:
-            pcr_options.append([])
-            continue
-        all_items = listdir(join(pp_outputs_dir, samples_values[i]))
-        pcr_dirs = [item for item in all_items if os.path.isdir(join(pp_outputs_dir, samples_values[i], item))]
-        pcr_options.append([{'label': d, 'value': d} for d in pcr_dirs if 'pcr' in d.lower()])
-    return pcr_options
+    if sample_value is None:
+        return []
+    all_items = listdir(join(pp_outputs_dir, sample_value))
+    pcr_dirs = [item for item in all_items if os.path.isdir(join(pp_outputs_dir, sample_value, item))]
+    return [{'label': d, 'value': d} for d in pcr_dirs if 'pcr' in d.lower()]
 
 
 @callback(
@@ -275,26 +270,24 @@ def update_pcr_checkboxes(pcr_value):
 
 
 @callback(
-    Output({'type': 'weight-checkboxes', 'index': ALL}, 'options'),
-    Input({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
-    State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    Output({'type': 'weight-checkboxes', 'index': MATCH}, 'options'),
+    Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
+    Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
     State('data-basedir', 'data')
 )
-def update_weight_checkboxes_options(pcr_values, samples_values, data_basedir):
-    nb_cards = len(samples_values)
+def update_weight_checkboxes_options(pcr_value, sample_value, data_basedir):
+    ctx = dash.callback_context
+    triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
+    if triggerd_input == '':
+        return []
+
     pp_outputs_dir = join(data_basedir, 'outputs')
-    weight_options = []
-    for i in range(nb_cards):
-        if samples_values[i] is None:
-            weight_options.append([])
-            continue
-        if pcr_values[i] is None or pcr_values[i] == []:
-            weight_options.append([])
-            continue
-        pcr_dir = join(pp_outputs_dir, samples_values[i], pcr_values[i][-1])
-        weight_dirs = [w for w in listdir(pcr_dir) if os.path.isdir(join(pcr_dir, w))]
-        weight_options.append([{'label': d, 'value': d} for d in weight_dirs])
-    return weight_options
+    if not sample_value or not pcr_value or pcr_value == []:
+        return []
+
+    pcr_dir = join(pp_outputs_dir, sample_value, pcr_value[-1])
+    weight_dirs = [w for w in listdir(pcr_dir) if os.path.isdir(join(pcr_dir, w))]
+    return [{'label': d, 'value': d} for d in weight_dirs]
 
 
 @callback(
@@ -318,10 +311,7 @@ def update_weight_checkboxes(weight_value):
 def update_probe_dropdown_options(weight_value, sample_value, pcr_value, data_basedir):
     ctx = dash.callback_context
     triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
-    if triggerd_input != '':
-        triggering_input_id = json.loads(triggerd_input)
-        index = int(triggering_input_id['index'])
-    else:
+    if triggerd_input == '':
         return []
 
     pp_outputs_dir = join(data_basedir, 'outputs')
