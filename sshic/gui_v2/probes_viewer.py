@@ -93,11 +93,9 @@ layout = dbc.Container([
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '10px', 'margin-left': '20px'}),
     ]),
 
-    html.Div(id='pv-dynamic-probes-cards', children=[],
-             style={'margin-top': '20px', 'margin-bottom': '20px'}),
-
-    html.Div(id='pv-graphs', children=[],
-             style={'margin-top': '20px', 'margin-bottom': '20px'})
+    html.Div(id='pv-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+    html.Div(id='pv-graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+    dcc.Store(id='pv-stored-graphs-data', data={}),
 ])
 
 
@@ -111,7 +109,7 @@ def update_oligo_selector(data_basedir):
         return [], []
     inputs_dir = join(data_basedir, 'inputs')
     inputs_files = sorted([f for f in listdir(inputs_dir) if os.path.isfile(join(inputs_dir, f))],
-                     key=lambda x: x.lower())
+                          key=lambda x: x.lower())
 
     options = [{'label': f, 'value': join(inputs_dir, f)} for f in inputs_files]
     return options, options
@@ -378,3 +376,63 @@ def update_card_header(probe_value, sample_value, pcr_value, weight_value):
 
     samp_id = sample_value.split('/')[-1]
     return f"{samp_id} - {probe_value} - {pcr_value[-1]} - {weight_value[-1]}"
+
+
+# TODO : add a callback to update the graphs data
+# @callback(
+#     [Output('pv-stored-graphs-data', 'data')],
+#     [Input({'type': 'graph-selector', 'index': MATCH}, 'value'),
+#      Input({'type': 'probe-dropdown', 'index': MATCH}, 'value'),
+#      Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
+#      Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
+#      Input({'type': 'weight-checkboxes', 'index': MATCH}, 'value')],
+#     [State('pv-stored-graphs-data', 'data'),
+#      State('data-basedir', 'data')]
+# )
+# def initialize_graphs(
+#         graph_value,
+#         probe_value,
+#         sample_value,
+#         pcr_value,
+#         weight_value,
+#         graphs_data_dict,
+#         data_basedir
+# ):
+#     ctx = dash.callback_context
+#     triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
+#     if triggerd_input != '':
+#         triggering_input_id = json.loads(triggerd_input)
+#         index = int(triggering_input_id['index'])
+#     else:
+#         return None
+#
+#     if sample_value is None or probe_value is None:
+#         return dash.no_update
+#     if pcr_value is None or pcr_value == [] or weight_value is None or weight_value == []:
+#         return dash.no_update
+#
+#     pp_outputs_dir = join(data_basedir, 'outputs')
+#     if index not in graphs_data_dict:
+#         graphs_data_dict[index] = {'data': [], 'probes': [], 'binning': 0, }
+#
+#     graphs_data_dict[index]['probes'].append(
+#         join(pp_outputs_dir, sample_value, pcr_value[-1], weight_value[-1], f"{sample_value}_unbinned_contacts.tsv")
+#     )
+#
+#     graphs_data_dict[index]['probes'].append(probe_value)
+
+# need to stored the graphs info as follow :
+# graphs_data_dict = {
+#     0: {
+#         'data': [],
+#         'probes': [],
+#         'binning': 0,
+#     },
+#     1: {
+#         'data': [],
+#         'probes': [],
+#         'binning': 0,
+#     },
+# where data are path to unbinned_contacts.tsv files
+# probes are the probe (fragment columns) to display specifically
+# binning is résolution, default 0 (unbinned), changed according to binning selector value
