@@ -9,7 +9,7 @@ from dash import html
 from dash import dcc
 from dash import callback
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State, ALL
+from dash.dependencies import Input, Output, State, ALL, MATCH
 import plotly.graph_objs as go
 
 from common import generate_data_table, prepare_dataframe_for_output
@@ -340,37 +340,58 @@ def update_probe_dropdown_options(weight_values, samples_values, pcr_values, dat
 
 
 @callback(
-    Output({'type': 'pv-probe-card-header', 'index': ALL}, 'children'),
-    Output({'type': 'pv-display-graph-selector', 'index': ALL}, 'children'),
-    Input({'type': 'probe-dropdown', 'index': ALL}, 'value'),
-    State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
-    State({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
-    State({'type': 'weight-checkboxes', 'index': ALL}, 'value')
+    Output({'type': 'pv-display-graph-selector', 'index': MATCH}, 'children'),
+    Input({'type': 'probe-dropdown', 'index': MATCH}, 'value'),
+    State({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
+    State({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
+    State({'type': 'weight-checkboxes', 'index': MATCH}, 'value'),
+    State({'type': 'sample-dropdown', 'index': ALL}, 'value')
 )
-def update_card_header(probe_values, sample_values, pcr_values, weight_values):
-    nb_samples = len(sample_values)
-    probes_headers = ["" for _ in range(nb_samples)]
-    graph_selector = ["" for _ in range(nb_samples)]
+def update_graph_selector(probe_value, sample_value, pcr_value, weight_value, samples_value):
+    ctx = dash.callback_context
+    triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
+    if triggerd_input != '':
+        triggering_input_id = json.loads(triggerd_input)
+        index = int(triggering_input_id['index'])
+    else:
+        return None
 
-    for i in range(nb_samples):
-        if sample_values[i] is None or probe_values[i] is None:
-            continue
-        if pcr_values[i] is None or pcr_values[i] == [] or weight_values[i] is None or weight_values[i] == []:
-            continue
+    nb_samples = len(samples_value)
+    if sample_value is None or probe_value is None:
+        return None
+    if pcr_value is None or pcr_value == [] or weight_value is None or weight_value == []:
+        return None
 
-        samp_id = sample_values[i].split('/')[-1]
-        probes_headers[i] = f"{samp_id} - {probe_values[i]} - {pcr_values[i][-1]} - {weight_values[i][-1]}"
-        graph_selector[i] = dbc.Row([
-            dbc.Col([
-                dcc.Dropdown(
-                    options=[{'label': f'graph {x}', 'value': f'graph {x}'} for x in range(nb_samples)],
-                    value=None,
-                    placeholder="Select graph",
-                    id={'type': 'graph-selector', 'index': i},
-                    multi=False
-                )
-            ])
+    graph_selector_dropdown = dbc.Row([
+        dbc.Col([
+            dcc.Dropdown(
+                options=[{'label': f'graph {x}', 'value': f'graph {x}'} for x in range(nb_samples)],
+                value=None,
+                placeholder="Select graph",
+                id={'type': 'graph-selector', 'index': index},
+                multi=False
+            )
         ])
+    ])
 
-    return probes_headers, graph_selector
+    return graph_selector_dropdown
+
+
+@callback(
+    Output({'type': 'pv-probe-card-header', 'index': MATCH}, 'children'),
+    Input({'type': 'probe-dropdown', 'index': MATCH}, 'value'),
+    State({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
+    State({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
+    State({'type': 'weight-checkboxes', 'index': MATCH}, 'value')
+)
+def update_card_header(probe_value, sample_value, pcr_value, weight_value):
+    if sample_value is None or probe_value is None:
+        return None
+    if pcr_value is None or pcr_value == [] or weight_value is None or weight_value == []:
+        return None
+
+    samp_id = sample_value.split('/')[-1]
+    return f"{samp_id} - {probe_value} - {pcr_value[-1]} - {weight_value[-1]}"
+
+
 
