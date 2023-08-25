@@ -264,15 +264,14 @@ def update_pcr_checkboxes_options(samples_values, data_basedir):
 
 
 @callback(
-    Output({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
-    Input({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
+    Output({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
+    Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
 )
-def update_pcr_checkboxes(pcr_values):
-    for i in range(len(pcr_values)):
-        if not pcr_values[i]:
-            continue
-        pcr_values[i] = [pcr_values[i][-1]]
-    return pcr_values
+def update_pcr_checkboxes(pcr_value):
+    if not pcr_value:
+        return []
+    else:
+        return [pcr_value[-1]]
 
 
 @callback(
@@ -299,44 +298,42 @@ def update_weight_checkboxes_options(pcr_values, samples_values, data_basedir):
 
 
 @callback(
-    Output({'type': 'weight-checkboxes', 'index': ALL}, 'value'),
-    Input({'type': 'weight-checkboxes', 'index': ALL}, 'value')
+    Output({'type': 'weight-checkboxes', 'index': MATCH}, 'value'),
+    Input({'type': 'weight-checkboxes', 'index': MATCH}, 'value')
 )
-def update_weight_checkboxes(weight_values):
-    for i in range(len(weight_values)):
-        if not weight_values[i]:
-            continue
-        weight_values[i] = [weight_values[i][-1]]
-    return weight_values
+def update_weight_checkboxes(weight_value):
+    if not weight_value:
+        return []
+    else:
+        return [weight_value[-1]]
 
 
 @callback(
-    Output({'type': 'probe-dropdown', 'index': ALL}, 'options'),
-    Input({'type': 'weight-checkboxes', 'index': ALL}, 'value'),
-    State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
-    State({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
+    Output({'type': 'probe-dropdown', 'index': MATCH}, 'options'),
+    Input({'type': 'weight-checkboxes', 'index': MATCH}, 'value'),
+    Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
+    Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
     State('data-basedir', 'data')
 )
-def update_probe_dropdown_options(weight_values, samples_values, pcr_values, data_basedir):
-    nb_cards = len(samples_values)
-    pp_outputs_dir = join(data_basedir, 'outputs')
-    probe_options = []
-    for i in range(nb_cards):
-        if samples_values[i] is None:
-            probe_options.append([])
-            continue
-        if pcr_values[i] is None or pcr_values[i] == []:
-            probe_options.append([])
-            continue
-        if weight_values[i] is None or weight_values[i] == []:
-            probe_options.append([])
-            continue
+def update_probe_dropdown_options(weight_value, sample_value, pcr_value, data_basedir):
+    ctx = dash.callback_context
+    triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
+    if triggerd_input != '':
+        triggering_input_id = json.loads(triggerd_input)
+        index = int(triggering_input_id['index'])
+    else:
+        return []
 
-        items_dir = join(pp_outputs_dir, samples_values[i], pcr_values[i][-1], weight_values[i][-1])
-        df = pd.read_csv(join(items_dir, f"{samples_values[i]}_unbinned_contacts.tsv"), sep='\t')
-        probes = [c for c in df.columns if c not in ['chr', 'start', 'sizes', 'genome_start', 'end']]
-        probe_options.append([{'label': f, 'value': f} for f in probes])
-    return probe_options
+    pp_outputs_dir = join(data_basedir, 'outputs')
+    if sample_value is None:
+        return []
+    if pcr_value is None or pcr_value == [] or weight_value is None or weight_value == []:
+        return []
+
+    items_dir = join(pp_outputs_dir, sample_value, pcr_value[-1], weight_value[-1])
+    df = pd.read_csv(join(items_dir, f"{sample_value}_unbinned_contacts.tsv"), sep='\t')
+    probes = [c for c in df.columns if c not in ['chr', 'start', 'sizes', 'genome_start', 'end']]
+    return [{'label': f, 'value': f} for f in probes]
 
 
 @callback(
@@ -380,9 +377,9 @@ def update_graph_selector(probe_value, sample_value, pcr_value, weight_value, sa
 @callback(
     Output({'type': 'pv-probe-card-header', 'index': MATCH}, 'children'),
     Input({'type': 'probe-dropdown', 'index': MATCH}, 'value'),
-    State({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
-    State({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
-    State({'type': 'weight-checkboxes', 'index': MATCH}, 'value')
+    Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
+    Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
+    Input({'type': 'weight-checkboxes', 'index': MATCH}, 'value')
 )
 def update_card_header(probe_value, sample_value, pcr_value, weight_value):
     if sample_value is None or probe_value is None:
@@ -392,6 +389,3 @@ def update_card_header(probe_value, sample_value, pcr_value, weight_value):
 
     samp_id = sample_value.split('/')[-1]
     return f"{samp_id} - {probe_value} - {pcr_value[-1]} - {weight_value[-1]}"
-
-
-
