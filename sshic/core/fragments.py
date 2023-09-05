@@ -37,7 +37,8 @@ def organize_contacts(
     """
 
     sample_filename = filtered_contacts_path.split("/")[-1]
-    sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
+    sample_id = sample_filename.split("_")[0]
+    # sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
     output_path = os.path.join(output_dir, sample_id)
 
     df_chr_len: pd.DataFrame = pd.read_csv(chromosomes_coord_path, sep='\t', index_col=None)
