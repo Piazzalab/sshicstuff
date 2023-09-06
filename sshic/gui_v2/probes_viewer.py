@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 import dash
 import json
 from os.path import join
@@ -80,22 +81,25 @@ layout = dbc.Container([
             html.Label("Select binning :", style={'margin-top': '0px', 'margin-bottom': '10px'}),
             dcc.Slider(
                 id='pv-binning-slider',
-                min=1,
+                min=0,
                 max=100,
                 step=1,
                 value=10,
-                marks={1: "1"} | {i: str(i) for i in range(10, 101, 10)},
+                marks={i: str(i) for i in range(0, 101, 10)},
                 included=False,
             ),
             html.Div(id='pv-slider-output-container',
                      style={'margin-top': '10px', 'font-size': '14px'}),
             html.Br(),
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '10px', 'margin-left': '20px'}),
+
+        dbc.Col([
+            html.Button(id="pv-plot-buttom", className="green-button", children="Make Plots"),
+        ], width=7, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '60px'}),
     ]),
 
     html.Div(id='pv-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
     html.Div(id='pv-graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
-    dcc.Store(id='pv-stored-graphs-data', data={}),
 ])
 
 
@@ -376,3 +380,140 @@ def update_card_header(probe_value, sample_value, pcr_value, weight_value):
 
     samp_id = sample_value.split('/')[-1]
     return f"{samp_id} - {probe_value} - {pcr_value[-1]} - {weight_value[-1]}"
+
+
+@callback(
+    Output('pv-graphs', 'children'),
+    Input('pv-plot-buttom', 'n_clicks'),
+    State('pv-binning-slider', 'value'),
+    State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    State({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
+    State({'type': 'weight-checkboxes', 'index': ALL}, 'value'),
+    State({'type': 'probe-dropdown', 'index': ALL}, 'value'),
+    State({'type': 'graph-selector', 'index': ALL}, 'value'),
+    State('data-basedir', 'data')
+)
+def update_graphs(
+        n_clicks,
+        binning_value,
+        samples_value,
+        pcr_value,
+        weight_value,
+        probes_value,
+        graphs_values,
+        data_basedir
+):
+
+    if n_clicks is None or n_clicks == 0:
+        return None
+
+    pp_outputs_dir = join(data_basedir, 'outputs')
+    graphs_info = {}
+    nb_graphs = 0
+    for i, graph in enumerate(graphs_values):
+        if graph is None:
+            continue
+        graph_id = int(graph.split(' ')[-1])
+        if graph_id not in graphs_info:
+            nb_graphs += 1
+            graphs_info[graph_id] = {
+                'samples': [],
+                'fragments': [],
+                'filenames': [],
+                'size': 0,
+            }
+        graphs_info[graph_id]['samples'].append(samples_value[i])
+        graphs_info[graph_id]['fragments'].append(probes_value[i])
+        if binning_value == 0:
+            graphs_info[graph_id]['filenames'].append(f"{samples_value[i]}_unbinned_contacts.tsv")
+        else:
+            graphs_info[graph_id]['filenames'].append(f"{samples_value[i]}_{binning_value}kb_binned_contacts.tsv")
+        graphs_info[graph_id]['size'] += 1
+
+    # TODO: use a file that stores chr data
+    chr_lengths = {"chr1": 230218, "chr2": 813184, "chr3": 316620, "chr4": 1531933, "chr5": 576874,
+                   "chr6": 270161, "chr7": 1090940, "chr8": 562643, "chr9": 439888, "chr10": 745751,
+                   "chr11": 666816, "chr12": 1078177, "chr13": 924431, "chr14": 784333, "chr15": 1091291,
+                   "chr16": 948066, "2_micron": 6318, "mitochondrion": 85779, "chr_artificial": 7828}
+    chr_names = [f"chr{i}" for i in range(1, 17)] + ["2_micron", "mitochondrion", "chr_artificial"]
+    chr_pos = [230218, 813184, 316620, 1531933, 576874, 270161, 1090940, 562643, 439888, 745751,
+               666816, 1078177, 924431, 784333, 1091291, 948066, 6318, 85779, 7828]
+    chr_cum_pos = list(np.cumsum(chr_pos))
+    chr_boundaries = [0] + chr_cum_pos[:-1]
+    chr_colors = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9',
+                  '#f1c40f', '#d35400', '#e74c3c', '#c0392b', '#1abc9c', '#16a085', '#bdc3c7', '#2c3e50',
+                  '#7f8c8d', '#f39c12', '#27ae60']
+
+    figures = {}
+    for i in graphs_info:
+        fig = go.Figure()
+        trace_id = 0
+        for j in range(graphs_info[i]['size']):
+            samp = graphs_info[i]['samples'][j]
+            frag = graphs_info[i]['fragments'][j]
+            filename = graphs_info[i]['filenames'][j]
+            filedir = join(pp_outputs_dir, samp, pcr_value[i][-1], weight_value[i][-1])
+            df = pd.read_csv(join(filedir, filename), sep='\t')
+            trace_id += 1
+
+            x_col = "genome_bins" if binning_value > 0 else "genome_start"
+            fig.add_trace(
+                go.Scattergl(
+                    x=df[x_col],
+                    y=df[frag],
+                    name=f"fragment {frag}",
+                    mode='lines+markers',
+                    line=dict(width=1, color='rgba(0,0,255,0.4)'),
+                    marker=dict(size=4)
+                )
+            )
+
+            fig.update_layout(
+                width=1500,
+                height=500,
+                title=f" fragment {frag} contacts frequencies sshic binned at {binning_value} kb",
+                xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
+                yaxis=dict(title="Contact frequency"),
+                hovermode='closest'
+            )
+
+        for xi, x_pos in enumerate(chr_boundaries):
+            name_pos = x_pos + 100
+            fig.add_shape(type='line',
+                          yref='paper',
+                          xref='x',
+                          x0=x_pos, x1=x_pos,
+                          y0=0, y1=1,
+                          line=dict(color='gray', width=1, dash='dot'))
+
+            fig.add_annotation(
+                go.layout.Annotation(
+                    x=name_pos,
+                    y=1.07,
+                    yref="paper",
+                    text=chr_names[xi],
+                    showarrow=False,
+                    xanchor="center",
+                    font=dict(size=11, color=chr_colors[xi]),
+                    textangle=330
+                ),
+                xref="x"
+            )
+
+        figures[i] = fig
+
+    graphs_layout = []
+    for i in range(len(figures)):
+        graphs_layout = dbc.Col([
+            dbc.Row([
+                dbc.Col([
+                    dcc.Graph(id={'type': 'graph', 'index': i},
+                              config={'displayModeBar': True, 'scrollZoom': True},
+                              style={'height': 'auto', 'width': '100%'},
+                              figure=figures[i])
+                ], width=12, align='center')
+                for i in range(nb_graphs)
+            ])
+        ])
+
+    return graphs_layout
