@@ -94,8 +94,19 @@ layout = dbc.Container([
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '10px', 'margin-left': '20px'}),
 
         dbc.Col([
-            html.Button(id="pv-plot-buttom", className="blue-button", children="Generate graphs"),
-        ], width=7, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '60px'}),
+            dcc.Checklist(
+                id="pv-sync-box",
+                options=[{"label": "Sync axis", "value": "sync"}],
+                value=[],
+                inline=True,
+                className='custom-checkbox-label',
+                labelStyle={"margin": "5px"}
+            )
+        ], width=2, style={'margin-top': '15px', 'margin-bottom': '10px', 'margin-left': '20px'}),
+
+        dbc.Col([
+            html.Button(id="pv-plot-buttom", className="plot-button", children="Submit"),
+        ], width=2, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '20px'}),
     ]),
 
     dcc.Store(id='pv-stored-graphs-axis-range', data={}),
@@ -572,10 +583,6 @@ def update_graphs(
         graphs_info[graph_id]['size'] += 1
 
     # TODO: use a file that stores chr data
-    chr_lengths = {"chr1": 230218, "chr2": 813184, "chr3": 316620, "chr4": 1531933, "chr5": 576874,
-                   "chr6": 270161, "chr7": 1090940, "chr8": 562643, "chr9": 439888, "chr10": 745751,
-                   "chr11": 666816, "chr12": 1078177, "chr13": 924431, "chr14": 784333, "chr15": 1091291,
-                   "chr16": 948066, "2_micron": 6318, "mitochondrion": 85779, "chr_artificial": 7828}
     chr_names = [f"chr{i}" for i in range(1, 17)] + ["2_micron", "mitochondrion", "chr_artificial"]
     chr_pos = [230218, 813184, 316620, 1531933, 576874, 270161, 1090940, 562643, 439888, 745751,
                666816, 1078177, 924431, 784333, 1091291, 948066, 6318, 85779, 7828]
@@ -617,9 +624,12 @@ def update_graphs(
 @callback(
     Output('pv-stored-graphs-axis-range', 'data'),
     Input({'type': 'graph', 'index': ALL}, 'relayoutData'),
+    State('pv-sync-box', 'value')
 )
-def update_figure_range(relayout_data):
-    nb_graphs = len(relayout_data)
+def update_figure_range(relayout_data, sync_value):
+    if not sync_value:
+        return dash.no_update
+
     if not any(relayout_data):
         return [None, None]
 

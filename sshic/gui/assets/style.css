@@ -79,6 +79,18 @@ h4, h5, h6 {
     width: 140px;
 }
 
+.plot-button {
+    background-color: #199cce;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 100px;
+}
+
+
 
 .custom-tooltip {
     left: 10px !important;
