@@ -98,6 +98,7 @@ layout = dbc.Container([
         ], width=7, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '60px'}),
     ]),
 
+    dcc.Store(id='pv-stored-graphs-axis-range', data={}),
     html.Div(id='pv-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
     html.Div(id='pv-graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
 ])
@@ -431,6 +432,7 @@ def update_card_header(probe_value, sample_value, pcr_value, weight_value):
 
 
 def update_figure(
+    graph_id: int,
     graph_dict: dict,
     binning: int,
     chr_names: list,
@@ -448,14 +450,13 @@ def update_figure(
         weight = graph_dict['weight'][j]
         filepath = graph_dict['filepaths'][j]
         df = pd.read_csv(filepath, sep='\t')
-        trace_id += 1
 
         x_col = "genome_bins" if binning > 0 else "genome_start"
         fig.add_trace(
             go.Scattergl(
                 x=df[x_col],
                 y=df[frag],
-                name=f"fragment {frag}",
+                name=f"{samp} - {frag} - {pcr} - {weight}",
                 mode='lines+markers',
                 line=dict(width=1, color='rgba(0,0,255,0.4)'),
                 marker=dict(size=4)
@@ -465,7 +466,7 @@ def update_figure(
         fig.update_layout(
             width=1500,
             height=500,
-            title=f" fragment {frag} contacts frequencies sshic binned at {binning} kb",
+            title=f"Graphe {graph_id}",
             xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
             yaxis=dict(title="Contact frequency"),
             hovermode='closest'
@@ -498,12 +499,14 @@ def update_figure(
             ),
             xref="x"
         )
+        trace_id += 1
     return fig
 
 
 @callback(
     Output('pv-graphs', 'children'),
     Input('pv-plot-buttom', 'n_clicks'),
+    Input('pv-stored-graphs-axis-range', 'data'),
     State('pv-binning-slider', 'value'),
     State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
     State({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
@@ -514,6 +517,7 @@ def update_figure(
 )
 def update_graphs(
         n_clicks,
+        axis_range,
         binning_value,
         samples_value,
         pcr_value,
@@ -522,6 +526,8 @@ def update_graphs(
         graphs_values,
         data_basedir
 ):
+    ctx = dash.callback_context
+    triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
 
     if n_clicks is None or n_clicks == 0:
         return None
@@ -529,6 +535,14 @@ def update_graphs(
     pp_outputs_dir = join(data_basedir, 'outputs')
     graphs_info = {}
     nb_graphs = 0
+
+    x_range = None
+    y_range = None
+    if triggerd_input == 'pv-stored-graphs-axis-range':
+        if axis_range:
+            x_range = axis_range['x_range']
+            y_range = axis_range['y_range']
+
     for i, graph in enumerate(graphs_values):
         if graph is None:
             continue
@@ -574,11 +588,14 @@ def update_graphs(
     figures = {}
     for i in graphs_info:
         figures[i] = update_figure(
+            graph_id=i,
             graph_dict=graphs_info[i],
             binning=binning_value,
             chr_names=chr_names,
             chr_colors=chr_colors,
-            chr_boundaries=chr_boundaries
+            chr_boundaries=chr_boundaries,
+            x_range=x_range,
+            y_range=y_range
         )
 
     graphs_layout = []
@@ -594,5 +611,27 @@ def update_graphs(
                 for i in range(nb_graphs)
             ])
         ])
-
     return graphs_layout
+
+
+@callback(
+    Output('pv-stored-graphs-axis-range', 'data'),
+    Input({'type': 'graph', 'index': ALL}, 'relayoutData'),
+)
+def update_figure_range(relayout_data):
+    nb_graphs = len(relayout_data)
+    if not any(relayout_data):
+        return [None, None]
+
+    ctx = dash.callback_context
+    input_id = json.loads(ctx.triggered[0]['prop_id'].split('.')[0])['index']
+
+    updated_range = {'x_range': None, 'y_range': None}
+    if 'xaxis.range[0]' in relayout_data[input_id]:
+        updated_range['x_range'] = [relayout_data[input_id]['xaxis.range[0]'],
+                                    relayout_data[input_id]['xaxis.range[1]']]
+
+    if 'yaxis.range[0]' in relayout_data[input_id]:
+        updated_range['y_range'] = [relayout_data[input_id]['yaxis.range[0]'],
+                                    relayout_data[input_id]['yaxis.range[1]']]
+    return updated_range
