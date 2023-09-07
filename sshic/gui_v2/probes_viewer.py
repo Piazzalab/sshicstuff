@@ -162,6 +162,80 @@ def update_output(value):
     return f'You have selected a binning of {value} kb'
 
 
+def create_card(
+        index,
+        sample_options,
+        probe_options,
+        pcr_options,
+        weight_options,
+        sample_value,
+        probe_value,
+        pcr_value,
+        weight_value
+):
+
+    card = dbc.Col(
+        dbc.Card([
+            dbc.CardHeader(html.Div(id={'type': 'pv-probe-card-header', 'index': index})),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Dropdown(
+                            options=sample_options,
+                            value=sample_value,
+                            placeholder="Select sample",
+                            id={'type': 'sample-dropdown', 'index': index},
+                            multi=False,
+                        )
+                    ]),
+
+                    dbc.Col([
+                        dcc.Dropdown(
+                            options=probe_options,
+                            value=probe_value,
+                            placeholder="Select probe",
+                            id={'type': 'probe-dropdown', 'index': index},
+                            multi=False,
+                        )
+                    ]),
+                ]),
+
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Checklist(
+                            options=pcr_options,
+                            value=pcr_value,
+                            id={'type': 'pcr-checkboxes', 'index': index},
+                            inline=True,
+                            className='custom-checkbox-label',
+                            labelStyle={"margin": "5px"}
+                        )
+                    ]),
+
+                    dbc.Col([
+                        dcc.Checklist(
+                            options=weight_options,
+                            value=weight_value,
+                            id={'type': 'weight-checkboxes', 'index': index},
+                            inline=True,
+                            className='custom-checkbox-label',
+                            labelStyle={"margin": "5px"}
+                        )
+                    ]),
+                ]),
+
+                dbc.Row([
+                    dbc.Col([
+                        html.Div(id={'type': 'pv-display-graph-selector', 'index': index})
+                    ])
+                ])
+            ])
+        ])
+    )
+
+    return card
+
+
 @callback(
     Output('pv-dynamic-probes-cards', 'children'),
     Input('pv-number-probes', 'value'),
@@ -180,73 +254,37 @@ def update_probes_cards(n_cards, data_basedir, cards_children):
     displaying_cards = []
     if cards_children:
         existing_cards = cards_children[0]['props']['children']
-        displaying_cards = existing_cards[:]
+        for ii, item in enumerate(existing_cards):
+            cardbody = item['props']['children']['props']['children'][1]['props']['children']
+            displaying_cards.append(
+                create_card(
+                    index=ii,
+                    sample_options=samples_options,
+                    probe_options=cardbody[0]['props']['children'][1]['props']['children'][0]['props']['options'],
+                    pcr_options=cardbody[1]['props']['children'][0]['props']['children'][0]['props']['options'],
+                    weight_options=cardbody[1]['props']['children'][1]['props']['children'][0]['props']['options'],
+                    sample_value=cardbody[0]['props']['children'][0]['props']['children'][0]['props']['value'],
+                    probe_value=cardbody[0]['props']['children'][1]['props']['children'][0]['props']['value'],
+                    pcr_value=cardbody[1]['props']['children'][0]['props']['children'][0]['props']['value'],
+                    weight_value=cardbody[1]['props']['children'][1]['props']['children'][0]['props']['value']
+                ))
 
     if len(existing_cards) > n_cards:
         displaying_cards = existing_cards[:n_cards]
     if len(existing_cards) < n_cards:
         cards_to_add = n_cards - len(existing_cards)
         for i in range(cards_to_add):
-            sample_card = dbc.Col(
-                dbc.Card([
-                    dbc.CardHeader(html.Div(id={'type': 'pv-probe-card-header', 'index': i})),
-                    dbc.CardBody([
-                        dbc.Row([
-                            dbc.Col([
-                                dcc.Dropdown(
-                                    options=samples_options,
-                                    value=None,
-                                    placeholder="Select sample",
-                                    id={'type': 'sample-dropdown', 'index': i},
-                                    multi=False,
-                                )
-                            ]),
-
-                            dbc.Col([
-                                dcc.Dropdown(
-                                    options=[],
-                                    value=None,
-                                    placeholder="Select probe",
-                                    id={'type': 'probe-dropdown', 'index': i},
-                                    multi=False,
-                                )
-                            ]),
-                        ]),
-
-                        dbc.Row([
-                            dbc.Col([
-                                dcc.Checklist(
-                                    options=[],
-                                    value=[],
-                                    id={'type': 'pcr-checkboxes', 'index': i},
-                                    inline=True,
-                                    className='custom-checkbox-label',
-                                    labelStyle={"margin": "5px"}
-                                )
-                            ]),
-
-                            dbc.Col([
-                                dcc.Checklist(
-                                    options=[],
-                                    value=[],
-                                    id={'type': 'weight-checkboxes', 'index': i},
-                                    inline=True,
-                                    className='custom-checkbox-label',
-                                    labelStyle={"margin": "5px"}
-                                )
-                            ]),
-                        ]),
-
-                        dbc.Row([
-                            dbc.Col([
-                                html.Div(id={'type': 'pv-display-graph-selector', 'index': i})
-                            ])
-                        ])
-                    ])
-                ])
-            )
-
-            displaying_cards.append(sample_card)
+            displaying_cards.append(create_card(
+                index=len(existing_cards) + i,
+                sample_options=samples_options,
+                probe_options=[],
+                pcr_options=[],
+                weight_options=[],
+                sample_value=None,
+                probe_value=None,
+                pcr_value=None,
+                weight_value=None
+            ))
 
     rows = []
     for i in range(0, len(displaying_cards), 3):
