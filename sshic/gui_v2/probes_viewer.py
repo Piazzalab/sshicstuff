@@ -165,9 +165,10 @@ def update_output(value):
 @callback(
     Output('pv-dynamic-probes-cards', 'children'),
     Input('pv-number-probes', 'value'),
-    State('data-basedir', 'data')
+    State('data-basedir', 'data'),
+    State('pv-dynamic-probes-cards', 'children')
 )
-def update_probes_cards(n_cards, data_basedir):
+def update_probes_cards(n_cards, data_basedir, cards_children):
     if n_cards is None or n_cards == 0:
         return []
 
@@ -175,72 +176,81 @@ def update_probes_cards(n_cards, data_basedir):
     all_samples_items = sorted(listdir(pp_outputs_dir))
     samples_options = [{'label': s, 'value': s} for s in all_samples_items if os.path.isdir(join(pp_outputs_dir, s))]
 
-    probes_cards = []
-    for i in range(n_cards):
-        sample_card = dbc.Col(
-            dbc.Card([
-                dbc.CardHeader(html.Div(id={'type': 'pv-probe-card-header', 'index': i})),
-                dbc.CardBody([
-                    dbc.Row([
-                        dbc.Col([
-                            dcc.Dropdown(
-                                options=samples_options,
-                                value=None,
-                                placeholder="Select sample",
-                                id={'type': 'sample-dropdown', 'index': i},
-                                multi=False,
-                            )
+    existing_cards = []
+    displaying_cards = []
+    if cards_children:
+        existing_cards = cards_children[0]['props']['children']
+        displaying_cards = existing_cards[:]
+
+    if len(existing_cards) > n_cards:
+        displaying_cards = existing_cards[:n_cards]
+    if len(existing_cards) < n_cards:
+        cards_to_add = n_cards - len(existing_cards)
+        for i in range(cards_to_add):
+            sample_card = dbc.Col(
+                dbc.Card([
+                    dbc.CardHeader(html.Div(id={'type': 'pv-probe-card-header', 'index': i})),
+                    dbc.CardBody([
+                        dbc.Row([
+                            dbc.Col([
+                                dcc.Dropdown(
+                                    options=samples_options,
+                                    value=None,
+                                    placeholder="Select sample",
+                                    id={'type': 'sample-dropdown', 'index': i},
+                                    multi=False,
+                                )
+                            ]),
+
+                            dbc.Col([
+                                dcc.Dropdown(
+                                    options=[],
+                                    value=None,
+                                    placeholder="Select probe",
+                                    id={'type': 'probe-dropdown', 'index': i},
+                                    multi=False,
+                                )
+                            ]),
                         ]),
 
-                        dbc.Col([
-                            dcc.Dropdown(
-                                options=[],
-                                value=None,
-                                placeholder="Select probe",
-                                id={'type': 'probe-dropdown', 'index': i},
-                                multi=False,
-                            )
-                        ]),
-                    ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dcc.Checklist(
+                                    options=[],
+                                    value=[],
+                                    id={'type': 'pcr-checkboxes', 'index': i},
+                                    inline=True,
+                                    className='custom-checkbox-label',
+                                    labelStyle={"margin": "5px"}
+                                )
+                            ]),
 
-                    dbc.Row([
-                        dbc.Col([
-                            dcc.Checklist(
-                                options=[],
-                                value=[],
-                                id={'type': 'pcr-checkboxes', 'index': i},
-                                inline=True,
-                                className='custom-checkbox-label',
-                                labelStyle={"margin": "5px"}
-                            )
+                            dbc.Col([
+                                dcc.Checklist(
+                                    options=[],
+                                    value=[],
+                                    id={'type': 'weight-checkboxes', 'index': i},
+                                    inline=True,
+                                    className='custom-checkbox-label',
+                                    labelStyle={"margin": "5px"}
+                                )
+                            ]),
                         ]),
 
-                        dbc.Col([
-                            dcc.Checklist(
-                                options=[],
-                                value=[],
-                                id={'type': 'weight-checkboxes', 'index': i},
-                                inline=True,
-                                className='custom-checkbox-label',
-                                labelStyle={"margin": "5px"}
-                            )
-                        ]),
-                    ]),
-
-                    dbc.Row([
-                        dbc.Col([
-                            html.Div(id={'type': 'pv-display-graph-selector', 'index': i})
+                        dbc.Row([
+                            dbc.Col([
+                                html.Div(id={'type': 'pv-display-graph-selector', 'index': i})
+                            ])
                         ])
                     ])
                 ])
-            ])
-        )
+            )
 
-        probes_cards.append(sample_card)
+            displaying_cards.append(sample_card)
 
     rows = []
-    for i in range(0, len(probes_cards), 3):
-        row = dbc.Row(probes_cards[i:i+3], style={'margin-top': '20px', 'margin-bottom': '20px'})
+    for i in range(0, len(displaying_cards), 3):
+        row = dbc.Row(displaying_cards[i:i+3], style={'margin-top': '20px', 'margin-bottom': '20px'})
         rows.append(row)
     return rows
 
