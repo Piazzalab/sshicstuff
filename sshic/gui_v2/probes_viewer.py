@@ -430,6 +430,77 @@ def update_card_header(probe_value, sample_value, pcr_value, weight_value):
     return f"{samp_id} - {probe_value} - {pcr_value[-1]} - {weight_value[-1]}"
 
 
+def update_figure(
+    graph_dict: dict,
+    binning: int,
+    chr_names: list,
+    chr_colors: list,
+    chr_boundaries: list,
+    x_range=None,
+    y_range=None
+):
+    fig = go.Figure()
+    trace_id = 0
+    for j in range(graph_dict['size']):
+        samp = graph_dict['samples'][j]
+        frag = graph_dict['fragments'][j]
+        pcr = graph_dict['pcr'][j]
+        weight = graph_dict['weight'][j]
+        filepath = graph_dict['filepaths'][j]
+        df = pd.read_csv(filepath, sep='\t')
+        trace_id += 1
+
+        x_col = "genome_bins" if binning > 0 else "genome_start"
+        fig.add_trace(
+            go.Scattergl(
+                x=df[x_col],
+                y=df[frag],
+                name=f"fragment {frag}",
+                mode='lines+markers',
+                line=dict(width=1, color='rgba(0,0,255,0.4)'),
+                marker=dict(size=4)
+            )
+        )
+
+        fig.update_layout(
+            width=1500,
+            height=500,
+            title=f" fragment {frag} contacts frequencies sshic binned at {binning} kb",
+            xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
+            yaxis=dict(title="Contact frequency"),
+            hovermode='closest'
+        )
+
+    if x_range:
+        fig.update_xaxes(range=x_range)
+    if y_range:
+        fig.update_yaxes(range=y_range)
+
+    for xi, x_pos in enumerate(chr_boundaries):
+        name_pos = x_pos + 100
+        fig.add_shape(type='line',
+                      yref='paper',
+                      xref='x',
+                      x0=x_pos, x1=x_pos,
+                      y0=0, y1=1,
+                      line=dict(color='gray', width=1, dash='dot'))
+
+        fig.add_annotation(
+            go.layout.Annotation(
+                x=name_pos,
+                y=1.07,
+                yref="paper",
+                text=chr_names[xi],
+                showarrow=False,
+                xanchor="center",
+                font=dict(size=11, color=chr_colors[xi]),
+                textangle=330
+            ),
+            xref="x"
+        )
+    return fig
+
+
 @callback(
     Output('pv-graphs', 'children'),
     Input('pv-plot-buttom', 'n_clicks'),
@@ -467,15 +538,23 @@ def update_graphs(
             graphs_info[graph_id] = {
                 'samples': [],
                 'fragments': [],
-                'filenames': [],
+                'pcr': [],
+                'weight': [],
+                'filepaths': [],
                 'size': 0,
             }
         graphs_info[graph_id]['samples'].append(samples_value[i])
         graphs_info[graph_id]['fragments'].append(probes_value[i])
+        graphs_info[graph_id]['pcr'].append(pcr_value[i][-1])
+        graphs_info[graph_id]['weight'].append(weight_value[i][-1])
+
+        filedir = join(pp_outputs_dir, samples_value[i], pcr_value[i][-1], weight_value[i][-1])
         if binning_value == 0:
-            graphs_info[graph_id]['filenames'].append(f"{samples_value[i]}_unbinned_contacts.tsv")
+            filepath = join(filedir, f"{samples_value[i]}_unbinned_frequencies.tsv")
+            graphs_info[graph_id]['filepaths'].append(filepath)
         else:
-            graphs_info[graph_id]['filenames'].append(f"{samples_value[i]}_{binning_value}kb_binned_contacts.tsv")
+            filepath = join(filedir, f"{samples_value[i]}_{binning_value}kb_binned_frequencies.tsv")
+            graphs_info[graph_id]['filepaths'].append(filepath)
         graphs_info[graph_id]['size'] += 1
 
     # TODO: use a file that stores chr data
@@ -494,61 +573,13 @@ def update_graphs(
 
     figures = {}
     for i in graphs_info:
-        fig = go.Figure()
-        trace_id = 0
-        for j in range(graphs_info[i]['size']):
-            samp = graphs_info[i]['samples'][j]
-            frag = graphs_info[i]['fragments'][j]
-            filename = graphs_info[i]['filenames'][j]
-            filedir = join(pp_outputs_dir, samp, pcr_value[i][-1], weight_value[i][-1])
-            df = pd.read_csv(join(filedir, filename), sep='\t')
-            trace_id += 1
-
-            x_col = "genome_bins" if binning_value > 0 else "genome_start"
-            fig.add_trace(
-                go.Scattergl(
-                    x=df[x_col],
-                    y=df[frag],
-                    name=f"fragment {frag}",
-                    mode='lines+markers',
-                    line=dict(width=1, color='rgba(0,0,255,0.4)'),
-                    marker=dict(size=4)
-                )
-            )
-
-            fig.update_layout(
-                width=1500,
-                height=500,
-                title=f" fragment {frag} contacts frequencies sshic binned at {binning_value} kb",
-                xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
-                yaxis=dict(title="Contact frequency"),
-                hovermode='closest'
-            )
-
-        for xi, x_pos in enumerate(chr_boundaries):
-            name_pos = x_pos + 100
-            fig.add_shape(type='line',
-                          yref='paper',
-                          xref='x',
-                          x0=x_pos, x1=x_pos,
-                          y0=0, y1=1,
-                          line=dict(color='gray', width=1, dash='dot'))
-
-            fig.add_annotation(
-                go.layout.Annotation(
-                    x=name_pos,
-                    y=1.07,
-                    yref="paper",
-                    text=chr_names[xi],
-                    showarrow=False,
-                    xanchor="center",
-                    font=dict(size=11, color=chr_colors[xi]),
-                    textangle=330
-                ),
-                xref="x"
-            )
-
-        figures[i] = fig
+        figures[i] = update_figure(
+            graph_dict=graphs_info[i],
+            binning=binning_value,
+            chr_names=chr_names,
+            chr_colors=chr_colors,
+            chr_boundaries=chr_boundaries
+        )
 
     graphs_layout = []
     for i in range(len(figures)):
