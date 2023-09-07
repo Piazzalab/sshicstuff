@@ -94,7 +94,7 @@ layout = dbc.Container([
         ], width=4, style={'margin-top': '0px', 'margin-bottom': '10px', 'margin-left': '20px'}),
 
         dbc.Col([
-            html.Button(id="pv-plot-buttom", className="green-button", children="Make Plots"),
+            html.Button(id="pv-plot-buttom", className="blue-button", children="Generate graphs"),
         ], width=7, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '60px'}),
     ]),
 
