@@ -5,22 +5,35 @@ from dash import html, dcc
 from dash.dependencies import Input, Output
 
 # Import your page layouts here
-from home import layout as home_layout
-from binning import layout as binning_layout
+import home
+import data_viewer
+import gui_pipeline
+import probes_viewer
 
 # Create a Dash application instance:
-server = Flask(__name__, template_folder='templates')
-app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = Flask(__name__, template_folder='templates', )
+app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'])
 app.config.suppress_callback_exceptions = True
 
 # Set up the app layout
 app.layout = html.Div([
-    dcc.Tabs(id="tabs", value='home', children=[
-        dcc.Tab(label='Home', value='home'),
-        dcc.Tab(label='Binning', value='binning'),
-    ]),
+    dcc.Tabs(id="tabs",
+             value='home',
+             parent_className='custom-tabs',
+             className='custom-tabs-container',
+             children=[
+                 dcc.Tab(label='Home', value='home',
+                         className='custom-tab', selected_className='custom-tab-selected'),
+                 dcc.Tab(label='Data Viewer', value='data-viewer',
+                         className='custom-tab', selected_className='custom-tab-selected'),
+                 dcc.Tab(label='Pipeline', value='pipeline',
+                         className='custom-tab', selected_className='custom-tab-selected'),
+                 dcc.Tab(label='Probes Viewer', value='probes-viewer',
+                         className='custom-tab', selected_className='custom-tab-selected')
+             ]),
     html.Div(id='page-content'),
-    dcc.Store(id='sample-path'),
+    dcc.Store(id='data-basedir'),
+    dcc.Store(id='selected-samples')
 ])
 
 
@@ -30,9 +43,13 @@ app.layout = html.Div([
     [Input('tabs', 'value')])
 def display_page(value):
     if value == 'home':
-        return home_layout
-    elif value == 'binning':
-        return binning_layout
+        return home.layout
+    elif value == 'data-viewer':
+        return data_viewer.layout
+    elif value == 'pipeline':
+        return gui_pipeline.layout
+    elif value == 'probes-viewer':
+        return probes_viewer.layout
 
 
 if __name__ == '__main__':
