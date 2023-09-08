@@ -213,10 +213,12 @@ def create_card(
         probe_options,
         pcr_options,
         weight_options,
+        graph_options,
         sample_value,
         probe_value,
         pcr_value,
-        weight_value
+        weight_value,
+        graph_value
 ):
 
     card = dbc.Col(
@@ -271,7 +273,13 @@ def create_card(
 
                 dbc.Row([
                     dbc.Col([
-                        html.Div(id={'type': 'pv-display-graph-selector', 'index': index})
+                        dcc.Dropdown(
+                            id={'type': 'graph-dropdown', 'index': index},
+                            options=graph_options,
+                            value=graph_value,
+                            placeholder="Select a graph",
+                            multi=False
+                        )
                     ])
                 ])
             ])
@@ -294,6 +302,7 @@ def update_probes_cards(n_cards, data_basedir, cards_children):
     pp_outputs_dir = join(data_basedir, 'outputs')
     all_samples_items = sorted(listdir(pp_outputs_dir))
     samples_options = [{'label': s, 'value': s} for s in all_samples_items if os.path.isdir(join(pp_outputs_dir, s))]
+    graph_options = [{'label': f'graph {x}', 'value': f'graph {x}'} for x in range(n_cards)]
 
     existing_cards = []
     displaying_cards = []
@@ -308,10 +317,12 @@ def update_probes_cards(n_cards, data_basedir, cards_children):
                     probe_options=cardbody[0]['props']['children'][1]['props']['children'][0]['props']['options'],
                     pcr_options=cardbody[1]['props']['children'][0]['props']['children'][0]['props']['options'],
                     weight_options=cardbody[1]['props']['children'][1]['props']['children'][0]['props']['options'],
+                    graph_options=graph_options,
                     sample_value=cardbody[0]['props']['children'][0]['props']['children'][0]['props']['value'],
                     probe_value=cardbody[0]['props']['children'][1]['props']['children'][0]['props']['value'],
                     pcr_value=cardbody[1]['props']['children'][0]['props']['children'][0]['props']['value'],
-                    weight_value=cardbody[1]['props']['children'][1]['props']['children'][0]['props']['value']
+                    weight_value=cardbody[1]['props']['children'][1]['props']['children'][0]['props']['value'],
+                    graph_value=cardbody[2]['props']['children'][0]['props']['children'][0]['props']['value']
                 ))
 
     if len(existing_cards) > n_cards:
@@ -325,10 +336,12 @@ def update_probes_cards(n_cards, data_basedir, cards_children):
                 probe_options=[],
                 pcr_options=[],
                 weight_options=[],
+                graph_options=graph_options,
                 sample_value=None,
                 probe_value=None,
                 pcr_value=None,
-                weight_value=None
+                weight_value=None,
+                graph_value=None
             ))
 
     rows = []
@@ -418,44 +431,6 @@ def update_probe_dropdown_options(weight_value, sample_value, pcr_value, data_ba
     df = pd.read_csv(join(items_dir, f"{sample_value}_unbinned_contacts.tsv"), sep='\t')
     probes = [c for c in df.columns if c not in ['chr', 'start', 'sizes', 'genome_start', 'end']]
     return [{'label': f, 'value': f} for f in probes]
-
-
-@callback(
-    Output({'type': 'pv-display-graph-selector', 'index': MATCH}, 'children'),
-    Input({'type': 'probe-dropdown', 'index': MATCH}, 'value'),
-    State({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
-    State({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
-    State({'type': 'weight-checkboxes', 'index': MATCH}, 'value'),
-    State({'type': 'sample-dropdown', 'index': ALL}, 'value')
-)
-def update_graph_selector(probe_value, sample_value, pcr_value, weight_value, samples_value):
-    ctx = dash.callback_context
-    triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
-    if triggerd_input != '':
-        triggering_input_id = json.loads(triggerd_input)
-        index = int(triggering_input_id['index'])
-    else:
-        return None
-
-    nb_samples = len(samples_value)
-    if sample_value is None or probe_value is None:
-        return None
-    if pcr_value is None or pcr_value == [] or weight_value is None or weight_value == []:
-        return None
-
-    graph_selector_dropdown = dbc.Row([
-        dbc.Col([
-            dcc.Dropdown(
-                options=[{'label': f'graph {x}', 'value': f'graph {x}'} for x in range(nb_samples)],
-                value=None,
-                placeholder="Select graph",
-                id={'type': 'graph-selector', 'index': index},
-                multi=False
-            )
-        ])
-    ])
-
-    return graph_selector_dropdown
 
 
 @callback(
@@ -555,7 +530,7 @@ def update_figure(
     State({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
     State({'type': 'weight-checkboxes', 'index': ALL}, 'value'),
     State({'type': 'probe-dropdown', 'index': ALL}, 'value'),
-    State({'type': 'graph-selector', 'index': ALL}, 'value'),
+    State({'type': 'graph-dropdown', 'index': ALL}, 'value'),
     State('data-basedir', 'data')
 )
 def update_graphs(
