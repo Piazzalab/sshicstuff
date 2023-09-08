@@ -15,6 +15,39 @@ import plotly.graph_objs as go
 from common import generate_data_table, prepare_dataframe_for_output
 import core.utils
 
+colors = [
+    'rgba(0, 0, 255, 0.2)',  # blue
+    'rgba(255, 0, 0, 0.2)',  # red
+    'rgba(249, 172, 37, 0.2)',  # yellow
+    'rgba(245, 0, 87, 0.2)',  # pink
+    'rgba(29, 233, 182, 0.2)',  # green
+    'rgba(255, 234, 0, 0.2)',  # yellow 2
+    'rgba(255, 11, 0, 0.2)',  # orange
+    'rgba(141, 110, 99, 0.2)',  # brown
+    'rgba(255, 64, 129, 0.2)',  # pink 2
+    'rgba(120, 144, 156, 0.2)',  # blue grey
+    'rgba(0, 131, 143, 0.2)',  # cyan
+    'rgba(171, 71, 188, 0.2)',  # purple
+    'rgba(255, 152, 0, 0.2)',  # amber
+    'rgba(0, 150, 136, 0.2)',  # teal
+    'rgba(0, 184, 212, 0.2)',  # cyan 2
+    'rgba(0, 200, 83, 0.2)',  # green 2
+    'rgba(229, 115, 115, 0.2)',  # red 2
+    'rgba(255, 167, 38, 0.2)',  # orange 2
+    'rgba(61, 90, 254, 0.2)',  # indigo
+    'rgba(68, 138, 255, 0.2)',  # blue 2
+    'rgba(121, 134, 203, 0.2)',  # deep purple
+    'rgba(170, 102, 68, 0.2)',  # deep orange
+    'rgba(255, 171, 145, 0.2)',  # pink 3
+    'rgba(255, 209, 128, 0.2)'  # amber 2
+]
+
+chr_names = [f"chr{i}" for i in range(1, 17)] + ["2_micron", "mitochondrion", "chr_artificial"]
+chr_pos = [230218, 813184, 316620, 1531933, 576874, 270161, 1090940, 562643, 439888, 745751,
+           666816, 1078177, 924431, 784333, 1091291, 948066, 6318, 85779, 7828]
+chr_colors = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9',
+              '#f1c40f', '#d35400', '#e74c3c', '#c0392b', '#1abc9c', '#16a085', '#bdc3c7', '#2c3e50',
+              '#7f8c8d', '#f39c12', '#27ae60']
 
 layout = dbc.Container([
     dbc.Row([
@@ -445,9 +478,8 @@ def update_card_header(probe_value, sample_value, pcr_value, weight_value):
 def update_figure(
     graph_id: int,
     graph_dict: dict,
+    traces_colors: list,
     binning: int,
-    chr_names: list,
-    chr_colors: list,
     chr_boundaries: list,
     x_range=None,
     y_range=None
@@ -469,7 +501,7 @@ def update_figure(
                 y=df[frag],
                 name=f"{samp} - {frag} - {pcr} - {weight}",
                 mode='lines+markers',
-                line=dict(width=1, color='rgba(0,0,255,0.4)'),
+                line=dict(width=1, color=traces_colors[trace_id]),
                 marker=dict(size=4)
             )
         )
@@ -482,6 +514,7 @@ def update_figure(
             yaxis=dict(title="Contact frequency"),
             hovermode='closest'
         )
+        trace_id += 1
 
     if x_range:
         fig.update_xaxes(range=x_range)
@@ -510,7 +543,6 @@ def update_figure(
             ),
             xref="x"
         )
-        trace_id += 1
     return fig
 
 
@@ -545,6 +577,7 @@ def update_graphs(
 
     pp_outputs_dir = join(data_basedir, 'outputs')
     graphs_info = {}
+    nb_cards = len(samples_value)
     nb_graphs = 0
 
     x_range = None
@@ -583,27 +616,24 @@ def update_graphs(
         graphs_info[graph_id]['size'] += 1
 
     # TODO: use a file that stores chr data
-    chr_names = [f"chr{i}" for i in range(1, 17)] + ["2_micron", "mitochondrion", "chr_artificial"]
-    chr_pos = [230218, 813184, 316620, 1531933, 576874, 270161, 1090940, 562643, 439888, 745751,
-               666816, 1078177, 924431, 784333, 1091291, 948066, 6318, 85779, 7828]
+
     chr_cum_pos = list(np.cumsum(chr_pos))
     chr_boundaries = [0] + chr_cum_pos[:-1]
-    chr_colors = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9',
-                  '#f1c40f', '#d35400', '#e74c3c', '#c0392b', '#1abc9c', '#16a085', '#bdc3c7', '#2c3e50',
-                  '#7f8c8d', '#f39c12', '#27ae60']
 
     figures = {}
+    traces_count = 0
     for i in graphs_info:
+        traces_to_add = graphs_info[i]['size']
         figures[i] = update_figure(
             graph_id=i,
             graph_dict=graphs_info[i],
+            traces_colors=colors[traces_count:traces_count+traces_to_add],
             binning=binning_value,
-            chr_names=chr_names,
-            chr_colors=chr_colors,
             chr_boundaries=chr_boundaries,
             x_range=x_range,
             y_range=y_range
         )
+        traces_count += traces_to_add
 
     graphs_layout = []
     for i in sorted(figures.keys()):
