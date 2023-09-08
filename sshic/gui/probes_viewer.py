@@ -606,18 +606,13 @@ def update_graphs(
         )
 
     graphs_layout = []
-    for i in range(len(figures)):
-        graphs_layout = dbc.Col([
-            dbc.Row([
-                dbc.Col([
-                    dcc.Graph(id={'type': 'graph', 'index': i},
-                              config={'displayModeBar': True, 'scrollZoom': True},
-                              style={'height': 'auto', 'width': '100%'},
-                              figure=figures[i])
-                ], width=12, align='center')
-                for i in range(nb_graphs)
-            ])
-        ])
+    for i in sorted(figures.keys()):
+        graphs_layout.append(
+            dcc.Graph(id={'type': 'graph', 'index': i},
+                      config={'displayModeBar': True, 'scrollZoom': True},
+                      style={'height': 'auto', 'width': '100%'},
+                      figure=figures[i])
+        )
     return graphs_layout
 
 
@@ -628,6 +623,9 @@ def update_graphs(
 )
 def update_figure_range(relayout_data, sync_value):
     if not sync_value:
+        return dash.no_update
+
+    if len(relayout_data) == 1:
         return dash.no_update
 
     if not any(relayout_data):
