@@ -64,27 +64,26 @@ layout = html.Div([
                     className='custom-checkbox-label',
                     labelStyle={"margin": "5px"}
                 ),
-
-                html.Div(
-                    children=[
-                        dcc.Checklist(
-                            id='samples-checklist',
-                            options=[],
-                            value=[],
-                            inline=True,
-                            className='custom-checkbox-label',
-                            labelStyle={"margin": "5px"}
-                        )
-                    ],
-                ),
             ], width=10,),
+        ]),
+
+        dbc.Row([
+            dbc.Col([
+                dcc.Dropdown(
+                    id='samples-dropdown',
+                    options=[],
+                    value=[],
+                    placeholder="Select samples",
+                    multi=True
+                )
+            ])
         ]),
     ]),
 ])
 
 
 @callback(
-    Output('samples-checklist', 'options'),
+    Output('samples-dropdown', 'options'),
     Input('data-dir-input', 'value'),
     Input('sample-search-input', 'value')
 )
@@ -99,8 +98,8 @@ def update_samples_checklist(data_value, search_value):
 
 
 @callback(
-    Output('samples-checklist', 'value'),
-    Input('samples-checklist', 'options'),
+    Output('samples-dropdown', 'value'),
+    Input('samples-dropdown', 'options'),
     Input('select-all-checkbox', 'value'),
     prevent_initial_call=True
 )
@@ -122,7 +121,7 @@ def get_data_basedir(data_value):
 
 @callback(
     Output('selected-samples', 'data'),
-    Input('samples-checklist', 'value')
+    Input('samples-dropdown', 'value')
 )
 def get_selected_samples(samples_value):
     if samples_value:
