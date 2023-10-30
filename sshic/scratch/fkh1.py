@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 from core.utils import sort_by_chr
 
@@ -14,80 +14,38 @@ def make_aggregated_fkh1(
         centros_coord_path: str,
         oligos_path: str,
         fkh1_peaks_path: str,
-        plot: bool = True
+        sieve: float | int = 0
 ):
-
     output_dir = os.path.dirname(binned_contacts_path)
-    aggregated_dir = os.path.join(output_dir, output_dir.split("/")[-1] + "_fkh1")
-    dir_tables, dir_plots = (os.path.join(aggregated_dir, 'tables'), os.path.join(aggregated_dir, 'plots'))
-    os.makedirs(aggregated_dir, exist_ok=True)
-    os.makedirs(dir_plots, exist_ok=True)
+    sample_name = binned_contacts_path.split("/")[-1].split("_")[0]
+    output_dir = os.path.join(output_dir, sample_name)
+    output_dir = os.path.join(output_dir, f"filter_{sieve}")
+    dir_tables = os.path.join(output_dir, 'tables')
+    os.makedirs(output_dir, exist_ok=True)
     os.makedirs(dir_tables, exist_ok=True)
 
     df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep='\t')
+    df_contacts.drop(columns=['genome_bins'], inplace=True)
     #   get the size of one bin
     bin_size = df_contacts.loc[1, "chr_bins"] - df_contacts.loc[0, "chr_bins"]
     df_centros: pd.DataFrame = pd.read_csv(centros_coord_path, sep='\t', index_col=None)
     df_fkh1_peaks: pd.DataFrame = pd.read_csv(fkh1_peaks_path, sep='\t', header=None)
     #   add name for columns
-    df_fkh1_peaks.columns = ["chr", "start", "end"]
+    df_fkh1_peaks.columns = ["chr", "start", "end", "score"]
+    df_fkh1_peaks = df_fkh1_peaks[df_fkh1_peaks["score"] > sieve]
     #   set a new column "bin" which correspond to the bin of the peak's center (start + (end-start)/2)
     df_fkh1_peaks["bin"] = \
-        (df_fkh1_peaks["start"] + (df_fkh1_peaks["end"]-df_fkh1_peaks["start"])/2) // bin_size * bin_size
+        (df_fkh1_peaks["start"] + (df_fkh1_peaks["end"] - df_fkh1_peaks["start"]) / 2) // bin_size * bin_size
     df_fkh1_peaks["bin"] = df_fkh1_peaks["bin"].astype("int64")
+    df_fkh1_peaks = sort_by_chr(df_fkh1_peaks, "chr", "start")
+    df_fkh1_peaks.drop_duplicates(inplace=True)
+    df_fkh1_peaks.reset_index(drop=True, inplace=True)
+    df_fkh1_peaks.insert(0, "peak_id", df_fkh1_peaks.index)
 
     #   get all probes information from oligos table
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
     probes = df_probes['name'].to_list()
-
-    """
-    ####################
-    Apply some filters
-    ####################
-    """
-    #   only keep fkh1 that are contained inside a certain window (80kb) around the centromere
-    #   of each chromosome
-    #   in particularly, the peak's bin +/- 5kb must be entirely contained inside the windowed centromere region
-    df_merged1: pd.DataFrame = pd.merge(df_fkh1_peaks, df_centros, on='chr')
-    df_merged_cen_areas: pd.DataFrame = df_merged1[
-        (df_merged1.bin - 5000 > (df_merged1.left_arm_length - 80000)) &
-        (df_merged1.bin + 5000 < (df_merged1.left_arm_length + 80000))
-    ]
-    df_merged_cen_areas.drop(columns=["length", "left_arm_length", "right_arm_length"], inplace=True)
-
-    #   ony keep fkh1 that belong to +/- 100kb around ds_dna probes (chr8, chr4, chr12 etc ...)
-    df_merged2: pd.DataFrame = pd.merge(df_fkh1_peaks, df_probes.loc[df_probes["type"] == "ds"], on='chr')
-    df_merged_dsdna_probes: pd.DataFrame = df_merged2[
-        (df_merged2.bin - 5000 > (df_merged2.start_y - 100000)) &
-        (df_merged2.bin + 5000 < (df_merged2.end_y + 100000))
-    ]
-    df_merged_dsdna_probes.drop(columns=["start_y", "end_y", "type", "name", "sequence"], inplace=True)
-    df_merged_dsdna_probes.rename(columns={"start_x": "start", "end_x": "end"}, inplace=True)
-
-    #   only keep fkh1 peaks that are on the chr3 (entire chromosome this time)
-    df_fkh1_peaks_chr3: pd.DataFrame = df_fkh1_peaks[df_fkh1_peaks["chr"] == "chr3"]
-
-    #   only keep fkh1 peaks near the DSB (chr5) +/- 100kb around the break
-    df_fkh1_peaks_dsb: pd.DataFrame = df_fkh1_peaks.loc[
-        (df_fkh1_peaks["chr"] == "chr5") &
-        (df_fkh1_peaks["bin"] - 6000 > (118000 - 100000)) &
-        (df_fkh1_peaks["bin"] + 5000 < (118000 + 100000))
-    ]
-
-    #   now we have applied four filter and got four filtered dataframe on the peaks coordinates
-    #   we concatenate all of them together
-    df_fkh1_peaks_concat: pd.DataFrame = \
-        pd.concat((df_merged_cen_areas, df_merged_dsdna_probes, df_fkh1_peaks_dsb, df_fkh1_peaks_chr3))
-
-    #   del older dataframe to free memory (heavy dataframes)
-    del df_merged1, df_merged2
-    del df_merged_cen_areas, df_merged_dsdna_probes, df_fkh1_peaks_dsb, df_fkh1_peaks_chr3
-
-    #   removed duplicates from the newly concatenated df
-    df_fkh1_peaks_concat.drop_duplicates(inplace=True)
-    #   sort by chromosome according to a certain order given in the utils script
-    df_fkh1_peaks2: pd.DataFrame = sort_by_chr(df_fkh1_peaks_concat, col1="chr", col2="bin")
-    del df_fkh1_peaks_concat, df_fkh1_peaks
+    fragments = df_probes["fragment"].astype(str).tolist()
 
     """
     ##################
@@ -96,61 +54,76 @@ def make_aggregated_fkh1(
     """
     #   merge the filtered fkh1 peaks dataframe (df_fkh1_peaks2) with 1kb binned contacts / frequencies one
     #   only keep bin that match bin interval of each peak's bin +/- 5kb
-    df_merged3: pd.DataFrame = pd.merge(df_fkh1_peaks2, df_contacts, on='chr')
-    df_filtered: pd.DataFrame = df_merged3.loc[
-        (df_merged3["chr_bins"] > df_merged3["bin"] - 5000 - bin_size) &
-        (df_merged3["chr_bins"] <= df_merged3["bin"] + 5000)
+    df_merged: pd.DataFrame = pd.merge(df_fkh1_peaks, df_contacts, on='chr')
+    df_filtered: pd.DataFrame = df_merged.loc[
+        (df_merged["chr_bins"] > df_merged["bin"] - 5000 - bin_size) &
+        (df_merged["chr_bins"] <= df_merged["bin"] + 5000)
     ]
 
-    del df_merged3
+    del df_merged
     #   shift all the bin number from -5000 to 0 to + 5000
     #   in absolute i.e., 5000 -> 0 -> 5000
-    df_filtered["chr_bins"] = abs(df_filtered["chr_bins"] - df_filtered["bin"])
+    df_filtered.insert(3, "region", df_filtered["chr_bins"] - df_filtered["bin"])
+    df_filtered.drop(columns=['chr_bins', 'bin'], inplace=True)
 
-    #   add a column with an id called "peaks" which is chr+start+end
-    df_filtered.insert(
-        1, "peak", df_filtered["chr"] + "-" + df_filtered["start"].astype(str) + "-" + df_filtered["end"].astype(str))
-    #   remove unused columns
-    df_filtered.drop(columns=['start', 'end', 'bin', 'genome_bins'], inplace=True)
+    for probe, frag in zip(probes, fragments):
+        if df_filtered[frag].sum() == 0:
+            continue
+        df_current_probe: pd.DataFrame = df_filtered[["chr", "start", "end", "peak_id", "region", frag]]
+        df_current_probe_lite = df_current_probe.drop(columns=["chr", "start", "end", "region"])
+        df_grouped = df_current_probe_lite.groupby("peak_id", as_index=False).sum()
+        df_grouped_sorted = df_grouped.sort_values(by=frag, ascending=False)
+        peak_ids_sorter = df_grouped_sorted["peak_id"].to_list()
+        sorterIndex = dict(zip(peak_ids_sorter, range(len(peak_ids_sorter))))
+        df_current_probe["peak_id_rank"] = df_current_probe["peak_id"].map(sorterIndex)
+        df_current_probe.sort_values(by=["peak_id_rank", "region"], inplace=True)
 
-    groups = df_filtered.groupby(by="peak", as_index=False)
-    df_filtered2: pd.DataFrame = groups.filter(lambda x: len(x) >= 11).reset_index(drop=True)
-    df_summed: pd.DataFrame = df_filtered2.groupby(
-        by="peak", as_index=False).sum(numeric_only=True).drop(columns='chr_bins')
+        df_fkh1_peaks_ranked = pd.merge(
+            df_fkh1_peaks.drop(columns=["end", "bin"]),
+            df_current_probe[["peak_id", "peak_id_rank"]].drop_duplicates(),
+            on="peak_id"
+        )
+        df_fkh1_peaks_ranked.sort_values(by="peak_id_rank", inplace=True)
 
-    df_merged4: pd.DataFrame = pd.merge(df_filtered2, df_summed, on="peak")
-    del df_filtered, df_summed, groups
+        df_pivot = df_current_probe.pivot_table(index="peak_id_rank", columns="region", values=frag)
+        df_pivot = df_pivot.fillna(0)
+        df_pivot_log10 = np.log10(df_pivot + 1)
 
-    for probe in probes:
-        df_merged4[probe+"_x"] /= df_merged4[probe+"_y"]
-        df_merged4.drop(probe+"_y", axis=1, inplace=True)
-        df_merged4.rename(columns={probe+"_x": probe}, inplace=True)
+        df_pivot_log10.to_csv(os.path.join(dir_tables, f"{frag}_{probe}_log10.tsv"), sep="\t")
+        df_pivot.to_csv(os.path.join(dir_tables, f"{frag}_{probe}.tsv"), sep="\t")
+        df_fkh1_peaks_ranked.to_csv(os.path.join(dir_tables, f"{frag}_{probe}_peaks_ranked.tsv"), sep="\t", index=False)
 
-    df_merged4 = df_merged4.drop("peak", axis=1)
-    df_aggregated_mean: pd.DataFrame = df_merged4.groupby(by="chr_bins", as_index=False).mean(numeric_only=True)
-    df_aggregated_std: pd.DataFrame = df_merged4.groupby(by="chr_bins", as_index=False).std(numeric_only=True)
 
-    peaks_table = fkh1_peaks_path.split("/")[-1]
-    df_aggregated_mean.to_csv(
-        os.path.join(dir_tables, f"aggregated_mean_contacts_around_fkh1_peaks_{peaks_table}"), sep="\t")
-    df_aggregated_std.to_csv(
-        os.path.join(dir_tables, f"aggregated_std_contacts_around_around_fkh1_peaks_{peaks_table}"), sep="\t")
+        # fig = px.imshow(df_pivot, color_continuous_scale="OrRd")
+        # fig.update_layout(
+        #     title=f"Peak {probe} ({frag})",
+        #     xaxis_title="Region (bin)",
+        #     yaxis_title="Fkh1 rank",
+        #     font=dict(
+        #         family="Courier New, monospace",
+        #         size=14,
+        #         color="#7f7f7f"
+        #     )
+        # )
+        # fig.show()
 
-    if plot:
-        for probe in probes:
-            mean = df_aggregated_mean[probe]
-            std = df_aggregated_std[probe]
 
-            ymin = -np.max((mean + std)) * 0.01
-            pos = mean.index
-            plt.figure(figsize=(16, 12))
-            plt.bar(pos, mean)
-            plt.errorbar(pos, mean, yerr=std, fmt="o", color='b', capsize=5, clip_on=True)
-            plt.ylim((ymin, None))
-            plt.title(f"Aggregated frequencies for probe {probe} around fkh1_peaks {peaks_table}")
-            plt.xlabel("Bins around the FKH1 peaks (in kb)")
-            plt.xticks(rotation=45)
-            plt.ylabel("Average frequency made and standard deviation")
-            plt.savefig(
-                os.path.join(dir_plots, f"{probe}_aggregated_freq_plot_{peaks_table}.jpg"), dpi=96)
-            plt.close()
+if "__main__" == __name__:
+    cwd = os.getcwd()
+    base_dir = os.path.dirname(os.path.dirname(cwd))
+    sample_binned_path = os.path.join(base_dir, "data/scratch/AD433M-Fkh1_1kb_binned_frequencies.tsv")
+    fkh1_peaks_path = os.path.join(base_dir, "data/scratch/Fkh1_log_maxPeak_score_names_changed.bedgraph")
+    centros_coord_path = os.path.join(base_dir, "data/scratch/S288c_chr_centro_coordinates.tsv")
+    oligos_path = os.path.join(base_dir, "data/scratch/capture_oligo_positions.csv")
+
+    for s in [0, 0.25, 0.5, 1, 1.25, 1.5, 2]:
+        make_aggregated_fkh1(
+            binned_contacts_path=sample_binned_path,
+            centros_coord_path=centros_coord_path,
+            oligos_path=os.path.join(base_dir, "data/inputs/capture_oligo_positions.csv"),
+            fkh1_peaks_path=fkh1_peaks_path,
+            sieve=s
+        )
+
+    pass
+
