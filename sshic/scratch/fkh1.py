@@ -66,13 +66,16 @@ def make_aggregated_fkh1(
     df_filtered.insert(3, "region", df_filtered["chr_bins"] - df_filtered["bin"])
     df_filtered.drop(columns=['chr_bins', 'bin'], inplace=True)
 
-    for probe, frag in zip(probes, fragments):
-        if df_filtered[frag].sum() == 0:
+    for col in df_filtered.columns[6:]:
+        probe = ""
+        if col in fragments:
+            probe = probes[fragments.index(col)]
+        if df_filtered[col].sum() == 0:
             continue
-        df_current_probe: pd.DataFrame = df_filtered[["chr", "start", "end", "peak_id", "region", frag]]
+        df_current_probe: pd.DataFrame = df_filtered[["chr", "start", "end", "peak_id", "region", col]]
         df_current_probe_lite = df_current_probe.drop(columns=["chr", "start", "end", "region"])
         df_grouped = df_current_probe_lite.groupby("peak_id", as_index=False).sum()
-        df_grouped_sorted = df_grouped.sort_values(by=frag, ascending=False)
+        df_grouped_sorted = df_grouped.sort_values(by=col, ascending=False)
         peak_ids_sorter = df_grouped_sorted["peak_id"].to_list()
         sorterIndex = dict(zip(peak_ids_sorter, range(len(peak_ids_sorter))))
         df_current_probe["peak_id_rank"] = df_current_probe["peak_id"].map(sorterIndex)
@@ -85,13 +88,14 @@ def make_aggregated_fkh1(
         )
         df_fkh1_peaks_ranked.sort_values(by="peak_id_rank", inplace=True)
 
-        df_pivot = df_current_probe.pivot_table(index="peak_id_rank", columns="region", values=frag)
+        df_pivot = df_current_probe.pivot_table(index="peak_id_rank", columns="region", values=col)
         df_pivot = df_pivot.fillna(0)
         df_pivot_log10 = np.log10(df_pivot + 1)
 
-        df_pivot_log10.to_csv(os.path.join(dir_tables, f"{frag}_{probe}_log10.tsv"), sep="\t")
-        df_pivot.to_csv(os.path.join(dir_tables, f"{frag}_{probe}.tsv"), sep="\t")
-        df_fkh1_peaks_ranked.to_csv(os.path.join(dir_tables, f"{frag}_{probe}_peaks_ranked.tsv"), sep="\t", index=False)
+        prefix = f"{col}_{probe}" if probe != "" else col
+        df_pivot_log10.to_csv(os.path.join(dir_tables, f"{prefix}_log10.tsv"), sep="\t")
+        df_pivot.to_csv(os.path.join(dir_tables, f"{prefix}.tsv"), sep="\t")
+        df_fkh1_peaks_ranked.to_csv(os.path.join(dir_tables, f"{prefix}_peaks_ranked.tsv"), sep="\t", index=False)
 
 
         # fig = px.imshow(df_pivot, color_continuous_scale="OrRd")
@@ -111,10 +115,10 @@ def make_aggregated_fkh1(
 if "__main__" == __name__:
     cwd = os.getcwd()
     base_dir = os.path.dirname(os.path.dirname(cwd))
-    sample_binned_path = os.path.join(base_dir, "data/scratch/AD433M-Fkh1_1kb_binned_frequencies.tsv")
-    fkh1_peaks_path = os.path.join(base_dir, "data/scratch/Fkh1_log_maxPeak_score_names_changed.bedgraph")
-    centros_coord_path = os.path.join(base_dir, "data/scratch/S288c_chr_centro_coordinates.tsv")
-    oligos_path = os.path.join(base_dir, "data/scratch/capture_oligo_positions.csv")
+    sample_binned_path = os.path.join(base_dir, "data/fkh1/AD462-Fkh1_1kb_binned_frequencies.tsv")
+    fkh1_peaks_path = os.path.join(base_dir, "data/fkh1/Fkh1_log_maxPeak_score_names_changed.bedgraph")
+    centros_coord_path = os.path.join(base_dir, "data/fkh1/S288c_chr_centro_coordinates.tsv")
+    oligos_path = os.path.join(base_dir, "data/fkh1/capture_oligo_positions.csv")
 
     for s in [0, 0.25, 0.5, 1, 1.25, 1.5, 2]:
         make_aggregated_fkh1(
