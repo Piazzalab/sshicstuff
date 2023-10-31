@@ -19,8 +19,6 @@ from core.aggregated import aggregate
 class PathBundle:
     def __init__(self, sample_sparse_file_path: str, reference_path: str):
 
-        ref_name = reference_path.split("/")[-1].split(".")[0]
-
         self.sample_sparse_file_path = sample_sparse_file_path
         # self.samp_id = re.match(r"AD\d+[A-Z]*", sample_sparse_file_path.split("/")[-1]).group()
         self.samp_id = sample_sparse_file_path.split("/")[-1].split("_")[0]
@@ -37,12 +35,10 @@ class PathBundle:
 
         self.sample_inputs_dir = join(self.sample_dir, "inputs")
         self.not_weighted_dir = join(self.sample_output_dir, "not_weighted")
-        self.weighted_dir = join(self.sample_output_dir, f"weighted_{ref_name}")
 
         os.makedirs(self.sample_dir, exist_ok=True)
         os.makedirs(self.sample_output_dir, exist_ok=True)
         os.makedirs(self.sample_inputs_dir, exist_ok=True)
-        os.makedirs(self.weighted_dir, exist_ok=True)
         os.makedirs(self.not_weighted_dir, exist_ok=True)
 
         self.filtered_contacts_input = join(self.sample_output_dir, self.samp_id + "_filtered.tsv")
@@ -51,12 +47,16 @@ class PathBundle:
         self.unbinned_frequencies_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_frequencies.tsv")
         self.global_statistics_input = join(self.sample_output_dir, f"{self.samp_id}_global_statistics.tsv")
 
-        if not os.path.exists(reference_path):
+        if reference_path is None or reference_path == '' or reference_path == 'None':
+            self.wt_reference_path = None
+            self.wt_reference_name = None
+        elif not os.path.exists(reference_path):
             raise ValueError(f"file {reference_path} doesnt exist. "
                              f"Please be sure to first run the pipeline on the reference sample before")
         else:
-            self.wt_reference_path = reference_path
-            self.wt_reference_name = ref_name
+            ref_name = reference_path.split("/")[-1].split(".")[0]
+            self.weighted_dir = join(self.sample_output_dir, f"weighted_{ref_name}")
+            os.makedirs(self.weighted_dir, exist_ok=True)
 
 
 class AggregateParams:
@@ -95,8 +95,10 @@ def pypeline(
     copy_file(centromeres_coordinates_path, path_bundle.sample_inputs_dir)
     copy_file(additional_groups, path_bundle.sample_inputs_dir)
     copy_file(oligos_path, path_bundle.sample_inputs_dir)
-    copy_file(path_bundle.wt_reference_path, path_bundle.sample_inputs_dir)
     copy_file(path_bundle.sample_sparse_file_path, path_bundle.sample_inputs_dir)
+    if path_bundle.wt_reference_path is not None:
+        copy_file(path_bundle.wt_reference_path, path_bundle.sample_inputs_dir)
+
     print("\n")
 
     print(f"Filter contacts \n")
@@ -122,7 +124,7 @@ def pypeline(
         path_bundle.global_statistics_input, get_stats, path_bundle.unbinned_contacts_input,
         path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_output_dir)
 
-    if path_bundle.wt_reference_path is not None or path_bundle.wt_reference_path != '':
+    if path_bundle.wt_reference_path is not None:
         print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
         compare_to_wt(
             statistics_path=path_bundle.global_statistics_input,
@@ -149,7 +151,7 @@ def pypeline(
         binned_frequencies_input = \
             join(path_bundle.not_weighted_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
 
-        if path_bundle.wt_reference_path is not None or path_bundle.wt_reference_path != '':
+        if path_bundle.wt_reference_path is not None:
             weight_mutant(
                 statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
                 contacts_path=binned_contacts_input, frequencies_path=binned_frequencies_input,
@@ -159,7 +161,7 @@ def pypeline(
     print("\n")
 
     regions = ["centromeres", "telomeres"]
-    weighted = [True, False]
+    weighted = [True, False] if path_bundle.wt_reference_path is not None else [False]
     normalization = [True, False]
 
     param_combinations = list(itertools.product(regions, weighted, normalization))
@@ -181,6 +183,7 @@ def pypeline(
         print(
             f"Make an aggregated of contacts around {region} ({'weighted' if is_weighted else 'not weighted'}, "
             f"{'with' if is_normalized else 'no'} normalization)")
+
         aggregate(
             binned_10kb_contacts_path=binned_10kb_path,
             binned_1kb_contacts_path=binned_1kb_path,
