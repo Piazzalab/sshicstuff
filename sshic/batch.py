@@ -1,6 +1,6 @@
 import os
 import re
-from os.path import join
+from os.path import join, dirname
 import subprocess
 import pandas as pd
 
@@ -10,32 +10,38 @@ def check_nan(str_):
 
 
 def run_pipeline(sample, reference):
-    subprocess.run([
-        "python3", script,
+    command = [
+        "python3", pipeline,
         "-s", sample,
         "-f", fragments,
         "-o", oligos,
         "-c", centromeres,
-        "-r", reference,
         "-b", *binning,
         "-a", additional,
         "--window-size-centros", str(ws_centros),
         "--window-size-telos", str(ws_telos),
         "--excluded-chr", *excluded_chr,
-        "--exclude-probe-chr"],
-        check=True)
+        "--exclude-probe-chr"
+    ]
+
+    if reference is not None:
+        command.extend(["-r", reference])
+
+    subprocess.run(command, check=True)
 
 
 if __name__ == "__main__":
+    cwd = os.getcwd()
+    pipeline = join(cwd, "pipeline.py")
 
-    base_dir = "/home/nicolas/Documents/Projects/ssdna-hic"
-    script = join(base_dir, "sshic", "pipeline.py")
+    base_dir = dirname(cwd)
     data_dir = join(base_dir, "data")
     inputs_dir = join(data_dir,  "inputs")
-    refs_dir = join(inputs_dir, "references")
+    smaplesheet = join(inputs_dir, "samplesheet.csv")
+    refs_dir = join(data_dir, "references")
     samples_dir = join(data_dir, "samples")
-    samples_only = []
 
+    # parameters for pipeline
     fragments = join(inputs_dir,  "fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt")
     oligos = join(inputs_dir, "capture_oligo_positions.csv")
     additional = join(inputs_dir, "additional_probe_groups.tsv")
@@ -45,7 +51,14 @@ if __name__ == "__main__":
     ws_telos = 150000
     excluded_chr = ["chr2", "chr3", "2_micron", "mitochondrion", "chr_artificial"]
 
-    df_samp2ref: pd.DataFrame = pd.read_csv(join(inputs_dir, f"sample_vs_ref_weight.tsv"), sep="\t")
+    df_samplesheet: pd.DataFrame = pd.read_csv(smaplesheet, sep=",")
+    samples = {}
+    for _, row in df_samplesheet.iterrows():
+        samples[row.loc["name"]] = []
+        if len(row) > 1:
+            for i in range(1, len(row)):
+                if not check_nan(row.iloc[i]):
+                    samples[row.loc["name"]].append(row.iloc[i])
 
     sparse_list = sorted([
             file for file in os.listdir(samples_dir) if not os.path.isdir(os.path.join(samples_dir, file))],
@@ -53,15 +66,17 @@ if __name__ == "__main__":
     )
 
     for samp in sparse_list:
-        samp_name = samp.split("_")[0]
-        if samp_name not in samples_only and len(samples_only) > 0:
-            continue
-        samp_path = join(samples_dir, samp)
-        ref1 = df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference1"].tolist()[0]
-        ref2 = df_samp2ref.loc[df_samp2ref["sample"] == samp_name, "reference2"].tolist()[0]
+        for name in samples:
+            if name in samp:
+                samp_name = name
+                break
+        else:
+            raise ValueError(f"Sample {samp} not found in samplesheet")
 
-        ref1_path = join(refs_dir, ref1) + '.tsv'
-        run_pipeline(samp_path, ref1_path)
-        if not check_nan(ref2):
-            ref2_path = join(refs_dir, ref2) + '.tsv'
-            run_pipeline(samp_path, ref2_path)
+        samp_path = join(samples_dir, samp)
+        if samples[samp_name]:
+            for ref_name in samples[samp_name]:
+                reference_path = join(refs_dir, ref_name, '.tsv')
+                run_pipeline(samp_path, reference_path)
+        else:
+            run_pipeline(samp_path, None)
