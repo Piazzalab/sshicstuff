@@ -76,7 +76,7 @@ if __name__ == "__main__":
         samp_path = join(samples_dir, samp)
         if samples[samp_name]:
             for ref_name in samples[samp_name]:
-                reference_path = join(refs_dir, ref_name, '.tsv')
+                reference_path = join(refs_dir, f"{ref_name}.tsv")
                 run_pipeline(samp_path, reference_path)
         else:
             run_pipeline(samp_path, None)

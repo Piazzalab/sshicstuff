@@ -50,11 +50,13 @@ class PathBundle:
         if reference_path is None or reference_path == '' or reference_path == 'None':
             self.wt_reference_path = None
             self.wt_reference_name = None
-        elif not os.path.exists(reference_path):
+        if not os.path.exists(reference_path):
             raise ValueError(f"file {reference_path} doesnt exist. "
                              f"Please be sure to first run the pipeline on the reference sample before")
         else:
             ref_name = reference_path.split("/")[-1].split(".")[0]
+            self.wt_reference_path = reference_path
+            self.wt_reference_name = ref_name
             self.weighted_dir = join(self.sample_output_dir, f"weighted_{ref_name}")
             os.makedirs(self.weighted_dir, exist_ok=True)
 
@@ -206,11 +208,11 @@ if __name__ == "__main__":
 
     #   Command to enter for parameters (parse)
     """
-    -s ../data/samples/AD162_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt
+    -s ../data/samples/AD291_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30.txt
     -f ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
     -c ../data/inputs/S288c_chr_centro_coordinates.tsv 
     -o ../data/inputs/capture_oligo_positions.csv
-    -r ../data/inputs/references/ref_WT4h_v1.tsv
+    -r ../data/references/ref_WT4h_v3.tsv
     -a ../data/inputs/additional_probe_groups.tsv
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
