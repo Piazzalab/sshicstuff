@@ -70,8 +70,6 @@ if __name__ == "__main__":
             if name in samp:
                 samp_name = name
                 break
-        else:
-            raise ValueError(f"Sample {samp} not found in samplesheet")
 
         samp_path = join(samples_dir, samp)
         if samples[samp_name]:

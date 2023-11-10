@@ -50,10 +50,10 @@ class PathBundle:
         if reference_path is None or reference_path == '' or reference_path == 'None':
             self.wt_reference_path = None
             self.wt_reference_name = None
-        if not os.path.exists(reference_path):
-            raise ValueError(f"file {reference_path} doesnt exist. "
-                             f"Please be sure to first run the pipeline on the reference sample before")
         else:
+            if not os.path.exists(reference_path):
+                raise ValueError(f"file {reference_path} doesnt exist.")
+
             ref_name = reference_path.split("/")[-1].split(".")[0]
             self.wt_reference_path = reference_path
             self.wt_reference_name = ref_name
