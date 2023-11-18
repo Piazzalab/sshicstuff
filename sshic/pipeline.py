@@ -1,9 +1,9 @@
-import re
 import os
 from os.path import join, dirname
 import itertools
 import argparse
 import shutil
+import pandas as pd
 from typing import List, Optional
 
 from core.filter import filter_contacts
@@ -17,7 +17,7 @@ from core.aggregated import aggregate
 
 
 class PathBundle:
-    def __init__(self, sample_sparse_file_path: str, reference_path: str):
+    def __init__(self, sample_sparse_file_path: str, reference_path_list: List[str] = None):
 
         self.sample_sparse_file_path = sample_sparse_file_path
         # self.samp_id = re.match(r"AD\d+[A-Z]*", sample_sparse_file_path.split("/")[-1]).group()
@@ -47,18 +47,17 @@ class PathBundle:
         self.unbinned_frequencies_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_frequencies.tsv")
         self.global_statistics_input = join(self.sample_output_dir, f"{self.samp_id}_global_statistics.tsv")
 
-        if reference_path is None or reference_path == '' or reference_path == 'None':
-            self.wt_reference_path = None
-            self.wt_reference_name = None
-        else:
-            if not os.path.exists(reference_path):
-                raise ValueError(f"file {reference_path} doesnt exist.")
-
-            ref_name = reference_path.split("/")[-1].split(".")[0]
-            self.wt_reference_path = reference_path
-            self.wt_reference_name = ref_name
-            self.weighted_dir = join(self.sample_output_dir, f"weighted_{ref_name}")
-            os.makedirs(self.weighted_dir, exist_ok=True)
+        self.wt_references_path = []
+        self.wt_references_name = []
+        self.weighted_dirs = []
+        if reference_path_list:
+            for ref_path in reference_path_list:
+                ref_name = ref_path.split("/")[-1].split(".")[0]
+                self.wt_references_path.append(ref_path)
+                self.wt_references_name.append(ref_name)
+                weighted_dir = join(self.sample_output_dir, f"weighted_{ref_name}")
+                self.weighted_dirs.append(weighted_dir)
+                os.makedirs(weighted_dir, exist_ok=True)
 
 
 class AggregateParams:
@@ -82,7 +81,7 @@ def copy_file(source_path, destination_path):
         print(f"Unable to copy file. Error: {e}")
 
 
-def pypeline(
+def pipeline(
     path_bundle: PathBundle,
     oligos_path: str,
     fragments_list_path: str,
@@ -98,8 +97,8 @@ def pypeline(
     copy_file(additional_groups, path_bundle.sample_inputs_dir)
     copy_file(oligos_path, path_bundle.sample_inputs_dir)
     copy_file(path_bundle.sample_sparse_file_path, path_bundle.sample_inputs_dir)
-    if path_bundle.wt_reference_path is not None:
-        copy_file(path_bundle.wt_reference_path, path_bundle.sample_inputs_dir)
+    for rp in path_bundle.wt_references_path:
+        copy_file(rp, path_bundle.sample_inputs_dir)
 
     print("\n")
 
@@ -126,18 +125,18 @@ def pypeline(
         path_bundle.global_statistics_input, get_stats, path_bundle.unbinned_contacts_input,
         path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_output_dir)
 
-    if path_bundle.wt_reference_path is not None:
+    for rp, rn, rd in zip(path_bundle.wt_references_path, path_bundle.wt_references_name, path_bundle.weighted_dirs):
         print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
         compare_to_wt(
             statistics_path=path_bundle.global_statistics_input,
-            reference_path=path_bundle.wt_reference_path,
-            wt_ref_name=path_bundle.wt_reference_name)
+            reference_path=rp,
+            wt_ref_name=rn)
 
         print(f"Weight the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
         weight_mutant(
-            statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
+            statistics_path=path_bundle.global_statistics_input, wt_ref_name=rn,
             contacts_path=path_bundle.unbinned_contacts_input, frequencies_path=path_bundle.unbinned_frequencies_input,
-            binned_type="unbinned", output_dir=path_bundle.weighted_dir, additional_path=additional_groups)
+            binned_type="unbinned", output_dir=rd, additional_path=additional_groups)
 
     print(f"Rebin and weight the unbinned tables (contacts and frequencies) at : \n")
     for bn in binning_size_list:
@@ -153,37 +152,30 @@ def pypeline(
         binned_frequencies_input = \
             join(path_bundle.not_weighted_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
 
-        if path_bundle.wt_reference_path is not None:
+        for rn, rd in zip(path_bundle.wt_references_name, path_bundle.weighted_dirs):
             weight_mutant(
-                statistics_path=path_bundle.global_statistics_input, wt_ref_name=path_bundle.wt_reference_name,
+                statistics_path=path_bundle.global_statistics_input, wt_ref_name=rn,
                 contacts_path=binned_contacts_input, frequencies_path=binned_frequencies_input,
-                binned_type=f"{bin_suffix}_binned", output_dir=path_bundle.weighted_dir,
+                binned_type=f"{bin_suffix}_binned", output_dir=rd,
                 additional_path=additional_groups)
 
     print("\n")
 
     regions = ["centromeres", "telomeres"]
-    weighted = [True, False] if path_bundle.wt_reference_path is not None else [False]
+    weights_dir = [rd for rd in path_bundle.weighted_dirs] + [path_bundle.not_weighted_dir]
     normalization = [True, False]
 
-    param_combinations = list(itertools.product(regions, weighted, normalization))
-    for region, is_weighted, is_normalized in param_combinations:
-        binned_10kb_path = join(
-            path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir,
-            path_bundle.samp_id+"_10kb_binned_frequencies.tsv"
-        )
+    param_combinations = list(itertools.product(regions, weights_dir, normalization))
+    for region, weight_dir, is_normalized in param_combinations:
+        binned_10kb_path = join(weight_dir, path_bundle.samp_id+"_10kb_binned_frequencies.tsv")
+        binned_1kb_path = join(weight_dir, path_bundle.samp_id+"_1kb_binned_frequencies.tsv")
 
-        binned_1kb_path = join(
-            path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir,
-            path_bundle.samp_id+"_1kb_binned_frequencies.tsv"
-        )
-
-        output_dir = path_bundle.weighted_dir if is_weighted else path_bundle.not_weighted_dir
+        output_dir = weight_dir
         ws = aggregate_params.window_size_centromeres \
             if region == "centromeres" else aggregate_params.window_size_telomeres
 
         print(
-            f"Make an aggregated of contacts around {region} ({'weighted' if is_weighted else 'not weighted'}, "
+            f"Make an aggregated of contacts around {region} ({weight_dir.split('/')[-1]}, "
             f"{'with' if is_normalized else 'no'} normalization)")
 
         aggregate(
@@ -204,15 +196,17 @@ def pypeline(
     print(f"--- {path_bundle.samp_id} DONE --- \n\n")
 
 
-if __name__ == "__main__":
+def check_nan(str_):
+    return str_ != str_
 
+
+if __name__ == "__main__":
     #   Command to enter for parameters (parse)
     """
-    -s ../data/samples/AD291_S288c_DSB_LY_Capture_artificial_cutsite_PCRdupkept_q30.txt
+    -s ../data/inputs/samplesheet.csv
     -f ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
     -c ../data/inputs/S288c_chr_centro_coordinates.tsv 
     -o ../data/inputs/capture_oligo_positions.csv
-    -r ../data/references/ref_WT4h_v3.tsv
     -a ../data/inputs/additional_probe_groups.tsv
     -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
     --window-size-centros 150000  
@@ -224,8 +218,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Script that processes sshic samples data.")
 
-    parser.add_argument('-s', '--sparse', type=str, required=True,
-                        help='Path hicstuff sparse matrix output ')
+    parser.add_argument('-s', '--samplesheet', type=str, required=True,
+                        help='Path to the samplesheet (.csv) that contains samples and their respective references ')
 
     parser.add_argument('-o', '--oligos-input', type=str, required=True,
                         help='Path to the file that contains positions of oligos')
@@ -238,9 +232,6 @@ if __name__ == "__main__":
 
     parser.add_argument('-b', '--binning-sizes-list', nargs='+', type=int, required=True,
                         help='desired bin size for the rebin step')
-
-    parser.add_argument('-r', '--reference', type=str, required=False,
-                        help="Path to the reference WT to weight the sample.")
 
     parser.add_argument('-a', '--additional', type=str, required=False,
                         help='Path to additional groups of probes table')
@@ -259,11 +250,22 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    sample_path_bundle = PathBundle(args.sparse, args.reference)
-    sample_aggregate_params_centros = AggregateParams(
-        args.window_size_centros, args.window_size_telos, args.exclude_probe_chr, args.excluded_chr)
+    df_samplesheet: pd.DataFrame = pd.read_csv(args.samplesheet, sep=",")
+    samples = {}
+    for _, row in df_samplesheet.iterrows():
+        samples[row.loc["sample"]] = []
+        if len(row) > 1:
+            for i in range(1, len(row)):
+                if not check_nan(row.iloc[i]):
+                    samples[row.loc["sample"]].append(row.iloc[i])
 
-    sample_data = [
-        sample_path_bundle, args.oligos_input, args.fragments_list, args.centromeres_coordinates_input,
-        args.binning_sizes_list, sample_aggregate_params_centros, args.additional]
-    pypeline(*sample_data)
+    for samp in samples:
+        refs = samples[samp]
+        sample_path_bundle = PathBundle(samp, refs)
+        sample_aggregate_params_centros = AggregateParams(
+            args.window_size_centros, args.window_size_telos, args.exclude_probe_chr, args.excluded_chr)
+
+        sample_data = [
+            sample_path_bundle, args.oligos_input, args.fragments_list, args.centromeres_coordinates_input,
+            args.binning_sizes_list, sample_aggregate_params_centros, args.additional]
+        pipeline(*sample_data)
