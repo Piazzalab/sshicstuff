@@ -60,20 +60,10 @@ if __name__ == "__main__":
                 if not check_nan(row.iloc[i]):
                     samples[row.loc["name"]].append(row.iloc[i])
 
-    sparse_list = sorted([
-            file for file in os.listdir(samples_dir) if not os.path.isdir(os.path.join(samples_dir, file))],
-        key=lambda x: int(re.search(r'AD(\d+)', x).group(1))
-    )
-
-    for samp in sparse_list:
-        for name in samples:
-            if name in samp:
-                samp_name = name
-                break
-
+    for samp in samples:
         samp_path = join(samples_dir, samp)
-        if samples[samp_name]:
-            for ref_name in samples[samp_name]:
+        if samples[samp]:
+            for ref_name in samples[samp]:
                 reference_path = join(refs_dir, f"{ref_name}.tsv")
                 run_pipeline(samp_path, reference_path)
         else:
