@@ -495,7 +495,7 @@ def update_dropdowns(data_basedir):
                           key=lambda x: x.lower())
     options = [{'label': f, 'value': join(inputs_dir, f)} for f in inputs_files]
 
-    reference_dir = join(inputs_dir, "references")
+    reference_dir = join(data_basedir, "references")
     references = sorted([f for f in os.listdir(reference_dir) if isfile(join(reference_dir, f))])
     ref_options = [{'label': f, 'value': join(reference_dir, f)} for f in references]
     return options, options, options, options, ref_options
