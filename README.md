@@ -45,7 +45,7 @@ This file has to contained at least 6 columns with the **precises** headers belo
 | chr | start | end | orientation | type | name | sequence_original | sequence_modified |
 |-----|-------|-----|-------------|------|------|-------------------|-------------------|
 
-- [ ] In the```chr``` column, it has to be the name of the chromosome.
+- In the```chr``` column, it has to be the name of the chromosome.
 Technically, it has to be the first word after the chevron ">" of the
 first line describing the chromomse in the fasta file.
 For example, if the fasta file is like:
@@ -74,7 +74,7 @@ The ```chr``` column name MUST be ```chr5```.
 
 The first oligo is the number 0.
 
-### 2. Hic-Stuff
+### 2. Hicstuff
 
 (author : Koszul lab)
 
@@ -126,7 +126,7 @@ This pipeline allow to do the following analysis:
 - Compute the contacts coverage for each capture oligo.
 - Output some statistics about the contacts with defined cis/trans region, intra/inter chromosomal regions.
 - Normalize the contacts with those of a reference sample.
-- Normalise contacts of ssdna probes with those of dsdna control probes.
+- Normalize contacts of ssdna probes with those of dsdna control probes.
 - Create 4C like profiles for each probe (ssdna and dsdna). 
 - Bin the probe contacts with the genome at different resolutions.
 - Aggregate the contacts around the centromeres and telomeres.
@@ -148,7 +148,7 @@ python3 pipeline.py \
   < --exclude-probe-chr >
 ```
 
-- [ ] The ```samplesheet``` file is a ```.csv``` file that contains the samples to analyze.
+-  [ ] The ```samplesheet``` file is a ```.csv``` file that contains the samples to analyze.
 
 | sample | reference1 | reference2 |
 |--------|------------|------------|
