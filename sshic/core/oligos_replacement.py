@@ -342,14 +342,5 @@ def main():
     replacement(args.igenome, args.cfile, args.ogenome, args.bfile, args.size)
 
 
-def debug(input_genome_path: str,
-          input_oligos_path: str,
-          output_genome_path: str,
-          output_bed_path: str,
-          flanking_size: int):
-
-    replacement(input_genome_path, input_oligos_path, output_genome_path, output_bed_path, flanking_size)
-
-
 if __name__ == "__main__":
     main()

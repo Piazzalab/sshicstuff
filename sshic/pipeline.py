@@ -208,9 +208,9 @@ if __name__ == "__main__":
     -c ../data/inputs/S288c_chr_centro_coordinates.tsv 
     -o ../data/inputs/capture_oligo_positions.csv
     -a ../data/inputs/additional_probe_groups.tsv
-    -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 10000
+    -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 100000
     --window-size-centros 150000  
-    --window-size-telos 150000 
+    --window-size-telos 15000
     --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial
     --exclude-probe-chr 
     """
@@ -221,19 +221,19 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--samplesheet', type=str, required=True,
                         help='Path to the samplesheet (.csv) that contains samples and their respective references ')
 
-    parser.add_argument('-o', '--oligos-input', type=str, required=True,
+    parser.add_argument('-o', '--oligos-capture', type=str, required=True,
                         help='Path to the file that contains positions of oligos')
 
     parser.add_argument('-f', '--fragments-list', type=str, required=True,
                         help='Path to the file fragments_list (hic_stuff output)')
 
-    parser.add_argument('-c', '--centromeres-coordinates-input', type=str, required=True,
+    parser.add_argument('-c', '--centromeres-coordinates', type=str, required=True,
                         help='Path to the file centromeres_coordinates')
 
-    parser.add_argument('-b', '--binning-sizes-list', nargs='+', type=int, required=True,
+    parser.add_argument('-b', '--binning-sizes', nargs='+', type=int, required=True,
                         help='desired bin size for the rebin step')
 
-    parser.add_argument('-a', '--additional', type=str, required=False,
+    parser.add_argument('-a', '--additional-groups', type=str, required=False,
                         help='Path to additional groups of probes table')
 
     parser.add_argument('--window-size-centros', type=int, required=True,
