@@ -266,6 +266,6 @@ if __name__ == "__main__":
             args.window_size_centros, args.window_size_telos, args.exclude_probe_chr, args.excluded_chr)
 
         sample_data = [
-            sample_path_bundle, args.oligos_input, args.fragments_list, args.centromeres_coordinates_input,
-            args.binning_sizes_list, sample_aggregate_params_centros, args.additional]
+            sample_path_bundle, args.oligos_capture, args.fragments_list, args.centromeres_coordinates,
+            args.binning_sizes, sample_aggregate_params_centros, args.additional_groups]
         pipeline(*sample_data)
