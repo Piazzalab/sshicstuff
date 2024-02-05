@@ -148,7 +148,7 @@ def aggregate(
 
     elif on == "telomeres":
         df_telos: pd.DataFrame = pd.DataFrame({'chr': df_centros['chr'], 'telo_l': 0, 'telo_r': df_centros['length']})
-        df_merged: pd.DataFrame = pd.merge(df_contacts_10kb, df_telos, on='chr')
+        df_merged: pd.DataFrame = pd.merge(df_contacts_1kb, df_telos, on='chr')
         df_merged_telos_areas_part_a: pd.DataFrame = \
             df_merged[df_merged.chr_bins < (df_merged.telo_l + window_size + 10000)]
         df_merged_telos_areas_part_b: pd.DataFrame = \

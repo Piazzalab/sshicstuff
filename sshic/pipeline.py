@@ -201,7 +201,7 @@ def check_nan(str_):
 
 
 if __name__ == "__main__":
-    #   Command to enter for parameters (parse)
+    #   Example command to enter for parameters (parse)
     """
     -s ../data/inputs/samplesheet.csv
     -f ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
