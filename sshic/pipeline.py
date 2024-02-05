@@ -61,9 +61,15 @@ class PathBundle:
 
 
 class AggregateParams:
-    def __init__(self, window_size_centro, window_size_telos, excluded_probe_chr, excluded_chr_list):
+    def __init__(self, window_size_centro, window_size_telos,
+                 binning_size_centro, binning_size_telo, aggregate_by_arm_lengths,
+                 excluded_chr_list, excluded_probe_chr, ):
+
         self.window_size_centromeres = window_size_centro
         self.window_size_telomeres = window_size_telos
+        self.binning_centromeres = binning_size_centro
+        self.binning_telomeres = binning_size_telo
+        self.aggregate_by_arm_lengths = aggregate_by_arm_lengths
         self.excluded_probe_chr = excluded_probe_chr
         self.excluded_chr_list = excluded_chr_list
 
@@ -167,8 +173,14 @@ def pipeline(
 
     param_combinations = list(itertools.product(regions, weights_dir, normalization))
     for region, weight_dir, is_normalized in param_combinations:
-        binned_10kb_path = join(weight_dir, path_bundle.samp_id+"_10kb_binned_frequencies.tsv")
-        binned_1kb_path = join(weight_dir, path_bundle.samp_id+"_1kb_binned_frequencies.tsv")
+        if region == "centromeres":
+            binning_suffix = str(aggregate_params.binning_centromeres // 1000) + "kb"
+            binned_contacts_path = join(weight_dir, path_bundle.samp_id+f"_{binning_suffix}_binned_frequencies.tsv")
+        elif region == "telomeres":
+            binning_suffix = str(aggregate_params.binning_telomeres // 1000) + "kb"
+            binned_contacts_path = join(weight_dir, path_bundle.samp_id+f"_{binning_suffix}_binned_frequencies.tsv")
+        else:
+            continue
 
         output_dir = weight_dir
         ws = aggregate_params.window_size_centromeres \
@@ -179,13 +191,13 @@ def pipeline(
             f"{'with' if is_normalized else 'no'} normalization)")
 
         aggregate(
-            binned_10kb_contacts_path=binned_10kb_path,
-            binned_1kb_contacts_path=binned_1kb_path,
+            binned_contacts_path=binned_contacts_path,
             centros_coord_path=centromeres_coordinates_path,
             oligos_path=oligos_path,
             window_size=ws,
             on=region,
             output_dir=output_dir,
+            aggregate_by_arm_sizes=aggregate_params.aggregate_by_arm_lengths,
             exclude_probe_chr=aggregate_params.excluded_probe_chr,
             excluded_chr_list=aggregate_params.excluded_chr_list,
             additional_path=additional_groups,
@@ -203,44 +215,60 @@ def check_nan(str_):
 if __name__ == "__main__":
     #   Example command to enter for parameters (parse)
     """
-    -s ../data/inputs/samplesheet.csv
-    -f ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    -c ../data/inputs/S288c_chr_centro_coordinates.tsv 
-    -o ../data/inputs/capture_oligo_positions.csv
-    -a ../data/inputs/additional_probe_groups.tsv
-    -b 1000 2000 3000 5000 10000 20000 40000 50000 80000 100000
-    --window-size-centros 150000  
-    --window-size-telos 15000
+    --samplesheet ../data/inputs/samplesheet.csv
+    --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
+    --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates.tsv 
+    --oligos-capture ../data/inputs/capture_oligo_positions.csv
+    --additional-groups ../data/inputs/additional_probe_groups.tsv
+    --binning-sizes 1000 2000 5000 10000 20000 40000 50000 80000 100000
+    --centromeres-aggregated-window-size 150000  
+    --telomeres-aggregated-window-size 15000
+    --centromeres-aggregated-binning 10000
+    --telomeres-aggregated-binning 1000
+    --aggregate-by-arm-lengths 
     --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial
     --exclude-probe-chr 
     """
 
+    samples_dir = "../data/samples"
+    references_dir = "../data/references"
+    inputs_dir = "../data/inputs"
+
     parser = argparse.ArgumentParser(
         description="Script that processes sshic samples data.")
 
-    parser.add_argument('-s', '--samplesheet', type=str, required=True,
+    parser.add_argument('--samplesheet', type=str, required=True,
                         help='Path to the samplesheet (.csv) that contains samples and their respective references ')
 
-    parser.add_argument('-o', '--oligos-capture', type=str, required=True,
+    parser.add_argument('--oligos-capture', type=str, required=True,
                         help='Path to the file that contains positions of oligos')
 
-    parser.add_argument('-f', '--fragments-list', type=str, required=True,
+    parser.add_argument('--fragments-list', type=str, required=True,
                         help='Path to the file fragments_list (hic_stuff output)')
 
-    parser.add_argument('-c', '--centromeres-coordinates', type=str, required=True,
-                        help='Path to the file centromeres_coordinates')
+    parser.add_argument('--chromosomes-arms-coordinates', type=str, required=True,
+                        help='Path to the file containing centromeres coordinates and chromosomes arms lengths')
 
-    parser.add_argument('-b', '--binning-sizes', nargs='+', type=int, required=True,
+    parser.add_argument('--binning-sizes', nargs='+', type=int, required=True,
                         help='desired bin size for the rebin step')
 
-    parser.add_argument('-a', '--additional-groups', type=str, required=False,
+    parser.add_argument('--additional-groups', type=str, required=False,
                         help='Path to additional groups of probes table')
 
-    parser.add_argument('--window-size-centros', type=int, required=True,
+    parser.add_argument('--centromeres-aggregated-window-size', type=int, required=True,
                         help="window (in bp) that defines a focus region to aggregated centromeres")
 
-    parser.add_argument('--window-size-telos', type=int, required=True,
+    parser.add_argument('--centromeres-aggregated-binning', type=int, required=True,
+                        help="bin size (in bp) to use for the aggregated centromeres contacts")
+
+    parser.add_argument('--telomeres-aggregated-window-size', type=int, required=True,
                         help="window (in bp) that defines a focus region to aggregated telomeres")
+
+    parser.add_argument('--telomeres-aggregated-binning', type=int, required=True,
+                        help="bin size (in bp) to use for the aggregated telomeres contacts")
+
+    parser.add_argument('--aggregate-by-arm-lengths', action='store_true', required=False,
+                        help="aggregate contacts by arm lengths")
 
     parser.add_argument('--excluded-chr', nargs='+', type=str, required=False,
                         help='list of chromosomes to excludes to prevent bias of contacts')
@@ -250,22 +278,42 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if len(args.samplesheet.split("/")) == 1:
+        args.samplesheet = join(inputs_dir, args.samplesheet)
+    if len(args.oligos_capture.split("/")) == 1:
+        args.oligos_capture = join(inputs_dir, args.oligos_capture)
+    if len(args.fragments_list.split("/")) == 1:
+        args.fragments_list = join(inputs_dir, args.fragments_list)
+    if len(args.chromosomes_arms_coordinates.split("/")) == 1:
+        args.chromosomes_arms_coordinates = join(inputs_dir, args.chromosomes_arms_coordinates)
+    if args.additional_groups and len(args.additional_groups.split("/")) == 1:
+        args.additional_groups = join(inputs_dir, args.additional_groups)
+
     df_samplesheet: pd.DataFrame = pd.read_csv(args.samplesheet, sep=",")
-    samples = {}
+    samples_and_refs = {}
     for _, row in df_samplesheet.iterrows():
-        samples[row.loc["sample"]] = []
+        samp = row.loc["sample"]
+        if len(samp.split("/")) == 1:
+            samp = join(samples_dir, samp)
+        samples_and_refs[samp] = []
         if len(row) > 1:
             for i in range(1, len(row)):
-                if not check_nan(row.iloc[i]):
-                    samples[row.loc["sample"]].append(row.iloc[i])
+                ref = row.iloc[i]
+                if not check_nan(ref):
+                    if len(ref.split("/")) == 1:
+                        ref = join(references_dir, ref)
+                    samples_and_refs[row.loc["sample"]].append(ref)
 
-    for samp in samples:
-        refs = samples[samp]
+    for samp in samples_and_refs:
+        refs = samples_and_refs[samp]
         sample_path_bundle = PathBundle(samp, refs)
+
         sample_aggregate_params_centros = AggregateParams(
-            args.window_size_centros, args.window_size_telos, args.exclude_probe_chr, args.excluded_chr)
+            args.centromeres_aggregated_window_size, args.telomeres_aggregated_window_size,
+            args.centromeres_aggregated_binning, args.telomeres_aggregated_binning, args.aggregate_by_arm_lengths,
+            args.excluded_chr, args.exclude_probe_chr)
 
         sample_data = [
-            sample_path_bundle, args.oligos_capture, args.fragments_list, args.centromeres_coordinates,
+            sample_path_bundle, args.oligos_capture, args.fragments_list, args.chromosomes_arms_coordinates,
             args.binning_sizes, sample_aggregate_params_centros, args.additional_groups]
         pipeline(*sample_data)
