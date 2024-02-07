@@ -1,5 +1,5 @@
 import os
-from os.path import join, dirname
+from os.path import join
 import itertools
 import argparse
 import shutil
@@ -17,35 +17,25 @@ from core.aggregated import aggregate
 
 
 class PathBundle:
-    def __init__(self, sample_sparse_file_path: str, reference_path_list: List[str] = None):
+    def __init__(self, sample_sparse_file_path: str, outputs_dir: str, reference_path_list: List[str] = None, ):
 
         self.sample_sparse_file_path = sample_sparse_file_path
-        # self.samp_id = re.match(r"AD\d+[A-Z]*", sample_sparse_file_path.split("/")[-1]).group()
         self.samp_id = sample_sparse_file_path.split("/")[-1].split("_")[0]
-        parent_dir = dirname(dirname(sample_sparse_file_path))
-        outputs_dir = join(parent_dir, "outputs")
+        self.samp_name = sample_sparse_file_path.split("/")[-1].split(".")[0]
 
-        self.sample_dir = join(outputs_dir, self.samp_id)
-        if 'pcrfree' in self.sample_sparse_file_path.split("/")[-1].lower():
-            self.sample_output_dir = join(self.sample_dir, "pcrfree")
-        elif 'pcrdupkept' in self.sample_sparse_file_path.split("/")[-1].lower():
-            self.sample_output_dir = join(self.sample_dir, "pcrdupkept")
-        else:
-            self.sample_output_dir = self.sample_dir
+        self.sample_outputs_dir = join(outputs_dir, self.samp_name)
+        self.sample_copy_inputs_dir = join(self.sample_outputs_dir, "inputs")
+        self.not_weighted_dir = join(self.sample_outputs_dir, "not_weighted")
 
-        self.sample_inputs_dir = join(self.sample_dir, "inputs")
-        self.not_weighted_dir = join(self.sample_output_dir, "not_weighted")
-
-        os.makedirs(self.sample_dir, exist_ok=True)
-        os.makedirs(self.sample_output_dir, exist_ok=True)
-        os.makedirs(self.sample_inputs_dir, exist_ok=True)
+        os.makedirs(self.sample_outputs_dir, exist_ok=True)
+        os.makedirs(self.sample_copy_inputs_dir, exist_ok=True)
         os.makedirs(self.not_weighted_dir, exist_ok=True)
 
-        self.filtered_contacts_input = join(self.sample_output_dir, self.samp_id + "_filtered.tsv")
-        self.cover = join(self.sample_output_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
+        self.filtered_contacts_input = join(self.sample_outputs_dir, self.samp_id + "_filtered.tsv")
+        self.cover = join(self.sample_outputs_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
         self.unbinned_contacts_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_contacts.tsv")
         self.unbinned_frequencies_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_frequencies.tsv")
-        self.global_statistics_input = join(self.sample_output_dir, f"{self.samp_id}_global_statistics.tsv")
+        self.global_statistics_input = join(self.sample_outputs_dir, f"{self.samp_id}_global_statistics.tsv")
 
         self.wt_references_path = []
         self.wt_references_name = []
@@ -55,7 +45,7 @@ class PathBundle:
                 ref_name = ref_path.split("/")[-1].split(".")[0]
                 self.wt_references_path.append(ref_path)
                 self.wt_references_name.append(ref_name)
-                weighted_dir = join(self.sample_output_dir, f"weighted_{ref_name}")
+                weighted_dir = join(self.sample_outputs_dir, f"weighted_{ref_name}")
                 self.weighted_dirs.append(weighted_dir)
                 os.makedirs(weighted_dir, exist_ok=True)
 
@@ -98,20 +88,20 @@ def pipeline(
 ):
     print(f" -- Sample {path_bundle.samp_id} -- \n")
 
-    copy_file(fragments_list_path, path_bundle.sample_inputs_dir)
-    copy_file(centromeres_coordinates_path, path_bundle.sample_inputs_dir)
-    copy_file(additional_groups, path_bundle.sample_inputs_dir)
-    copy_file(oligos_path, path_bundle.sample_inputs_dir)
-    copy_file(path_bundle.sample_sparse_file_path, path_bundle.sample_inputs_dir)
+    copy_file(fragments_list_path, path_bundle.sample_copy_inputs_dir)
+    copy_file(centromeres_coordinates_path, path_bundle.sample_copy_inputs_dir)
+    copy_file(additional_groups, path_bundle.sample_copy_inputs_dir)
+    copy_file(oligos_path, path_bundle.sample_copy_inputs_dir)
+    copy_file(path_bundle.sample_sparse_file_path, path_bundle.sample_copy_inputs_dir)
     for rp in path_bundle.wt_references_path:
-        copy_file(rp, path_bundle.sample_inputs_dir)
+        copy_file(rp, path_bundle.sample_copy_inputs_dir)
 
     print("\n")
 
     print(f"Filter contacts \n")
     check_and_run(
         path_bundle.filtered_contacts_input, filter_contacts, oligos_path,
-        fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_output_dir)
+        fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir)
 
     print(f"Associate the fragment name to probe where it is located \n")
     associate_probes_to_fragments(fragments_list_path, oligos_path)
@@ -119,7 +109,7 @@ def pipeline(
     print(f"Make the coverage \n")
     check_and_run(
         path_bundle.cover, coverage, path_bundle.sample_sparse_file_path,
-        fragments_list_path, path_bundle.sample_output_dir)
+        fragments_list_path, path_bundle.sample_outputs_dir)
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
     check_and_run(
@@ -129,7 +119,7 @@ def pipeline(
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
     check_and_run(
         path_bundle.global_statistics_input, get_stats, path_bundle.unbinned_contacts_input,
-        path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_output_dir)
+        path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_outputs_dir)
 
     for rp, rn, rd in zip(path_bundle.wt_references_path, path_bundle.wt_references_name, path_bundle.weighted_dirs):
         print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
@@ -217,6 +207,7 @@ if __name__ == "__main__":
     """
     --samplesheet ../data/inputs/samplesheet.csv
     --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
+    --outputs-dir ../data/outputs
     --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates.tsv 
     --oligos-capture ../data/inputs/capture_oligo_positions.csv
     --additional-groups ../data/inputs/additional_probe_groups.tsv
@@ -230,9 +221,11 @@ if __name__ == "__main__":
     --exclude-probe-chr 
     """
 
+    # default folders paths
     samples_dir = "../data/samples"
     references_dir = "../data/references"
     inputs_dir = "../data/inputs"
+    outputs_dir = "../data/outputs"
 
     parser = argparse.ArgumentParser(
         description="Script that processes sshic samples data.")
@@ -245,6 +238,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--fragments-list', type=str, required=True,
                         help='Path to the file fragments_list (hic_stuff output)')
+
+    parser.add_argument('--outputs-dir', type=str, required=True,
+                        help='Path to the output directory that will contain the results for each samples')
 
     parser.add_argument('--chromosomes-arms-coordinates', type=str, required=True,
                         help='Path to the file containing centromeres coordinates and chromosomes arms lengths')
@@ -290,23 +286,28 @@ if __name__ == "__main__":
         args.additional_groups = join(inputs_dir, args.additional_groups)
 
     df_samplesheet: pd.DataFrame = pd.read_csv(args.samplesheet, sep=",")
-    samples_and_refs = {}
+    samples_and_refs_paths = {}
     for _, row in df_samplesheet.iterrows():
         samp = row.loc["sample"]
         if len(samp.split("/")) == 1:
-            samp = join(samples_dir, samp)
-        samples_and_refs[samp] = []
+            samp_path = join(samples_dir, samp)
+        else:
+            samp_path = samp
+        samples_and_refs_paths[samp_path] = []
+
         if len(row) > 1:
             for i in range(1, len(row)):
                 ref = row.iloc[i]
                 if not check_nan(ref):
                     if len(ref.split("/")) == 1:
-                        ref = join(references_dir, ref)
-                    samples_and_refs[row.loc["sample"]].append(ref)
+                        ref_path = join(references_dir, ref)
+                    else:
+                        ref_path = ref
+                    samples_and_refs_paths[samp_path].append(ref_path)
 
-    for samp in samples_and_refs:
-        refs = samples_and_refs[samp]
-        sample_path_bundle = PathBundle(samp, refs)
+    for samp in samples_and_refs_paths:
+        refs = samples_and_refs_paths[samp]
+        sample_path_bundle = PathBundle(samp, args.outputs_dir, refs)
 
         sample_aggregate_params_centros = AggregateParams(
             args.centromeres_aggregated_window_size, args.telomeres_aggregated_window_size,

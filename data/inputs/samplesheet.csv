@@ -1,2 +1,2 @@
-sample,reference1,reference2,reference3
-/home/nicolas/Documents/Projects/ssdna-hic/data/samples/AD542_S288c_DSB_LY_Capture_artificial_cutsite_q20_PCRfree.txt,,,
+sample,reference1,reference2,reference3	
+AD473_S288c_DSB_LY_Capture_artificial_cutsite_q20_PCRdupkept.txt,ref_WT2h_v2.tsv,,
