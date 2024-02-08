@@ -1,5 +1,4 @@
 #! /usr/bin/env python3
-import re
 import os
 import numpy as np
 import pandas as pd
@@ -36,15 +35,12 @@ def organize_contacts(
         Path to a csv file that contains groups of probes to sum, average etc ...
     """
 
-    sample_filename = filtered_contacts_path.split("/")[-1]
-    sample_id = sample_filename.split("_")[0]
-    # sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
-    output_path = os.path.join(output_dir, sample_id)
+    sample_name = filtered_contacts_path.split("/")[-1].split(".")[0]
 
     df_chr_len: pd.DataFrame = pd.read_csv(chromosomes_coord_path, sep='\t', index_col=None)
     df_chr_len = df_chr_len[["chr", "length"]]
     df_chr_len["length"] = df_chr_len["length"].shift().fillna(0).astype("int64")
-    df_chr_len["cumsum"] = df_chr_len["length"].cumsum()
+    df_chr_len["cumusum"] = df_chr_len["length"].cumsum()
 
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
     probes = df_probes['name'].to_list()
@@ -87,7 +83,7 @@ def organize_contacts(
     df_contacts: pd.DataFrame = df_contacts.loc[:, ~df_contacts.columns.duplicated()]
 
     df_merged: pd.DataFrame = df_contacts.merge(df_chr_len, on="chr")
-    df_merged["genome_start"] = df_merged["cumsum"] + df_merged["start"]
+    df_merged["genome_start"] = df_merged["cumusum"] + df_merged["start"]
     df_contacts.insert(3, "genome_start", df_merged["genome_start"])
     del df_merged
 
@@ -102,5 +98,5 @@ def organize_contacts(
         make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
     #   Write into .tsv file contacts as there are and in the form of frequencies :
-    df_contacts.to_csv(output_path + '_unbinned_contacts.tsv', sep='\t', index=False)
-    df_frequencies.to_csv(output_path + '_unbinned_frequencies.tsv', sep='\t', index=False)
+    df_contacts.to_csv(os.path.join(output_dir, "unbinned_contacts.tsv"), sep='\t', index=False)
+    df_frequencies.to_csv(os.path.join(output_dir, "unbinned_frequencies.tsv"), sep='\t', index=False)

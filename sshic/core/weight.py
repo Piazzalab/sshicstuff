@@ -28,10 +28,7 @@ def weight_mutant(
 
     """
 
-    sample_filename = os.path.basename(contacts_path)
-    sample_id = sample_filename.split("_")[0]
-    # sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
-    output_path = os.path.join(output_dir, sample_id)
+    sample_name = os.path.basename(contacts_path).split("_")[0]
 
     df_stats: pd.DataFrame = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
     df_stats["fragment"] = df_stats["fragment"].astype(str)
@@ -61,5 +58,5 @@ def weight_mutant(
         make_groups_of_probes(df_additional, df_contacts, probes_to_fragments)
         make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
-    df_contacts.to_csv(output_path+f"_{binned_type}_contacts.tsv", sep='\t', index=False)
-    df_frequencies.to_csv(output_path + f"_{binned_type}_frequencies.tsv", sep='\t', index=False)
+    df_contacts.to_csv(os.path.join(output_dir, f"{binned_type}_contacts.tsv"), sep='\t', index=False)
+    df_frequencies.to_csv(os.path.join(output_dir, f"{binned_type}_frequencies.tsv"), sep='\t', index=False)

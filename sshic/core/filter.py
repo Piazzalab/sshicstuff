@@ -142,8 +142,7 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
     """
 
     """
-    sample_filename = contacts_path.split("/")[-1].split(".")[0]
-    sample_id = sample_filename.split("_")[0]
+    sample_name = contacts_path.split("/")[-1].split(".")[0]
 
     """
     Fragment import and correction of col names
@@ -214,7 +213,7 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
     df_contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     df_contacts_filtered = df_contacts_joined.convert_dtypes().reset_index(drop=True)
 
-    output_path_filtered: str = os.path.join(output_dir, f"{sample_id}_filtered.tsv")
+    output_path_filtered: str = os.path.join(output_dir, "contacts_filtered.tsv")
     df_contacts_filtered.to_csv(output_path_filtered, sep='\t', index=False)
 
     """
@@ -236,7 +235,7 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
     df_contacts_hic_only.iloc[0, 1] -= len(df_foi)
     df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
 
-    output_path_hic_only: str = os.path.join(output_dir, f"{sample_filename}_no_probe.txt")
+    output_path_hic_only: str = os.path.join(output_dir, f"{sample_name}_no_probe.txt")
     df_contacts_hic_only.to_csv(output_path_hic_only, sep='\t', index=False, header=False)
 
 

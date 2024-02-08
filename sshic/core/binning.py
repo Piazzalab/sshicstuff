@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 import os
-import re
 import numpy as np
 import pandas as pd
 from typing import Optional
@@ -43,11 +42,8 @@ def rebin_contacts(
 
 ):
 
-    sample_filename = os.path.basename(contacts_unbinned_path)
-    sample_id = sample_filename.split("_")[0]
-    # sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
+    sample_name = os.path.basename(contacts_unbinned_path).split("_")[0]
     bin_suffix = f'{bin_size // 1000}kb'
-    output_path = os.path.join(output_dir, f'{sample_id}_{bin_suffix}_binned')
 
     df_binned_template = build_bins_from_genome(chromosomes_coord_path, bin_size)
 
@@ -101,6 +97,7 @@ def rebin_contacts(
         make_groups_of_probes(df_additional, df_binned_contacts, probes_to_fragments)
         make_groups_of_probes(df_additional, df_binned_freq, probes_to_fragments)
 
+    output_path = os.path.join(output_dir, f'{bin_suffix}_binned')
     df_binned_contacts.to_csv(f'{output_path}_contacts.tsv', sep='\t', index=False)
     df_binned_freq.to_csv(f'{output_path}_frequencies.tsv', sep='\t', index=False)
 

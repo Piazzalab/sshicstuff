@@ -29,10 +29,7 @@ def get_stats(
         Path to the output directory.
     """
 
-    sample_filename = contacts_unbinned_path.split("/")[-1]
-    sample_id = sample_filename.split("_")[0]
-    # sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
-    output_path = os.path.join(output_dir, sample_id)
+    sample_name = contacts_unbinned_path.split("/")[-1].split(".")[0]
 
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
 
@@ -147,9 +144,9 @@ def get_stats(
     df_chr_nrm.sort_values(by="fragment", ascending=True, inplace=True)
     df_chr_inter_only_nrm.sort_values(by="fragment", ascending=True, inplace=True)
 
-    df_stats.to_csv(output_path + '_global_statistics.tsv', sep='\t')
-    df_chr_nrm.to_csv(output_path + '_normalized_chr_freq.tsv', sep='\t')
-    df_chr_inter_only_nrm.to_csv(output_path + '_normalized_inter_chr_freq.tsv', sep='\t')
+    df_stats.to_csv(os.path.join(output_dir, 'contacts_statistics.tsv'), sep='\t')
+    df_chr_nrm.to_csv(os.path.join(output_dir, 'normalized_chr_freq.tsv'), sep='\t')
+    df_chr_inter_only_nrm.to_csv(os.path.join(output_dir, 'normalized_inter_chr_freq.tsv'), sep='\t')
 
 
 def compare_to_wt(statistics_path: str, reference_path: str, wt_ref_name: str):

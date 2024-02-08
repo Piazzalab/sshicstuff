@@ -19,22 +19,22 @@ class PathBundle:
     def __init__(self, sample_sparse_file_path: str, outputs_dir: str, reference_path_list: List[str] = None, ):
 
         self.sample_sparse_file_path = sample_sparse_file_path
-        self.samp_id = sample_sparse_file_path.split("/")[-1].split("_")[0]
         self.samp_name = sample_sparse_file_path.split("/")[-1].split(".")[0]
 
         self.sample_outputs_dir = join(outputs_dir, self.samp_name)
         self.sample_copy_inputs_dir = join(self.sample_outputs_dir, "inputs")
         self.not_weighted_dir = join(self.sample_outputs_dir, "not_weighted")
 
+        self.sample_sparse_no_probe_file_path = join(self.sample_outputs_dir, self.samp_name + "_no_probe.txt")
+
         os.makedirs(self.sample_outputs_dir, exist_ok=True)
         os.makedirs(self.sample_copy_inputs_dir, exist_ok=True)
         os.makedirs(self.not_weighted_dir, exist_ok=True)
 
-        self.filtered_contacts_input = join(self.sample_outputs_dir, self.samp_id + "_filtered.tsv")
-        self.cover = join(self.sample_outputs_dir, self.samp_id + "_coverage_per_fragment.bedgraph")
-        self.unbinned_contacts_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_contacts.tsv")
-        self.unbinned_frequencies_input = join(self.not_weighted_dir, self.samp_id+"_unbinned_frequencies.tsv")
-        self.global_statistics_input = join(self.sample_outputs_dir, f"{self.samp_id}_global_statistics.tsv")
+        self.filtered_contacts_input = join(self.sample_outputs_dir, "contacts_filtered.tsv")
+        self.unbinned_contacts_input = join(self.not_weighted_dir, "unbinned_contacts.tsv")
+        self.unbinned_frequencies_input = join(self.not_weighted_dir, "unbinned_frequencies.tsv")
+        self.global_statistics_input = join(self.sample_outputs_dir, "contacts_statistics.tsv")
 
         self.wt_references_path = []
         self.wt_references_name = []
@@ -85,7 +85,7 @@ def pipeline(
     aggregate_params: AggregateParams,
     additional_groups: Optional[str] = None
 ):
-    print(f" -- Sample {path_bundle.samp_id} -- \n")
+    print(f" -- Sample {path_bundle.samp_name} -- \n")
 
     copy_file(fragments_list_path, path_bundle.sample_copy_inputs_dir)
     copy_file(centromeres_coordinates_path, path_bundle.sample_copy_inputs_dir)
@@ -102,10 +102,9 @@ def pipeline(
         path_bundle.filtered_contacts_input, filter_contacts, oligos_path,
         fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir)
 
-    print(f"Make the coverage \n")
-    check_and_run(
-        path_bundle.cover, coverage, path_bundle.sample_sparse_file_path,
-        fragments_list_path, path_bundle.sample_outputs_dir)
+    print(f"Make the coverages\n")
+    coverage(path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
+    coverage(path_bundle.sample_sparse_no_probe_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
     check_and_run(
@@ -139,10 +138,8 @@ def pipeline(
             chromosomes_coord_path=centromeres_coordinates_path, oligos_path=oligos_path, bin_size=bn,
             output_dir=path_bundle.not_weighted_dir, additional_path=additional_groups)
 
-        binned_contacts_input = \
-            join(path_bundle.not_weighted_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_contacts.tsv")
-        binned_frequencies_input = \
-            join(path_bundle.not_weighted_dir, path_bundle.samp_id + f"_{bin_suffix}_binned_frequencies.tsv")
+        binned_contacts_input = join(path_bundle.not_weighted_dir, f"{bin_suffix}_binned_contacts.tsv")
+        binned_frequencies_input = join(path_bundle.not_weighted_dir, f"{bin_suffix}_binned_frequencies.tsv")
 
         for rn, rd in zip(path_bundle.wt_references_name, path_bundle.weighted_dirs):
             weight_mutant(
@@ -161,10 +158,10 @@ def pipeline(
     for region, weight_dir, is_normalized in param_combinations:
         if region == "centromeres":
             binning_suffix = str(aggregate_params.binning_centromeres // 1000) + "kb"
-            binned_contacts_path = join(weight_dir, path_bundle.samp_id+f"_{binning_suffix}_binned_frequencies.tsv")
+            binned_contacts_path = join(weight_dir, f"{binning_suffix}_binned_frequencies.tsv")
         elif region == "telomeres":
             binning_suffix = str(aggregate_params.binning_telomeres // 1000) + "kb"
-            binned_contacts_path = join(weight_dir, path_bundle.samp_id+f"_{binning_suffix}_binned_frequencies.tsv")
+            binned_contacts_path = join(weight_dir, f"{binning_suffix}_binned_frequencies.tsv")
         else:
             continue
 
@@ -191,7 +188,7 @@ def pipeline(
             plot=False
         )
 
-    print(f"--- {path_bundle.samp_id} DONE --- \n\n")
+    print(f"--- {path_bundle.samp_name} DONE --- \n\n")
 
 
 def check_nan(str_):
