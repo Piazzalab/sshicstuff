@@ -1,2 +1,3 @@
-sample,reference1,reference2,reference3	
+sample,reference1,reference2,reference3
 AD473_S288c_DSB_LY_Capture_artificial_cutsite_q20_PCRdupkept.txt,ref_WT2h_v2.tsv,,
+AD473_S288c_DSB_LY_Capture_artificial_cutsite_q20_PCRfree.txt,ref_WT2h_v2.tsv,,

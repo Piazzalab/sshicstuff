@@ -1,4 +1,3 @@
-import re
 import os
 import sys
 import argparse
@@ -54,10 +53,7 @@ def fragments_correction(fragments_path: str):
     return fragments
 
 
-def starts_match(
-        fragments: pd.DataFrame,
-        oligos: pd.DataFrame
-):
+def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame):
     """
     Update the start positions of the oligos DataFrame based on the corresponding fragment positions.
 
@@ -99,10 +95,7 @@ def starts_match(
     return oligos
 
 
-def oligos_fragments_joining(
-        fragments: pd.DataFrame,
-        oligos: pd.DataFrame
-):
+def oligos_fragments_joining(fragments: pd.DataFrame, oligos: pd.DataFrame):
     """
     Join the oligos and fragments DataFrames, removing fragments that do not contain an oligo region.
 
@@ -175,12 +168,7 @@ def first_join(x: str, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame):
     return joined
 
 
-def second_join(
-        x: str,
-        fragments: pd.DataFrame,
-        oligos_fragments: pd.DataFrame,
-        contacts: pd.DataFrame
-):
+def second_join(x: str, fragments: pd.DataFrame, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame):
     """
     Add the fragments DataFrame information (=columns) for the y fragment after the first join
     (see first_join function). This is only for the y fragment, because the x fragments already have their
@@ -218,12 +206,7 @@ def second_join(
     return joined
 
 
-def filter_contacts(
-        oligos_path: str,
-        fragments_path: str,
-        contacts_path: str,
-        output_dir: str
-):
+def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, output_dir: str):
     """
     Filter the contacts based on the oligos and fragments data, and save the filtered contacts to a TSV file.
 
@@ -244,7 +227,6 @@ def filter_contacts(
     """
     sample_filename = contacts_path.split("/")[-1]
     sample_id = sample_filename.split("_")[0]
-    # sample_id = re.search(r"AD\d+[A-Z]*", sample_filename).group()
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, sample_id+'_filtered.tsv')
 
@@ -304,13 +286,7 @@ def main(argv=None):
                         help='Path to the output directory')
 
     args = parser.parse_args(argv)
-
-    filter_contacts(
-        args.oligos,
-        args.fragments,
-        args.contacts,
-        args.output_dir
-    )
+    filter_contacts(args.oligos, args.fragments, args.contacts, args.output_dir)
 
 
 if __name__ == "__main__":

@@ -1,15 +1,9 @@
-import os
-import sys
-
 import numpy as np
 import pandas as pd
 from utils import find_nearest
 
 
-def associate_probes_to_fragments(
-    fragments_list_path: str,
-    oligos_capture_path: str
-):
+def associate_probes_to_fragments(fragments_list_path: str, oligos_capture_path: str):
     """
     This function aims at formatting and creating a correspondence between each probe (oligo capture) and
     the fragments aka the read that contains it.
