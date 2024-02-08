@@ -142,21 +142,21 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
     """
 
     """
-    sample_filename = contacts_path.split("/")[-1]
+    sample_filename = contacts_path.split("/")[-1].split(".")[0]
     sample_id = sample_filename.split("_")[0]
 
     """
     Fragment import and correction of col names
     """
 
-    df_fragments = pd.read_csv(fragments_path, sep='\t')
+    df_fragments_raw = pd.read_csv(fragments_path, sep='\t')
     df_fragments = pd.DataFrame(
-        {'frag': [k for k in range(len(df_fragments))],
-         'chr': df_fragments['chrom'],
-         'start': df_fragments['start_pos'],
-         'end': df_fragments['end_pos'],
-         'size': df_fragments['size'],
-         'gc_content': df_fragments['gc_content']
+        {'frag': [k for k in range(len(df_fragments_raw))],
+         'chr': df_fragments_raw['chrom'],
+         'start': df_fragments_raw['start_pos'],
+         'end': df_fragments_raw['end_pos'],
+         'size': df_fragments_raw['size'],
+         'gc_content': df_fragments_raw['gc_content']
          }
     )
 
@@ -197,8 +197,8 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
     Contacts import and correction of col names
     """
 
-    df_contacts = pd.read_csv(contacts_path, sep='\t', header=None)
-    df_contacts.drop([0], inplace=True)
+    df_contacts_raw = pd.read_csv(contacts_path, sep='\t', header=None)
+    df_contacts = df_contacts_raw.drop([0])
     df_contacts.reset_index(drop=True, inplace=True)
     df_contacts.columns = ['frag_a', 'frag_b', 'contacts']
 
@@ -214,8 +214,30 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
     df_contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     df_contacts_filtered = df_contacts_joined.convert_dtypes().reset_index(drop=True)
 
-    output_path: str = os.path.join(output_dir, f"{sample_id}_filtered.tsv")
-    df_contacts_filtered.to_csv(output_path, sep='\t', index=False)
+    output_path_filtered: str = os.path.join(output_dir, f"{sample_id}_filtered.tsv")
+    df_contacts_filtered.to_csv(output_path_filtered, sep='\t', index=False)
+
+    """
+    Create a contacts file with the same format as the input file, but with the filtered contacts (no ssDNA)
+    """
+
+    # foi : fragments of interest
+    df_foi = pd.DataFrame(df_oligos['fragment'].unique(), columns=['fragments'])
+    df_contacts_hic_only = df_contacts_raw.copy(deep=True)
+
+    df_contacts_raw["index"] = df_contacts_raw.index
+    matches_a = pd.merge(df_contacts_raw, df_foi, left_on=0, right_on='fragments', how='inner', indicator=True)
+    matches_b = pd.merge(df_contacts_raw, df_foi, left_on=1, right_on='fragments', how='inner', indicator=True)
+    index_to_drop = np.unique(np.concatenate((matches_a['index'].to_numpy(), matches_b['index'].to_numpy())))
+
+    df_contacts_hic_only.drop(index_to_drop, inplace=True)
+
+    df_contacts_hic_only.iloc[0, 0] -= len(df_foi)
+    df_contacts_hic_only.iloc[0, 1] -= len(df_foi)
+    df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
+
+    output_path_hic_only: str = os.path.join(output_dir, f"{sample_filename}_no_probe.txt")
+    df_contacts_hic_only.to_csv(output_path_hic_only, sep='\t', index=False, header=False)
 
 
 def main(argv=None):
