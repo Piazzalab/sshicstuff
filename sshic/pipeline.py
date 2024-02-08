@@ -7,7 +7,6 @@ import pandas as pd
 from typing import List, Optional
 
 from core.filter import filter_contacts
-from core.probe2fragment import associate_probes_to_fragments
 from core.coverage import coverage
 from core.fragments import organize_contacts
 from core.statistics import get_stats, compare_to_wt
@@ -102,9 +101,6 @@ def pipeline(
     check_and_run(
         path_bundle.filtered_contacts_input, filter_contacts, oligos_path,
         fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir)
-
-    print(f"Associate the fragment name to probe where it is located \n")
-    associate_probes_to_fragments(fragments_list_path, oligos_path)
 
     print(f"Make the coverage \n")
     check_and_run(
