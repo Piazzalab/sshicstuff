@@ -3,7 +3,7 @@ import sys
 import argparse
 import pandas as pd
 import numpy as np
-from utils import frag2, find_nearest
+from utils import frag2
 
 
 def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
@@ -173,10 +173,13 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
         for index, row in df_oligos.iterrows():
             chr_, probe_start, probe_end, probe_type, probe, probe_seq = row
             df_sub_fragments = df_fragments[df_fragments['chr'] == chr_]
+            df_sub_fragment_sorted_start = np.sort(df_sub_fragments['start'].to_numpy())
+
             probe_middle = int(probe_start + (probe_end-probe_start)/2)
-            nearest_frag_start = find_nearest(
-                array=df_sub_fragments['start'], key=probe_middle, mode='lower'
-            )
+
+            idx = np.searchsorted(df_sub_fragment_sorted_start, probe_middle, side="left")
+            nearest_frag_start = df_sub_fragment_sorted_start[idx-1]
+
             frag_id = df_sub_fragments.index[df_sub_fragments['start'] == nearest_frag_start].tolist()[0]
             frag_start = df_sub_fragments.loc[frag_id, 'start']
             frag_end = df_sub_fragments.loc[frag_id, 'end']
