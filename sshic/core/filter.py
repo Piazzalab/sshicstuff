@@ -99,7 +99,8 @@ def first_join(x: str, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame) -
     return joined
 
 
-def second_join(x: str, fragments: pd.DataFrame, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame) -> pd.DataFrame:
+def second_join(
+        x: str, fragments: pd.DataFrame, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame) -> pd.DataFrame:
     """
     Add the fragments DataFrame information (=columns) for the y fragment after the first join
     (see first_join function). This is only for the y fragment, because the x fragments already have their
@@ -135,6 +136,7 @@ def second_join(x: str, fragments: pd.DataFrame, oligos_fragments: pd.DataFrame,
                            },
                   inplace=True)
     return joined
+
 
 def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, output_dir: str) -> None:
     """
@@ -211,6 +213,7 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
 
     output_path: str = os.path.join(output_dir, f"{sample_id}_filtered.tsv")
     df_contacts_filtered.to_csv(output_path, sep='\t', index=False)
+
 
 def main(argv=None):
     """
