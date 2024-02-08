@@ -23,9 +23,7 @@ def coverage(sshic_contacts_path: str, fragments_path: str, output_dir: str):
         Path to the output directory.
     """
 
-    sample_filename = sshic_contacts_path.split("/")[-1]
-    sample_id = sample_filename.split("_")[0]
-    output_path = os.path.join(output_dir, sample_id + f"_coverage_per_fragment")
+    sample_name = sshic_contacts_path.split("/")[-1].split(".")[0]
 
     df_fragments: pd.DataFrame = pd.read_csv(fragments_path, sep='\t')
     df_fragments.rename(columns={'chrom': 'chr', 'start_pos': 'start', 'end_pos': 'end'}, inplace=True)
@@ -61,8 +59,14 @@ def coverage(sshic_contacts_path: str, fragments_path: str, output_dir: str):
     df_frequencies_cov["contacts"] /= sum(df_frequencies_cov["contacts"])
     df_frequencies_cov.rename(columns={"contacts": "frequencies"})
 
-    df_contacts_cov.to_csv(output_path + "_contacts.bedgraph", sep='\t', index=False, header=False)
-    df_frequencies_cov.to_csv(output_path + "_frequencies.bedgraph", sep='\t', index=False, header=False)
+    output_dir = os.path.join(output_dir, "coverage")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    df_contacts_cov.to_csv(
+        os.path.join(output_dir, f"{sample_name}_coverage_contacts.bedgraph"), sep='\t', index=False, header=False)
+    df_frequencies_cov.to_csv(
+        os.path.join(output_dir, f"{sample_name}_coverage_frequencies.bedgraph"), sep='\t', index=False, header=False)
 
 
 def main(argv=None):
