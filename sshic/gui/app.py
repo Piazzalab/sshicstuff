@@ -6,8 +6,7 @@ from dash.dependencies import Input, Output
 
 # Import your page layouts here
 import home
-import data_viewer
-import gui_pipeline
+import uploader
 import probes_viewer
 
 # Create a Dash application instance:
@@ -24,11 +23,9 @@ app.layout = html.Div([
              children=[
                  dcc.Tab(label='Home', value='home',
                          className='custom-tab', selected_className='custom-tab-selected'),
-                 dcc.Tab(label='Data Viewer', value='data-viewer',
+                 dcc.Tab(label='File upload', value='file-upload',
                          className='custom-tab', selected_className='custom-tab-selected'),
-                 dcc.Tab(label='Pipeline', value='pipeline',
-                         className='custom-tab', selected_className='custom-tab-selected'),
-                 dcc.Tab(label='Probes Viewer', value='probes-viewer',
+                 dcc.Tab(label='Probes viewer', value='probes-viewer',
                          className='custom-tab', selected_className='custom-tab-selected')
              ]),
     html.Div(id='page-content'),
@@ -44,10 +41,8 @@ app.layout = html.Div([
 def display_page(value):
     if value == 'home':
         return home.layout
-    elif value == 'data-viewer':
-        return data_viewer.layout
-    elif value == 'pipeline':
-        return gui_pipeline.layout
+    elif value == 'file-upload':
+        return uploader.layout
     elif value == 'probes-viewer':
         return probes_viewer.layout
 
