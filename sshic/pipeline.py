@@ -83,7 +83,8 @@ def pipeline(
     centromeres_coordinates_path: str,
     binning_size_list: List[int],
     aggregate_params: AggregateParams,
-    additional_groups: Optional[str] = None
+    additional_groups: Optional[str] = None,
+    hic_only: Optional[bool] = False
 ):
     print(f" -- Sample {path_bundle.samp_name} -- \n")
 
@@ -100,11 +101,12 @@ def pipeline(
     print(f"Filter contacts \n")
     check_and_run(
         path_bundle.filtered_contacts_input, filter_contacts, oligos_path,
-        fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir)
+        fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir, hic_only)
 
     print(f"Make the coverages\n")
     coverage(path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
-    coverage(path_bundle.sample_sparse_no_probe_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
+    if hic_only:
+        coverage(path_bundle.sample_sparse_no_probe_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
     check_and_run(
@@ -262,6 +264,9 @@ if __name__ == "__main__":
     parser.add_argument('--excluded-chr', nargs='+', type=str, required=False,
                         help='list of chromosomes to excludes to prevent bias of contacts')
 
+    parser.add_argument('--hic-only', action='store_true', required=False,
+                        help="remove from sparse the fragment that contains oligo sshic position")
+
     parser.add_argument('--exclude-probe-chr', action='store_true', required=False,
                         help="exclude the chromosome where the probe comes from (oligo's chromosome)")
 
@@ -309,5 +314,5 @@ if __name__ == "__main__":
 
         sample_data = [
             sample_path_bundle, args.oligos_capture, args.fragments_list, args.chromosomes_arms_coordinates,
-            args.binning_sizes, sample_aggregate_params_centros, args.additional_groups]
+            args.binning_sizes, sample_aggregate_params_centros, args.additional_groups, args.hic_only]
         pipeline(*sample_data)
