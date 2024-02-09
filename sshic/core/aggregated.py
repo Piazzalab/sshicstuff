@@ -44,8 +44,9 @@ def aggregate(
     aggregated_dir = join(output_dir, on)
     dir_tables, dir_plots = (join(aggregated_dir, 'tables'), join(aggregated_dir, 'plots'))
     os.makedirs(aggregated_dir, exist_ok=True)
-    os.makedirs(dir_plots, exist_ok=True)
     os.makedirs(dir_tables, exist_ok=True)
+    if plot:
+        os.makedirs(dir_plots, exist_ok=True)
 
     df_centros: pd.DataFrame = pd.read_csv(centros_coord_path, sep='\t', index_col=None)
     df_arms_size: pd.DataFrame = pd.DataFrame(columns=["chr", "arm", "size", "category"])
