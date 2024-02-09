@@ -25,7 +25,7 @@ class PathBundle:
         self.sample_copy_inputs_dir = join(self.sample_outputs_dir, "inputs")
         self.not_weighted_dir = join(self.sample_outputs_dir, "not_weighted")
 
-        self.sample_sparse_no_probe_file_path = join(self.sample_outputs_dir, self.samp_name + "_no_probe.txt")
+        self.sample_sparse_no_probe_file_path = join(self.sample_outputs_dir, self.samp_name + "_hic.txt")
 
         os.makedirs(self.sample_outputs_dir, exist_ok=True)
         os.makedirs(self.sample_copy_inputs_dir, exist_ok=True)

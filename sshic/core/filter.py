@@ -235,7 +235,7 @@ def filter_contacts(oligos_path: str, fragments_path: str, contacts_path: str, o
     df_contacts_hic_only.iloc[0, 1] -= len(df_foi)
     df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
 
-    output_path_hic_only: str = os.path.join(output_dir, f"{sample_name}_no_probe.txt")
+    output_path_hic_only: str = os.path.join(output_dir, f"{sample_name}_hic.txt")
     df_contacts_hic_only.to_csv(output_path_hic_only, sep='\t', index=False, header=False)
 
 
