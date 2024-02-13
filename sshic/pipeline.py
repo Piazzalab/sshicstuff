@@ -8,11 +8,10 @@ from typing import List, Optional
 
 from core.filter import filter_contacts
 from core.coverage import coverage
-from core.fragments import organize_contacts
-from core.statistics import get_stats, compare_to_wt
-from core.binning import rebin_contacts
 from core.weight import weight_mutant
 from core.aggregated import aggregate
+from core.statistics import get_stats, compare_to_wt
+from core.binning import rebin_contacts, unbinned_contacts
 
 
 class PathBundle:
@@ -110,7 +109,7 @@ def pipeline(
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
     check_and_run(
-        path_bundle.unbinned_contacts_input, organize_contacts, path_bundle.filtered_contacts_input,
+        path_bundle.unbinned_contacts_input, unbinned_contacts, path_bundle.filtered_contacts_input,
         oligos_path, centromeres_coordinates_path, path_bundle.not_weighted_dir, additional_groups)
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
