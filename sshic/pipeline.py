@@ -62,11 +62,6 @@ class AggregateParams:
         self.excluded_chr_list = excluded_chr_list
 
 
-def check_and_run(output_path, func, *args):
-    if not os.path.exists(output_path):
-        func(*args)
-
-
 def copy_file(source_path, destination_path):
     try:
         shutil.copy(source_path, destination_path)
@@ -83,7 +78,7 @@ def pipeline(
     binning_size_list: List[int],
     aggregate_params: AggregateParams,
     additional_groups: Optional[str] = None,
-    hic_only: Optional[bool] = False
+    hic_only: Optional[bool] = False,
 ):
     print(f" -- Sample {path_bundle.samp_name} -- \n")
 
@@ -98,9 +93,8 @@ def pipeline(
     print("\n")
 
     print(f"Filter contacts \n")
-    check_and_run(
-        path_bundle.filtered_contacts_input, filter_contacts, oligos_path,
-        fragments_list_path, path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir, hic_only)
+    filter_contacts(oligos_path, fragments_list_path,
+                    path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir, hic_only)
 
     print(f"Make the coverages\n")
     coverage(path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
@@ -108,14 +102,12 @@ def pipeline(
         coverage(path_bundle.sample_sparse_no_probe_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
 
     print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
-    check_and_run(
-        path_bundle.unbinned_contacts_input, unbinned_contacts, path_bundle.filtered_contacts_input,
-        oligos_path, centromeres_coordinates_path, path_bundle.not_weighted_dir, additional_groups)
+    unbinned_contacts(path_bundle.filtered_contacts_input, oligos_path,
+                      centromeres_coordinates_path, path_bundle.not_weighted_dir, additional_groups)
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
-    check_and_run(
-        path_bundle.global_statistics_input, get_stats, path_bundle.unbinned_contacts_input,
-        path_bundle.sample_sparse_file_path, oligos_path, path_bundle.sample_outputs_dir)
+    get_stats(path_bundle.unbinned_contacts_input, path_bundle.sample_sparse_file_path,
+              centromeres_coordinates_path, oligos_path, path_bundle.sample_outputs_dir)
 
     for rp, rn, rd in zip(path_bundle.wt_references_path, path_bundle.wt_references_name, path_bundle.weighted_dirs):
         print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
@@ -213,6 +205,7 @@ if __name__ == "__main__":
     --aggregate-by-arm-lengths 
     --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial
     --exclude-probe-chr 
+    --resume
     """
 
     # default folders paths
@@ -268,6 +261,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--exclude-probe-chr', action='store_true', required=False,
                         help="exclude the chromosome where the probe comes from (oligo's chromosome)")
+
+    parser.add_argument('--resume', action='store_true', required=False,
+                        help="don't do a step if the output file already exists")
 
     args = parser.parse_args()
 
