@@ -49,11 +49,14 @@ def aggregate(
         os.makedirs(dir_plots, exist_ok=True)
 
     df_centros: pd.DataFrame = pd.read_csv(centros_coord_path, sep='\t', index_col=None)
+    chr_list = list(df_centros['chr'].unique())
     df_arms_size: pd.DataFrame = pd.DataFrame(columns=["chr", "arm", "size", "category"])
     for _, row in df_centros.iterrows():
         chr_ = row["chr"]
         if chr_ not in excluded_chr_list:
             left_, right_, category_ = row["left_arm_length"], row["right_arm_length"], row["category"]
+            if pd.isna(left_) or pd.isna(right_) or pd.isna(category_):
+                continue
             df_arms_size.loc[len(df_arms_size)] = chr_, "left", left_, category_.split("_")[0]
             df_arms_size.loc[len(df_arms_size)] = chr_, "right", right_, category_.split("_")[1]
     df_centros.drop(columns="category", inplace=True)
@@ -135,7 +138,7 @@ def aggregate(
     else:
         return
 
-    df_grouped = sort_by_chr(df_grouped, 'chr', 'chr_bins')
+    df_grouped = sort_by_chr(df_grouped, chr_list, 'chr', 'chr_bins')
     df_grouped['chr_bins'] = df_grouped['chr_bins'].astype('int64')
 
     df_aggregated_mean: pd.DataFrame = df_grouped.groupby(by="chr_bins", as_index=False).mean(numeric_only=True)

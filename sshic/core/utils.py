@@ -1,7 +1,9 @@
 import sys
-import os
+import re
 import numpy as np
 import pandas as pd
+
+from typing import List
 
 
 def is_debug() -> bool:
@@ -42,12 +44,14 @@ def frag2(x):
     return y
 
 
-def sort_by_chr(df: pd.DataFrame, *args: str):
+def sort_by_chr(df: pd.DataFrame, chr_list: List[str], *args: str):
+    # use re to identify chromosomes of the form "chrX" with X being a number
+    chr_with_number = [c for c in chr_list if re.match(r'chr\d+', c)]
+    chr_with_number.sort(key=lambda x: int(x[3:]))
+    chr_without_number = [c for c in chr_list if c not in chr_with_number]
+    chr_without_number.sort()
 
-    order = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7',
-             'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14',
-             'chr15', 'chr16', '2_micron', 'mitochondrion', 'chr_artificial']
-
+    order = chr_with_number + chr_without_number
     df['chr'] = df['chr'].apply(lambda x: order.index(x) if x in order else len(order))
 
     if args:
@@ -59,15 +63,6 @@ def sort_by_chr(df: pd.DataFrame, *args: str):
     df.index = range(len(df))
 
     return df
-
-
-def list_folders(directory_path):
-    folders = []
-    for item in os.listdir(directory_path):
-        item_path = os.path.join(directory_path, item)
-        if os.path.isdir(item_path):
-            folders.append(item)
-    return folders
 
 
 def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: dict):

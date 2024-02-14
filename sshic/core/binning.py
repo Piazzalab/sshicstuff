@@ -37,11 +37,10 @@ def rebin_contacts(
         oligos_path: str, bin_size: int, output_dir: str, additional_path: Optional[str] = None
 ):
 
-    sample_name = os.path.basename(contacts_unbinned_path).split("_")[0]
     bin_suffix = f'{bin_size // 1000}kb'
-
     df_binned_template = build_bins_from_genome(chromosomes_coord_path, bin_size)
 
+    chr_list = list(df_binned_template['chr'].unique())
     df_unbinned = pd.read_csv(contacts_unbinned_path, sep='\t')
     df_unbinned["end"] = df_unbinned["start"] + df_unbinned["sizes"]
     df_unbinned.drop(columns=["genome_start"], inplace=True)
@@ -78,7 +77,7 @@ def rebin_contacts(
     df_binned_contacts.drop(columns=["start_bin", "end_bin"], inplace=True)
 
     df_binned_contacts = df_binned_contacts.groupby(["chr", "chr_bins"]).sum().reset_index()
-    df_binned_contacts = sort_by_chr(df_binned_contacts, 'chr_bins')
+    df_binned_contacts = sort_by_chr(df_binned_contacts, chr_list, 'chr_bins')
     df_binned_contacts = pd.merge(df_binned_template, df_binned_contacts,  on=['chr', 'chr_bins'], how='left')
     df_binned_contacts.drop(columns=["start", "end", "sizes"], inplace=True)
     df_binned_contacts.fillna(0, inplace=True)
@@ -119,9 +118,8 @@ def unbinned_contacts(
         Path to a csv file that contains groups of probes to sum, average etc ...
     """
 
-    sample_name = filtered_contacts_path.split("/")[-1].split(".")[0]
-
     df_chr_len: pd.DataFrame = pd.read_csv(chromosomes_coord_path, sep='\t', index_col=None)
+    chr_list = list(df_chr_len['chr'].unique())
     df_chr_len = df_chr_len[["chr", "length"]]
     df_chr_len["length"] = df_chr_len["length"].shift().fillna(0).astype("int64")
     df_chr_len["cumusum"] = df_chr_len["length"].cumsum()
@@ -158,7 +156,7 @@ def unbinned_contacts(
 
     group = df_contacts.groupby(by=['chr', 'start', 'sizes'], as_index=False)
     df_contacts: pd.DataFrame = group.sum()
-    df_contacts = sort_by_chr(df_contacts, 'chr', 'start')
+    df_contacts = sort_by_chr(df_contacts, chr_list, 'chr', 'start')
     df_contacts.index = range(len(df_contacts))
 
     for probe, frag in zip(probes, fragments):
