@@ -79,15 +79,15 @@ def aggregate(
         df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr_list)]
         df_centros = df_centros[~df_centros['chr'].isin(excluded_chr_list)]
 
-    if exclude_probe_chr is not None:
+    if exclude_probe_chr:
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
         for frag in unique_fragments:
             ii_frag = df_probes.loc[df_probes["fragment"] == int(frag)].index[0]
-            probe_chr = df_probes.loc[ii_frag, 'chr']
-            if probe_chr not in excluded_chr_list:
-                df_contacts.loc[df_contacts['chr'] == probe_chr, frag] = np.nan
+            probe_chr_ori = df_probes.loc[ii_frag, 'chr_ori']
+            if probe_chr_ori not in excluded_chr_list:
+                df_contacts.loc[df_contacts['chr'] == probe_chr_ori, frag] = np.nan
 
     if inter_normalization:
         norm_suffix = "inter"

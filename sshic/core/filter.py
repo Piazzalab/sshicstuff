@@ -185,9 +185,9 @@ def filter_contacts(
             fragments_start.append(frag_start)
             fragments_end.append(frag_end)
 
-        df_oligos.insert(5, "fragment", np.array(fragments_id))
-        df_oligos.insert(6, "fragment_start", np.array(fragments_start))
-        df_oligos.insert(7, "fragment_end", np.array(fragments_end))
+        df_oligos.insert(8, "fragment", np.array(fragments_id))
+        df_oligos.insert(9, "fragment_start", np.array(fragments_start))
+        df_oligos.insert(10, "fragment_end", np.array(fragments_end))
 
     df_oligos.to_csv(oligos_path, sep=",", index=False)
 

@@ -93,8 +93,9 @@ def pipeline(
     print("\n")
 
     print(f"Filter contacts \n")
-    filter_contacts(oligos_path, fragments_list_path,
-                    path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir, hic_only)
+    if not os.path.exists(path_bundle.filtered_contacts_input):
+        filter_contacts(oligos_path, fragments_list_path,
+                        path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir, hic_only)
 
     print(f"Make the coverages\n")
     coverage(path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
@@ -191,21 +192,20 @@ def check_nan(str_):
 if __name__ == "__main__":
     #   Example command to enter for parameters (parse)
     """
-    --samplesheet ../data/inputs/samplesheet.csv
-    --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    --outputs-dir ../data/outputs
-    --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates.tsv 
-    --oligos-capture ../data/inputs/capture_oligo_positions_v2.csv
-    --additional-groups ../data/inputs/additional_probe_groups.tsv
-    --binning-sizes 1000 2000 5000 10000 20000 40000 50000 80000 100000
-    --centromeres-aggregated-window-size 150000  
-    --telomeres-aggregated-window-size 15000
-    --centromeres-aggregated-binning 10000
-    --telomeres-aggregated-binning 1000
-    --aggregate-by-arm-lengths 
-    --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial
-    --exclude-probe-chr 
-    --resume
+    --samplesheet ../data/inputs/samplesheet.csv     
+    --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_v7_DpnIIHinfI.txt     
+    --outputs-dir ../data/outputs     
+    --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v7.tsv     
+    --oligos-capture ../data/inputs/capture_oligo_positions_v7.csv     
+    --additional-groups ../data/inputs/additional_probe_groups.tsv     
+    --binning-sizes 1000 2000 5000 10000 20000 40000 50000 80000 100000     
+    --centromeres-aggregated-window-size 150000       
+    --telomeres-aggregated-window-size 15000     
+    --centromeres-aggregated-binning 10000     
+    --telomeres-aggregated-binning 1000     
+    --aggregate-by-arm-lengths      
+    --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial_donor chr_artificial_ssDNA     
+    --exclude-probe-chr
     """
 
     # default folders paths
