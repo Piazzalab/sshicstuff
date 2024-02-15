@@ -142,13 +142,9 @@ def get_stats(
         df_chr_nrm[chr_id] = chr_contacts_nrm[chr_id]
         df_chr_inter_only_nrm[chr_id] = chr_inter_only_contacts_nrm[chr_id]
 
-    df_stats.sort_values(by="fragment", ascending=True, inplace=True)
-    df_chr_nrm.sort_values(by="fragment", ascending=True, inplace=True)
-    df_chr_inter_only_nrm.sort_values(by="fragment", ascending=True, inplace=True)
-
-    df_stats.to_csv(os.path.join(output_dir, 'contacts_statistics.tsv'), sep='\t')
-    df_chr_nrm.to_csv(os.path.join(output_dir, 'normalized_chr_freq.tsv'), sep='\t')
-    df_chr_inter_only_nrm.to_csv(os.path.join(output_dir, 'normalized_inter_chr_freq.tsv'), sep='\t')
+    df_stats.to_csv(os.path.join(output_dir, 'contacts_statistics.tsv'), sep='\t', index=False)
+    df_chr_nrm.to_csv(os.path.join(output_dir, 'normalized_chr_freq.tsv'), sep='\t', index=False)
+    df_chr_inter_only_nrm.to_csv(os.path.join(output_dir, 'normalized_inter_chr_freq.tsv'), sep='\t', index=False)
 
 
 def compare_to_wt(statistics_path: str, reference_path: str, wt_ref_name: str):
