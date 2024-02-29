@@ -163,32 +163,29 @@ def filter_contacts(
     """
 
     df_oligos = pd.read_csv(oligos_path, sep=",")
-    if "fragment" not in df_oligos.columns:
-        fragments_id = []
-        fragments_start = []
-        fragments_end = []
+    fragments_id = []
+    fragments_start = []
+    fragments_end = []
+    for index, row in df_oligos.iterrows():
+        chr_, probe_start, probe_end, probe_chr_ori, probe_start_ori, probe_end_ori, probe_type, probe, probe_seq = row
+        df_sub_fragments = df_fragments[df_fragments['chr'] == chr_]
+        df_sub_fragment_sorted_start = np.sort(df_sub_fragments['start'].to_numpy())
 
-        for index, row in df_oligos.iterrows():
-            chr_, probe_start, probe_end, probe_type, probe, probe_seq = row
-            df_sub_fragments = df_fragments[df_fragments['chr'] == chr_]
-            df_sub_fragment_sorted_start = np.sort(df_sub_fragments['start'].to_numpy())
+        probe_middle = int(probe_start + (probe_end-probe_start)/2)
 
-            probe_middle = int(probe_start + (probe_end-probe_start)/2)
+        idx = np.searchsorted(df_sub_fragment_sorted_start, probe_middle, side="left")
+        nearest_frag_start = df_sub_fragment_sorted_start[idx-1]
 
-            idx = np.searchsorted(df_sub_fragment_sorted_start, probe_middle, side="left")
-            nearest_frag_start = df_sub_fragment_sorted_start[idx-1]
+        frag_id = df_sub_fragments.index[df_sub_fragments['start'] == nearest_frag_start].tolist()[0]
+        frag_start = df_sub_fragments.loc[frag_id, 'start']
+        frag_end = df_sub_fragments.loc[frag_id, 'end']
+        fragments_id.append(frag_id)
+        fragments_start.append(frag_start)
+        fragments_end.append(frag_end)
 
-            frag_id = df_sub_fragments.index[df_sub_fragments['start'] == nearest_frag_start].tolist()[0]
-            frag_start = df_sub_fragments.loc[frag_id, 'start']
-            frag_end = df_sub_fragments.loc[frag_id, 'end']
-            fragments_id.append(frag_id)
-            fragments_start.append(frag_start)
-            fragments_end.append(frag_end)
-
-        df_oligos.insert(8, "fragment", np.array(fragments_id))
-        df_oligos.insert(9, "fragment_start", np.array(fragments_start))
-        df_oligos.insert(10, "fragment_end", np.array(fragments_end))
-
+    df_oligos['fragment'] = fragments_id
+    df_oligos['fragment_start'] = fragments_start
+    df_oligos['fragment_end'] = fragments_end
     df_oligos.to_csv(oligos_path, sep=",", index=False)
 
     """
