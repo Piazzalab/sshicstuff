@@ -167,7 +167,8 @@ def filter_contacts(
     fragments_start = []
     fragments_end = []
     for index, row in df_oligos.iterrows():
-        chr_, probe_start, probe_end, probe_chr_ori, probe_start_ori, probe_end_ori, probe_type, probe, probe_seq = row
+        (chr_, probe_start, probe_end, probe_chr_ori, probe_start_ori,
+         probe_end_ori, probe_type, probe, probe_seq) = row[:9]
         df_sub_fragments = df_fragments[df_fragments['chr'] == chr_]
         df_sub_fragment_sorted_start = np.sort(df_sub_fragments['start'].to_numpy())
 
