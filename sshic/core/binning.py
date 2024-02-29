@@ -33,8 +33,12 @@ def build_bins_from_genome(path_to_chr_coord: str, bin_size: int):
 
 
 def rebin_contacts(
-        contacts_unbinned_path: str, chromosomes_coord_path: str,
-        oligos_path: str, bin_size: int, output_dir: str, additional_path: Optional[str] = None
+        contacts_unbinned_path: str,
+        chromosomes_coord_path: str,
+        oligos_path: str,
+        bin_size: int,
+        output_dir: str,
+        additional_path: Optional[str] = None
 ):
 
     bin_suffix = f'{bin_size // 1000}kb'
@@ -99,8 +103,11 @@ def rebin_contacts(
 
 
 def unbinned_contacts(
-        filtered_contacts_path: str, oligos_path: str, chromosomes_coord_path: str,
-        output_dir: str, additional_path: Optional[str] = None
+        filtered_contacts_path: str,
+        oligos_path: str,
+        chromosomes_coord_path: str,
+        output_dir: str,
+        additional_path: Optional[str] = None
 ):
     """
     Organize the contacts made by each probe with the genome and save the results as two .tsv files:
@@ -123,7 +130,7 @@ def unbinned_contacts(
     df_chr_len: pd.DataFrame = pd.read_csv(chromosomes_coord_path, sep='\t', index_col=None)
     chr_list = list(df_chr_len['chr'].unique())
     df_chr_len = df_chr_len[["chr", "length"]]
-    df_chr_len["length"] = df_chr_len["length"].shift().fillna(0).astype("int64")
+    df_chr_len["length"] = df_chr_len["length"].fillna(0).astype("int64")
     df_chr_len["cumusum"] = df_chr_len["length"].cumsum()
 
     df_probes: pd.DataFrame = pd.read_csv(oligos_path, sep=',')
