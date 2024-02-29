@@ -193,10 +193,10 @@ if __name__ == "__main__":
     #   Example command to enter for parameters (parse)
     """
     --samplesheet ../data/inputs/samplesheet.csv     
-    --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_v7_DpnIIHinfI.txt     
     --outputs-dir ../data/outputs     
-    --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v7.tsv     
-    --oligos-capture ../data/inputs/capture_oligo_positions_v7.csv     
+    --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_v8_DpnIIHinfI.txt     
+    --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v8.tsv     
+    --oligos-capture ../data/inputs/capture_oligo_positions_v8.csv     
     --additional-groups ../data/inputs/additional_probe_groups.tsv     
     --binning-sizes 1000 2000 5000 10000 20000 40000 50000 80000 100000     
     --centromeres-aggregated-window-size 150000       

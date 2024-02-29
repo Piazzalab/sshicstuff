@@ -84,7 +84,9 @@ def rebin_contacts(
 
     df_binned_freq: pd.DataFrame = df_binned_contacts.copy(deep=True)
     for frag in fragments:
-        df_binned_freq[frag] /= sum(df_binned_freq[frag])
+        frag_sum = df_binned_freq[frag].sum()
+        if frag_sum > 0:
+            df_binned_freq[frag] /= frag_sum
 
     if additional_path:
         probes_to_fragments = dict(zip(probes, fragments))
@@ -171,7 +173,9 @@ def unbinned_contacts(
 
     df_frequencies = df_contacts.copy(deep=True)
     for frag in fragments:
-        df_frequencies[frag] /= sum(df_frequencies[frag])
+        frag_sum = df_frequencies[frag].sum()
+        if frag_sum > 0:
+            df_frequencies[frag] /= frag_sum
 
     if additional_path:
         df_additional: pd.DataFrame = pd.read_csv(additional_path, sep='\t')
