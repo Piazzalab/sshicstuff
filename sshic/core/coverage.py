@@ -27,7 +27,8 @@ def coverage(sshic_contacts_path: str, fragments_path: str, output_dir: str):
 
     df_fragments: pd.DataFrame = pd.read_csv(fragments_path, sep='\t')
     df_fragments.rename(columns={'chrom': 'chr', 'start_pos': 'start', 'end_pos': 'end'}, inplace=True)
-    df_fragments['id'] = df_fragments.index.values
+    df_fragments['id'] = list(range(1, len(df_fragments) + 1))
+
     df_hic_contacts: pd.DataFrame = pd.read_csv(
         sshic_contacts_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
 

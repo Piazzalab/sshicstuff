@@ -149,7 +149,7 @@ def filter_contacts(
 
     df_fragments_raw = pd.read_csv(fragments_path, sep='\t')
     df_fragments = pd.DataFrame(
-        {'frag': [k for k in range(len(df_fragments_raw))],
+        {'frag': [k for k in range(1, len(df_fragments_raw) + 1)],
          'chr': df_fragments_raw['chrom'],
          'start': df_fragments_raw['start_pos'],
          'end': df_fragments_raw['end_pos'],
