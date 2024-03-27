@@ -137,11 +137,13 @@ def second_join(
 
 
 def filter_contacts(
-        oligos_path: str, fragments_path: str, contacts_path: str, output_dir: str, hic_only: bool = False) -> None:
-    """
-
-    """
-    sample_name = contacts_path.split("/")[-1].split(".")[0]
+        sample_name: str,
+        oligos_path: str,
+        fragments_path: str,
+        contacts_path: str,
+        output_dir: str,
+        hic_only: bool = False
+) -> None:
 
     """
     Fragment import and correction of col names
@@ -210,7 +212,7 @@ def filter_contacts(
     df_contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     df_contacts_filtered = df_contacts_joined.convert_dtypes().reset_index(drop=True)
 
-    output_path_filtered: str = os.path.join(output_dir, "contacts_filtered.tsv")
+    output_path_filtered: str = os.path.join(output_dir, f"{sample_name}_contacts_filtered.tsv")
     df_contacts_filtered.to_csv(output_path_filtered, sep='\t', index=False)
 
     """

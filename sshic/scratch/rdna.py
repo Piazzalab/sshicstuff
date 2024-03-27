@@ -50,7 +50,7 @@ def main(
 if __name__ == "__main__":
     data_dir = os.path.dirname(os.getcwd()) + '/data/'
     sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
-    weighting_mode = ['not_weighted', 'weighted']
+    weighting_mode = ['classic', 'weighted']
 
     outputs_dir = data_dir + 'outputs/'
     inputs_dir = data_dir + 'inputs/'
@@ -83,9 +83,9 @@ if __name__ == "__main__":
             output_dir = ''
             samples_dir = ''
             samples = []
-            if weight == 'not_weighted':
+            if weight == 'classic':
                 print('not weighted contacts')
-                output_dir = rdna_dir+'not_weighted/'+sshic_dir
+                output_dir = rdna_dir+'classic/'+sshic_dir
                 samples_dir = binning_dir + sshic_dir + '1kb/'
                 samples = sorted([f for f in os.listdir(samples_dir) if 'frequencies' in f])
 
