@@ -98,12 +98,12 @@ def rebin_contacts(
         make_groups_of_probes(df_additional, df_binned_contacts, probes_to_fragments)
         make_groups_of_probes(df_additional, df_binned_freq, probes_to_fragments)
 
-    output_path = os.path.join(output_dir, f'{sample_name}_{bin_suffix}_binned')
+    output_path = os.path.join(output_dir, f'{sample_name}_{bin_suffix}_profile')
     df_binned_contacts.to_csv(f'{output_path}_contacts.tsv', sep='\t', index=False)
     df_binned_freq.to_csv(f'{output_path}_frequencies.tsv', sep='\t', index=False)
 
 
-def unbinned_contacts(
+def profile_contacts(
         sample_name: str,
         filtered_contacts_path: str,
         oligos_path: str,
@@ -193,5 +193,5 @@ def unbinned_contacts(
         make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
     #   Write into .tsv file contacts as there are and in the form of frequencies :
-    df_contacts.to_csv(os.path.join(output_dir, f"{sample_name}_unbinned_contacts.tsv"), sep='\t', index=False)
-    df_frequencies.to_csv(os.path.join(output_dir, f"{sample_name}_unbinned_frequencies.tsv"), sep='\t', index=False)
+    df_contacts.to_csv(os.path.join(output_dir, f"{sample_name}_profile_contacts.tsv"), sep='\t', index=False)
+    df_frequencies.to_csv(os.path.join(output_dir, f"{sample_name}_profile_frequencies.tsv"), sep='\t', index=False)

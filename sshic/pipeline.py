@@ -11,7 +11,7 @@ from core.coverage import coverage
 from core.weight import weight_mutant
 from core.aggregated import aggregate
 from core.statistics import get_stats, compare_to_wt
-from core.binning import rebin_contacts, unbinned_contacts
+from core.binning import rebin_contacts, profile_contacts
 
 
 class PathBundle:
@@ -31,8 +31,8 @@ class PathBundle:
         os.makedirs(self.classic_dir, exist_ok=True)
 
         self.filtered_contacts_input = join(self.sample_outputs_dir, f"{self.samp_name}_contacts_filtered.tsv")
-        self.unbinned_contacts_input = join(self.classic_dir, f"{self.samp_name}_unbinned_contacts.tsv")
-        self.unbinned_frequencies_input = join(self.classic_dir, f"{self.samp_name}_unbinned_frequencies.tsv")
+        self.unbinned_contacts_input = join(self.classic_dir, f"{self.samp_name}_profile_contacts.tsv")
+        self.unbinned_frequencies_input = join(self.classic_dir, f"{self.samp_name}_profile_frequencies.tsv")
         self.global_statistics_input = join(self.sample_outputs_dir, f"{self.samp_name}_contacts_statistics.tsv")
 
         self.wt_references_path = []
@@ -102,8 +102,8 @@ def pipeline(
     if hic_only:
         coverage(path_bundle.sample_sparse_no_probe_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
 
-    print(f"Organize the contacts between probe fragments and the rest of the genome 'unbinned tables' \n")
-    unbinned_contacts(path_bundle.samp_name, path_bundle.filtered_contacts_input, oligos_path,
+    print(f"Organize the contacts between probe fragments and the rest of the genome \n")
+    profile_contacts(path_bundle.samp_name, path_bundle.filtered_contacts_input, oligos_path,
                       centromeres_coordinates_path, path_bundle.classic_dir, additional_groups)
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
@@ -120,10 +120,9 @@ def pipeline(
 
         print(f"Weight the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
         weight_mutant(
-            sample_name=path_bundle.samp_name,
             statistics_path=path_bundle.global_statistics_input, wt_ref_name=rn,
             contacts_path=path_bundle.unbinned_contacts_input, frequencies_path=path_bundle.unbinned_frequencies_input,
-            binned_type="unbinned", output_dir=rd, additional_path=additional_groups)
+            output_dir=rd, additional_path=additional_groups)
 
     print(f"Rebin and weight the unbinned tables (contacts and frequencies) at : \n")
     for bn in binning_size_list:
@@ -136,18 +135,16 @@ def pipeline(
             output_dir=path_bundle.classic_dir, additional_path=additional_groups)
 
         binned_contacts_input = join(path_bundle.classic_dir,
-                                     f"{path_bundle.samp_name}_{bin_suffix}_binned_contacts.tsv")
+                                     f"{path_bundle.samp_name}_{bin_suffix}_profile_contacts.tsv")
 
         binned_frequencies_input = join(path_bundle.classic_dir,
-                                        f"{path_bundle.samp_name}_{bin_suffix}_binned_frequencies.tsv")
+                                        f"{path_bundle.samp_name}_{bin_suffix}_profile_frequencies.tsv")
 
         for rn, rd in zip(path_bundle.wt_references_name, path_bundle.weighted_dirs):
             weight_mutant(
-                sample_name=path_bundle.samp_name,
                 statistics_path=path_bundle.global_statistics_input, wt_ref_name=rn,
                 contacts_path=binned_contacts_input, frequencies_path=binned_frequencies_input,
-                binned_type=f"{bin_suffix}_binned", output_dir=rd,
-                additional_path=additional_groups)
+                output_dir=rd, additional_path=additional_groups)
 
     print("\n")
 
@@ -161,15 +158,15 @@ def pipeline(
         if region == "centromeres":
             binning_suffix = str(aggregate_params.binning_centromeres // 1000) + "kb"
             if "classic" in weight_dir:
-                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_binned_contacts.tsv")
+                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_profile_contacts.tsv")
             else:
-                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_binned_{weight_suffix}_contacts.tsv")
+                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_profile_{weight_suffix}_contacts.tsv")
         elif region == "telomeres":
             binning_suffix = str(aggregate_params.binning_telomeres // 1000) + "kb"
             if "classic" in weight_dir:
-                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_binned_contacts.tsv")
+                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_profile_contacts.tsv")
             else:
-                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_binned_{weight_suffix}_contacts.tsv")
+                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_profile_{weight_suffix}_contacts.tsv")
         else:
             continue
 

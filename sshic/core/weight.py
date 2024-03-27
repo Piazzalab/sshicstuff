@@ -7,12 +7,10 @@ from utils import make_groups_of_probes
 
 
 def weight_mutant(
-        sample_name: str,
         statistics_path: str,
         wt_ref_name: str,
         contacts_path: str,
         frequencies_path: str,
-        binned_type: str,
         output_dir: str,
         additional_path: Optional[str] = None
 ):
@@ -28,6 +26,8 @@ def weight_mutant(
     ________________
 
     """
+
+    file_prefix = contacts_path.split("/")[-1].split("_contacts")[0]
 
     df_stats: pd.DataFrame = pd.read_csv(statistics_path, header=0, sep="\t", index_col=0)
     df_stats["fragment"] = df_stats["fragment"].astype(str)
@@ -57,6 +57,6 @@ def weight_mutant(
         make_groups_of_probes(df_additional, df_contacts, probes_to_fragments)
         make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
-    output_path = os.path.join(output_dir, f"{sample_name}_{binned_type}_vs_{wt_ref_name}")
+    output_path = os.path.join(output_dir, f"{file_prefix}_vs_{wt_ref_name}")
     df_contacts.to_csv(f"{output_path}_contacts.tsv", sep='\t', index=False)
     df_frequencies.to_csv(f"{output_path}_frequencies.tsv", sep='\t', index=False)
