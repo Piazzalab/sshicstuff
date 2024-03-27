@@ -13,6 +13,13 @@ from core.aggregated import aggregate
 from core.statistics import get_stats, compare_to_wt
 from core.binning import rebin_contacts, profile_contacts
 
+def copy_file(source_path, destination_path):
+    try:
+        shutil.copy(source_path, destination_path)
+        print(f"File {source_path.split('/')[-1]} copied successfully.")
+    except IOError as e:
+        print(f"Unable to copy file. Error: {e}")
+
 
 class PathBundle:
     def __init__(self, sample_sparse_file_path: str, outputs_dir: str, reference_path_list: List[str] = None, ):
@@ -60,14 +67,6 @@ class AggregateParams:
         self.aggregate_by_arm_lengths = aggregate_by_arm_lengths
         self.excluded_probe_chr = excluded_probe_chr
         self.excluded_chr_list = excluded_chr_list
-
-
-def copy_file(source_path, destination_path):
-    try:
-        shutil.copy(source_path, destination_path)
-        print(f"File {source_path.split('/')[-1]} copied successfully.")
-    except IOError as e:
-        print(f"Unable to copy file. Error: {e}")
 
 
 def pipeline(
@@ -154,22 +153,16 @@ def pipeline(
 
     param_combinations = list(itertools.product(regions, weights_dir, normalization))
     for region, weight_dir, is_normalized in param_combinations:
-        weight_suffix = weight_dir.split("/")[-1]
+        weight_suffix = "_" + weight_dir.split("/")[-1] if "vs" in weight_dir else ""
         if region == "centromeres":
             binning_suffix = str(aggregate_params.binning_centromeres // 1000) + "kb"
-            if "classic" in weight_dir:
-                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_profile_contacts.tsv")
-            else:
-                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_profile_{weight_suffix}_contacts.tsv")
         elif region == "telomeres":
             binning_suffix = str(aggregate_params.binning_telomeres // 1000) + "kb"
-            if "classic" in weight_dir:
-                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_profile_contacts.tsv")
-            else:
-                binned_contacts_path = join(weight_dir, f"{path_bundle.samp_name}_{binning_suffix}_profile_{weight_suffix}_contacts.tsv")
         else:
             continue
 
+        full_name = f"{path_bundle.samp_name}_{binning_suffix}_profile{weight_suffix}_contacts.tsv"
+        binned_contacts_path = join(weight_dir, full_name)
         output_dir = weight_dir
         ws = aggregate_params.window_size_centromeres \
             if region == "centromeres" else aggregate_params.window_size_telomeres
