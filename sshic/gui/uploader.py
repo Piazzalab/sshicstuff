@@ -85,7 +85,6 @@ layout = dbc.Container([
                 multiple=True,
             ),
         ], width=7, style={'margin-top': '0px', 'margin-bottom': '25px'}),
-
     ]),
 ])
 

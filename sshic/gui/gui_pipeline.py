@@ -626,7 +626,7 @@ def fragment_contacts(n_clicks, sample_output_dir, sample_id, oligos_file, chr_c
     if sample_id is None:
         return 0, "You need to select a sample first"
 
-    output_dir = join(sample_output_dir, 'not_weighted')
+    output_dir = join(sample_output_dir, 'classic')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -710,10 +710,10 @@ def make_rebin(n_clicks, bins_list, sample_output_dir, sample_id, oligos_file, c
     if len(bins_list) == 0:
         return 0, "Select at least one bin size (in kb)"
 
-    unbinned_contacts = join(sample_output_dir, 'not_weighted', f"{sample_id}_unbinned_contacts.tsv")
+    unbinned_contacts = join(sample_output_dir, 'classic', f"{sample_id}_unbinned_contacts.tsv")
     if not os.path.exists(unbinned_contacts):
         return 0, "You need to create fragment contacts tables (unbinned) first"
-    output_dir = join(sample_output_dir, 'not_weighted')
+    output_dir = join(sample_output_dir, 'classic')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -748,7 +748,7 @@ def make_statistics(n_clicks, sample_output_dir, sample_id, sample_path, oligos_
 
     output_dir = sample_output_dir
     sparse_matrix = sample_path
-    unbinned_contacts = join(output_dir, 'not_weighted', f"{sample_id}_unbinned_contacts.tsv")
+    unbinned_contacts = join(output_dir, 'classic', f"{sample_id}_unbinned_contacts.tsv")
 
     global_stats = join(output_dir, f"{sample_id}_global_statistics.tsv")
 
@@ -785,12 +785,12 @@ def make_statistics(n_clicks, sample_output_dir, sample_id, reference, groups_fi
     global_stats = join(sample_output_dir, f"{sample_id}_global_statistics.tsv")
     ref_name = reference.split('/')[-1].split('.')[0]
 
-    not_weighted_dir = join(sample_output_dir, 'not_weighted')
-    weighted_dir = join(sample_output_dir, f'weighted_{ref_name}')
-    binned_contacts_list = [f for f in os.listdir(not_weighted_dir) if '_binned_contacts' in f]
-    binned_frequencies_list = [f for f in os.listdir(not_weighted_dir) if '_binned_frequencies' in f]
-    unbinned_contacts = join(not_weighted_dir, f"{sample_id}_unbinned_contacts.tsv")
-    unbinned_frequencies = join(not_weighted_dir, f"{sample_id}_unbinned_frequencies.tsv")
+    classic_dir = join(sample_output_dir, 'classic')
+    weighted_dir = join(sample_output_dir, f'vs_{ref_name}')
+    binned_contacts_list = [f for f in os.listdir(classic_dir) if '_binned_contacts' in f]
+    binned_frequencies_list = [f for f in os.listdir(classic_dir) if '_binned_frequencies' in f]
+    unbinned_contacts = join(classic_dir, f"{sample_id}_unbinned_contacts.tsv")
+    unbinned_frequencies = join(classic_dir, f"{sample_id}_unbinned_frequencies.tsv")
 
     if n_clicks == 1:
         if not os.path.exists(weighted_dir):
@@ -803,7 +803,7 @@ def make_statistics(n_clicks, sample_output_dir, sample_id, reference, groups_fi
         for binned_c, binned_f in zip(binned_contacts_list, binned_frequencies_list):
             bin_suffix = re.search(r'(\d+)kb', binned_c).group(1) + 'kb'
             core.weight.weight_mutant(
-                global_stats, ref_name, join(not_weighted_dir, binned_c), join(not_weighted_dir, binned_f),
+                global_stats, ref_name, join(classic_dir, binned_c), join(classic_dir, binned_f),
                 f"{bin_suffix}_binned", weighted_dir, groups_file)
 
         return 0, "Weighted files created successfully"
