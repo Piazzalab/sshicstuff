@@ -115,26 +115,24 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            dcc.Dropdown(
-                id='pv-samples-dropdown',
-                options=[],
-                value=[],
-                placeholder="Select samples",
-                multi=True
-            )
-        ], width=10, style={'margin-top': '10px', 'margin-bottom': '20px'})
-    ]),
+            dcc.Input(id='pv-number-probes', type='number', value=2, step='1',
+                      placeholder='How many cards :',
+                      style={
+                          'width': '100%',
+                          'border': '1px solid #ccc',
+                          'border-radius': '4px',
+                          'padding': '5px',
+                          'font-size': '16px',
+                          'background-color': '#fff',
+                          'color': '#333'
+                      }),
+        ], width=3, style={'margin-top': '10px', 'margin-bottom': '20px'}),
 
-    dbc.Row([
         dbc.Col([
             dcc.Dropdown(id='pv-oligo-dropdown',
                          placeholder="Select capture oligos file",
                          multi=False),
-        ], width=10, style={'margin-top': '10px', 'margin-bottom': '20px'}),
-    ]),
-
-    dbc.Row([
-        html.Div(id='pv-probes-dropdown', children=[], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+        ], width=9, style={'margin-top': '10px', 'margin-bottom': '20px'}),
     ]),
 
     dbc.Row([
@@ -164,30 +162,22 @@ layout = dbc.Container([
             )
         ], width=2, style={'margin-top': '15px', 'margin-bottom': '10px', 'margin-left': '0px'}),
 
-        dbc.Col([
-            dcc.Checklist(
-                id="pv-same-graph",
-                options=[{"label": "Single graph", "value": "single"}],
-                value=[],
-                inline=True,
-                className='custom-checkbox-label',
-                labelStyle={"margin": "5px"}
-            )
-        ], width=2, style={'margin-top': '15px', 'margin-bottom': '10px', 'margin-left': '-50px'}),
 
         dbc.Col([
             html.Button(id="pv-plot-buttom", className="plot-button", children="Plot"),
         ], width=2, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '0px'}),
 
+
+
         dcc.Store(id='pv-stored-graphs-axis-range', data={}),
+        html.Div(id='pv-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
         html.Div(id='pv-graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
     ]),
 ])
 
 
 @callback(
-    [Output("pv-samples-dropdown", "options"),
-     Output("pv-oligo-dropdown", "options"),
+    [Output("pv-oligo-dropdown", "options"),
      Output("pv-clear-list", "n_clicks")],
     [Input("pv-upload-files", "filename"),
      Input("pv-upload-files", "contents"),
@@ -207,12 +197,12 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
 
     n_clicks = 0
     if len(files) == 0:
-        return files, files, n_clicks
+        return files,  n_clicks
     else:
         options = []
         for filename in files:
             options.append({'label': filename, 'value': os.path.join(TEMPORARY_DIRECTORY, filename)})
-        return options, options,  n_clicks
+        return options, n_clicks
 
 
 def update_table(file_path, delim):
@@ -225,480 +215,138 @@ def update_table(file_path, delim):
 
 
 @callback(
-    [Output('pv-dataframe', 'data'),
-     Output('pv-dataframe', 'columns')],
-    [Input("pv-samples-dropdown", 'value')]
-)
-def update_dataframe(file_path, delim):
-    if file_path is not None and delim is not None:
-        return update_table(file_path, delim)
-    return [], []
-
-
-@callback(
     Output('pv-slider-output-container', 'children'),
     [Input('pv-binning-slider', 'value')])
 def update_output(value):
     return f'You have selected a binning of {value} kb'
 
 
-@callback(
-    Output('pv-probes-dropdown', 'children'),
-    Input('pv-oligo-dropdown', 'value')
-)
-def update_probes_dropdown(oligo_file):
-    if not oligo_file:
-        return None
+def create_card(
+        index,
+        sample_options,
+        probe_options,
+        graph_options,
+        sample_value,
+        probe_value,
+        graph_value
+):
+    card = dbc.Col(
+        dbc.Card([
+            dbc.CardHeader(html.Div(
+                id={'type': 'pv-probe-card-header', 'index': index},
+                style={'font-size': '12px'})),
 
-    df = pd.read_csv(oligo_file, sep=',')
-    probes = df['name'].to_list()
-    return dbc.Col([
-            dcc.Dropdown(
-                id='pv-probes-dropdown',
-                placeholder="Select probes to show",
-                options=[{'label': p, 'value': p} for p in probes],
-                value=None,
-                multi=True
-            )
-        ], width=10, style={'margin-top': '10px', 'margin-bottom': '20px'}
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Dropdown(
+                            options=sample_options,
+                            value=sample_value,
+                            placeholder="Select sample",
+                            id={'type': 'sample-dropdown', 'index': index},
+                            multi=False,
+                        )
+                    ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Dropdown(
+                            options=probe_options,
+                            value=probe_value,
+                            placeholder="Select probe",
+                            id={'type': 'probe-dropdown', 'index': index},
+                            multi=False,
+                        )
+                    ], width=8, style={'margin-top': '10px', 'margin-bottom': '20px'}),
+
+                    dbc.Col([
+                        dcc.Dropdown(
+                            id={'type': 'graph-dropdown', 'index': index},
+                            options=graph_options,
+                            value=graph_value,
+                            placeholder="Select a graph",
+                            multi=False
+                        )
+                    ], width=4, style={'margin-top': '10px'}),
+                ])
+            ])
+        ])
     )
 
-
-# def update_figure(
-#         graph_id: int,
-#         graph_dict: dict,
-#         traces_colors: list,
-#         binning: int,
-#         chr_boundaries: list,
-#         x_range=None,
-#         y_range=None
-# ):
-#     fig = go.Figure()
-#     trace_id = 0
-#     for j in range(graph_dict['size']):
-#         samp = graph_dict['samples'][j]
-#         frag = graph_dict['fragments'][j]
-#         pcr = graph_dict['pcr'][j]
-#         weight = graph_dict['weight'][j]
-#         filepath = graph_dict['filepaths'][j]
-#         df = pd.read_csv(filepath, sep='\t')
-#
-#         x_col = "genome_bins" if binning > 0 else "genome_start"
-#         fig.add_trace(
-#             go.Scattergl(
-#                 x=df[x_col],
-#                 y=df[frag],
-#                 name=f"{samp} - {frag} - {pcr} - {weight}",
-#                 mode='lines+markers',
-#                 line=dict(width=1, color=traces_colors[trace_id]),
-#                 marker=dict(size=4)
-#             )
-#         )
-#
-#         fig.update_layout(
-#             width=1500,
-#             height=500,
-#             title=f"Graphe {graph_id}",
-#             xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
-#             yaxis=dict(title="Contact frequency"),
-#             hovermode='closest'
-#         )
-#         trace_id += 1
-#
-#     if x_range:
-#         fig.update_xaxes(range=x_range)
-#     if y_range:
-#         fig.update_yaxes(range=y_range)
-#
-#     for xi, x_pos in enumerate(chr_boundaries):
-#         name_pos = x_pos + 100
-#         fig.add_shape(type='line',
-#                       yref='paper',
-#                       xref='x',
-#                       x0=x_pos, x1=x_pos,
-#                       y0=0, y1=1,
-#                       line=dict(color='gray', width=1, dash='dot'))
-#
-#         fig.add_annotation(
-#             go.layout.Annotation(
-#                 x=name_pos,
-#                 y=1.07,
-#                 yref="paper",
-#                 text=chr_names[xi],
-#                 showarrow=False,
-#                 xanchor="center",
-#                 font=dict(size=11, color=chr_colors[xi]),
-#                 textangle=330
-#             ),
-#             xref="x"
-#         )
-#     return fig
+    return card
 
 
 @callback(
-    Output('pv-graphs', 'children'),
-    [Input('pv-plot-buttom', 'n_clicks'),
-     Input('pv-stored-graphs-axis-range', 'data')],
-    [State('pv-binning-slider', 'value'),
-     State({'type': 'pv-samples-dropdown', 'index': ALL}, 'value'),
-     State({'type': 'pv-probes-dropdown', 'index': ALL}, 'value')],
+    Output('pv-dynamic-probes-cards', 'children'),
+    Input('pv-number-probes', 'value'),
+    Input('pv-oligo-dropdown', 'value'),
+    State('pv-dynamic-probes-cards', 'children'),
 )
-def update_graphs(
-        n_clicks,
-        axis_range,
-        binning_value,
-        samples_value,
-        probes_value,
-        data_basedir
-):
-    ctx = dash.callback_context
-    triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
+def update_probes_cards(n_cards, capture_oligos, cards_children):
+    if n_cards is None or n_cards == 0:
+        return []
 
-    if n_clicks is None or n_clicks == 0:
+    all_samples_items = sorted([f for f in listdir(TEMPORARY_DIRECTORY) if "profile" in f])
+    samples_options = [{'label': s, 'value': s} for s in all_samples_items]
+    graph_options = [{'label': f'graph {x}', 'value': f'graph {x}'} for x in range(n_cards)]
+
+    probes_options = []
+    if capture_oligos:
+        df = pd.read_csv(capture_oligos)
+        probes_options = [{'label': f, 'value': f} for f in df['name'].to_list()]
+
+    existing_cards = []
+    displaying_cards = []
+    if cards_children:
+        existing_cards = cards_children[0]['props']['children']
+        for ii, item in enumerate(existing_cards):
+            cardbody = item['props']['children']['props']['children'][1]['props']['children']
+            displaying_cards.append(
+                create_card(
+                    index=ii,
+                    sample_options=samples_options,
+                    probe_options=probes_options,
+                    graph_options=graph_options,
+                    sample_value=cardbody[0]['props']['children'][0]['props']['children'][0]['props']['value'],
+                    probe_value=cardbody[1]['props']['children'][0]['props']['children'][0]['props']['value'],
+                    graph_value=cardbody[1]['props']['children'][1]['props']['children'][0]['props']['value']
+                ))
+
+    if len(existing_cards) > n_cards:
+        displaying_cards = existing_cards[:n_cards]
+    if len(existing_cards) < n_cards:
+        cards_to_add = n_cards - len(existing_cards)
+        for i in range(cards_to_add):
+            displaying_cards.append(create_card(
+                index=len(existing_cards) + i,
+                sample_options=samples_options,
+                probe_options=probes_options,
+                graph_options=graph_options,
+                sample_value=None,
+                probe_value=None,
+                graph_value=None
+            ))
+
+    rows = []
+    for i in range(0, len(displaying_cards), 2):
+        row = dbc.Row(displaying_cards[i:i + 2], style={'margin-top': '20px', 'margin-bottom': '20px'})
+        rows.append(row)
+    return rows
+
+
+@callback(
+    Output({'type': 'pv-probe-card-header', 'index': MATCH}, 'children'),
+    Input({'type': 'probe-dropdown', 'index': MATCH}, 'value'),
+    Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
+)
+def update_card_header(probe_value, sample_value):
+    if sample_value is None or probe_value is None:
         return None
 
-    pp_outputs_dir = join(data_basedir, 'outputs')
-    graphs_info = {}
-    nb_graphs = 0
-
-    x_range = None
-    y_range = None
-    if triggerd_input == 'pv-stored-graphs-axis-range':
-        if axis_range:
-            x_range = axis_range['x_range']
-            y_range = axis_range['y_range']
-
-    for i, graph in enumerate(graphs_values):
-        if graph is None:
-            continue
-        graph_id = int(graph.split(' ')[-1])
-        if graph_id not in graphs_info:
-            nb_graphs += 1
-            graphs_info[graph_id] = {
-                'samples': [],
-                'fragments': [],
-                'pcr': [],
-                'weight': [],
-                'filepaths': [],
-                'size': 0,
-            }
-        graphs_info[graph_id]['samples'].append(samples_value[i])
-        graphs_info[graph_id]['fragments'].append(probes_value[i])
-        graphs_info[graph_id]['pcr'].append(pcr_value[i][-1])
-        graphs_info[graph_id]['weight'].append(weight_value[i][-1])
-
-        filedir = join(pp_outputs_dir, samples_value[i], pcr_value[i][-1], weight_value[i][-1])
-        if binning_value == 0:
-            filepath = join(filedir, f"{samples_value[i]}_unbinned_frequencies.tsv")
-            graphs_info[graph_id]['filepaths'].append(filepath)
-        else:
-            filepath = join(filedir, f"{samples_value[i]}_{binning_value}kb_binned_frequencies.tsv")
-            graphs_info[graph_id]['filepaths'].append(filepath)
-        graphs_info[graph_id]['size'] += 1
-
-    # TODO: use a file that stores chr data
-
-    chr_cum_pos = list(np.cumsum(chr_pos))
-    chr_boundaries = [0] + chr_cum_pos[:-1]
-
-    figures = {}
-    traces_count = 0
-    for i in graphs_info:
-        traces_to_add = graphs_info[i]['size']
-        figures[i] = update_figure(
-            graph_id=i,
-            graph_dict=graphs_info[i],
-            traces_colors=colors[traces_count:traces_count + traces_to_add],
-            binning=binning_value,
-            chr_boundaries=chr_boundaries,
-            x_range=x_range,
-            y_range=y_range
-        )
-        traces_count += traces_to_add
-
-    graphs_layout = []
-    for i in sorted(figures.keys()):
-        graphs_layout.append(
-            dcc.Graph(id={'type': 'graph', 'index': i},
-                      config={'displayModeBar': True, 'scrollZoom': True},
-                      style={'height': 'auto', 'width': '100%'},
-                      figure=figures[i])
-        )
-    return graphs_layout
+    samp_id = sample_value.split('.')[0]
+    return f"{samp_id} - {probe_value}"
 
 
-@callback(
-    Output('pv-stored-graphs-axis-range', 'data'),
-    Input({'type': 'graph', 'index': ALL}, 'relayoutData'),
-    State('pv-sync-box', 'value')
-)
-def update_figure_range(relayout_data, sync_value):
-    if not sync_value:
-        return dash.no_update
-
-    if len(relayout_data) == 1:
-        return dash.no_update
-
-    if not any(relayout_data):
-        return [None, None]
-
-    ctx = dash.callback_context
-    input_id = json.loads(ctx.triggered[0]['prop_id'].split('.')[0])['index']
-
-    updated_range = {'x_range': None, 'y_range': None}
-    if 'xaxis.range[0]' in relayout_data[input_id]:
-        updated_range['x_range'] = [relayout_data[input_id]['xaxis.range[0]'],
-                                    relayout_data[input_id]['xaxis.range[1]']]
-
-    if 'yaxis.range[0]' in relayout_data[input_id]:
-        updated_range['y_range'] = [relayout_data[input_id]['yaxis.range[0]'],
-                                    relayout_data[input_id]['yaxis.range[1]']]
-    return updated_range
-
-
-#
-# def create_card(
-#         index,
-#         sample_options,
-#         probe_options,
-#         pcr_options,
-#         weight_options,
-#         graph_options,
-#         sample_value,
-#         probe_value,
-#         pcr_value,
-#         weight_value,
-#         graph_value
-# ):
-#     card = dbc.Col(
-#         dbc.Card([
-#             dbc.CardHeader(html.Div(id={'type': 'pv-probe-card-header', 'index': index})),
-#             dbc.CardBody([
-#                 dbc.Row([
-#                     dbc.Col([
-#                         dcc.Dropdown(
-#                             options=sample_options,
-#                             value=sample_value,
-#                             placeholder="Select sample",
-#                             id={'type': 'sample-dropdown', 'index': index},
-#                             multi=False,
-#                         )
-#                     ]),
-#
-#                     dbc.Col([
-#                         dcc.Dropdown(
-#                             options=probe_options,
-#                             value=probe_value,
-#                             placeholder="Select probe",
-#                             id={'type': 'probe-dropdown', 'index': index},
-#                             multi=False,
-#                         )
-#                     ]),
-#                 ]),
-#
-#                 dbc.Row([
-#                     dbc.Col([
-#                         dcc.Checklist(
-#                             options=pcr_options,
-#                             value=pcr_value,
-#                             id={'type': 'pcr-checkboxes', 'index': index},
-#                             inline=True,
-#                             className='custom-checkbox-label',
-#                             labelStyle={"margin": "5px"}
-#                         )
-#                     ]),
-#
-#                     dbc.Col([
-#                         dcc.Checklist(
-#                             options=weight_options,
-#                             value=weight_value,
-#                             id={'type': 'weight-checkboxes', 'index': index},
-#                             inline=True,
-#                             className='custom-checkbox-label',
-#                             labelStyle={"margin": "5px"}
-#                         )
-#                     ]),
-#                 ]),
-#
-#                 dbc.Row([
-#                     dbc.Col([
-#                         dcc.Dropdown(
-#                             id={'type': 'graph-dropdown', 'index': index},
-#                             options=graph_options,
-#                             value=graph_value,
-#                             placeholder="Select a graph",
-#                             multi=False
-#                         )
-#                     ])
-#                 ])
-#             ])
-#         ])
-#     )
-#
-#     return card
-#
-#
-# @callback(
-#     Output('pv-dynamic-probes-cards', 'children'),
-#     Input('pv-number-probes', 'value'),
-#     State('data-basedir', 'data'),
-#     State('pv-dynamic-probes-cards', 'children')
-# )
-# def update_probes_cards(n_cards, data_basedir, cards_children):
-#     if n_cards is None or n_cards == 0:
-#         return []
-#
-#     pp_outputs_dir = join(data_basedir, 'outputs')
-#     all_samples_items = sorted(listdir(pp_outputs_dir))
-#     samples_options = [{'label': s, 'value': s} for s in all_samples_items if os.path.isdir(join(pp_outputs_dir, s))]
-#     graph_options = [{'label': f'graph {x}', 'value': f'graph {x}'} for x in range(n_cards)]
-#
-#     existing_cards = []
-#     displaying_cards = []
-#     if cards_children:
-#         existing_cards = cards_children[0]['props']['children']
-#         for ii, item in enumerate(existing_cards):
-#             cardbody = item['props']['children']['props']['children'][1]['props']['children']
-#             displaying_cards.append(
-#                 create_card(
-#                     index=ii,
-#                     sample_options=samples_options,
-#                     probe_options=cardbody[0]['props']['children'][1]['props']['children'][0]['props']['options'],
-#                     pcr_options=cardbody[1]['props']['children'][0]['props']['children'][0]['props']['options'],
-#                     weight_options=cardbody[1]['props']['children'][1]['props']['children'][0]['props']['options'],
-#                     graph_options=graph_options,
-#                     sample_value=cardbody[0]['props']['children'][0]['props']['children'][0]['props']['value'],
-#                     probe_value=cardbody[0]['props']['children'][1]['props']['children'][0]['props']['value'],
-#                     pcr_value=cardbody[1]['props']['children'][0]['props']['children'][0]['props']['value'],
-#                     weight_value=cardbody[1]['props']['children'][1]['props']['children'][0]['props']['value'],
-#                     graph_value=cardbody[2]['props']['children'][0]['props']['children'][0]['props']['value']
-#                 ))
-#
-#     if len(existing_cards) > n_cards:
-#         displaying_cards = existing_cards[:n_cards]
-#     if len(existing_cards) < n_cards:
-#         cards_to_add = n_cards - len(existing_cards)
-#         for i in range(cards_to_add):
-#             displaying_cards.append(create_card(
-#                 index=len(existing_cards) + i,
-#                 sample_options=samples_options,
-#                 probe_options=[],
-#                 pcr_options=[],
-#                 weight_options=[],
-#                 graph_options=graph_options,
-#                 sample_value=None,
-#                 probe_value=None,
-#                 pcr_value=None,
-#                 weight_value=None,
-#                 graph_value=None
-#             ))
-#
-#     rows = []
-#     for i in range(0, len(displaying_cards), 3):
-#         row = dbc.Row(displaying_cards[i:i + 3], style={'margin-top': '20px', 'margin-bottom': '20px'})
-#         rows.append(row)
-#     return rows
-#
-#
-# @callback(
-#     Output({'type': 'pcr-checkboxes', 'index': MATCH}, 'options'),
-#     Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
-#     State('data-basedir', 'data')
-# )
-# def update_pcr_checkboxes_options(sample_value, data_basedir):
-#     pp_outputs_dir = join(data_basedir, 'outputs')
-#     if sample_value is None:
-#         return []
-#     all_items = listdir(join(pp_outputs_dir, sample_value))
-#     pcr_dirs = [item for item in all_items if os.path.isdir(join(pp_outputs_dir, sample_value, item))]
-#     return [{'label': d, 'value': d} for d in pcr_dirs if 'pcr' in d.lower()]
-#
-#
-# @callback(
-#     Output({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
-#     Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
-# )
-# def update_pcr_checkboxes(pcr_value):
-#     if not pcr_value:
-#         return []
-#     else:
-#         return [pcr_value[-1]]
-#
-#
-# @callback(
-#     Output({'type': 'weight-checkboxes', 'index': MATCH}, 'options'),
-#     Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
-#     Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
-#     State('data-basedir', 'data')
-# )
-# def update_weight_checkboxes_options(pcr_value, sample_value, data_basedir):
-#     ctx = dash.callback_context
-#     triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
-#     if triggerd_input == '':
-#         return []
-#
-#     pp_outputs_dir = join(data_basedir, 'outputs')
-#     if not sample_value or not pcr_value or pcr_value == []:
-#         return []
-#
-#     pcr_dir = join(pp_outputs_dir, sample_value, pcr_value[-1])
-#     weight_dirs = [w for w in listdir(pcr_dir) if os.path.isdir(join(pcr_dir, w))]
-#     return [{'label': d, 'value': d} for d in weight_dirs]
-#
-#
-# @callback(
-#     Output({'type': 'weight-checkboxes', 'index': MATCH}, 'value'),
-#     Input({'type': 'weight-checkboxes', 'index': MATCH}, 'value')
-# )
-# def update_weight_checkboxes(weight_value):
-#     if not weight_value:
-#         return []
-#     else:
-#         return [weight_value[-1]]
-#
-#
-# @callback(
-#     Output({'type': 'probe-dropdown', 'index': MATCH}, 'options'),
-#     Input({'type': 'weight-checkboxes', 'index': MATCH}, 'value'),
-#     Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
-#     Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
-#     State('data-basedir', 'data')
-# )
-# def update_probe_dropdown_options(weight_value, sample_value, pcr_value, data_basedir):
-#     ctx = dash.callback_context
-#     triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
-#     if triggerd_input == '':
-#         return []
-#
-#     pp_outputs_dir = join(data_basedir, 'outputs')
-#     if sample_value is None:
-#         return []
-#     if pcr_value is None or pcr_value == [] or weight_value is None or weight_value == []:
-#         return []
-#
-#     items_dir = join(pp_outputs_dir, sample_value, pcr_value[-1], weight_value[-1])
-#     df = pd.read_csv(join(items_dir, f"{sample_value}_unbinned_contacts.tsv"), sep='\t')
-#     probes = [c for c in df.columns if c not in ['chr', 'start', 'sizes', 'genome_start', 'end']]
-#     return [{'label': f, 'value': f} for f in probes]
-#
-#
-# @callback(
-#     Output({'type': 'pv-probe-card-header', 'index': MATCH}, 'children'),
-#     Input({'type': 'probe-dropdown', 'index': MATCH}, 'value'),
-#     Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
-#     Input({'type': 'pcr-checkboxes', 'index': MATCH}, 'value'),
-#     Input({'type': 'weight-checkboxes', 'index': MATCH}, 'value')
-# )
-# def update_card_header(probe_value, sample_value, pcr_value, weight_value):
-#     if sample_value is None or probe_value is None:
-#         return None
-#     if pcr_value is None or pcr_value == [] or weight_value is None or weight_value == []:
-#         return None
-#
-#     samp_id = sample_value.split('/')[-1]
-#     return f"{samp_id} - {probe_value} - {pcr_value[-1]} - {weight_value[-1]}"
-#
-#
 # def update_figure(
 #         graph_id: int,
 #         graph_dict: dict,
