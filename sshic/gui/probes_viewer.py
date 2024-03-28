@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import dash
@@ -85,7 +84,7 @@ layout = dbc.Container([
                 min=0,
                 max=100,
                 step=1,
-                value=10,
+                value=0,
                 marks={i: str(i) for i in range(0, 101, 10)},
                 included=False,
             ),
@@ -235,7 +234,9 @@ def update_probes_cards(n_cards, capture_oligos, cards_children):
     probes_options = []
     if capture_oligos:
         df = pd.read_csv(capture_oligos)
-        probes_options = [{'label': f, 'value': f} for f in df['name'].to_list()]
+        probes = df['name'].to_list()
+        fragments = df['fragment'].to_list()
+        probes_options = [{'label': p, 'value': f} for p, f in zip(probes, fragments)]
 
     existing_cards = []
     displaying_cards = []
@@ -303,17 +304,15 @@ def update_figure(
     for j in range(graph_dict['size']):
         samp = graph_dict['samples'][j]
         frag = graph_dict['fragments'][j]
-        pcr = graph_dict['pcr'][j]
-        weight = graph_dict['weight'][j]
         filepath = graph_dict['filepaths'][j]
         df = pd.read_csv(filepath, sep='\t')
 
-        x_col = "genome_bins" if binning > 0 else "genome_start"
+        x_col = "genome_start"
         fig.add_trace(
             go.Scattergl(
                 x=df[x_col],
                 y=df[frag],
-                name=f"{samp} - {frag} - {pcr} - {weight}",
+                name=f"{samp} - {frag}",
                 mode='lines+markers',
                 line=dict(width=1, color=traces_colors[trace_id]),
                 marker=dict(size=4)
@@ -324,7 +323,7 @@ def update_figure(
             width=1500,
             height=500,
             title=f"Graphe {graph_id}",
-            xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
+            xaxis=dict(domain=[0.0, 0.9], title="Genomic position (bp)"),
             yaxis=dict(title="Contact frequency"),
             hovermode='closest'
         )
@@ -402,20 +401,12 @@ def update_graphs(
             graphs_info[graph_id] = {
                 'samples': [],
                 'fragments': [],
-                'pcr': [],
-                'weight': [],
                 'filepaths': [],
                 'size': 0,
             }
         graphs_info[graph_id]['samples'].append(samples_value[i])
-        graphs_info[graph_id]['fragments'].append(probes_value[i])
-
-        if binning_value == 0:
-            filepath = join(filedir, f"{samples_value[i]}_unbinned_frequencies.tsv")
-            graphs_info[graph_id]['filepaths'].append(filepath)
-        else:
-            filepath = join(filedir, f"{samples_value[i]}_{binning_value}kb_binned_frequencies.tsv")
-            graphs_info[graph_id]['filepaths'].append(filepath)
+        graphs_info[graph_id]['fragments'].append(str(probes_value[i]))
+        graphs_info[graph_id]['filepaths'].append(join(TEMPORARY_DIRECTORY, samples_value[i]))
         graphs_info[graph_id]['size'] += 1
 
     chr_cum_pos = list(np.cumsum(chr_pos))
