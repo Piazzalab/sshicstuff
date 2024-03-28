@@ -1,10 +1,8 @@
-from dash import dash_table
 import os
 from os.path import join, dirname
 import base64
 
-
-colors = [
+colors_rgba = [
     'rgba(0, 0, 255, 0.8)',  # blue
     'rgba(255, 0, 0, 0.8)',  # red
     'rgba(249, 172, 37, 0.8)',  # yellow
@@ -31,15 +29,20 @@ colors = [
     'rgba(255, 209, 128, 0.8)'  # amber 2
 ]
 
-
-chr_names = [f"chr{i}" for i in range(1, 17)] + ["2_micron", "mitochondrion", "chr_artificial"]
-
-chr_pos = [230218, 813184, 316620, 1531933, 576874, 270161, 1090940, 562643, 439888, 745751,
-           666816, 1078177, 924431, 784333, 1091291, 948066, 6318, 85779, 7828]
-
-chr_colors = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9',
+colors_hex = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9',
               '#f1c40f', '#d35400', '#e74c3c', '#c0392b', '#1abc9c', '#16a085', '#bdc3c7', '#2c3e50',
-              '#7f8c8d', '#f39c12', '#27ae60']
+              '#7f8c8d', '#f39c12', '#27ae60', '#9b59b6', '#3498db', '#e67e22', '#95a5a6', '#d35400',
+              '#f1c40f', '#2980b9', '#e74c3c', '#2ecc71', '#8e44ad', '#34495e', '#1abc9c', '#c0392b',
+              '#16a085', '#27ae60', '#7f8c8d', '#f39c12', '#bdc3c7', '#000000', '#0c090a', '#2c3e50',
+              '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9', '#f1c40f', '#d35400', '#e74c3c',
+              '#c0392b', '#1abc9c', '#16a085', '#bdc3c7', '#2c3e50', '#7f8c8d', '#f39c12', '#27ae60',
+              '#9b59b6', '#3498db', '#e67e22', '#95a5a6', '#d35400', '#f1c40f', '#2980b9', '#e74c3c',
+              '#2ecc71', '#8e44ad', '#34495e', '#1abc9c', '#c0392b', '#16a085', '#27ae60', '#7f8c8d',
+              '#f39c12', '#bdc3c7', '#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad',
+              '#2ecc71', '#2980b9', '#f1c40f', '#d35400', '#e74c3c', '#c0392b', '#1abc9c', '#16a085',
+              '#bdc3c7', '#2c3e50', '#7f8c8d', '#f39c12', '#27ae60', '#9b59b6', '#3498db', '#e67e22',
+              '#95a5a6', '#d35400', '#f1c40f', '#2980b9', '#e74c3c', '#2ecc71', '#8e44ad', '#34495e',
+              '#1abc9c', '#c0392b', '#16a085', '#27ae60', '#7f8c8d', '#f39c12', '#bdc3c7']
 
 TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
 
@@ -59,4 +62,3 @@ def uploaded_files():
         if os.path.isfile(path):
             files.append(filename)
     return files
-

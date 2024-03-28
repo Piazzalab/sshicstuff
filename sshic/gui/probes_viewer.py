@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import dash
 import json
 from os import listdir
@@ -11,7 +10,7 @@ from dash.dependencies import Input, Output, State, ALL, MATCH
 import plotly.graph_objs as go
 
 from sshic.gui.common import *
-
+from sshic.core.binning import rebin_live
 
 if not os.path.exists(TEMPORARY_DIRECTORY):
     os.makedirs(TEMPORARY_DIRECTORY)
@@ -56,6 +55,20 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
+            dcc.Dropdown(id='pv-oligo-dropdown',
+                         placeholder="Select capture oligos file",
+                         multi=False),
+        ], width=6, style={'margin-top': '10px', 'margin-bottom': '20px'}),
+
+        dbc.Col([
+            dcc.Dropdown(id='pv-coord-dropdown',
+                         placeholder="Select chr. coordinates file",
+                         multi=False),
+        ], width=6, style={'margin-top': '10px', 'margin-bottom': '20px'}),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
             dcc.Input(id='pv-number-probes', type='number', value=2, step='1',
                       placeholder='How many cards :',
                       style={
@@ -67,48 +80,36 @@ layout = dbc.Container([
                           'background-color': '#fff',
                           'color': '#333'
                       }),
-        ], width=3, style={'margin-top': '10px', 'margin-bottom': '20px'}),
+        ], width=2, style={'margin-top': '20px'}),
 
         dbc.Col([
-            dcc.Dropdown(id='pv-oligo-dropdown',
-                         placeholder="Select capture oligos file",
-                         multi=False),
-        ], width=9, style={'margin-top': '10px', 'margin-bottom': '20px'}),
-    ]),
-
-    dbc.Row([
-        dbc.Col([
-            html.Label("Select binning :", style={'margin-top': '10px', 'margin-bottom': '20px'}),
+            html.Div(id='pv-slider-output-container',
+                     style={'margin-top': '10px', 'font-size': '16px', 'margin-bottom': '10px'}),
             dcc.Slider(
                 id='pv-binning-slider',
                 min=0,
                 max=100,
                 step=1,
-                value=0,
+                value=10,
                 marks={i: str(i) for i in range(0, 101, 10)},
                 included=False,
             ),
-            html.Div(id='pv-slider-output-container', style={'margin-top': '20px', 'font-size': '16px'}),
-            html.Br(),
         ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px', 'margin-left': '0px'}),
 
         dbc.Col([
             dcc.Checklist(
                 id="pv-sync-box",
-                options=[{"label": "Sync axis", "value": "sync"}],
+                options=[{"label": "Synchronize axis", "value": "sync"}],
                 value=[],
                 inline=True,
                 className='custom-checkbox-label',
                 labelStyle={"margin": "5px"}
             )
-        ], width=2, style={'margin-top': '15px', 'margin-bottom': '10px', 'margin-left': '0px'}),
-
+        ], width=2, style={'margin-top': '20px', 'margin-bottom': '10px', 'margin-left': '0px'}),
 
         dbc.Col([
-            html.Button(id="pv-plot-buttom", className="plot-button", children="Plot"),
+            html.Button(id="pv-plot-button", className="plot-button", children="Plot"),
         ], width=2, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '0px'}),
-
-
 
         dcc.Store(id='pv-stored-graphs-axis-range', data={}),
         html.Div(id='pv-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
@@ -119,6 +120,7 @@ layout = dbc.Container([
 
 @callback(
     [Output("pv-oligo-dropdown", "options"),
+     Output("pv-coord-dropdown", "options"),
      Output("pv-clear-list", "n_clicks")],
     [Input("pv-upload-files", "filename"),
      Input("pv-upload-files", "contents"),
@@ -141,9 +143,11 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
         return files,  n_clicks
     else:
         options = []
-        for filename in files:
-            options.append({'label': filename, 'value': os.path.join(TEMPORARY_DIRECTORY, filename)})
-        return options, n_clicks
+        for f in files:
+            if "profile" in f:
+                continue
+            options.append({'label': f, 'value': os.path.join(TEMPORARY_DIRECTORY, f)})
+        return options, options, n_clicks
 
 
 def update_table(file_path, delim):
@@ -159,7 +163,7 @@ def update_table(file_path, delim):
     Output('pv-slider-output-container', 'children'),
     [Input('pv-binning-slider', 'value')])
 def update_output(value):
-    return f'You have selected a binning of {value} kb'
+    return f'Binning resolution : {value} kb'
 
 
 def create_card(
@@ -295,19 +299,30 @@ def update_figure(
         graph_dict: dict,
         traces_colors: list,
         binning: int,
-        chr_boundaries: list,
+        df_coords: pd.DataFrame,
         x_range=None,
         y_range=None
 ):
     fig = go.Figure()
     trace_id = 0
+
+    df_chr_len = df_coords[["chr", "length"]]
+    df_chr_len["chr_start"] = df_chr_len["length"].shift().fillna(0).astype("int64")
+    df_chr_len["cumu_start"] = df_chr_len["chr_start"].cumsum()
+
     for j in range(graph_dict['size']):
         samp = graph_dict['samples'][j]
         frag = graph_dict['fragments'][j]
         filepath = graph_dict['filepaths'][j]
-        df = pd.read_csv(filepath, sep='\t')
+        df = pd.read_csv(filepath, sep='\t')[["chr", "start", "sizes", "genome_start", frag]]
 
-        x_col = "genome_start"
+        if binning > 0:
+            x_col = "genome_bins"
+            binning *= 1000  # kbp convert to bp
+            df = rebin_live(df, binning, df_coords)
+        else:
+            x_col = "genome_start"
+
         fig.add_trace(
             go.Scattergl(
                 x=df[x_col],
@@ -334,7 +349,7 @@ def update_figure(
     if y_range:
         fig.update_yaxes(range=y_range)
 
-    for xi, x_pos in enumerate(chr_boundaries):
+    for xi, x_pos in enumerate(df_chr_len.cumu_start.to_list()):
         name_pos = x_pos + 100
         fig.add_shape(type='line',
                       yref='paper',
@@ -348,10 +363,10 @@ def update_figure(
                 x=name_pos,
                 y=1.07,
                 yref="paper",
-                text=chr_names[xi],
+                text=df_chr_len.chr[xi],
                 showarrow=False,
                 xanchor="center",
-                font=dict(size=11, color=chr_colors[xi]),
+                font=dict(size=11, color=colors_hex[xi]),
                 textangle=330
             ),
             xref="x"
@@ -361,9 +376,10 @@ def update_figure(
 
 @callback(
     Output('pv-graphs', 'children'),
-    Input('pv-plot-buttom', 'n_clicks'),
+    Input('pv-plot-button', 'n_clicks'),
     Input('pv-stored-graphs-axis-range', 'data'),
     State('pv-binning-slider', 'value'),
+    State('pv-coord-dropdown', 'value'),
     State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
     State({'type': 'probe-dropdown', 'index': ALL}, 'value'),
     State({'type': 'graph-dropdown', 'index': ALL}, 'value')
@@ -372,6 +388,7 @@ def update_graphs(
         n_clicks,
         axis_range,
         binning_value,
+        coords_value,
         samples_value,
         probes_value,
         graphs_values,
@@ -409,8 +426,8 @@ def update_graphs(
         graphs_info[graph_id]['filepaths'].append(join(TEMPORARY_DIRECTORY, samples_value[i]))
         graphs_info[graph_id]['size'] += 1
 
-    chr_cum_pos = list(np.cumsum(chr_pos))
-    chr_boundaries = [0] + chr_cum_pos[:-1]
+    chr_coords_path = str(join(TEMPORARY_DIRECTORY, coords_value))
+    df_coords = pd.read_csv(chr_coords_path, sep='\t')
 
     figures = {}
     traces_count = 0
@@ -419,9 +436,9 @@ def update_graphs(
         figures[i] = update_figure(
             graph_id=i,
             graph_dict=graphs_info[i],
-            traces_colors=colors[traces_count:traces_count + traces_to_add],
+            traces_colors=colors_rgba[traces_count:traces_count + traces_to_add],
             binning=binning_value,
-            chr_boundaries=chr_boundaries,
+            df_coords=df_coords,
             x_range=x_range,
             y_range=y_range
         )

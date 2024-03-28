@@ -49,7 +49,6 @@ def sort_by_chr(df: pd.DataFrame, chr_list: List[str], *args: str):
     chr_with_number = [c for c in chr_list if re.match(r'chr\d+', c)]
     chr_with_number.sort(key=lambda x: int(x[3:]))
     chr_without_number = [c for c in chr_list if c not in chr_with_number]
-    chr_without_number.sort()
 
     order = chr_with_number + chr_without_number
     df['chr'] = df['chr'].apply(lambda x: order.index(x) if x in order else len(order))
