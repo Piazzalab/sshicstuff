@@ -1,32 +1,62 @@
 from dash import dash_table
+import os
+from os.path import join, dirname
+import base64
 
 
-def prepare_dataframe_for_output(dataframe, selected_columns=None):
-    if dataframe is None:
-        return None, None
-    if selected_columns:
-        df_output = dataframe[selected_columns]
-        data = df_output.to_dict('records')
-        columns = [{"name": col, "id": col} for col in selected_columns]
-    else:
-        data = dataframe.to_dict('records')
-        columns = [{"name": col, "id": col} for col in dataframe.columns]
-    return data, columns
+colors = [
+    'rgba(0, 0, 255, 0.8)',  # blue
+    'rgba(255, 0, 0, 0.8)',  # red
+    'rgba(249, 172, 37, 0.8)',  # yellow
+    'rgba(245, 0, 87, 0.8)',  # pink
+    'rgba(29, 233, 182, 0.8)',  # green
+    'rgba(255, 234, 0, 0.8)',  # yellow 2
+    'rgba(255, 11, 0, 0.8)',  # orange
+    'rgba(141, 110, 99, 0.8)',  # brown
+    'rgba(255, 64, 129, 0.8)',  # pink 2
+    'rgba(120, 144, 156, 0.8)',  # blue grey
+    'rgba(0, 131, 143, 0.8)',  # cyan
+    'rgba(171, 71, 188, 0.8)',  # purple
+    'rgba(255, 152, 0, 0.8)',  # amber
+    'rgba(0, 150, 136, 0.8)',  # teal
+    'rgba(0, 184, 212, 0.8)',  # cyan 2
+    'rgba(0, 200, 83, 0.8)',  # green 2
+    'rgba(229, 115, 115, 0.8)',  # red 2
+    'rgba(255, 167, 38, 0.8)',  # orange 2
+    'rgba(61, 90, 254, 0.8)',  # indigo
+    'rgba(68, 138, 255, 0.8)',  # blue 2
+    'rgba(121, 134, 203, 0.8)',  # deep purple
+    'rgba(170, 102, 68, 0.8)',  # deep orange
+    'rgba(255, 171, 145, 0.8)',  # pink 3
+    'rgba(255, 209, 128, 0.8)'  # amber 2
+]
 
 
-def generate_data_table(id, data, columns, rows):
-    return dash_table.DataTable(
-        id=id,
-        data=data,
-        columns=columns,
-        style_cell={'textAlign': 'left'},
-        style_table={'overflowX': 'auto'},
-        page_size=rows,
-        style_header={
-            'backgroundColor': '#eaecee',
-            'color': ' #3498db ',
-            'fontWeight': 'bold'},
-        sort_action='native',
-        sort_mode='multi',
-    )
+chr_names = [f"chr{i}" for i in range(1, 17)] + ["2_micron", "mitochondrion", "chr_artificial"]
+
+chr_pos = [230218, 813184, 316620, 1531933, 576874, 270161, 1090940, 562643, 439888, 745751,
+           666816, 1078177, 924431, 784333, 1091291, 948066, 6318, 85779, 7828]
+
+chr_colors = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9',
+              '#f1c40f', '#d35400', '#e74c3c', '#c0392b', '#1abc9c', '#16a085', '#bdc3c7', '#2c3e50',
+              '#7f8c8d', '#f39c12', '#27ae60']
+
+TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
+
+
+def save_file(name, content):
+    """Decode and store a file uploaded with Plotly Dash."""
+    data = content.encode("utf8").split(b";base64,")[1]
+    with open(join(TEMPORARY_DIRECTORY, name), "wb") as fp:
+        fp.write(base64.decodebytes(data))
+
+
+def uploaded_files():
+    """List the files in the upload directory."""
+    files = []
+    for filename in os.listdir(TEMPORARY_DIRECTORY):
+        path = join(TEMPORARY_DIRECTORY, filename)
+        if os.path.isfile(path):
+            files.append(filename)
+    return files
 

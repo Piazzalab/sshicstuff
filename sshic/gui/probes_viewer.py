@@ -1,11 +1,8 @@
-import os
-import base64
 
 import pandas as pd
 import numpy as np
 import dash
 import json
-from os.path import join, dirname
 from os import listdir
 from dash import html
 from dash import dcc
@@ -14,66 +11,11 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL, MATCH
 import plotly.graph_objs as go
 
-from common import generate_data_table, prepare_dataframe_for_output
-import core.utils
-
-
-TEMPORARY_DIRECTORY = join(dirname(dirname(os.getcwd())), "data", "__cache__")
-
-
-colors = [
-    'rgba(0, 0, 255, 0.8)',  # blue
-    'rgba(255, 0, 0, 0.8)',  # red
-    'rgba(249, 172, 37, 0.8)',  # yellow
-    'rgba(245, 0, 87, 0.8)',  # pink
-    'rgba(29, 233, 182, 0.8)',  # green
-    'rgba(255, 234, 0, 0.8)',  # yellow 2
-    'rgba(255, 11, 0, 0.8)',  # orange
-    'rgba(141, 110, 99, 0.8)',  # brown
-    'rgba(255, 64, 129, 0.8)',  # pink 2
-    'rgba(120, 144, 156, 0.8)',  # blue grey
-    'rgba(0, 131, 143, 0.8)',  # cyan
-    'rgba(171, 71, 188, 0.8)',  # purple
-    'rgba(255, 152, 0, 0.8)',  # amber
-    'rgba(0, 150, 136, 0.8)',  # teal
-    'rgba(0, 184, 212, 0.8)',  # cyan 2
-    'rgba(0, 200, 83, 0.8)',  # green 2
-    'rgba(229, 115, 115, 0.8)',  # red 2
-    'rgba(255, 167, 38, 0.8)',  # orange 2
-    'rgba(61, 90, 254, 0.8)',  # indigo
-    'rgba(68, 138, 255, 0.8)',  # blue 2
-    'rgba(121, 134, 203, 0.8)',  # deep purple
-    'rgba(170, 102, 68, 0.8)',  # deep orange
-    'rgba(255, 171, 145, 0.8)',  # pink 3
-    'rgba(255, 209, 128, 0.8)'  # amber 2
-]
-
-chr_names = [f"chr{i}" for i in range(1, 17)] + ["2_micron", "mitochondrion", "chr_artificial"]
-chr_pos = [230218, 813184, 316620, 1531933, 576874, 270161, 1090940, 562643, 439888, 745751,
-           666816, 1078177, 924431, 784333, 1091291, 948066, 6318, 85779, 7828]
-chr_colors = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', '#2ecc71', '#2980b9',
-              '#f1c40f', '#d35400', '#e74c3c', '#c0392b', '#1abc9c', '#16a085', '#bdc3c7', '#2c3e50',
-              '#7f8c8d', '#f39c12', '#27ae60']
+from sshic.gui.common import *
 
 
 if not os.path.exists(TEMPORARY_DIRECTORY):
     os.makedirs(TEMPORARY_DIRECTORY)
-
-def save_file(name, content):
-    """Decode and store a file uploaded with Plotly Dash."""
-    data = content.encode("utf8").split(b";base64,")[1]
-    with open(os.path.join(TEMPORARY_DIRECTORY, name), "wb") as fp:
-        fp.write(base64.decodebytes(data))
-
-
-def uploaded_files():
-    """List the files in the upload directory."""
-    files = []
-    for filename in os.listdir(TEMPORARY_DIRECTORY):
-        path = os.path.join(TEMPORARY_DIRECTORY, filename)
-        if os.path.isfile(path):
-            files.append(filename)
-    return files
 
 
 layout = dbc.Container([
@@ -347,201 +289,188 @@ def update_card_header(probe_value, sample_value):
     return f"{samp_id} - {probe_value}"
 
 
-# def update_figure(
-#         graph_id: int,
-#         graph_dict: dict,
-#         traces_colors: list,
-#         binning: int,
-#         chr_boundaries: list,
-#         x_range=None,
-#         y_range=None
-# ):
-#     fig = go.Figure()
-#     trace_id = 0
-#     for j in range(graph_dict['size']):
-#         samp = graph_dict['samples'][j]
-#         frag = graph_dict['fragments'][j]
-#         pcr = graph_dict['pcr'][j]
-#         weight = graph_dict['weight'][j]
-#         filepath = graph_dict['filepaths'][j]
-#         df = pd.read_csv(filepath, sep='\t')
-#
-#         x_col = "genome_bins" if binning > 0 else "genome_start"
-#         fig.add_trace(
-#             go.Scattergl(
-#                 x=df[x_col],
-#                 y=df[frag],
-#                 name=f"{samp} - {frag} - {pcr} - {weight}",
-#                 mode='lines+markers',
-#                 line=dict(width=1, color=traces_colors[trace_id]),
-#                 marker=dict(size=4)
-#             )
-#         )
-#
-#         fig.update_layout(
-#             width=1500,
-#             height=500,
-#             title=f"Graphe {graph_id}",
-#             xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
-#             yaxis=dict(title="Contact frequency"),
-#             hovermode='closest'
-#         )
-#         trace_id += 1
-#
-#     if x_range:
-#         fig.update_xaxes(range=x_range)
-#     if y_range:
-#         fig.update_yaxes(range=y_range)
-#
-#     for xi, x_pos in enumerate(chr_boundaries):
-#         name_pos = x_pos + 100
-#         fig.add_shape(type='line',
-#                       yref='paper',
-#                       xref='x',
-#                       x0=x_pos, x1=x_pos,
-#                       y0=0, y1=1,
-#                       line=dict(color='gray', width=1, dash='dot'))
-#
-#         fig.add_annotation(
-#             go.layout.Annotation(
-#                 x=name_pos,
-#                 y=1.07,
-#                 yref="paper",
-#                 text=chr_names[xi],
-#                 showarrow=False,
-#                 xanchor="center",
-#                 font=dict(size=11, color=chr_colors[xi]),
-#                 textangle=330
-#             ),
-#             xref="x"
-#         )
-#     return fig
-#
-#
-# @callback(
-#     Output('pv-graphs', 'children'),
-#     Input('pv-plot-buttom', 'n_clicks'),
-#     Input('pv-stored-graphs-axis-range', 'data'),
-#     State('pv-binning-slider', 'value'),
-#     State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
-#     State({'type': 'pcr-checkboxes', 'index': ALL}, 'value'),
-#     State({'type': 'weight-checkboxes', 'index': ALL}, 'value'),
-#     State({'type': 'probe-dropdown', 'index': ALL}, 'value'),
-#     State({'type': 'graph-dropdown', 'index': ALL}, 'value'),
-#     State('data-basedir', 'data')
-# )
-# def update_graphs(
-#         n_clicks,
-#         axis_range,
-#         binning_value,
-#         samples_value,
-#         pcr_value,
-#         weight_value,
-#         probes_value,
-#         graphs_values,
-#         data_basedir
-# ):
-#     ctx = dash.callback_context
-#     triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
-#
-#     if n_clicks is None or n_clicks == 0:
-#         return None
-#
-#     pp_outputs_dir = join(data_basedir, 'outputs')
-#     graphs_info = {}
-#     nb_cards = len(samples_value)
-#     nb_graphs = 0
-#
-#     x_range = None
-#     y_range = None
-#     if triggerd_input == 'pv-stored-graphs-axis-range':
-#         if axis_range:
-#             x_range = axis_range['x_range']
-#             y_range = axis_range['y_range']
-#
-#     for i, graph in enumerate(graphs_values):
-#         if graph is None:
-#             continue
-#         graph_id = int(graph.split(' ')[-1])
-#         if graph_id not in graphs_info:
-#             nb_graphs += 1
-#             graphs_info[graph_id] = {
-#                 'samples': [],
-#                 'fragments': [],
-#                 'pcr': [],
-#                 'weight': [],
-#                 'filepaths': [],
-#                 'size': 0,
-#             }
-#         graphs_info[graph_id]['samples'].append(samples_value[i])
-#         graphs_info[graph_id]['fragments'].append(probes_value[i])
-#         graphs_info[graph_id]['pcr'].append(pcr_value[i][-1])
-#         graphs_info[graph_id]['weight'].append(weight_value[i][-1])
-#
-#         filedir = join(pp_outputs_dir, samples_value[i], pcr_value[i][-1], weight_value[i][-1])
-#         if binning_value == 0:
-#             filepath = join(filedir, f"{samples_value[i]}_unbinned_frequencies.tsv")
-#             graphs_info[graph_id]['filepaths'].append(filepath)
-#         else:
-#             filepath = join(filedir, f"{samples_value[i]}_{binning_value}kb_binned_frequencies.tsv")
-#             graphs_info[graph_id]['filepaths'].append(filepath)
-#         graphs_info[graph_id]['size'] += 1
-#
-#     # TODO: use a file that stores chr data
-#
-#     chr_cum_pos = list(np.cumsum(chr_pos))
-#     chr_boundaries = [0] + chr_cum_pos[:-1]
-#
-#     figures = {}
-#     traces_count = 0
-#     for i in graphs_info:
-#         traces_to_add = graphs_info[i]['size']
-#         figures[i] = update_figure(
-#             graph_id=i,
-#             graph_dict=graphs_info[i],
-#             traces_colors=colors[traces_count:traces_count + traces_to_add],
-#             binning=binning_value,
-#             chr_boundaries=chr_boundaries,
-#             x_range=x_range,
-#             y_range=y_range
-#         )
-#         traces_count += traces_to_add
-#
-#     graphs_layout = []
-#     for i in sorted(figures.keys()):
-#         graphs_layout.append(
-#             dcc.Graph(id={'type': 'graph', 'index': i},
-#                       config={'displayModeBar': True, 'scrollZoom': True},
-#                       style={'height': 'auto', 'width': '100%'},
-#                       figure=figures[i])
-#         )
-#     return graphs_layout
-#
-#
-# @callback(
-#     Output('pv-stored-graphs-axis-range', 'data'),
-#     Input({'type': 'graph', 'index': ALL}, 'relayoutData'),
-#     State('pv-sync-box', 'value')
-# )
-# def update_figure_range(relayout_data, sync_value):
-#     if not sync_value:
-#         return dash.no_update
-#
-#     if len(relayout_data) == 1:
-#         return dash.no_update
-#
-#     if not any(relayout_data):
-#         return [None, None]
-#
-#     ctx = dash.callback_context
-#     input_id = json.loads(ctx.triggered[0]['prop_id'].split('.')[0])['index']
-#
-#     updated_range = {'x_range': None, 'y_range': None}
-#     if 'xaxis.range[0]' in relayout_data[input_id]:
-#         updated_range['x_range'] = [relayout_data[input_id]['xaxis.range[0]'],
-#                                     relayout_data[input_id]['xaxis.range[1]']]
-#
-#     if 'yaxis.range[0]' in relayout_data[input_id]:
-#         updated_range['y_range'] = [relayout_data[input_id]['yaxis.range[0]'],
-#                                     relayout_data[input_id]['yaxis.range[1]']]
-#     return updated_range
+def update_figure(
+        graph_id: int,
+        graph_dict: dict,
+        traces_colors: list,
+        binning: int,
+        chr_boundaries: list,
+        x_range=None,
+        y_range=None
+):
+    fig = go.Figure()
+    trace_id = 0
+    for j in range(graph_dict['size']):
+        samp = graph_dict['samples'][j]
+        frag = graph_dict['fragments'][j]
+        pcr = graph_dict['pcr'][j]
+        weight = graph_dict['weight'][j]
+        filepath = graph_dict['filepaths'][j]
+        df = pd.read_csv(filepath, sep='\t')
+
+        x_col = "genome_bins" if binning > 0 else "genome_start"
+        fig.add_trace(
+            go.Scattergl(
+                x=df[x_col],
+                y=df[frag],
+                name=f"{samp} - {frag} - {pcr} - {weight}",
+                mode='lines+markers',
+                line=dict(width=1, color=traces_colors[trace_id]),
+                marker=dict(size=4)
+            )
+        )
+
+        fig.update_layout(
+            width=1500,
+            height=500,
+            title=f"Graphe {graph_id}",
+            xaxis=dict(domain=[0.0, 0.9], title="Genome bins"),
+            yaxis=dict(title="Contact frequency"),
+            hovermode='closest'
+        )
+        trace_id += 1
+
+    if x_range:
+        fig.update_xaxes(range=x_range)
+    if y_range:
+        fig.update_yaxes(range=y_range)
+
+    for xi, x_pos in enumerate(chr_boundaries):
+        name_pos = x_pos + 100
+        fig.add_shape(type='line',
+                      yref='paper',
+                      xref='x',
+                      x0=x_pos, x1=x_pos,
+                      y0=0, y1=1,
+                      line=dict(color='gray', width=1, dash='dot'))
+
+        fig.add_annotation(
+            go.layout.Annotation(
+                x=name_pos,
+                y=1.07,
+                yref="paper",
+                text=chr_names[xi],
+                showarrow=False,
+                xanchor="center",
+                font=dict(size=11, color=chr_colors[xi]),
+                textangle=330
+            ),
+            xref="x"
+        )
+    return fig
+
+
+@callback(
+    Output('pv-graphs', 'children'),
+    Input('pv-plot-buttom', 'n_clicks'),
+    Input('pv-stored-graphs-axis-range', 'data'),
+    State('pv-binning-slider', 'value'),
+    State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
+    State({'type': 'probe-dropdown', 'index': ALL}, 'value'),
+    State({'type': 'graph-dropdown', 'index': ALL}, 'value')
+)
+def update_graphs(
+        n_clicks,
+        axis_range,
+        binning_value,
+        samples_value,
+        probes_value,
+        graphs_values,
+):
+    ctx = dash.callback_context
+    triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if n_clicks is None or n_clicks == 0:
+        return None
+
+    graphs_info = {}
+    nb_graphs = 0
+
+    x_range = None
+    y_range = None
+    if triggerd_input == 'pv-stored-graphs-axis-range':
+        if axis_range:
+            x_range = axis_range['x_range']
+            y_range = axis_range['y_range']
+
+    for i, graph in enumerate(graphs_values):
+        if graph is None:
+            continue
+        graph_id = int(graph.split(' ')[-1])
+        if graph_id not in graphs_info:
+            nb_graphs += 1
+            graphs_info[graph_id] = {
+                'samples': [],
+                'fragments': [],
+                'pcr': [],
+                'weight': [],
+                'filepaths': [],
+                'size': 0,
+            }
+        graphs_info[graph_id]['samples'].append(samples_value[i])
+        graphs_info[graph_id]['fragments'].append(probes_value[i])
+
+        if binning_value == 0:
+            filepath = join(filedir, f"{samples_value[i]}_unbinned_frequencies.tsv")
+            graphs_info[graph_id]['filepaths'].append(filepath)
+        else:
+            filepath = join(filedir, f"{samples_value[i]}_{binning_value}kb_binned_frequencies.tsv")
+            graphs_info[graph_id]['filepaths'].append(filepath)
+        graphs_info[graph_id]['size'] += 1
+
+    chr_cum_pos = list(np.cumsum(chr_pos))
+    chr_boundaries = [0] + chr_cum_pos[:-1]
+
+    figures = {}
+    traces_count = 0
+    for i in graphs_info:
+        traces_to_add = graphs_info[i]['size']
+        figures[i] = update_figure(
+            graph_id=i,
+            graph_dict=graphs_info[i],
+            traces_colors=colors[traces_count:traces_count + traces_to_add],
+            binning=binning_value,
+            chr_boundaries=chr_boundaries,
+            x_range=x_range,
+            y_range=y_range
+        )
+        traces_count += traces_to_add
+
+    graphs_layout = []
+    for i in sorted(figures.keys()):
+        graphs_layout.append(
+            dcc.Graph(id={'type': 'graph', 'index': i},
+                      config={'displayModeBar': True, 'scrollZoom': True},
+                      style={'height': 'auto', 'width': '100%'},
+                      figure=figures[i])
+        )
+    return graphs_layout
+
+
+@callback(
+    Output('pv-stored-graphs-axis-range', 'data'),
+    Input({'type': 'graph', 'index': ALL}, 'relayoutData'),
+    State('pv-sync-box', 'value')
+)
+def update_figure_range(relayout_data, sync_value):
+    if not sync_value:
+        return dash.no_update
+
+    if len(relayout_data) == 1:
+        return dash.no_update
+
+    if not any(relayout_data):
+        return [None, None]
+
+    ctx = dash.callback_context
+    input_id = json.loads(ctx.triggered[0]['prop_id'].split('.')[0])['index']
+
+    updated_range = {'x_range': None, 'y_range': None}
+    if 'xaxis.range[0]' in relayout_data[input_id]:
+        updated_range['x_range'] = [relayout_data[input_id]['xaxis.range[0]'],
+                                    relayout_data[input_id]['xaxis.range[1]']]
+
+    if 'yaxis.range[0]' in relayout_data[input_id]:
+        updated_range['y_range'] = [relayout_data[input_id]['yaxis.range[0]'],
+                                    relayout_data[input_id]['yaxis.range[1]']]
+    return updated_range
