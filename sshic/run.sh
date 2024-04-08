@@ -14,4 +14,5 @@ python3 ./pipeline.py  \
 --telomeres-aggregated-binning 1000 \
 --aggregate-by-arm-lengths \
 --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial_donor chr_artificial_ssDNA \
---exclude-probe-chr
+--exclude-probe-chr \
+--psmn-shift

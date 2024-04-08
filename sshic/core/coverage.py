@@ -4,11 +4,14 @@ import argparse
 import numpy as np
 import pandas as pd
 
+from typing import Optional
+
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
 
 
-def coverage(sshic_contacts_path: str, fragments_path: str, output_dir: str):
+def coverage(
+        sshic_contacts_path: str, fragments_path: str, output_dir: str, psmn_shift: Optional[bool] = False) -> None:
 
     """
     Calculate the coverage per fragment and save the result to a bedgraph file in the output directory.
@@ -27,7 +30,9 @@ def coverage(sshic_contacts_path: str, fragments_path: str, output_dir: str):
 
     df_fragments: pd.DataFrame = pd.read_csv(fragments_path, sep='\t')
     df_fragments.rename(columns={'chrom': 'chr', 'start_pos': 'start', 'end_pos': 'end'}, inplace=True)
-    df_fragments['id'] = list(range(1, len(df_fragments) + 1))
+    df_fragments['id'] = list(range(len(df_fragments)))
+    if psmn_shift:
+        df_fragments["id"] = df_fragments["id"] + 1
 
     df_hic_contacts: pd.DataFrame = pd.read_csv(
         sshic_contacts_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])

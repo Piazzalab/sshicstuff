@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from utils import frag2
 
+from typing import Optional
+
 
 def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
     """
@@ -137,13 +139,8 @@ def second_join(
 
 
 def filter_contacts(
-        sample_name: str,
-        oligos_path: str,
-        fragments_path: str,
-        contacts_path: str,
-        output_dir: str,
-        hic_only: bool = False
-) -> None:
+        sample_name: str, oligos_path: str, fragments_path: str, contacts_path: str,
+        output_dir: str, hic_only: bool = False, psmn_shift: Optional[bool] = False) -> None:
 
     """
     Fragment import and correction of col names
@@ -151,7 +148,7 @@ def filter_contacts(
 
     df_fragments_raw = pd.read_csv(fragments_path, sep='\t')
     df_fragments = pd.DataFrame(
-        {'frag': [k for k in range(1, len(df_fragments_raw) + 1)],
+        {'frag': [k for k in range(len(df_fragments_raw))],
          'chr': df_fragments_raw['chrom'],
          'start': df_fragments_raw['start_pos'],
          'end': df_fragments_raw['end_pos'],
@@ -159,6 +156,9 @@ def filter_contacts(
          'gc_content': df_fragments_raw['gc_content']
          }
     )
+
+    if psmn_shift:
+        df_fragments["frag"] = df_fragments["frag"] + 1
 
     """
     Oligos import and addition of fragment information (fragment containing the oligo)

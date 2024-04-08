@@ -58,7 +58,7 @@ class PathBundle:
 class AggregateParams:
     def __init__(self, window_size_centro, window_size_telos,
                  binning_size_centro, binning_size_telo, aggregate_by_arm_lengths,
-                 excluded_chr_list, excluded_probe_chr, ):
+                 excluded_chr_list, excluded_probe_chr):
 
         self.window_size_centromeres = window_size_centro
         self.window_size_telomeres = window_size_telos
@@ -69,16 +69,10 @@ class AggregateParams:
         self.excluded_chr_list = excluded_chr_list
 
 
-def pipeline(
-    path_bundle: PathBundle,
-    oligos_path: str,
-    fragments_list_path: str,
-    centromeres_coordinates_path: str,
-    binning_size_list: List[int],
-    aggregate_params: AggregateParams,
-    additional_groups: Optional[str] = None,
-    hic_only: Optional[bool] = False,
-):
+def pipeline(path_bundle: PathBundle, oligos_path: str, fragments_list_path: str, centromeres_coordinates_path: str,
+             binning_size_list: List[int], aggregate_params: AggregateParams, additional_groups: Optional[str] = None,
+             hic_only: Optional[bool] = False, psmn_shift: Optional[bool] = False):
+
     print(f" -- Sample {path_bundle.samp_name} -- \n")
 
     copy_file(fragments_list_path, path_bundle.sample_copy_inputs_dir)
@@ -94,12 +88,13 @@ def pipeline(
     print(f"Filter contacts \n")
     if not os.path.exists(path_bundle.filtered_contacts_input):
         filter_contacts(path_bundle.samp_name, oligos_path, fragments_list_path,
-                        path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir, hic_only)
+                        path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir, hic_only, psmn_shift)
 
     print(f"Make the coverages\n")
-    coverage(path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
+    coverage(path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_outputs_dir, psmn_shift)
     if hic_only:
-        coverage(path_bundle.sample_sparse_no_probe_file_path, fragments_list_path, path_bundle.sample_outputs_dir)
+        coverage(path_bundle.sample_sparse_no_probe_file_path, fragments_list_path,
+                 path_bundle.sample_outputs_dir, psmn_shift)
 
     print(f"Organize the contacts between probe fragments and the rest of the genome \n")
     profile_contacts(path_bundle.samp_name, path_bundle.filtered_contacts_input, oligos_path,
@@ -210,6 +205,7 @@ if __name__ == "__main__":
     --aggregate-by-arm-lengths      
     --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial_donor chr_artificial_ssDNA     
     --exclude-probe-chr
+    --psmn-shift
     """
 
     # default folders paths
@@ -266,8 +262,8 @@ if __name__ == "__main__":
     parser.add_argument('--exclude-probe-chr', action='store_true', required=False,
                         help="exclude the chromosome where the probe comes from (oligo's chromosome)")
 
-    parser.add_argument('--resume', action='store_true', required=False,
-                        help="don't do a step if the output file already exists")
+    parser.add_argument('--psmn-shift', action='store_true', required=False,
+                        help="shift fragment id by 1 to match psmn nf-core format")
 
     args = parser.parse_args()
 
@@ -313,5 +309,5 @@ if __name__ == "__main__":
 
         sample_data = [
             sample_path_bundle, args.oligos_capture, args.fragments_list, args.chromosomes_arms_coordinates,
-            args.binning_sizes, sample_aggregate_params_centros, args.additional_groups, args.hic_only]
+            args.binning_sizes, sample_aggregate_params_centros, args.additional_groups, args.hic_only, args.psmn_shift]
         pipeline(*sample_data)
