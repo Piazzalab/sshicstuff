@@ -166,15 +166,8 @@ def update_output(value):
     return f'Binning resolution : {value} kb'
 
 
-def create_card(
-        index,
-        sample_options,
-        probe_options,
-        graph_options,
-        sample_value,
-        probe_value,
-        graph_value
-):
+def create_card(index, sample_options, probe_options, graph_options, sample_value, probe_value, graph_value):
+
     card = dbc.Col(
         dbc.Card([
             dbc.CardHeader(html.Div(
@@ -295,14 +288,9 @@ def update_card_header(probe_value, sample_value):
 
 
 def update_figure(
-        graph_id: int,
-        graph_dict: dict,
-        traces_colors: list,
-        binning: int,
-        df_coords: pd.DataFrame,
-        x_range=None,
-        y_range=None
-):
+        graph_id: int, graph_dict: dict, traces_colors: list, binning: int,
+        df_coords: pd.DataFrame, x_range=None, y_range=None):
+
     fig = go.Figure()
     trace_id = 0
 
@@ -384,15 +372,7 @@ def update_figure(
     State({'type': 'probe-dropdown', 'index': ALL}, 'value'),
     State({'type': 'graph-dropdown', 'index': ALL}, 'value')
 )
-def update_graphs(
-        n_clicks,
-        axis_range,
-        binning_value,
-        coords_value,
-        samples_value,
-        probes_value,
-        graphs_values,
-):
+def update_graphs( n_clicks, axis_range, binning_value, coords_value, samples_value, probes_value, graphs_values):
     ctx = dash.callback_context
     triggerd_input = ctx.triggered[0]['prop_id'].split('.')[0]
 
