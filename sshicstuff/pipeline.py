@@ -3,15 +3,14 @@ from os.path import join
 import itertools
 import argparse
 import shutil
-import pandas as pd
 from typing import List, Optional
 
-from sshicstuff.core.filter import filter_contacts
-from sshicstuff.core.coverage import coverage
-from sshicstuff.core.weight import weight_mutant
-from sshicstuff.core.aggregated import aggregate
-from sshicstuff.core.statistics import get_stats, compare_to_wt
-from sshicstuff.core.binning import rebin_contacts, profile_contacts
+from filter import filter_contacts
+from coverage import coverage
+from weight import weight_mutant
+from aggregated import aggregate
+from statistics import get_stats, compare_to_wt
+from binning import rebin_contacts, profile_contacts
 
 
 def copy_file(source_path, destination_path):
@@ -23,7 +22,7 @@ def copy_file(source_path, destination_path):
 
 
 class PathBundle:
-    def __init__(self, sample_sparse_file_path: str, outputs_dir: str, reference_path_list: List[str] = None, ):
+    def __init__(self, sample_sparse_file_path: str, outputs_dir: str, reference_path_list: List[str] = None):
 
         self.sample_sparse_file_path = sample_sparse_file_path
         self.samp_name = sample_sparse_file_path.split("/")[-1].split(".")[0]
@@ -192,7 +191,8 @@ def check_nan(str_):
 if __name__ == "__main__":
     #   Example command to enter for parameters (parse)
     """
-    --samplesheet ../data/inputs/samplesheet.csv     
+    --sample ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt
+    --reference ../data/references/ref_WT2h_v2.tsv ../data/references/ref_WT2h_v3.tsv
     --outputs-dir ../data/outputs     
     --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_v8_DpnIIHinfI.txt     
     --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v8.tsv     
@@ -209,17 +209,15 @@ if __name__ == "__main__":
     --psmn-shift
     """
 
-    # default folders paths
-    samples_dir = "../data/samples"
-    references_dir = "../data/references"
-    inputs_dir = "../data/inputs"
-    outputs_dir = "../data/outputs"
 
     parser = argparse.ArgumentParser(
         description="Script that processes sshicstuff samples data.")
 
-    parser.add_argument('--samplesheet', type=str, required=True,
-                        help='Path to the samplesheet (.csv) that contains samples and their respective references ')
+    parser.add_argument('--sample', type=str, required=True,
+                        help='Path to the sample sparse matrix (hicstuff output)')
+
+    parser.add_argument('--reference', nargs='+', type=str, required=False,
+                        help='Path to the reference(s) file to weight the sample contacts')
 
     parser.add_argument('--oligos-capture', type=str, required=True,
                         help='Path to the file that contains positions of oligos')
@@ -268,47 +266,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if len(args.samplesheet.split("/")) == 1:
-        args.samplesheet = join(inputs_dir, args.samplesheet)
-    if len(args.oligos_capture.split("/")) == 1:
-        args.oligos_capture = join(inputs_dir, args.oligos_capture)
-    if len(args.fragments_list.split("/")) == 1:
-        args.fragments_list = join(inputs_dir, args.fragments_list)
-    if len(args.chromosomes_arms_coordinates.split("/")) == 1:
-        args.chromosomes_arms_coordinates = join(inputs_dir, args.chromosomes_arms_coordinates)
-    if args.additional_groups and len(args.additional_groups.split("/")) == 1:
-        args.additional_groups = join(inputs_dir, args.additional_groups)
+    references = args.reference if args.reference else None
+    sample_path_bundle = PathBundle(args.sample, args.outputs_dir, references)
 
-    df_samplesheet: pd.DataFrame = pd.read_csv(args.samplesheet, sep=",")
-    samples_and_refs_paths = {}
-    for _, row in df_samplesheet.iterrows():
-        samp = row.loc["sample"]
-        if len(samp.split("/")) == 1:
-            samp_path = join(samples_dir, samp)
-        else:
-            samp_path = samp
-        samples_and_refs_paths[samp_path] = []
+    sample_aggregate_params_centros = AggregateParams(
+        args.centromeres_aggregated_window_size, args.telomeres_aggregated_window_size,
+        args.centromeres_aggregated_binning, args.telomeres_aggregated_binning, args.aggregate_by_arm_lengths,
+        args.excluded_chr, args.exclude_probe_chr)
 
-        if len(row) > 1:
-            for i in range(1, len(row)):
-                ref = row.iloc[i]
-                if not check_nan(ref):
-                    if len(ref.split("/")) == 1:
-                        ref_path = join(references_dir, ref)
-                    else:
-                        ref_path = ref
-                    samples_and_refs_paths[samp_path].append(ref_path)
+    sample_data = [
+        sample_path_bundle, args.oligos_capture, args.fragments_list, args.chromosomes_arms_coordinates,
+        args.binning_sizes, sample_aggregate_params_centros, args.additional_groups, args.hic_only,
+        args.psmn_shift]
 
-    for samp in samples_and_refs_paths:
-        refs = samples_and_refs_paths[samp]
-        sample_path_bundle = PathBundle(samp, args.outputs_dir, refs)
+    pipeline(*sample_data)
 
-        sample_aggregate_params_centros = AggregateParams(
-            args.centromeres_aggregated_window_size, args.telomeres_aggregated_window_size,
-            args.centromeres_aggregated_binning, args.telomeres_aggregated_binning, args.aggregate_by_arm_lengths,
-            args.excluded_chr, args.exclude_probe_chr)
-
-        sample_data = [
-            sample_path_bundle, args.oligos_capture, args.fragments_list, args.chromosomes_arms_coordinates,
-            args.binning_sizes, sample_aggregate_params_centros, args.additional_groups, args.hic_only, args.psmn_shift]
-        pipeline(*sample_data)
