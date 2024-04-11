@@ -1,283 +1,209 @@
 import os
 from os.path import join
 import itertools
-import argparse
-import shutil
 from typing import List, Optional
 
-from filter import filter_contacts
-from coverage import coverage
-from weight import weight_mutant
-from aggregated import aggregate
-from statistics import get_stats, compare_to_wt
-from binning import rebin_contacts, profile_contacts
+import sshicstuff.filter as shcf
+import sshicstuff.coverage as shcc
+import sshicstuff.weight as shcw
+import sshicstuff.aggregated as shca
+import sshicstuff.statistics as shcs
+import sshicstuff.binning as shcb
+import sshicstuff.utils as shcu
 
 
-def copy_file(source_path, destination_path):
-    try:
-        shutil.copy(source_path, destination_path)
-        print(f"File {source_path.split('/')[-1]} copied successfully.")
-    except IOError as e:
-        print(f"Unable to copy file. Error: {e}")
+def full_pipeline(
+        sample_sparse_mat: str,
+        oligos_capture: str,
+        fragments_list: str,
+        output_dir: str,
+        chromosomes_arms_coordinates: str,
+        additional_groups: Optional[str] = None,
+        reference: Optional[List[str]] = None,
+        binning_sizes=None,
+        centromeres_aggregated_window_size: int = 15000,
+        centromeres_aggregated_binning: int = 10000,
+        telomeres_aggregated_window_size: int = 15000,
+        telomeres_aggregated_binning: int = 10000,
+        aggregate_by_arm_lengths: bool = False,
+        excluded_chr: Optional[List[str]] = None,
+        cis_region_size: int = 50000,
+        hic_only: bool = False,
+        exclude_probe_chr: bool = False,
+        psmn_shift: bool = False,
+        plot: bool = False,
+        copy_inputs: bool = True,
+):
+    sample_name = os.path.basename(sample_sparse_mat).split('.')[0]
+    print(f" -- Sample {sample_name} -- \n")
 
+    sample_output_dir = join(output_dir, sample_name)
+    del output_dir
+    sample_copy_input_dir = join(sample_output_dir, 'inputs')
+    no_weight_dir = join(sample_output_dir, 'classic')
+    sample_sparse_no_probe_file_path = join(sample_output_dir, sample_name + "_hic.txt")
+    filter_contacts = join(sample_output_dir, f"{sample_name}_contacts_filtered.tsv")
+    unbinned_contacts = join(no_weight_dir, f"{sample_name}_profile_contacts.tsv")
+    unbinned_frequencies = join(no_weight_dir, f"{sample_name}_profile_frequencies.tsv")
+    global_statistics = join(sample_output_dir, f"{sample_name}_contacts_statistics.tsv")
 
-class PathBundle:
-    def __init__(self, sample_sparse_file_path: str, outputs_dir: str, reference_path_list: List[str] = None):
+    os.makedirs(sample_output_dir, exist_ok=True)
+    os.makedirs(no_weight_dir, exist_ok=True)
+    os.makedirs(sample_copy_input_dir, exist_ok=True)
 
-        self.sample_sparse_file_path = sample_sparse_file_path
-        self.samp_name = sample_sparse_file_path.split("/")[-1].split(".")[0]
-
-        self.sample_outputs_dir = join(outputs_dir, self.samp_name)
-        self.sample_copy_inputs_dir = join(self.sample_outputs_dir, "inputs")
-        self.classic_dir = join(self.sample_outputs_dir, "classic")
-
-        self.sample_sparse_no_probe_file_path = join(self.sample_outputs_dir, self.samp_name + "_hic.txt")
-
-        os.makedirs(self.sample_outputs_dir, exist_ok=True)
-        os.makedirs(self.sample_copy_inputs_dir, exist_ok=True)
-        os.makedirs(self.classic_dir, exist_ok=True)
-
-        self.filtered_contacts_input = join(self.sample_outputs_dir, f"{self.samp_name}_contacts_filtered.tsv")
-        self.unbinned_contacts_input = join(self.classic_dir, f"{self.samp_name}_profile_contacts.tsv")
-        self.unbinned_frequencies_input = join(self.classic_dir, f"{self.samp_name}_profile_frequencies.tsv")
-        self.global_statistics_input = join(self.sample_outputs_dir, f"{self.samp_name}_contacts_statistics.tsv")
-
-        self.wt_references_path = []
-        self.wt_references_name = []
-        self.weighted_dirs = []
-        if reference_path_list:
-            for ref_path in reference_path_list:
-                ref_name = ref_path.split("/")[-1].split(".")[0]
-                self.wt_references_path.append(ref_path)
-                self.wt_references_name.append(ref_name)
-                weighted_dir = join(self.sample_outputs_dir, f"vs_{ref_name}")
-                self.weighted_dirs.append(weighted_dir)
-                os.makedirs(weighted_dir, exist_ok=True)
-
-
-class AggregateParams:
-    def __init__(self, window_size_centro, window_size_telos,
-                 binning_size_centro, binning_size_telo, aggregate_by_arm_lengths,
-                 excluded_chr_list, excluded_probe_chr):
-
-        self.window_size_centromeres = window_size_centro
-        self.window_size_telomeres = window_size_telos
-        self.binning_centromeres = binning_size_centro
-        self.binning_telomeres = binning_size_telo
-        self.aggregate_by_arm_lengths = aggregate_by_arm_lengths
-        self.excluded_probe_chr = excluded_probe_chr
-        self.excluded_chr_list = excluded_chr_list
-
-
-def pipeline(path_bundle: PathBundle, oligos_path: str, fragments_list_path: str, centromeres_coordinates_path: str,
-             binning_size_list: List[int], aggregate_params: AggregateParams, additional_groups: Optional[str] = None,
-             hic_only: Optional[bool] = False, psmn_shift: Optional[bool] = False):
-
-    print(f" -- Sample {path_bundle.samp_name} -- \n")
-
-    copy_file(fragments_list_path, path_bundle.sample_copy_inputs_dir)
-    copy_file(centromeres_coordinates_path, path_bundle.sample_copy_inputs_dir)
-    copy_file(additional_groups, path_bundle.sample_copy_inputs_dir)
-    copy_file(oligos_path, path_bundle.sample_copy_inputs_dir)
-    copy_file(path_bundle.sample_sparse_file_path, path_bundle.sample_copy_inputs_dir)
-    for rp in path_bundle.wt_references_path:
-        copy_file(rp, path_bundle.sample_copy_inputs_dir)
-
-    print("\n")
+    print(f"Copying inputs file for reproducibility \n")
+    if copy_inputs:
+        os.makedirs(sample_copy_input_dir, exist_ok=True)
+        shcu.copy(sample_sparse_mat, sample_copy_input_dir)
+        shcu.copy(oligos_capture, sample_copy_input_dir)
+        shcu.copy(fragments_list, sample_copy_input_dir)
+        shcu.copy(chromosomes_arms_coordinates, sample_copy_input_dir)
+        if additional_groups:
+            shcu.copy(additional_groups, sample_copy_input_dir)
+        if reference:
+            for ref in reference:
+                shcu.copy(ref, sample_copy_input_dir)
 
     print(f"Filter contacts \n")
-    if not os.path.exists(path_bundle.filtered_contacts_input):
-        filter_contacts(path_bundle.samp_name, oligos_path, fragments_list_path,
-                        path_bundle.sample_sparse_file_path, path_bundle.sample_outputs_dir, hic_only, psmn_shift)
+    shcf.filter_contacts(
+        sample_name=sample_name,
+        oligos_path=oligos_capture,
+        fragments_path=fragments_list,
+        contacts_path=sample_sparse_mat,
+        output_dir=sample_output_dir,
+        hic_only=hic_only,
+        psmn_shift=psmn_shift
+    )
 
     print(f"Make the coverages\n")
-    coverage(path_bundle.sample_sparse_file_path, fragments_list_path, path_bundle.sample_outputs_dir, psmn_shift)
+    shcc.coverage(
+        sshic_contacts_path=sample_sparse_mat,
+        fragments_path=fragments_list,
+        output_dir=sample_output_dir,
+        psmn_shift=psmn_shift
+    )
+
     if hic_only:
-        coverage(path_bundle.sample_sparse_no_probe_file_path, fragments_list_path,
-                 path_bundle.sample_outputs_dir, psmn_shift)
+        shcc.coverage(
+            sshic_contacts_path=sample_sparse_no_probe_file_path,
+            fragments_path=fragments_list,
+            output_dir=sample_output_dir,
+            psmn_shift=psmn_shift
+        )
 
     print(f"Organize the contacts between probe fragments and the rest of the genome \n")
-    profile_contacts(path_bundle.samp_name, path_bundle.filtered_contacts_input, oligos_path,
-                      centromeres_coordinates_path, path_bundle.classic_dir, additional_groups)
+    shcb.profile_contacts(
+        sample_name=sample_name,
+        filtered_contacts_path=filter_contacts,
+        output_dir=no_weight_dir,
+        oligos_path=oligos_capture,
+        additional_path=additional_groups,
+        chromosomes_coord_path=chromosomes_arms_coordinates,
+    )
 
     print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
-    get_stats(path_bundle.samp_name, path_bundle.unbinned_contacts_input,
-              path_bundle.sample_sparse_file_path, centromeres_coordinates_path,
-              oligos_path, path_bundle.sample_outputs_dir)
+    shcs.get_stats(
+        sample_name=sample_name,
+        contacts_unbinned_path=unbinned_contacts,
+        sparse_contacts_path=sample_sparse_mat,
+        centros_coord_path=chromosomes_arms_coordinates,
+        oligos_path=oligos_capture,
+        output_dir=sample_output_dir,
+        cis_range=cis_region_size
+    )
 
-    for rp, rn, rd in zip(path_bundle.wt_references_path, path_bundle.wt_references_name, path_bundle.weighted_dirs):
-        print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
-        compare_to_wt(
-            statistics_path=path_bundle.global_statistics_input,
-            reference_path=rp,
-            wt_ref_name=rn)
+    if reference:
+        for ref in reference:
+            ref_name = os.path.basename(ref).split('.')[0]
+            ref_output_dir = join(sample_output_dir, f"vs_{ref_name}")
+            print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
+            shcs.compare_to_wt(statistics_path=global_statistics, reference_path=ref, wt_ref_name=ref_name)
 
-        print(f"Weight the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
-        weight_mutant(
-            statistics_path=path_bundle.global_statistics_input, wt_ref_name=rn,
-            contacts_path=path_bundle.unbinned_contacts_input, frequencies_path=path_bundle.unbinned_frequencies_input,
-            output_dir=rd, additional_path=additional_groups)
+            print(f"Weight the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
+            shcw.weight_mutant(
+                statistics_path=global_statistics,
+                wt_ref_name=ref_name,
+                contacts_path=unbinned_contacts,
+                frequencies_path=unbinned_frequencies,
+                output_dir=ref_output_dir,
+                additional_path=additional_groups
+            )
 
     print(f"Rebin and weight the unbinned tables (contacts and frequencies) at : \n")
-    for bn in binning_size_list:
-        bin_suffix = str(bn // 1000) + "kb"
-        print(bin_suffix)
-        rebin_contacts(
-            path_bundle.samp_name,
-            contacts_unbinned_path=path_bundle.unbinned_contacts_input,
-            chromosomes_coord_path=centromeres_coordinates_path, oligos_path=oligos_path, bin_size=bn,
-            output_dir=path_bundle.classic_dir, additional_path=additional_groups)
+    if binning_sizes:
+        for bn in binning_sizes:
+            bin_suffix = str(bn // 1000) + "kb"
+            print(f"Rebinning at {bin_suffix}")
 
-        binned_contacts_input = join(path_bundle.classic_dir,
-                                     f"{path_bundle.samp_name}_{bin_suffix}_profile_contacts.tsv")
+            shcb.rebin_contacts(
+                sample_name=sample_name,
+                contacts_unbinned_path=unbinned_contacts,
+                chromosomes_coord_path=chromosomes_arms_coordinates,
+                bin_size=bn,
+                oligos_path=oligos_capture,
+                output_dir=no_weight_dir,
+                additional_path=additional_groups,
+            )
 
-        binned_frequencies_input = join(path_bundle.classic_dir,
-                                        f"{path_bundle.samp_name}_{bin_suffix}_profile_frequencies.tsv")
+            current_binned_contacts = join(no_weight_dir, f"{sample_name}_{bin_suffix}_profile_contacts.tsv")
+            current_binned_frequencies = join(no_weight_dir, f"{sample_name}_{bin_suffix}_profile_frequencies.tsv")
 
-        for rn, rd in zip(path_bundle.wt_references_name, path_bundle.weighted_dirs):
-            weight_mutant(
-                statistics_path=path_bundle.global_statistics_input, wt_ref_name=rn,
-                contacts_path=binned_contacts_input, frequencies_path=binned_frequencies_input,
-                output_dir=rd, additional_path=additional_groups)
+            if reference:
+                for ref in reference:
+                    ref_name = os.path.basename(ref).split('.')[0]
+                    ref_output_dir = join(sample_output_dir, f"vs_{ref_name}")
+                    shcs.compare_to_wt(statistics_path=global_statistics, reference_path=ref, wt_ref_name=ref_name)
+
+                    shcw.weight_mutant(
+                        statistics_path=global_statistics,
+                        wt_ref_name=ref_name,
+                        contacts_path=current_binned_contacts,
+                        frequencies_path=current_binned_frequencies,
+                        output_dir=ref_output_dir,
+                        additional_path=additional_groups
+                    )
 
     print("\n")
-
     regions = ["centromeres", "telomeres"]
-    weights_dir = [rd for rd in path_bundle.weighted_dirs] + [path_bundle.classic_dir]
     normalization = [True, False]
+    weights_dir = [no_weight_dir]
+    if reference:
+        for r in reference:
+            weights_dir.append(join(sample_output_dir, f"vs_{os.path.basename(r).split('.')[0]}"))
 
     param_combinations = list(itertools.product(regions, weights_dir, normalization))
     for region, weight_dir, is_normalized in param_combinations:
         weight_suffix = "_" + weight_dir.split("/")[-1] if "vs" in weight_dir else ""
         if region == "centromeres":
-            binning_suffix = str(aggregate_params.binning_centromeres // 1000) + "kb"
+            binning_suffix = str(centromeres_aggregated_binning // 1000) + "kb"
         elif region == "telomeres":
-            binning_suffix = str(aggregate_params.binning_telomeres // 1000) + "kb"
+            binning_suffix = str(telomeres_aggregated_binning // 1000) + "kb"
         else:
             continue
 
-        full_name = f"{path_bundle.samp_name}_{binning_suffix}_profile{weight_suffix}_contacts.tsv"
+        full_name = f"{sample_name}_{binning_suffix}_profile{weight_suffix}_contacts.tsv"
         binned_contacts_path = join(weight_dir, full_name)
         output_dir = weight_dir
-        ws = aggregate_params.window_size_centromeres \
-            if region == "centromeres" else aggregate_params.window_size_telomeres
+        ws = centromeres_aggregated_window_size if region == "centromeres" else telomeres_aggregated_window_size
 
         print(
             f"Make an aggregated of contacts around {region} ({weight_dir.split('/')[-1]}, "
             f"{'with' if is_normalized else 'no'} normalization)")
 
-        aggregate(
+        shca.aggregate(
             binned_contacts_path=binned_contacts_path,
-            centros_coord_path=centromeres_coordinates_path,
-            oligos_path=oligos_path,
+            centros_coord_path=chromosomes_arms_coordinates,
+            oligos_path=oligos_capture,
             window_size=ws,
             on=region,
             output_dir=output_dir,
-            aggregate_by_arm_sizes=aggregate_params.aggregate_by_arm_lengths,
-            exclude_probe_chr=aggregate_params.excluded_probe_chr,
-            excluded_chr_list=aggregate_params.excluded_chr_list,
+            aggregate_by_arm_sizes=aggregate_by_arm_lengths,
+            exclude_probe_chr=exclude_probe_chr,
+            excluded_chr_list=excluded_chr,
             additional_path=additional_groups,
             inter_normalization=is_normalized,
-            plot=False
+            plot=plot
         )
 
-    print(f"--- {path_bundle.samp_name} DONE --- \n\n")
-
-
-def check_nan(str_):
-    return str_ != str_
-
-
-if __name__ == "__main__":
-    #   Example command to enter for parameters (parse)
-    """
-    --sample ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt
-    --reference ../data/references/ref_WT2h_v2.tsv ../data/references/ref_WT2h_v3.tsv
-    --outputs-dir ../data/outputs     
-    --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_v8_DpnIIHinfI.txt     
-    --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v8.tsv     
-    --oligos-capture ../data/inputs/capture_oligo_positions_v8.csv     
-    --additional-groups ../data/inputs/additional_probe_groups.tsv     
-    --binning-sizes 1000 2000 5000 10000 20000 40000 50000 80000 100000     
-    --centromeres-aggregated-window-size 150000       
-    --telomeres-aggregated-window-size 15000     
-    --centromeres-aggregated-binning 10000     
-    --telomeres-aggregated-binning 1000     
-    --aggregate-by-arm-lengths      
-    --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial_donor chr_artificial_ssDNA     
-    --exclude-probe-chr
-    --psmn-shift
-    """
-
-
-    parser = argparse.ArgumentParser(
-        description="Script that processes sshicstuff samples data.")
-
-    parser.add_argument('--sample', type=str, required=True,
-                        help='Path to the sample sparse matrix (hicstuff output)')
-
-    parser.add_argument('--reference', nargs='+', type=str, required=False,
-                        help='Path to the reference(s) file to weight the sample contacts')
-
-    parser.add_argument('--oligos-capture', type=str, required=True,
-                        help='Path to the file that contains positions of oligos')
-
-    parser.add_argument('--fragments-list', type=str, required=True,
-                        help='Path to the file fragments_list (hic_stuff output)')
-
-    parser.add_argument('--outputs-dir', type=str, required=True,
-                        help='Path to the output directory that will contain the results for each samples')
-
-    parser.add_argument('--chromosomes-arms-coordinates', type=str, required=True,
-                        help='Path to the file containing centromeres coordinates and chromosomes arms lengths')
-
-    parser.add_argument('--binning-sizes', nargs='+', type=int, required=True,
-                        help='desired bin size for the rebin step')
-
-    parser.add_argument('--additional-groups', type=str, required=False,
-                        help='Path to additional groups of probes table')
-
-    parser.add_argument('--centromeres-aggregated-window-size', type=int, required=True,
-                        help="window (in bp) that defines a focus region to aggregated centromeres")
-
-    parser.add_argument('--centromeres-aggregated-binning', type=int, required=True,
-                        help="bin size (in bp) to use for the aggregated centromeres contacts")
-
-    parser.add_argument('--telomeres-aggregated-window-size', type=int, required=True,
-                        help="window (in bp) that defines a focus region to aggregated telomeres")
-
-    parser.add_argument('--telomeres-aggregated-binning', type=int, required=True,
-                        help="bin size (in bp) to use for the aggregated telomeres contacts")
-
-    parser.add_argument('--aggregate-by-arm-lengths', action='store_true', required=False,
-                        help="aggregate contacts by arm lengths")
-
-    parser.add_argument('--excluded-chr', nargs='+', type=str, required=False,
-                        help='list of chromosomes to excludes to prevent bias of contacts')
-
-    parser.add_argument('--hic-only', action='store_true', required=False,
-                        help="remove from sparse the fragment that contains oligo sshicstuff position")
-
-    parser.add_argument('--exclude-probe-chr', action='store_true', required=False,
-                        help="exclude the chromosome where the probe comes from (oligo's chromosome)")
-
-    parser.add_argument('--psmn-shift', action='store_true', required=False,
-                        help="shift fragment id by 1 to match psmn nf-core format")
-
-    args = parser.parse_args()
-
-    references = args.reference if args.reference else None
-    sample_path_bundle = PathBundle(args.sample, args.outputs_dir, references)
-
-    sample_aggregate_params_centros = AggregateParams(
-        args.centromeres_aggregated_window_size, args.telomeres_aggregated_window_size,
-        args.centromeres_aggregated_binning, args.telomeres_aggregated_binning, args.aggregate_by_arm_lengths,
-        args.excluded_chr, args.exclude_probe_chr)
-
-    sample_data = [
-        sample_path_bundle, args.oligos_capture, args.fragments_list, args.chromosomes_arms_coordinates,
-        args.binning_sizes, sample_aggregate_params_centros, args.additional_groups, args.hic_only,
-        args.psmn_shift]
-
-    pipeline(*sample_data)
+    print(f"--- {sample_name} DONE --- \n\n")
 
