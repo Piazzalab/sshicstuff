@@ -1,6 +1,7 @@
 import os
 from os.path import join
 import itertools
+import logging
 from typing import List, Optional
 
 import sshicstuff.filter as shcf
@@ -10,6 +11,16 @@ import sshicstuff.aggregated as shca
 import sshicstuff.statistics as shcs
 import sshicstuff.binning as shcb
 import sshicstuff.utils as shcu
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("sshicstuff_pipeline.log"),
+        logging.StreamHandler()
+    ]
+)
 
 
 def full_pipeline(
@@ -35,7 +46,7 @@ def full_pipeline(
         copy_inputs: bool = True,
 ):
     sample_name = os.path.basename(sample_sparse_mat).split('.')[0]
-    print(f" -- Sample {sample_name} -- \n")
+    logging.info(f" -- Sample {sample_name} -- ")
 
     sample_output_dir = join(output_dir, sample_name)
     del output_dir
@@ -51,7 +62,7 @@ def full_pipeline(
     os.makedirs(no_weight_dir, exist_ok=True)
     os.makedirs(sample_copy_input_dir, exist_ok=True)
 
-    print(f"Copying inputs file for reproducibility \n")
+    logging.info("Copying inputs file for reproducibility")
     if copy_inputs:
         os.makedirs(sample_copy_input_dir, exist_ok=True)
         shcu.copy(sample_sparse_mat, sample_copy_input_dir)
@@ -64,7 +75,7 @@ def full_pipeline(
             for ref in reference:
                 shcu.copy(ref, sample_copy_input_dir)
 
-    print(f"Filter contacts \n")
+    logging.info("Filter contacts")
     shcf.filter_contacts(
         sample_name=sample_name,
         oligos_path=oligos_capture,
@@ -75,7 +86,7 @@ def full_pipeline(
         psmn_shift=psmn_shift
     )
 
-    print(f"Make the coverages\n")
+    logging.info("Make the coverages")
     shcc.coverage(
         sshic_contacts_path=sample_sparse_mat,
         fragments_path=fragments_list,
@@ -91,7 +102,7 @@ def full_pipeline(
             psmn_shift=psmn_shift
         )
 
-    print(f"Organize the contacts between probe fragments and the rest of the genome \n")
+    logging.info("Organize the contacts between probe fragments and the rest of the genome")
     shcb.profile_contacts(
         sample_name=sample_name,
         filtered_contacts_path=filter_contacts,
@@ -101,7 +112,7 @@ def full_pipeline(
         chromosomes_coord_path=chromosomes_arms_coordinates,
     )
 
-    print(f"Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...) \n")
+    logging.info("Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...)")
     shcs.get_stats(
         sample_name=sample_name,
         contacts_unbinned_path=unbinned_contacts,
@@ -116,10 +127,10 @@ def full_pipeline(
         for ref in reference:
             ref_name = os.path.basename(ref).split('.')[0]
             ref_output_dir = join(sample_output_dir, f"vs_{ref_name}")
-            print(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
+            logging.info(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
             shcs.compare_to_wt(statistics_path=global_statistics, reference_path=ref, wt_ref_name=ref_name)
 
-            print(f"Weight the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
+            logging.info(f"Weight the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
             shcw.weight_mutant(
                 statistics_path=global_statistics,
                 wt_ref_name=ref_name,
@@ -129,11 +140,11 @@ def full_pipeline(
                 additional_path=additional_groups
             )
 
-    print(f"Rebin and weight the unbinned tables (contacts and frequencies) at : \n")
+    logging.info(f"Rebin and weight the unbinned tables (contacts and frequencies) at : \n")
     if binning_sizes:
         for bn in binning_sizes:
             bin_suffix = str(bn // 1000) + "kb"
-            print(f"Rebinning at {bin_suffix}")
+            logging.info(f"Rebinning at {bin_suffix}")
 
             shcb.rebin_contacts(
                 sample_name=sample_name,
@@ -163,7 +174,6 @@ def full_pipeline(
                         additional_path=additional_groups
                     )
 
-    print("\n")
     regions = ["centromeres", "telomeres"]
     normalization = [True, False]
     weights_dir = [no_weight_dir]
@@ -186,7 +196,7 @@ def full_pipeline(
         output_dir = weight_dir
         ws = centromeres_aggregated_window_size if region == "centromeres" else telomeres_aggregated_window_size
 
-        print(
+        logging.info(
             f"Make an aggregated of contacts around {region} ({weight_dir.split('/')[-1]}, "
             f"{'with' if is_normalized else 'no'} normalization)")
 
@@ -205,5 +215,5 @@ def full_pipeline(
             plot=plot
         )
 
-    print(f"--- {sample_name} DONE --- \n\n")
+    logging.info(f"--- {sample_name} DONE --- \n\n")
 
