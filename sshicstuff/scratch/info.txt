@@ -1,0 +1,2 @@
+DO NOT USE THEM.
+ The following scripts are not maintained anymore, they are kept in the repo in case of future need.
