@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import os
 from os.path import join 
 from typing import List, Optional
-from sshicstuff.core.utils import sort_by_chr, make_groups_of_probes
+from utils import sort_by_chr, make_groups_of_probes
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None

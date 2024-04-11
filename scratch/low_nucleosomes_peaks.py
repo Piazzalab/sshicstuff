@@ -6,7 +6,7 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 
-from core import utils
+import utils
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None

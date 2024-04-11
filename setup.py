@@ -19,7 +19,7 @@ CLASSIFIERS = [
     "Operating System :: MacOS",
 ]
 
-NAME = "ssHiCstuff"
+NAME = "sshicstuff"
 
 MAJOR = 1
 MINOR = 0

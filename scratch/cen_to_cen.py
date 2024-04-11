@@ -8,7 +8,7 @@ if __name__ == "__main__":
     bin_size = 1000
     window_size = 60000
     excluded_chr = ['chr3', 'chr2', 'chr5']
-    data_dir = '../../data/'
+    data_dir = '../data/'
     samples_dir = data_dir + 'inputs/HiC_WT_2h_4h/samples/'
     fragments_dir = data_dir + 'inputs/HiC_WT_2h_4h/'
     samples = sorted(os.listdir(samples_dir))

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     excluded_chr = ['chr3', 'chr2', 'chr5']
     chr_order = ['chr1', 'chr4', 'chr6', 'chr7', 'chr8', 'chr9', 'chr10',
                  'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', ]
-    data_dir = '../../data/'
+    data_dir = '../data/'
     samples_dir = data_dir + 'inputs/HiC_WT_2h_4h/samples/'
     fragments_dir = data_dir + 'inputs/HiC_WT_2h_4h/'
     samples = sorted(os.listdir(samples_dir))

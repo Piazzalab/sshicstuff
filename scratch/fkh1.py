@@ -1,9 +1,8 @@
 import os
 import numpy as np
 import pandas as pd
-import plotly.express as px
 
-from core.utils import sort_by_chr
+from utils import sort_by_chr
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     centro_region_size = 150000
     telo_region_size = 30000
     excluded_chr = ['chr3', 'chr2', 'chr5']
-    data_dir = '../../data/'
+    data_dir = '../data/'
     samples_dir = data_dir + 'inputs/HiC_WT_2h_4h/samples/'
     fragments_dir = data_dir + 'inputs/HiC_WT_2h_4h/'
     chr_arm = data_dir + "inputs/S288c_chr_arm_sorted_by_length.csv"

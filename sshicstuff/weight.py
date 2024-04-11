@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from typing import Optional
 
-from sshicstuff.core.utils import make_groups_of_probes
+from utils import make_groups_of_probes
 
 
 def weight_mutant(

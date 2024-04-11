@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from typing import Optional
 
-from sshicstuff.core.utils import frag2
+from utils import frag2
 
 
 
