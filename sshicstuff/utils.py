@@ -1,5 +1,6 @@
 import sys
 import re
+import shutil
 import numpy as np
 import pandas as pd
 
@@ -8,7 +9,12 @@ from typing import List
 
 def is_debug() -> bool:
     """
-    Function to see if the script is running in debug mode.
+    Check if the script is running in debug mode.
+
+    Returns
+    -------
+    bool
+        True if the script is running in debug mode, False otherwise.
     """
     gettrace = getattr(sys, 'gettrace', None)
 
@@ -23,6 +29,20 @@ def is_debug() -> bool:
 
 
 def detect_delimiter(path: str):
+    """
+    Detect the delimiter of a file.
+    The delimiter is detected by counting the number of tabs and commas in the file.
+
+    Parameters
+    ----------
+    path : str
+        Path to the file.
+
+    Returns
+    -------
+    str
+        Delimiter of the file.
+    """
     with open(path, 'r') as file:
         contents = file.read()
     tabs = contents.count('\t')
@@ -36,6 +56,16 @@ def detect_delimiter(path: str):
 def frag2(x):
     """
     if x = a get b, if x = b get a
+
+    Parameters
+    ----------
+    x : str
+        String to invert.
+
+    Returns
+    -------
+    str
+        Inverted string.
     """
     if x == 'a':
         y = 'b'
@@ -45,6 +75,23 @@ def frag2(x):
 
 
 def sort_by_chr(df: pd.DataFrame, chr_list: List[str], *args: str):
+    """
+    Sort a DataFrame by chromosome and then by other columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to sort.
+    chr_list : List[str]
+        List of chromosomes.
+    args : str
+        Columns to sort by after the chromosome.
+
+    Returns
+    -------
+    pd.DataFrame
+        Sorted DataFrame.
+    """
     # use re to identify chromosomes of the form "chrX" with X being a number
     chr_with_number = [c for c in chr_list if re.match(r'chr\d+', c)]
     chr_with_number.sort(key=lambda x: int(x[3:]))
@@ -75,3 +122,44 @@ def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: 
             df[group_name] = df[group_frags].sum(axis=1)
         else:
             continue
+
+
+def copy(source_path, destination_path):
+    """
+    Copy a file from source to destination.
+    Useful to copy inputs files to the output directory in order to have a trace.
+
+    Parameters
+    ----------
+    source_path : str
+        Path to the file to copy.
+    destination_path : str
+        Path to the destination directory.
+    """
+    try:
+        shutil.copy(source_path, destination_path)
+        print(f"File {source_path.split('/')[-1]} copied successfully.")
+    except IOError as e:
+        print(f"Unable to copy file. Error: {e}")
+
+
+def check_if_exists(file_path: str):
+    """
+    Check if a file exists.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file to check.
+
+    Returns
+    -------
+    bool
+        True if the file exists, False otherwise.
+    """
+    try:
+        with open(file_path, 'r'):
+            return True
+    except FileNotFoundError:
+        return False
+
