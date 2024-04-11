@@ -140,8 +140,13 @@ def second_join(
 
 
 def filter_contacts(
-        sample_name: str, oligos_path: str, fragments_path: str, contacts_path: str,
-        output_dir: str, hic_only: bool = False, psmn_shift: Optional[bool] = False) -> None:
+        sample_name: str,
+        oligos_path: str,
+        fragments_path: str,
+        contacts_path: str,
+        output_dir: str,
+        hic_only: bool = False,
+        psmn_shift: Optional[bool] = False) -> None:
 
     """
     Fragment import and correction of col names
