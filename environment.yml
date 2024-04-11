@@ -15,3 +15,4 @@ dependencies:
   - htslib
   - minimap2
   - samtools
+  - -seqtk
