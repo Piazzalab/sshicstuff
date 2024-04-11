@@ -178,7 +178,7 @@ def main(
 if __name__ == "__main__":
     data_dir = os.path.dirname(os.path.dirname(os.getcwd())) + '/data/'
 
-    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+    sshic_pcrdupt_dir = ['sshicstuff/', 'sshic_pcrdupkept/']
     outputs_dir = data_dir + 'outputs/'
     inputs_dir = data_dir + 'inputs/'
     fragments_list = inputs_dir + "fragments_list.txt"

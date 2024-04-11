@@ -1,9 +1,10 @@
 import os
 import pandas as pd
 import numpy as np
-from utils import frag2
-
 from typing import Optional
+
+from sshicstuff.core.utils import frag2
+
 
 
 def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:

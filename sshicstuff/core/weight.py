@@ -1,18 +1,14 @@
-import re
 import os
 import pandas as pd
 import numpy as np
 from typing import Optional
-from utils import make_groups_of_probes
+
+from sshicstuff.core.utils import make_groups_of_probes
 
 
 def weight_mutant(
-        statistics_path: str,
-        wt_ref_name: str,
-        contacts_path: str,
-        frequencies_path: str,
-        output_dir: str,
-        additional_path: Optional[str] = None
+        statistics_path: str, wt_ref_name: str, contacts_path: str, frequencies_path: str,
+        output_dir: str, additional_path: Optional[str] = None
 ):
 
     """

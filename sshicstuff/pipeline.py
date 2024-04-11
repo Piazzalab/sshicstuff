@@ -6,12 +6,13 @@ import shutil
 import pandas as pd
 from typing import List, Optional
 
-from core.filter import filter_contacts
-from core.coverage import coverage
-from core.weight import weight_mutant
-from core.aggregated import aggregate
-from core.statistics import get_stats, compare_to_wt
-from core.binning import rebin_contacts, profile_contacts
+from sshicstuff.core.filter import filter_contacts
+from sshicstuff.core.coverage import coverage
+from sshicstuff.core.weight import weight_mutant
+from sshicstuff.core.aggregated import aggregate
+from sshicstuff.core.statistics import get_stats, compare_to_wt
+from sshicstuff.core.binning import rebin_contacts, profile_contacts
+
 
 def copy_file(source_path, destination_path):
     try:
@@ -215,7 +216,7 @@ if __name__ == "__main__":
     outputs_dir = "../data/outputs"
 
     parser = argparse.ArgumentParser(
-        description="Script that processes sshic samples data.")
+        description="Script that processes sshicstuff samples data.")
 
     parser.add_argument('--samplesheet', type=str, required=True,
                         help='Path to the samplesheet (.csv) that contains samples and their respective references ')
@@ -257,7 +258,7 @@ if __name__ == "__main__":
                         help='list of chromosomes to excludes to prevent bias of contacts')
 
     parser.add_argument('--hic-only', action='store_true', required=False,
-                        help="remove from sparse the fragment that contains oligo sshic position")
+                        help="remove from sparse the fragment that contains oligo sshicstuff position")
 
     parser.add_argument('--exclude-probe-chr', action='store_true', required=False,
                         help="exclude the chromosome where the probe comes from (oligo's chromosome)")

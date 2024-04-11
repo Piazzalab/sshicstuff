@@ -112,7 +112,7 @@ if __name__ == "__main__":
     cohesins_dir = outputs_dir + "cohesins/"
     cohesins_peaks_path = inputs_dir + "HB65_reference_peaks_score50min.bed"
     centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
-    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+    sshic_pcrdupt_dir = ['sshicstuff/', 'sshic_pcrdupkept/']
 
     df_cohesins_peaks = pd.read_csv(cohesins_peaks_path, sep='\t', index_col=None,
                                     names=['chr', 'start', 'end', 'uid', 'score'])

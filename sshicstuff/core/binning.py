@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 from typing import Optional
-from utils import sort_by_chr, make_groups_of_probes, frag2
+from sshicstuff.core.utils import sort_by_chr, make_groups_of_probes, frag2
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None

@@ -180,7 +180,7 @@ if __name__ == "__main__":
     genes_with_score_path = inputs_dir + "genes_list_with_coverage_per_bp.tsv"
     centromeres_positions = inputs_dir + "S288c_chr_centro_coordinates.tsv"
     transcripts_dir = outputs_dir + "/transcripts/"
-    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+    sshic_pcrdupt_dir = ['sshicstuff/', 'sshic_pcrdupkept/']
 
     df_genes_scored = pd.read_csv(genes_with_score_path, sep='\t', index_col=0)
     df_probes2frag = pd.read_csv(probes_and_fragments, sep='\t', index_col=0)

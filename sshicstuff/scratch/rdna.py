@@ -49,7 +49,7 @@ def main(
 
 if __name__ == "__main__":
     data_dir = os.path.dirname(os.getcwd()) + '/data/'
-    sshic_pcrdupt_dir = ['sshic/', 'sshic_pcrdupkept/']
+    sshic_pcrdupt_dir = ['sshicstuff/', 'sshic_pcrdupkept/']
     weighting_mode = ['classic', 'weighted']
 
     outputs_dir = data_dir + 'outputs/'

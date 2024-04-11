@@ -9,8 +9,8 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State, ALL, MATCH
 import plotly.graph_objs as go
 
-from sshic.gui.common import *
-from sshic.core.binning import rebin_live
+from sshicstuff.gui.common import *
+from sshicstuff.core.binning import rebin_live
 
 if not os.path.exists(TEMPORARY_DIRECTORY):
     os.makedirs(TEMPORARY_DIRECTORY)
