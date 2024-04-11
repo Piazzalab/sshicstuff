@@ -1,0 +1,11 @@
+docopt
+hicstuff>=3.2.2
+matplotlib>=3.6.0
+numpy>=1.23.0
+pandas>=2.0.0
+plotly
+pyfastx
+pysam
+requests
+scikit-learn
+scipy>=1.10.0

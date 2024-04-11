@@ -4,24 +4,14 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - biopython >= 1.83
+  - python=3.10
+  - pip=23.0.0
+  - pip:
+      - -r file:requirements.txt
+  - biopython=1.83
   - bowtie2
   - bwa
   - cooler
-  - docopt
-  - hicstuff >= 3.2.2
   - htslib
-  - matplotlib >= 3.6.0
   - minimap2
-  - numpy >= 1.22.0
-  - pandas >= 2.0.0
-  - pairtools
-  - pip >= 23.0.0
-  - plotly
-  - pyfastx
-  - pysam
-  - python >= 3.10
-  - requests
   - samtools
-  - scikit-learn
-  - scipy >= 1.10.0

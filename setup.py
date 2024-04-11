@@ -34,7 +34,7 @@ URL = "https://github.com/nmendiboure/ssHiCstuff"
 with codecs.open("README.md", encoding="utf-8") as f:
     LONG_DESCRIPTION = f.read()
 
-with open("environment.yml", "r") as f:
+with open("requirements.txt", "r") as f:
     REQUIREMENTS = f.read().splitlines()
 
 
