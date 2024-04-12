@@ -2,23 +2,23 @@ import argparse
 import sshicstuff.pipeline as shcp
 
 """
-  --sample-sparse-mat ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt 
-  --reference ../data/references/ref_WT2h_v2.tsv ../data/references/ref_WT2h_v3.tsv 
-  --output-dir ../data/outputs 
-  --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_v8_DpnIIHinfI.txt 
-  --chromosomes-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v8.tsv 
-  --oligos-capture ../data/inputs/capture_oligo_positions_v8.csv 
-  --additional-groups ../data/inputs/additional_probe_groups.tsv 
-  --binning-sizes 1000 2000 5000 10000 20000 40000 50000 80000 100000 
-  --centromeres-aggregated-window-size 150000 
-  --telomeres-aggregated-window-size 15000 
-  --centromeres-aggregated-binning 10000 
-  --telomeres-aggregated-binning 1000 
-  --aggregate-by-arm-lengths 
-  --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial_donor chr_artificial_ssDNA 
-  --exclude-probe-chr 
-  --psmn-shift 
-  --cis-region-size 50000
+    --sample-sparse-mat ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt 
+    --fragments-list ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_v8_DpnIIHinfI.txt 
+    --chr-arms-coordinates ../data/inputs/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v8.tsv 
+    --oligos-capture ../data/inputs/capture_oligo_positions_v8.csv 
+    --out-dir ../data/outputs 
+    --reference ../data/references/ref_WT2h_v2.tsv ../data/references/ref_WT2h_v3.tsv 
+    --additional-groups ../data/inputs/additional_probe_groups.tsv 
+    --binning-sizes 1000 2000 5000 10000 20000 40000 50000 80000 100000 
+    --centromeres-aggregated-window-size 150000 
+    --telomeres-aggregated-window-size 15000 
+    --centromeres-aggregated-binning 10000 
+    --telomeres-aggregated-binning 1000 
+    --aggregate-by-arm-lengths 
+    --excluded-chr chr2 chr3 2_micron mitochondrion chr_artificial_donor chr_artificial_ssDNA 
+    --exclude-probe-chr 
+    --psmn-shift 
+    --cis-region-size 50000
 """
 
 
@@ -38,19 +38,19 @@ def main():
     parser.add_argument('--fragments-list', type=str, required=True,
                         help='Path to the file fragments-list (hic-stuff output)')
 
-    parser.add_argument('--output-dir', type=str, required=True,
-                        help='Path to the output directory that will contain the results for each samples')
-
-    parser.add_argument('--chromosomes-arms-coordinates', type=str, required=True,
+    parser.add_argument('--chr-arms-coordinates', type=str, required=True,
                         help='Path to the file containing centromeres coordinates and chromosomes arms lengths')
 
-    parser.add_argument('--binning-sizes', nargs='+', type=int, required=True,
+    parser.add_argument('--out-dir', type=str, required=False,
+                        help='Path to the output directory that will contain the results for each samples')
+
+    parser.add_argument('--binning-sizes', nargs='+', type=int, required=False,
                         help='desired bin size for the rebin step')
 
     parser.add_argument('--additional-groups', type=str, required=False,
                         help='Path to additional groups of probes table')
 
-    parser.add_argument('--centromeres-aggregated-window-size', type=int, required=True,
+    parser.add_argument('--centromeres-aggregated-window-size', type=int, required=False,
                         help="window (in bp) that defines a focus region to aggregated centromeres")
 
     parser.add_argument('--centromeres-aggregated-binning', type=int, required=True,
@@ -92,8 +92,8 @@ def main():
         sample_sparse_mat=args.sample_sparse_mat,
         oligos_capture=args.oligos_capture,
         fragments_list=args.fragments_list,
-        output_dir=args.output_dir,
-        chromosomes_arms_coordinates=args.chromosomes_arms_coordinates,
+        out_dir=args.out_dir,
+        chromosomes_arms_coordinates=args.chr_arms_coordinates,
         additional_groups=args.additional_groups,
         reference=args.reference,
         binning_sizes=args.binning_sizes,

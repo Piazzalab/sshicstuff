@@ -2,7 +2,7 @@ import os
 from os.path import join
 import itertools
 import logging
-from typing import List, Optional
+from typing import List
 
 import sshicstuff.filter as shcf
 import sshicstuff.coverage as shcc
@@ -27,17 +27,17 @@ def full_pipeline(
         sample_sparse_mat: str,
         oligos_capture: str,
         fragments_list: str,
-        output_dir: str,
         chromosomes_arms_coordinates: str,
-        additional_groups: Optional[str] = None,
-        reference: Optional[List[str]] = None,
+        out_dir: str = None,
+        additional_groups: str = None,
+        reference: List[str] = None,
         binning_sizes=None,
         centromeres_aggregated_window_size: int = 15000,
         centromeres_aggregated_binning: int = 10000,
         telomeres_aggregated_window_size: int = 15000,
         telomeres_aggregated_binning: int = 10000,
         aggregate_by_arm_lengths: bool = False,
-        excluded_chr: Optional[List[str]] = None,
+        excluded_chr: List[str] = None,
         cis_region_size: int = 50000,
         hic_only: bool = False,
         exclude_probe_chr: bool = False,
@@ -48,8 +48,11 @@ def full_pipeline(
     sample_name = os.path.basename(sample_sparse_mat).split('.')[0]
     logging.info(f" -- Sample {sample_name} -- ")
 
-    sample_output_dir = join(output_dir, sample_name)
-    del output_dir
+    if not out_dir:
+        out_dir = os.getcwd()
+
+    sample_output_dir = join(out_dir, sample_name)
+    del out_dir
     sample_copy_input_dir = join(sample_output_dir, 'inputs')
     no_weight_dir = join(sample_output_dir, 'classic')
     sample_sparse_no_probe_file_path = join(sample_output_dir, sample_name + "_hic.txt")
