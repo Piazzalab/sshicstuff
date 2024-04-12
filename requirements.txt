@@ -1,3 +1,4 @@
+biopython>=1.83
 docopt
 hicstuff>=3.2.2
 matplotlib>=3.6.0
