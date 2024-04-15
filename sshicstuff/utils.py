@@ -1,10 +1,15 @@
 import sys
 import re
+import os
 import shutil
 import numpy as np
 import pandas as pd
+import logging
 
 from typing import List
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def is_debug() -> bool:
@@ -157,9 +162,38 @@ def check_if_exists(file_path: str):
     bool
         True if the file exists, False otherwise.
     """
-    try:
-        with open(file_path, 'r'):
-            return True
-    except FileNotFoundError:
-        return False
+    if os.path.exists(file_path):
+        return
+    else:
+        logging.error(f"File {file_path} does not exist.")
+
+
+def check_file_extension(file_path: str, extension: str | list[str]):
+    """
+    Check if a file has the correct extension.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file to check.
+    extension : str
+        Expected extension of the file.
+
+    Returns
+    -------
+    bool
+        True if the file has the correct extension, False otherwise.
+    """
+    if isinstance(extension, list):
+        for ext in extension:
+            if file_path.endswith(ext):
+                return
+        logging.error(f"File {file_path} does not have the correct extension {extension}.")
+
+    else:
+        if file_path.endswith(extension):
+            return
+        else:
+            logging.error(f"File {file_path} does not have the correct extension {extension}.")
+
 
