@@ -7,9 +7,9 @@ from typing import List
 import sshicstuff.filter as shcf
 import sshicstuff.coverage as shcc
 import sshicstuff.weight as shcw
-import sshicstuff.aggregated as shca
+import sshicstuff.aggregate as shca
 import sshicstuff.statistics as shcs
-import sshicstuff.binning as shcb
+import sshicstuff.rebin as shcb
 import sshicstuff.utils as shcu
 
 
