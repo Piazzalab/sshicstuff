@@ -14,8 +14,11 @@ options:
     -v, --version               shows the version
 
 The subcommands are:
-    subsample       Subsample and compress FASTQ file using seqtk.
-    genomaker       Create a chromosome artificial that is the concatenation of the annealing oligos and the enzyme sequence.
+    subsample           Subsample and compress FASTQ file using seqtk.
+    genomaker           Create a chromosome artificial that is the concatenation of the
+                        annealing oligos and the enzyme sequence.
+    associate           Associate oligo/probe name to fragment/read ID.
+    hiconly             Keep only Hi-C reads from a sparse matrix file (i.e., remove all ssDNA reads).
 """
 
 from docopt import docopt

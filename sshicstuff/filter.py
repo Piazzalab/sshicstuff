@@ -1,10 +1,11 @@
 import os
+import logging
 import pandas as pd
 import numpy as np
-from typing import Optional
 
-from utils import frag2
+import sshicstuff.utils as sshcu
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
@@ -124,7 +125,7 @@ def second_join(
         The joined DataFrame with added fragment information for the y fragment.
     """
     new_contacts = first_join(x, oligos_fragments, contacts)
-    y = frag2(x)
+    y = sshcu.frag2(x)
     joined = new_contacts.join(fragments.drop("frag", axis=1),
                                on='frag_'+y,
                                lsuffix='_' + x[-1],
@@ -144,9 +145,9 @@ def filter_contacts(
         oligos_path: str,
         fragments_path: str,
         contacts_path: str,
-        output_dir: str,
-        hic_only: bool = False,
-        psmn_shift: Optional[bool] = False) -> None:
+        output_dir: str = None,
+        frag_id_shift: int = 0
+) -> None:
 
     """
     Fragment import and correction of col names
@@ -163,39 +164,8 @@ def filter_contacts(
          }
     )
 
-    if psmn_shift:
-        df_fragments["frag"] = df_fragments["frag"] + 1
-
-    """
-    Oligos import and addition of fragment information (fragment containing the oligo)
-    """
-
+    df_fragments["frag"] = df_fragments["frag"] + frag_id_shift
     df_oligos = pd.read_csv(oligos_path, sep=",")
-    fragments_id = []
-    fragments_start = []
-    fragments_end = []
-    for index, row in df_oligos.iterrows():
-        (chr_, probe_start, probe_end, probe_chr_ori, probe_start_ori,
-         probe_end_ori, probe_type, probe, probe_seq) = row[:9]
-        df_sub_fragments = df_fragments[df_fragments['chr'] == chr_]
-        df_sub_fragment_sorted_start = np.sort(df_sub_fragments['start'].to_numpy())
-
-        probe_middle = int(probe_start + (probe_end-probe_start)/2)
-
-        idx = np.searchsorted(df_sub_fragment_sorted_start, probe_middle, side="left")
-        nearest_frag_start = df_sub_fragment_sorted_start[idx-1]
-
-        frag_id = df_sub_fragments.index[df_sub_fragments['start'] == nearest_frag_start].tolist()[0]
-        frag_start = df_sub_fragments.loc[frag_id, 'start']
-        frag_end = df_sub_fragments.loc[frag_id, 'end']
-        fragments_id.append(frag_id)
-        fragments_start.append(frag_start)
-        fragments_end.append(frag_end)
-
-    df_oligos['fragment'] = fragments_id
-    df_oligos['fragment_start'] = fragments_start
-    df_oligos['fragment_end'] = fragments_end
-    df_oligos.to_csv(oligos_path, sep=",", index=False)
 
     """
     Contacts import and correction of col names
@@ -221,25 +191,79 @@ def filter_contacts(
     output_path_filtered: str = os.path.join(output_dir, f"{sample_name}_contacts_filtered.tsv")
     df_contacts_filtered.to_csv(output_path_filtered, sep='\t', index=False)
 
+
+def onlyhic(
+        sample_sparse_mat: str,
+        oligo_capture_path: str,
+        n_flanking_fragment: int = 2,
+        output_path: str = None
+):
+
     """
-    Create a contacts file with the same format as the input file, but with the filtered contacts (no ssDNA)
+    Create a contact sparse matrix file with the same format as the input file, but with no ssDNA.
+    i.e., it removes fragments containing a probe and the N fragment up/downstream of it.
+
+    Parameters
+    ----------
+    sample_sparse_mat : str
+        Path to the sparse matrix file (hicstuff given output).
+
+    oligo_capture_path : str
+        Path to the oligo capture file (sshicstuff mandatory table).
+
+    n_flanking_fragment : int
+        Number of flanking fragments to remove around the probe fragment.
+        Default is 2.
+
+    output_path : str
+        Path to the output file to be created.
+        Default is None.
     """
 
-    if hic_only:
-        # foi : fragments of interest
-        df_foi = pd.DataFrame(df_oligos['fragment'].unique(), columns=['fragments'])
-        df_contacts_hic_only = df_contacts_raw.copy(deep=True)
+    sshcu.check_if_exists(sample_sparse_mat)
+    sshcu.check_if_exists(oligo_capture_path)
+    sshcu.check_file_extension(sample_sparse_mat, ".txt")
+    sshcu.check_file_extension(oligo_capture_path, [".csv", ".tsv", ".txt"])
 
-        df_contacts_raw["index"] = df_contacts_raw.index
-        matches_a = pd.merge(df_contacts_raw, df_foi, left_on=0, right_on='fragments', how='inner', indicator=True)
-        matches_b = pd.merge(df_contacts_raw, df_foi, left_on=1, right_on='fragments', how='inner', indicator=True)
-        index_to_drop = np.unique(np.concatenate((matches_a['index'].to_numpy(), matches_b['index'].to_numpy())))
+    sparse_delim = "\t"
+    oligos_capture_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
+    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep=sparse_delim, header=None)
+    df_oligos = pd.read_csv(oligo_capture_path, sep=oligos_capture_delim)
 
-        df_contacts_hic_only.drop(index_to_drop, inplace=True)
+    df_contacts_hic_only = df_sparse_mat.copy(deep=True)
 
-        df_contacts_hic_only.iloc[0, 0] -= len(df_foi)
-        df_contacts_hic_only.iloc[0, 1] -= len(df_foi)
-        df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
+    ssdna_frag = df_oligos['fragment'].tolist()
+    ssdna_frag_flanking = []
+    for f in ssdna_frag:
+        for i in range(1, n_flanking_fragment + 1):
+            ssdna_frag_flanking.append(f + i)
+            ssdna_frag_flanking.append(f - i)
 
-        output_path_hic_only: str = os.path.join(output_dir, f"{sample_name}_hic.txt")
-        df_contacts_hic_only.to_csv(output_path_hic_only, sep='\t', index=False, header=False)
+    ssdna_frag_all = np.unique(ssdna_frag + ssdna_frag_flanking)
+    df_ssdna = pd.DataFrame(ssdna_frag_all, columns=['fragments'])
+
+    df_sparse_mat["index"] = df_sparse_mat.index
+    matches_a = pd.merge(df_sparse_mat, df_ssdna, left_on=0, right_on='fragments', how='inner', indicator=True)
+    matches_b = pd.merge(df_sparse_mat, df_ssdna, left_on=1, right_on='fragments', how='inner', indicator=True)
+    index_to_drop = np.unique(np.concatenate((matches_a['index'].to_numpy(), matches_b['index'].to_numpy())))
+
+    df_contacts_hic_only.drop(index_to_drop, inplace=True)
+
+    df_contacts_hic_only.iloc[0, 0] -= len(df_ssdna)
+    df_contacts_hic_only.iloc[0, 1] -= len(df_ssdna)
+    df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
+
+    if not output_path:
+        output_path = sample_sparse_mat.replace(".txt", "_HiC_only.txt")
+
+    df_contacts_hic_only.to_csv(output_path, sep='\t', index=False, header=False)
+
+    """
+    Example of usage:
+    
+    python3 ./main.py hiconly 
+    ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt 
+    ../data/inputs/capture_oligo_positions.csv 
+    -o ../data/outputs/AD241_S288c_Hic_only.txt 
+    -f 2
+    """
