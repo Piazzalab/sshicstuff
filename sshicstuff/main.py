@@ -15,6 +15,7 @@ options:
 
 The subcommands are:
     subsample       Subsample and compress FASTQ file using seqtk.
+    genomaker       Create a chromosome artificial that is the concatenation of the annealing oligos and the enzyme sequence.
 """
 
 from docopt import docopt
