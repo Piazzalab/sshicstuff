@@ -63,8 +63,18 @@ def insert_artifical_chr(
 
 
 if __name__ == "__main__":
-    insert_artifical_chr(
-        annealing_input="/home/nicolas/Documents/projects/sshicstuff/data/inputs/annealing_oligo_positions.csv",
-        genome_input="/home/nicolas/Documents/projects/sshicstuff/data/inputs/S288c_DSB_LY_Capture/S288c_DSB_LY_Capture.fa",
-        enzyme="gatc"
-    )
+    """
+    Example usage
+
+    python3 ./main.py genomaker 
+    -f 150 
+    -s N 
+    -l 60 
+    ../data/inputs/annealing_oligo_positions.csv 
+    ../data/inputs/S288c_DSB_LY_Capture/S288c_DSB_LY_Capture.fa 
+    gatc
+    """
+
+    pass
+
+

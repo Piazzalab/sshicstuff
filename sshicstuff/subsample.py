@@ -129,5 +129,13 @@ def subsample(
 
 
 if __name__ == "__main__":
-    # Example usage
-    subsample("../data/reads/AD162.end1.fastq.gz", seed=42, size=100000, compress=True)
+
+    """
+    Example usage
+    
+    python3 ./main.py subsample -s 100 -z 1000000 -c ./data/test.fastq
+    """
+
+    pass
+
+
