@@ -10,6 +10,7 @@ from typing import List
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def is_debug() -> bool:
@@ -121,6 +122,7 @@ def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: 
         group_probes = row["probes"].split(",")
         group_frags = np.unique([prob2frag[probe] for probe in group_probes])
         group_name = row["name"]
+        group_name = "$" + group_name.lower()
         if row["action"] == "average":
             df[group_name] = df[group_frags].mean(axis=1)
         elif row["action"] == "sum":
