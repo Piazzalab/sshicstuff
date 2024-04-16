@@ -21,6 +21,7 @@ The subcommands are:
     hiconly             Keep only Hi-C reads from a sparse matrix file (i.e., remove all ssDNA reads).
     filter              Filter reads from a sparse matrix and keep only pairs of reads that contain at least one
                         oligo/probe.
+    coverage            Calculate the coverage per fragment and save the result to a bedgraph.
 """
 
 from docopt import docopt
