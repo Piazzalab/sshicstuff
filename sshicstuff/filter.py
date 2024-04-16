@@ -9,6 +9,45 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+def oligos_correction(oligos_path):
+    delim = "," if oligos_path.endswith(".csv") else "\t"
+    oligos = pd.read_csv(oligos_path, sep=delim)
+    column_to_keep = ['chr', 'start', 'end', 'name', 'type', 'sequence']
+    oligos = oligos[column_to_keep]
+    oligos.columns = [oligos.columns[i].lower() for i in range(len(oligos.columns))]
+    oligos.sort_values(by=['chr', 'start'], inplace=True)
+    oligos.reset_index(drop=True, inplace=True)
+
+    return oligos
+
+
+def fragments_correction(fragments_path, shift=0):
+    fragments = pd.read_csv(fragments_path, sep='\t')
+    fragments = pd.DataFrame({'frag': [k for k in range(len(fragments))],
+                              'chr': fragments['chrom'],
+                              'start': fragments['start_pos'],
+                              'end': fragments['end_pos'],
+                              'size': fragments['size'],
+                              'gc_content': fragments['gc_content']
+                              })
+
+    fragments["frag"] = fragments["frag"] + shift
+    return fragments
+
+
+def sparse_mat_correction(sparse_mat_path):
+    """
+    Re-organizes the sparse contacts matrix file
+    """
+    contacts = pd.read_csv(sparse_mat_path, sep='\t', header=None)
+    contacts.drop([0], inplace=True)
+    contacts.reset_index(drop=True, inplace=True)
+    contacts.columns = ['frag_a', 'frag_b', 'contacts']
+
+    return contacts
+
+
+
 def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
     """
     Update the start positions of the oligos DataFrame based on the corresponding fragment positions.
@@ -204,7 +243,7 @@ def filter_contacts(
     """
 
     if not output_path:
-        output_path = sparse_mat_path.replace(".txt", "_filtered.txt")
+        output_path = sparse_mat_path.replace(".txt", "_filtered.tsv")
 
     if not force and os.path.exists(output_path):
         logging.info(f"Output file already exists: {output_path}")
@@ -219,32 +258,9 @@ def filter_contacts(
     sshcu.check_file_extension(oligos_capture_path, [".csv", ".tsv"])
     sshcu.check_file_extension(fragments_list_path, ".txt")
 
-    sparse_delim = "\t"
-    oligos_capture_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
-    fragment_delim = "\t"
-
-    df_fragments_raw = pd.read_csv(fragments_list_path, sep='\t')
-    df_fragments = pd.DataFrame(
-        {'frag': [k for k in range(len(df_fragments_raw))],
-         'chr': df_fragments_raw['chrom'],
-         'start': df_fragments_raw['start_pos'],
-         'end': df_fragments_raw['end_pos'],
-         'size': df_fragments_raw['size'],
-         'gc_content': df_fragments_raw['gc_content']
-         }
-    )
-
-    df_fragments["frag"] = df_fragments["frag"] + frag_id_shift
-    df_oligos = pd.read_csv(oligos_capture_path, sep=",")
-
-    """
-    Contacts import and correction of col names
-    """
-
-    df_contacts = pd.read_csv(sparse_mat_path, sep='\t', header=None)
-    df_contacts = df_contacts.drop([0])
-    df_contacts.reset_index(drop=True, inplace=True)
-    df_contacts.columns = ['frag_a', 'frag_b', 'contacts']
+    df_fragments: pd.DataFrame = fragments_correction(fragments_list_path, frag_id_shift)
+    df_oligos: pd.DataFrame = oligos_correction(oligos_capture_path)
+    df_contacts: pd.DataFrame = sparse_mat_correction(sparse_mat_path)
 
     """
     Joining of the 3 dataframes
@@ -267,7 +283,7 @@ def onlyhic(
         n_flanking_fragment: int = 2,
         output_path: str = None,
         force: bool = False
-):
+) -> None:
 
     """
     Create a contact sparse matrix file with the same format as the input file, but with no ssDNA.
@@ -288,6 +304,14 @@ def onlyhic(
     output_path : str
         Path to the output file to be created.
         Default is None.
+
+    force : bool
+        Force the overwriting of the oligos file even if the columns are already present.
+        Default is True.
+
+    Returns
+    -------
+    None
     """
 
     if not output_path:
@@ -303,9 +327,8 @@ def onlyhic(
     sshcu.check_file_extension(sample_sparse_mat, ".txt")
     sshcu.check_file_extension(oligos_capture_path, [".csv", ".tsv"])
 
-    sparse_delim = "\t"
     oligos_capture_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
-    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep=sparse_delim, header=None)
+    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep='\t', header=None)
     df_oligos = pd.read_csv(oligos_capture_path, sep=oligos_capture_delim)
 
     df_contacts_hic_only = df_sparse_mat.copy(deep=True)

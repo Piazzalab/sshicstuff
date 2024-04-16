@@ -19,6 +19,8 @@ The subcommands are:
                         annealing oligos and the enzyme sequence.
     associate           Associate oligo/probe name to fragment/read ID.
     hiconly             Keep only Hi-C reads from a sparse matrix file (i.e., remove all ssDNA reads).
+    filter              Filter reads from a sparse matrix and keep only pairs of reads that contain at least one
+                        oligo/probe.
 """
 
 from docopt import docopt

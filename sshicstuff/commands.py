@@ -137,7 +137,35 @@ class Hiconly(AbstractCommand):
 
 
 class Filter(AbstractCommand):
-    pass
+    """
+    Filter reads from a sparse matrix and keep only pairs of reads that contain at least one oligo/probe.
+
+    usage:
+        filter <sparse_matrix_input> <oligos_capture_input> <fragments_list_input> [-o OUTPUT] [-s SHIFT] [-F]
+
+    Arguments:
+        <sparse_matrix_input>                           Path to the sparse matrix file (hicstuff output .txt)
+        <oligos_capture_input>                          Path to the oligos capture file (table .csv or .tsv
+                                                        for oligos capture information)
+        <fragments_list_input>                          Path to the digested fragments list file (hicstuff .txt)
+
+    Options:
+        -o OUTPUT, --output OUTPUT                      Path to the output file
+        -s SHIFT, --shift SHIFT                         Shift the fragment id by this value [default: 0]
+        -F, --force                                     Force the overwriting of the oligos file
+                                                        if the file exists [default: False]
+
+    """
+
+    def execute(self):
+        sshcf.filter_contacts(
+            sparse_mat_path=self.args["<sparse_matrix_input>"],
+            oligos_capture_path=self.args["<oligos_capture_input>"],
+            fragments_list_path=self.args["<fragments_list_input>"],
+            output_path=self.args["--output"],
+            frag_id_shift=int(self.args["--shift"]),
+            force=self.args["--force"]
+        )
 
 
 class Coverage(AbstractCommand):
