@@ -33,6 +33,8 @@ The subcommands are:
     profile             Generate a 4C-like profile for each ssDNA oligo.
 
     rebin               Rebin change binning resolution of a 4C-like profile
+
+    stats               Generate statistics and normalization for contacts made by each probe.
 """
 
 from docopt import docopt
