@@ -74,6 +74,8 @@ def subsample(
         Number of reads to subsample randomly.
     compress : bool
         Whether to compress the output file (with gzip).
+    force : bool
+        Whether to overwrite the output file if it already exists.
     """
 
     check_seqtk()
