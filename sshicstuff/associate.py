@@ -4,6 +4,11 @@ import numpy as np
 
 import sshicstuff.utils as sshcu
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
 
 def associate_oligo_to_frag(
         oligos_capture_path: str,

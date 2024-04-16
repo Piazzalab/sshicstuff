@@ -6,6 +6,9 @@ import logging
 os.environ["NUMEXPR_MAX_THREADS"] = "8"
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 
 def insert_artifical_chr(
