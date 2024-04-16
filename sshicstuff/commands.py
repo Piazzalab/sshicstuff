@@ -5,6 +5,7 @@ import sshicstuff.genomaker as sshcg
 import sshicstuff.filter as sshcf
 import sshicstuff.associate as sshca
 import sshicstuff.coverage as sshcc
+import sshicstuff.rebin as sshcr
 
 
 class AbstractCommand:
@@ -201,11 +202,67 @@ class Coverage(AbstractCommand):
 
 
 class Profile(AbstractCommand):
-    pass
+    """
+    Generate oligo 4-C profiles.
+    Also called un-binned table, or 0 kn resolution tables
+
+    usage:
+        profile <filtered_table_input> <oligos_capture_input> <chr_coord_input> [-o OUTPUT] [-a ADD] [-F] [-N]
+
+    Arguments:
+        <filtered_table_input>                      Path to the filtered table file
+        <oligos_capture_input>                      Path to the oligos capture file
+        <chr_coord_input>                           Path to the chromosome coordinates file
+
+    Options:
+        -o OUTPUT, --output OUTPUT                  Desired output file path
+        -a ADD, --additional ADD                    Additional columns to keep in the output file, like
+                                                    groupes of probes to sum, average for instance
+        -F, --force                                 Force the overwriting of the output file
+                                                    if the file exists [default: False]
+        -N, --normalize                             Normalize the coverage by the total
+                                                    number of contacts [default: False]
+    """
+
+    def execute(self):
+        sshcr.profile_contacts(
+            filtered_table_path=self.args["<filtered_table_input>"],
+            oligos_capture_path=self.args["<oligos_capture_input>"],
+            chromosomes_coord_path=self.args["<chr_coord_input>"],
+            output_path=self.args["--output"],
+            additional_groups_path=self.args["--additional"],
+            normalize=self.args["--normalize"],
+            force=self.args["--force"]
+        )
 
 
 class Rebin(AbstractCommand):
-    pass
+
+    """
+    Rebin change binning resolution of a 4C-like profile
+
+    usage:
+        rebin <profile_input>  <chr_coord_input> [-o OUTPUT] [-b RESOLUTION] [-F]
+
+    Arguments:
+        <profile_input>                             Path to the profile file
+        <chr_coord_input>                           Path to the chromosome coordinates file
+
+    Options:
+        -o OUTPUT, --output OUTPUT                  Desired output file path
+        -b BINSIZE, --binsize BINSIZE               New resolution to rebin the profile [default: 1000]
+        -F, --force                                 Force the overwriting of the output file
+                                                    if the file exists [default: False]
+    """
+
+    def execute(self):
+        sshcr.rebin_profile(
+            contacts_unbinned_path=self.args["<profile_input>"],
+            chromosomes_coord_path=self.args["<chr_coord_input>"],
+            bin_size=int(self.args["--binsize"]),
+            output_path=self.args["--output"],
+            force=self.args["--force"]
+        )
 
 
 class Stats(AbstractCommand):
@@ -222,6 +279,11 @@ class Aggregate(AbstractCommand):
 
 class Pipeline(AbstractCommand):
     pass
+
+
+class Gui(AbstractCommand):
+    pass
+
 
 
 

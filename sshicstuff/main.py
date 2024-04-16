@@ -14,14 +14,25 @@ options:
     -v, --version               shows the version
 
 The subcommands are:
+    gui                 Open a graphical user interface for the pipeline to visualize profiles.
+
     subsample           Subsample and compress FASTQ file using seqtk.
+
     genomaker           Create a chromosome artificial that is the concatenation of the
                         annealing oligos and the enzyme sequence.
-    associate           Associate oligo/probe name to fragment/read ID.
+
+    associate           Associate oligo/probe name to fragment/read ID that contains it.
+
     hiconly             Keep only Hi-C reads from a sparse matrix file (i.e., remove all ssDNA reads).
+
     filter              Filter reads from a sparse matrix and keep only pairs of reads that contain at least one
                         oligo/probe.
+
     coverage            Calculate the coverage per fragment and save the result to a bedgraph.
+
+    profile             Generate a 4C-like profile for each ssDNA oligo.
+
+    rebin               Rebin change binning resolution of a 4C-like profile
 """
 
 from docopt import docopt
