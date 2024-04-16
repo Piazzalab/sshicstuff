@@ -10,7 +10,6 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-
 def oligos_correction(oligos_path):
     delim = "," if oligos_path.endswith(".csv") else "\t"
     oligos = pd.read_csv(oligos_path, sep=delim)
@@ -246,10 +245,9 @@ def filter_contacts(
     if not output_path:
         output_path = sparse_mat_path.replace(".txt", "_filtered.tsv")
 
-    else:
-        out_basedir = os.path.dirname(output_path)
-        if not os.path.exists(out_basedir):
-            os.makedirs(out_basedir)
+    out_basedir = os.path.dirname(output_path)
+    if not os.path.exists(out_basedir):
+        os.makedirs(out_basedir)
 
     if not force and os.path.exists(output_path):
         logging.warning(f"Output file already exists: {output_path}")
@@ -288,12 +286,10 @@ def filter_contacts(
     Example of usage:
     
     python3 ./main.py filter \
-      ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
-      ../data/inputs/capture_oligo_positions.csv \
-      ../data/inputs/fragments_list.txt \
-      -o ../data/outputs/AD241_S288c_filtered.tsv \
-      -s 0 \
-      -F
+      ../data/sandbox/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
+      ../data/sandbox/capture_oligo_positions.csv \
+      ../data/sandbox/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt \
+      -s 0 -F
     """
 
 
@@ -382,9 +378,8 @@ def onlyhic(
     Example of usage:
     
     python3 ./main.py hiconly \
-      ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
-      ../data/inputs/capture_oligo_positions.csv \
-      -o ../data/outputs/AD241_S288c_Hic_only.txt \
+      ../data/sandbox/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
+      ../data/sandbox/capture_oligo_positions.csv \
       -n 2 \
       -F
     """

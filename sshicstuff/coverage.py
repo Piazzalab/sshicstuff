@@ -7,8 +7,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
-
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
 
@@ -50,10 +48,9 @@ def coverage(
     if output_path is None:
         output_path = sparse_mat_path.replace(".txt", "_coverage.bedgraph")
 
-    else:
-        out_basedir = os.path.dirname(output_path)
-        if not os.path.exists(out_basedir):
-            os.makedirs(out_basedir)
+    out_basedir = os.path.dirname(output_path)
+    if not os.path.exists(out_basedir):
+        os.makedirs(out_basedir)
 
     if os.path.exists(output_path) and not force:
         logging.warning(f"Output file already exists: {output_path}")

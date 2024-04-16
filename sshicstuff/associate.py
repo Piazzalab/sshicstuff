@@ -9,7 +9,6 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-
 def associate_oligo_to_frag(
         oligos_capture_path: str,
         fragments_path: str,
