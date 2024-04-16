@@ -261,9 +261,9 @@ def onlyhic(
     """
     Example of usage:
     
-    python3 ./main.py hiconly 
-    ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt 
-    ../data/inputs/capture_oligo_positions.csv 
-    -o ../data/outputs/AD241_S288c_Hic_only.txt 
-    -f 2
+    python3 ./main.py hiconly \
+      ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
+      ../data/inputs/capture_oligo_positions.csv \
+      -o ../data/outputs/AD241_S288c_Hic_only.txt \
+      -f 2
     """

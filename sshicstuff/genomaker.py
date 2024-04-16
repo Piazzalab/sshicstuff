@@ -66,13 +66,10 @@ if __name__ == "__main__":
     """
     Example usage
 
-    python3 ./main.py genomaker 
-    -f 150 
-    -s N 
-    -l 60 
-    ../data/inputs/annealing_oligo_positions.csv 
-    ../data/inputs/S288c_DSB_LY_Capture/S288c_DSB_LY_Capture.fa 
-    gatc
+    python3 ./main.py genomaker -f 150 -s N -l 60 \
+      ../data/inputs/annealing_oligo_positions.csv \
+      ../data/inputs/S288c_DSB_LY_Capture/S288c_DSB_LY_Capture.fa \
+      gatc
     """
 
     pass

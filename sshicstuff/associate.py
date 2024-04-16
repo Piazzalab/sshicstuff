@@ -83,8 +83,8 @@ def associate_oligo_to_frag(
     """
     Example of usage:
 
-    python3 ./main.py associate 
-    ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt
-    ../data/inputs/capture_oligo_positions.csv 
+    python3 ./main.py associate \
+    ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt \
+    ../data/inputs/capture_oligo_positions.csv \
     -F
     """
