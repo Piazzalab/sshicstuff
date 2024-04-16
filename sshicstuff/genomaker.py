@@ -14,11 +14,11 @@ def insert_artifical_chr(
         enzyme: str,
         fragment_size: int = 150,
         fasta_spacer: str = "N",
-        fasta_line_length: int = 60,
+        fasta_line_length: int = 60
 ):
 
     basedir = os.path.dirname(annealing_input)
-    artificial_chr_path = os.path.join(basedir, "chr_ssDNA_gartificial.fa")
+    artificial_chr_path = os.path.join(basedir, "chr_artificial_ssDNA.fa")
 
     # Creating the artificial chromosome using annealing oligos sequences
     # and the enzyme sequence
