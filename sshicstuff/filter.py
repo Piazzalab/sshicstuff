@@ -6,6 +6,7 @@ import numpy as np
 import sshicstuff.utils as sshcu
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
@@ -141,19 +142,88 @@ def second_join(
 
 
 def filter_contacts(
-        sample_name: str,
-        oligos_path: str,
-        fragments_path: str,
-        contacts_path: str,
-        output_dir: str = None,
-        frag_id_shift: int = 0
+        sparse_mat_path: str,
+        oligos_capture_path: str,
+        fragments_list_path: str,
+        output_path: str = None,
+        frag_id_shift: int = 0,
+        force: bool = False
 ) -> None:
 
     """
-    Fragment import and correction of col names
+    Filter the sparse matrix by creating a nex table that contains only pairs of fragments that have an oligo
+    either on frag_a or frag_b.
+
+    The output table will contain the following columns:
+    - frag_a: fragment id of the first fragment
+    - frag_b: fragment id of the second fragment
+    - contacts: number of contacts between the two fragments
+    - chr_a: chromosome of the first fragment
+    - start_a: start position of the first fragment
+    - end_a: end position of the first fragment
+    - size_a: size of the first fragment
+    - gc_content_a: gc content of the first fragment
+    - type_a: type of the oligo on the first fragment
+    - name_a: name of the oligo on the first fragment
+    - sequence_a: sequence of the oligo on the first fragment
+    - chr_b: chromosome of the second fragment
+    - start_b: start position of the second fragment
+    - end_b: end position of the second fragment
+    - size_b: size of the second fragment
+    - gc_content_b: gc content of the second fragment
+    - type_b: type of the oligo on the second fragment
+    - name_b: name of the oligo on the second fragment
+    - sequence_b: sequence of the oligo on the second fragment
+
+    Parameters
+    ----------
+    sparse_mat_path : str
+        Path to the sparse matrix file (hicstuff given output).
+
+    oligos_capture_path : str
+        Path to the oligo capture file (sshicstuff mandatory table).
+
+    fragments_list_path : str
+        Path to the fragments list file (hicstuff given output).
+
+    output_path : str
+        Path to the output file to be created.
+        Default is None.
+
+    frag_id_shift : int
+        Shift the fragment id by this value.
+        Default is 0.
+
+    force : bool
+        Force the overwriting of the oligos file even if the columns are already present.
+        Default is True.
+
+    Returns
+    -------
+    None
     """
 
-    df_fragments_raw = pd.read_csv(fragments_path, sep='\t')
+    if not output_path:
+        output_path = sparse_mat_path.replace(".txt", "_filtered.txt")
+
+    if not force and os.path.exists(output_path):
+        logging.info(f"Output file already exists: {output_path}")
+        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        return
+
+    sshcu.check_if_exists(sparse_mat_path)
+    sshcu.check_if_exists(oligos_capture_path)
+    sshcu.check_if_exists(fragments_list_path)
+
+    sshcu.check_file_extension(sparse_mat_path, ".txt")
+    sshcu.check_file_extension(oligos_capture_path, [".csv", ".tsv"])
+    sshcu.check_file_extension(fragments_list_path, ".txt")
+
+    sparse_delim = "\t"
+    oligos_capture_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
+    fragment_delim = "\t"
+
+    df_fragments_raw = pd.read_csv(fragments_list_path, sep='\t')
     df_fragments = pd.DataFrame(
         {'frag': [k for k in range(len(df_fragments_raw))],
          'chr': df_fragments_raw['chrom'],
@@ -165,14 +235,14 @@ def filter_contacts(
     )
 
     df_fragments["frag"] = df_fragments["frag"] + frag_id_shift
-    df_oligos = pd.read_csv(oligos_path, sep=",")
+    df_oligos = pd.read_csv(oligos_capture_path, sep=",")
 
     """
     Contacts import and correction of col names
     """
 
-    df_contacts_raw = pd.read_csv(contacts_path, sep='\t', header=None)
-    df_contacts = df_contacts_raw.drop([0])
+    df_contacts = pd.read_csv(sparse_mat_path, sep='\t', header=None)
+    df_contacts = df_contacts.drop([0])
     df_contacts.reset_index(drop=True, inplace=True)
     df_contacts.columns = ['frag_a', 'frag_b', 'contacts']
 
@@ -188,15 +258,15 @@ def filter_contacts(
     df_contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
     df_contacts_filtered = df_contacts_joined.convert_dtypes().reset_index(drop=True)
 
-    output_path_filtered: str = os.path.join(output_dir, f"{sample_name}_contacts_filtered.tsv")
-    df_contacts_filtered.to_csv(output_path_filtered, sep='\t', index=False)
+    df_contacts_filtered.to_csv(output_path, sep='\t', index=False)
 
 
 def onlyhic(
         sample_sparse_mat: str,
-        oligo_capture_path: str,
+        oligos_capture_path: str,
         n_flanking_fragment: int = 2,
-        output_path: str = None
+        output_path: str = None,
+        force: bool = False
 ):
 
     """
@@ -208,7 +278,7 @@ def onlyhic(
     sample_sparse_mat : str
         Path to the sparse matrix file (hicstuff given output).
 
-    oligo_capture_path : str
+    oligos_capture_path : str
         Path to the oligo capture file (sshicstuff mandatory table).
 
     n_flanking_fragment : int
@@ -220,15 +290,23 @@ def onlyhic(
         Default is None.
     """
 
+    if not output_path:
+        output_path = sample_sparse_mat.replace(".txt", "_HiC_only.txt")
+
+    if not force and os.path.exists(output_path):
+        logging.info(f"Output file already exists: {output_path}")
+        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        return
+
     sshcu.check_if_exists(sample_sparse_mat)
-    sshcu.check_if_exists(oligo_capture_path)
+    sshcu.check_if_exists(oligos_capture_path)
     sshcu.check_file_extension(sample_sparse_mat, ".txt")
-    sshcu.check_file_extension(oligo_capture_path, [".csv", ".tsv", ".txt"])
+    sshcu.check_file_extension(oligos_capture_path, [".csv", ".tsv"])
 
     sparse_delim = "\t"
-    oligos_capture_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
+    oligos_capture_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
     df_sparse_mat = pd.read_csv(sample_sparse_mat, sep=sparse_delim, header=None)
-    df_oligos = pd.read_csv(oligo_capture_path, sep=oligos_capture_delim)
+    df_oligos = pd.read_csv(oligos_capture_path, sep=oligos_capture_delim)
 
     df_contacts_hic_only = df_sparse_mat.copy(deep=True)
 
@@ -253,9 +331,6 @@ def onlyhic(
     df_contacts_hic_only.iloc[0, 1] -= len(df_ssdna)
     df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
 
-    if not output_path:
-        output_path = sample_sparse_mat.replace(".txt", "_HiC_only.txt")
-
     df_contacts_hic_only.to_csv(output_path, sep='\t', index=False, header=False)
 
     """
@@ -265,5 +340,6 @@ def onlyhic(
       ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
       ../data/inputs/capture_oligo_positions.csv \
       -o ../data/outputs/AD241_S288c_Hic_only.txt \
-      -f 2
+      -n 2 \
+      -F
     """

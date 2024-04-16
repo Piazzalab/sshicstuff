@@ -30,7 +30,7 @@ class Subsample(AbstractCommand):
     Subsample and compress FASTQ file using seqtk.
 
     usage:
-        subsample [-s SEED] [-z SIZE] [-c] <input>
+        subsample [-s SEED] [-z SIZE] [-c] [-F] <input>
 
     arguments:
         <input>                   Input FASTQ or FASTQ.gz file
@@ -38,7 +38,8 @@ class Subsample(AbstractCommand):
     options:
         -s SEED, --seed SEED      Seed for the random number generator [default: 100]
         -z SIZE, --size SIZE      Number of reads to subsample [default: 4000000]
-        -c, --compress            Compress the output file with gzip
+        -c, --compress            Compress the output file with gzip [default: True]
+        -F, --force               Force the overwriting of the output file if the file exists [default: False]
     """
     def execute(self):
         sshcs.subsample(
@@ -46,6 +47,7 @@ class Subsample(AbstractCommand):
             seed=int(self.args["--seed"]),
             size=int(self.args["--size"]),
             compress=self.args["--compress"]
+
         )
 
 
@@ -94,7 +96,7 @@ class Associate(AbstractCommand):
     Options:
         -s SHIFT, --shift SHIFT             Shift the fragment id by this value [default: 0]
         -F, --force                         Force the overwriting of the oligos file even if
-                                            the columns are already present
+                                            the columns are already present [default: True]
     """
 
     def execute(self):
@@ -112,21 +114,23 @@ class Hiconly(AbstractCommand):
     Retain only the contacts between non-ss DNA fragments.
 
     usage:
-        hiconly <sparse_matrix_input> <oligos_capture_input> [-o OUTPUT] [-f FLANKING]
+        hiconly <sparse_matrix_input> <oligos_capture_input> [-o OUTPUT] [-n FLANKING-NUMBER]
 
     Arguments:
-        <sparse_matrix_input>               Path to the sparse matrix file
-        <oligos_capture_input>              Path to the oligos capture file
+        <sparse_matrix_input>                           Path to the sparse matrix file
+        <oligos_capture_input>                          Path to the oligos capture file
 
     Options:
-        -o OUTPUT, --output OUTPUT          Path to the output file
-        -f FLANKING, --flanking FLANKING    number of flanking fragment around the fragment containing the
-                                            oligo to consider and remove
+        -o OUTPUT, --output OUTPUT                      Path to the output file
+        -n FLANKING-NUMBER, --flanking-number NUMBER    number of flanking fragment around the fragment containing the
+                                                        oligo to consider and remove
+        -F, --force                                     Force the overwriting of the oligos file
+                                                        if the file exists [default: False]
     """
     def execute(self):
         sshcf.onlyhic(
             sample_sparse_mat=self.args["<sparse_matrix_input>"],
-            oligo_capture_path=self.args["<oligos_capture_input>"],
+            oligos_capture_path=self.args["<oligos_capture_input>"],
             output_path=self.args["--output"],
             n_flanking_fragment=int(self.args["--flanking"])
         )

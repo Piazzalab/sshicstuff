@@ -58,7 +58,8 @@ def subsample(
         input_path: str,
         seed: int = 100,
         size: int = 4000000,
-        compress: bool = True
+        compress: bool = True,
+        force: bool = False
 ):
     """
     Subsample and compress FASTQ file using seqtk.
@@ -98,6 +99,11 @@ def subsample(
         logging.error("Input file does not match expected pattern")
         raise ValueError("Input file does not match expected pattern")
 
+    if os.path.exists(output_path) and not force:
+        logging.warning(f"Output file {output_path} already exists. skipping subsampling.")
+        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        return
+
     # Log the start of subsampling
     logging.info(f"Starting subsampling of {input_path} to {output_path}.gz with seed {seed} and size {size}")
 
@@ -133,7 +139,7 @@ if __name__ == "__main__":
     """
     Example usage
     
-    python3 ./main.py subsample -s 100 -z 1000000 -c ./data/test.fastq
+    python3 ./main.py subsample -s 100 -z 1000000 -c -F ./data/test.fastq
     """
 
     pass
