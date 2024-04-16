@@ -47,7 +47,6 @@ def sparse_mat_correction(sparse_mat_path):
     return contacts
 
 
-
 def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
     """
     Update the start positions of the oligos DataFrame based on the corresponding fragment positions.
@@ -245,8 +244,13 @@ def filter_contacts(
     if not output_path:
         output_path = sparse_mat_path.replace(".txt", "_filtered.tsv")
 
+    else:
+        out_basedir = os.path.dirname(output_path)
+        if not os.path.exists(out_basedir):
+            os.makedirs(out_basedir)
+
     if not force and os.path.exists(output_path):
-        logging.info(f"Output file already exists: {output_path}")
+        logging.warning(f"Output file already exists: {output_path}")
         logging.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
@@ -275,6 +279,8 @@ def filter_contacts(
     df_contacts_filtered = df_contacts_joined.convert_dtypes().reset_index(drop=True)
 
     df_contacts_filtered.to_csv(output_path, sep='\t', index=False)
+
+    logging.info(f"Filtered contacts saved to {output_path}")
 
     """
     Example of usage:
@@ -367,6 +373,8 @@ def onlyhic(
     df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
 
     df_contacts_hic_only.to_csv(output_path, sep='\t', index=False, header=False)
+
+    logging.info(f"Hi-C only contacts saved to {output_path}")
 
     """
     Example of usage:
