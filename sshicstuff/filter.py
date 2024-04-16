@@ -276,6 +276,18 @@ def filter_contacts(
 
     df_contacts_filtered.to_csv(output_path, sep='\t', index=False)
 
+    """
+    Example of usage:
+    
+    python3 ./main.py filter \
+      ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
+      ../data/inputs/capture_oligo_positions.csv \
+      ../data/inputs/fragments_list.txt \
+      -o ../data/outputs/AD241_S288c_filtered.tsv \
+      -s 0 \
+      -F
+    """
+
 
 def onlyhic(
         sample_sparse_mat: str,
