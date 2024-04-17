@@ -13,6 +13,7 @@ dependencies:
   - matplotlib>=3.6.0
   - numpy>=1.23.0
   - pandas>=2.0.0
+  - pairtools=1.0.2
   - pip>=23.0.0
   - plotly>=5.5.0
   - pyfastx
