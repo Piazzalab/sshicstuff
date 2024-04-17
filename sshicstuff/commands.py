@@ -58,7 +58,7 @@ class Genomaker(AbstractCommand):
     You can specify the rules for the concatenation.
 
     usage:
-        genomaker [-f FRAGMENT_SIZE] [-s SPACER] [-l LINE_LENGTH] <annealing_input> <genome_input> <enzyme>
+        genomaker [-f FRAGMENT_SIZE] [-s SPACER] [-l LINE_LENGTH] [-a ADDITIONAL] <annealing_input> <genome_input> <enzyme>
 
     arguments:
         <annealing_input>         Path to the annealing oligo positions CSV file
@@ -68,7 +68,8 @@ class Genomaker(AbstractCommand):
     options:
         -f FRAGMENT_SIZE, --fragment-size FRAGMENT_SIZE     Size of the fragments [default: 150]
         -s SPACER, --spacer SPACER                          Spacer sequence [default: N]
-        -l LINE_LENGTH, --line-length LINE_LENGTH           Length of the lines in the FASTA file [default: 60]
+        -l LINE_LENGTH, --line-length LINE_LENGTH           Length of the lines in the FASTA file [default: 80]
+        -a ADDITIONAL, --additional ADDITIONAL              Additional FASTA files to concatenate [default: None]
     """
 
     def execute(self):
@@ -78,7 +79,8 @@ class Genomaker(AbstractCommand):
             self.args["<enzyme>"],
             fragment_size=int(self.args["--fragment-size"]),
             fasta_spacer=self.args["--spacer"],
-            fasta_line_length=int(self.args["--line-length"])
+            fasta_line_length=int(self.args["--line-length"]),
+            additional_fasta_path=self.args["--additional"]
         )
 
 
