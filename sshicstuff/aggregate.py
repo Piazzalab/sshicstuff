@@ -54,6 +54,8 @@ def aggregate(
         (exclude intra-chr contacts)
     normalize : bool, default=True
         Whether to normalize the contacts by the total number of contacts remaining.
+    arm_length_classification : bool, default=False
+        Whether to classify the contacts by chromosome arm lengths.
 
     Returns
     -------
