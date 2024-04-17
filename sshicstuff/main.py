@@ -35,6 +35,8 @@ The subcommands are:
     rebin               Rebin change binning resolution of a 4C-like profile
 
     stats               Generate statistics and normalization for contacts made by each probe.
+
+    aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
 """
 
 from docopt import docopt
