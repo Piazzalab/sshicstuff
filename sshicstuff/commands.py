@@ -1,13 +1,7 @@
 from docopt import docopt
 
-import sshicstuff.subsample as sshcsb
-import sshicstuff.genomaker as sshcg
+import sshicstuff.sshicstuff as sshc
 import sshicstuff.filter as sshcf
-import sshicstuff.associate as sshca
-import sshicstuff.coverage as sshcc
-import sshicstuff.rebin as sshcr
-import sshicstuff.statistics as sshcst
-import sshicstuff.aggregate as sshcag
 
 
 class AbstractCommand:
@@ -45,7 +39,7 @@ class Subsample(AbstractCommand):
         -F, --force               Force the overwriting of the output file if the file exists [default: False]
     """
     def execute(self):
-        sshcsb.subsample(
+        sshc.subsample(
             self.args["<input>"],
             seed=int(self.args["--seed"]),
             size=int(self.args["--size"]),
@@ -75,7 +69,7 @@ class Genomaker(AbstractCommand):
     """
 
     def execute(self):
-        sshcg.insert_artifical_chr(
+        sshc.edit_genome_ref(
             self.args["<annealing_input>"],
             self.args["<genome_input>"],
             self.args["<enzyme>"],
@@ -105,7 +99,7 @@ class Associate(AbstractCommand):
     """
 
     def execute(self):
-        sshca.associate_oligo_to_frag(
+        sshc.associate_oligo_to_frag(
             oligos_capture_path=self.args["<oligos_capture_input>"],
             fragments_path=self.args["<fragments_input>"],
             frag_id_shift=int(self.args["--shift"]),
@@ -133,7 +127,7 @@ class Hiconly(AbstractCommand):
                                                         if the file exists [default: False]
     """
     def execute(self):
-        sshcf.onlyhic(
+        sshc.onlyhic(
             sample_sparse_mat=self.args["<sparse_matrix_input>"],
             oligos_capture_path=self.args["<oligos_capture_input>"],
             output_path=self.args["--output"],
@@ -195,7 +189,7 @@ class Coverage(AbstractCommand):
     """
 
     def execute(self):
-        sshcc.coverage(
+        sshc.coverage(
             sparse_mat_path=self.args["<sparse_mat_path>"],
             fragments_list_path=self.args["<fragments_list_path>"],
             output_path=self.args["--output"],
@@ -229,7 +223,7 @@ class Profile(AbstractCommand):
     """
 
     def execute(self):
-        sshcr.profile_contacts(
+        sshc.profile_contacts(
             filtered_table_path=self.args["<filtered_table_input>"],
             oligos_capture_path=self.args["<oligos_capture_input>"],
             chromosomes_coord_path=self.args["<chr_coord_input>"],
@@ -260,7 +254,7 @@ class Rebin(AbstractCommand):
     """
 
     def execute(self):
-        sshcr.rebin_profile(
+        sshc.rebin_profile(
             contacts_unbinned_path=self.args["<profile_input>"],
             chromosomes_coord_path=self.args["<chr_coord_input>"],
             bin_size=int(self.args["--binsize"]),
@@ -296,7 +290,7 @@ class Stats(AbstractCommand):
     """
 
     def execute(self):
-        sshcst.get_stats(
+        sshc.get_stats(
             contacts_unbinned_path=self.args["<contacts_unbinned_path>"],
             sparse_mat_path=self.args["<sparse_mat_path>"],
             chr_coord_path=self.args["<chr_coord_path>"],
@@ -336,7 +330,7 @@ class Aggregate(AbstractCommand):
 
     def execute(self):
 
-        sshcag.aggregate(
+        sshc.aggregate(
             binned_contacts_path=self.args["<contacts_binned_path>"],
             chr_coord_path=self.args["<chr_coord_path>"],
             oligos_capture_path=self.args["<oligos_path>"],

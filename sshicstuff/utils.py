@@ -5,6 +5,7 @@ import shutil
 import numpy as np
 import pandas as pd
 import logging
+import subprocess
 
 from typing import List
 
@@ -13,25 +14,119 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def is_debug() -> bool:
+def check_file_extension(file_path: str, extension: str | list[str]):
     """
-    Check if the script is running in debug mode.
+    Check if a file has the correct extension.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file to check.
+    extension : str
+        Expected extension of the file.
 
     Returns
     -------
     bool
-        True if the script is running in debug mode, False otherwise.
+        True if the file has the correct extension, False otherwise.
     """
-    gettrace = getattr(sys, 'gettrace', None)
+    if isinstance(extension, list):
+        for ext in extension:
+            if file_path.endswith(ext):
+                return
+        logging.error(f"File {file_path} does not have the correct extension {extension}.")
 
-    if gettrace is None:
-        return False
     else:
-        v = gettrace()
-        if v is None:
-            return False
+        if file_path.endswith(extension):
+            return
         else:
-            return True
+            logging.error(f"File {file_path} does not have the correct extension {extension}.")
+
+
+def check_gzip():
+    """
+    Check if gzip is installed and retrieve its version.
+    """
+    try:
+        # Execute gzip with the --version argument to capture the version information
+        result = subprocess.run(["gzip", "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True, text=True)
+        # Parse the output to find the version number
+        version_match = re.search(r"gzip (\d+\.\d+)", result.stdout)
+        if version_match:
+            version = version_match.group(1)
+            logging.info(f"gzip version {version} is installed.")
+            return version
+        else:
+            logging.error("Unable to determine gzip version from the output.")
+            return None
+    except subprocess.CalledProcessError:
+        logging.error("gzip is not installed or not functioning correctly. "
+                      "Please install or fix gzip before running this function.")
+        return None
+    except Exception as e:
+        logging.error(f"Unexpected error when checking gzip version: {e}")
+        return None
+
+
+def check_if_exists(file_path: str):
+    """
+    Check if a file exists.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file to check.
+
+    Returns
+    -------
+    bool
+        True if the file exists, False otherwise.
+    """
+    if os.path.exists(file_path):
+        return
+    else:
+        logging.error(f"File {file_path} does not exist.")
+
+
+def check_seqtk():
+    """
+    Check if seqtk is installed and retrieve its version.
+    """
+    try:
+        # Execute seqtk without arguments to capture the usage information which contains the version
+        result = subprocess.run("seqtk", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False, text=True)
+        # Parse the output to find the version number
+        version_match = re.search(r"Version: (\S+)", result.stdout)
+        if version_match:
+            version = version_match.group(1)
+            logging.info(f"seqtk version {version} is installed.")
+            return version
+        else:
+            logging.error("Unable to determine seqtk version from the output.")
+            return None
+    except subprocess.CalledProcessError:
+        logging.error("seqtk is not installed or not functioning correctly. "
+                      "Please install or fix seqtk before running this function.")
+        return None
+
+
+def copy(source_path, destination_path):
+    """
+    Copy a file from source to destination.
+    Useful to copy inputs files to the output directory in order to have a trace.
+
+    Parameters
+    ----------
+    source_path : str
+        Path to the file to copy.
+    destination_path : str
+        Path to the destination directory.
+    """
+    try:
+        shutil.copy(source_path, destination_path)
+        print(f"File {source_path.split('/')[-1]} copied successfully.")
+    except IOError as e:
+        print(f"Unable to copy file. Error: {e}")
 
 
 def detect_delimiter(path: str):
@@ -80,6 +175,41 @@ def frag2(x):
     return y
 
 
+def is_debug() -> bool:
+    """
+    Check if the script is running in debug mode.
+
+    Returns
+    -------
+    bool
+        True if the script is running in debug mode, False otherwise.
+    """
+    gettrace = getattr(sys, 'gettrace', None)
+
+    if gettrace is None:
+        return False
+    else:
+        v = gettrace()
+        if v is None:
+            return False
+        else:
+            return True
+
+
+def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: dict):
+    for index, row in df_groups.iterrows():
+        group_probes = row["probes"].split(",")
+        group_frags = np.unique([prob2frag[probe] for probe in group_probes])
+        group_name = row["name"]
+        group_name = "$" + group_name.lower()
+        if row["action"] == "average":
+            df[group_name] = df[group_frags].mean(axis=1)
+        elif row["action"] == "sum":
+            df[group_name] = df[group_frags].sum(axis=1)
+        else:
+            continue
+
+
 def sort_by_chr(df: pd.DataFrame, chr_list: List[str], *args: str):
     """
     Sort a DataFrame by chromosome and then by other columns.
@@ -117,85 +247,13 @@ def sort_by_chr(df: pd.DataFrame, chr_list: List[str], *args: str):
     return df
 
 
-def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: dict):
-    for index, row in df_groups.iterrows():
-        group_probes = row["probes"].split(",")
-        group_frags = np.unique([prob2frag[probe] for probe in group_probes])
-        group_name = row["name"]
-        group_name = "$" + group_name.lower()
-        if row["action"] == "average":
-            df[group_name] = df[group_frags].mean(axis=1)
-        elif row["action"] == "sum":
-            df[group_name] = df[group_frags].sum(axis=1)
-        else:
-            continue
 
 
-def copy(source_path, destination_path):
-    """
-    Copy a file from source to destination.
-    Useful to copy inputs files to the output directory in order to have a trace.
-
-    Parameters
-    ----------
-    source_path : str
-        Path to the file to copy.
-    destination_path : str
-        Path to the destination directory.
-    """
-    try:
-        shutil.copy(source_path, destination_path)
-        print(f"File {source_path.split('/')[-1]} copied successfully.")
-    except IOError as e:
-        print(f"Unable to copy file. Error: {e}")
 
 
-def check_if_exists(file_path: str):
-    """
-    Check if a file exists.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the file to check.
-
-    Returns
-    -------
-    bool
-        True if the file exists, False otherwise.
-    """
-    if os.path.exists(file_path):
-        return
-    else:
-        logging.error(f"File {file_path} does not exist.")
 
 
-def check_file_extension(file_path: str, extension: str | list[str]):
-    """
-    Check if a file has the correct extension.
 
-    Parameters
-    ----------
-    file_path : str
-        Path to the file to check.
-    extension : str
-        Expected extension of the file.
 
-    Returns
-    -------
-    bool
-        True if the file has the correct extension, False otherwise.
-    """
-    if isinstance(extension, list):
-        for ext in extension:
-            if file_path.endswith(ext):
-                return
-        logging.error(f"File {file_path} does not have the correct extension {extension}.")
-
-    else:
-        if file_path.endswith(extension):
-            return
-        else:
-            logging.error(f"File {file_path} does not have the correct extension {extension}.")
 
 

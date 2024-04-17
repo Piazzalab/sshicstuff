@@ -5,11 +5,7 @@ import logging
 from typing import List
 
 import sshicstuff.filter as shcf
-import sshicstuff.coverage as shcc
-import sshicstuff.weight as shcw
-import sshicstuff.aggregate as shca
-import sshicstuff.statistics as shcs
-import sshicstuff.rebin as shcb
+import sshicstuff.sshicstuff as shc
 import sshicstuff.utils as shcu
 
 
@@ -90,7 +86,7 @@ def full_pipeline(
     )
 
     logging.info("Make the coverages")
-    shcc.coverage(
+    shc.coverage(
         sshic_contacts_path=sample_sparse_mat,
         fragments_path=fragments_list,
         output_dir=sample_output_dir,
@@ -98,7 +94,7 @@ def full_pipeline(
     )
 
     if hic_only:
-        shcc.coverage(
+        shc.coverage(
             sshic_contacts_path=sample_sparse_no_probe_file_path,
             fragments_path=fragments_list,
             output_dir=sample_output_dir,
@@ -106,7 +102,7 @@ def full_pipeline(
         )
 
     logging.info("Organize the contacts between probe fragments and the rest of the genome")
-    shcb.profile_contacts(
+    shc.profile_contacts(
         sample_name=sample_name,
         filtered_contacts_path=filter_contacts,
         output_dir=no_weight_dir,
@@ -116,7 +112,7 @@ def full_pipeline(
     )
 
     logging.info("Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...)")
-    shcs.get_stats(
+    shc.get_stats(
         sample_name=sample_name,
         contacts_unbinned_path=unbinned_contacts,
         sparse_contacts_path=sample_sparse_mat,
@@ -131,10 +127,10 @@ def full_pipeline(
             ref_name = os.path.basename(ref).split('.')[0]
             ref_output_dir = join(sample_output_dir, f"vs_{ref_name}")
             logging.info(f"Compare the capture efficiency with that of a wild type (may be another sample) \n")
-            shcs.compare_to_wt(statistics_path=global_statistics, reference_path=ref, wt_ref_name=ref_name)
+            shc.compare_to_wt(statistics_path=global_statistics, reference_path=ref, wt_ref_name=ref_name)
 
             logging.info(f"Weight the unbinned contacts and frequencies tables by the efficiency score got on step ahead \n")
-            shcw.weight_mutant(
+            shc.weight_mutant(
                 statistics_path=global_statistics,
                 wt_ref_name=ref_name,
                 contacts_path=unbinned_contacts,
@@ -149,7 +145,7 @@ def full_pipeline(
             bin_suffix = str(bn // 1000) + "kb"
             logging.info(f"Rebinning at {bin_suffix}")
 
-            shcb.rebin_contacts(
+            shc.rebin_contacts(
                 sample_name=sample_name,
                 contacts_unbinned_path=unbinned_contacts,
                 chromosomes_coord_path=chromosomes_arms_coordinates,
@@ -166,9 +162,9 @@ def full_pipeline(
                 for ref in reference:
                     ref_name = os.path.basename(ref).split('.')[0]
                     ref_output_dir = join(sample_output_dir, f"vs_{ref_name}")
-                    shcs.compare_to_wt(statistics_path=global_statistics, reference_path=ref, wt_ref_name=ref_name)
+                    shc.compare_to_wt(statistics_path=global_statistics, reference_path=ref, wt_ref_name=ref_name)
 
-                    shcw.weight_mutant(
+                    shc.weight_mutant(
                         statistics_path=global_statistics,
                         wt_ref_name=ref_name,
                         contacts_path=current_binned_contacts,
@@ -203,7 +199,7 @@ def full_pipeline(
             f"Make an aggregated of contacts around {region} ({weight_dir.split('/')[-1]}, "
             f"{'with' if is_normalized else 'no'} normalization)")
 
-        shca.aggregate(
+        shc.aggregate(
             binned_contacts_path=binned_contacts_path,
             centros_coord_path=chromosomes_arms_coordinates,
             oligos_path=oligos_capture,
