@@ -1,20 +1,14 @@
 import os
 import re
 import subprocess
-import logging
 import numpy as np
 import pandas as pd
 
-import sys
-print(sys.path)
-
 import sshicstuff.utils as sshcu
+from hicstuff.log import logger
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
-
+#   Set as None to avoid SettingWithCopyWarning
+pd.options.mode.chained_assignment = None
 
 def aggregate(
         binned_contacts_path: str,
@@ -65,8 +59,8 @@ def aggregate(
     """
 
     if telomeres == centromeres:
-        logging.error("You must specify either telomeres or centromeres. Not both")
-        logging.error("Exiting...")
+        logger.error("You must specify either telomeres or centromeres. Not both")
+        logger.error("Exiting...")
         return
 
     sshcu.check_if_exists(binned_contacts_path)
@@ -92,14 +86,14 @@ def aggregate(
     df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep='\t')
 
     binsize = int(df_contacts.loc[2, 'chr_bins'] - df_contacts.loc[1, 'chr_bins']) * 1000
-    logging.info(f"Contacts binned profile with resolution of : {binsize} bp")
+    logger.info(f"Contacts binned profile with resolution of : {binsize} bp")
 
     chr_list = list(df_coords['chr'].unique())
     fragments = df_oligos["fragment"].astype(str).tolist()
     groups = [g for g in df_contacts.columns if g.startswith("$")]
 
     if len(excluded_chr_list) > 0:
-        logging.info(f"Excluding chromosomes:  {', '.join(excluded_chr_list)}")
+        logger.info(f"Excluding chromosomes:  {', '.join(excluded_chr_list)}")
         df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr_list)]
         df_coords = df_coords[~df_coords['chr'].isin(excluded_chr_list)]
 
@@ -107,7 +101,7 @@ def aggregate(
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        logging.info("Excluding intra-chr contacts")
+        logger.info("Excluding intra-chr contacts")
         for frag in fragments:
             ii_frag = df_oligos.loc[df_oligos["fragment"] == int(frag)].index[0]
             probe_chr_ori = df_oligos.loc[ii_frag, 'chr_ori']
@@ -117,13 +111,13 @@ def aggregate(
         output_prefix += "_inter"
 
     if normalize:
-        logging.info("Normalizing the contacts")
+        logger.info("Normalizing the contacts")
         df_contacts.loc[:, fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
         output_prefix += "_norm"
 
     if centromeres:
-        logging.info("Aggregating contacts around centromeres")
-        logging.info(f"Window size: {window_size} bp on each side of the centromere")
+        logger.info("Aggregating contacts around centromeres")
+        logger.info(f"Window size: {window_size} bp on each side of the centromere")
 
         df_merged: pd.DataFrame = pd.merge(df_contacts, df_coords, on='chr')
         df_merged_cen_areas: pd.DataFrame = df_merged[
@@ -152,11 +146,11 @@ def aggregate(
 
         if arm_length_classification:
             if "category" not in df_coords.columns:
-                logging.error(
+                logger.error(
                     "The 'category' column is missing in the centromeres file. "
                     "Must be in the form small_small or long_middle concerning lengths of left_right arms")
             else:
-                logging.info("Classifying the contacts by chromosome arm lengths")
+                logger.info("Classifying the contacts by chromosome arm lengths")
                 aggregated_dir = os.path.join(output_dir, "aggregated_by_arm_sizes")
 
                 df_arms_size: pd.DataFrame = pd.DataFrame(columns=["chr", "arm", "size", "category"])
@@ -192,7 +186,7 @@ def aggregate(
     df_grouped = sshcu.sort_by_chr(df_grouped, chr_list, 'chr', 'chr_bins')
     df_grouped['chr_bins'] = df_grouped['chr_bins'].astype('int64')
 
-    logging.info(f"Compute mean, median, std on the aggregated contacts per probe or group of probes, per chromosome")
+    logger.info(f"Compute mean, median, std on the aggregated contacts per probe or group of probes, per chromosome")
     df_aggregated_mean: pd.DataFrame = df_grouped.groupby(by="chr_bins", as_index=False).mean(numeric_only=True)
     df_aggregated_mean.to_csv(output_prefix + "_mean.tsv", sep="\t")
     df_aggregated_std: pd.DataFrame = df_grouped.groupby(by="chr_bins", as_index=False).std(numeric_only=True)
@@ -254,7 +248,7 @@ def associate_oligo_to_frag(
     None
     """
 
-    logging.info("Associating oligos to fragments based on the fragment id, start and end positions.")
+    logger.info("Associating oligos to fragments based on the fragment id, start and end positions.")
 
     sshcu.check_if_exists(oligos_capture_path)
     sshcu.check_if_exists(fragments_path)
@@ -266,7 +260,7 @@ def associate_oligo_to_frag(
     df_oligos = pd.read_csv(oligos_capture_path, sep=oligos_delim)
 
     if "fragment" in df_oligos.columns and not force:
-        logging.info("Oligos already associated to fragments. Use --force=True to overwrite.")
+        logger.info("Oligos already associated to fragments. Use --force=True to overwrite.")
         return
 
     df_fragments = pd.read_csv(fragments_path, sep='\t')
@@ -299,63 +293,63 @@ def associate_oligo_to_frag(
     df_oligos['fragment_end'] = fragments_end
     df_oligos.to_csv(oligos_capture_path, sep=",", index=False)
 
-    logging.info("Oligos associated to fragments successfully.")
+    logger.info("Oligos associated to fragments successfully.")
 
     """
     Example of usage:
 
     python3 ./main.py associate \
-    ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt \
     ../data/inputs/capture_oligo_positions.csv \
+    ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt \
     -F
     """
 
 
-def compare_with_wt(
-        stats1_path: str,
-        stats2_path: str,
-        output_dir: str = None,
-):
-    """
-    Compare the capture efficiency of a sample with a wild-type reference.
-
-    Gives a .csv file with the with the ratio of the capture efficiency
-    of the sample over the wild-type reference.
-
-
-    Parameters
-    ----------
-    stats1_path : str
-        Path to the statistics file of the sample.
-    stats2_path : str
-        Path to the statistics file of the wild-type reference.
-    output_dir : str
-        Path to the output directory.
-
-    Returns
-    -------
-    None
-    """
-    df_sample: pd.DataFrame = pd.read_csv(stats1_path, header=0, sep="\t")
-    df_wt: pd.DataFrame = pd.read_csv(stats2_path, sep='\t')
-
-    df_cap_eff = pd.DataFrame(columns=[
-        "probe",
-        "capture_efficiency",
-        f"dsdna_norm_capture_efficiency_{wt_name}",
-        f"ratio"
-    ])
-
-    df_stats[f"capture_efficiency_vs_{wt_ref_name}"] = np.nan
-    for index, row in df_stats.iterrows():
-        probe = row['probe']
-        wt_capture_eff = df_wt.loc[df_wt['probe'] == probe, "dsdna_norm_capture_efficiency"].tolist()[0]
-
-        if wt_capture_eff > 0:
-            df_stats.loc[index, f"capture_efficiency_vs_{wt_ref_name}"] = \
-                df_stats.loc[index, 'dsdna_norm_capture_efficiency'] / wt_capture_eff
-
-    df_stats.to_csv(statistics_path, sep='\t')
+# def compare_with_wt(
+#         stats1_path: str,
+#         stats2_path: str,
+#         output_dir: str = None,
+# ):
+#     """
+#     Compare the capture efficiency of a sample with a wild-type reference.
+#
+#     Gives a .csv file with the with the ratio of the capture efficiency
+#     of the sample over the wild-type reference.
+#
+#
+#     Parameters
+#     ----------
+#     stats1_path : str
+#         Path to the statistics file of the sample.
+#     stats2_path : str
+#         Path to the statistics file of the wild-type reference.
+#     output_dir : str
+#         Path to the output directory.
+#
+#     Returns
+#     -------
+#     None
+#     """
+#     df_sample: pd.DataFrame = pd.read_csv(stats1_path, header=0, sep="\t")
+#     df_wt: pd.DataFrame = pd.read_csv(stats2_path, sep='\t')
+#
+#     df_cap_eff = pd.DataFrame(columns=[
+#         "probe",
+#         "capture_efficiency",
+#         f"dsdna_norm_capture_efficiency_{wt_name}",
+#         f"ratio"
+#     ])
+#
+#     df_stats[f"capture_efficiency_vs_{wt_ref_name}"] = np.nan
+#     for index, row in df_stats.iterrows():
+#         probe = row['probe']
+#         wt_capture_eff = df_wt.loc[df_wt['probe'] == probe, "dsdna_norm_capture_efficiency"].tolist()[0]
+#
+#         if wt_capture_eff > 0:
+#             df_stats.loc[index, f"capture_efficiency_vs_{wt_ref_name}"] = \
+#                 df_stats.loc[index, 'dsdna_norm_capture_efficiency'] / wt_capture_eff
+#
+#     df_stats.to_csv(statistics_path, sep='\t')
 
     pass
 
@@ -391,7 +385,7 @@ def coverage(
     None
     """
 
-    logging.info("Calculating coverage per fragment into a bedgraph.")
+    logger.info("Calculating coverage per fragment into a bedgraph.")
 
     if output_path is None:
         output_path = sparse_mat_path.replace(".txt", "_coverage.bedgraph")
@@ -401,8 +395,8 @@ def coverage(
         os.makedirs(out_basedir)
 
     if os.path.exists(output_path) and not force:
-        logging.warning(f"Output file already exists: {output_path}")
-        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"Output file already exists: {output_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
     df_fragments: pd.DataFrame = pd.read_csv(fragments_list_path, sep='\t')
@@ -438,7 +432,7 @@ def coverage(
     df_contacts_cov.drop(columns=['id'], inplace=True)
 
     if normalize:
-        logging.info("Normalizing coverage by the total number of contacts.")
+        logger.info("Normalizing coverage by the total number of contacts.")
         df_frequencies_cov: pd.DataFrame = df_contacts_cov.copy(deep=True)
         df_frequencies_cov["contacts"] /= sum(df_frequencies_cov["contacts"])
         df_frequencies_cov.rename(columns={"contacts": "frequencies"})
@@ -446,9 +440,9 @@ def coverage(
 
     else:
         df_contacts_cov.to_csv(output_path, sep='\t', index=False, header=False)
-        logging.info(f"Coverage file saved to {output_path}")
+        logger.info(f"Coverage file saved to {output_path}")
 
-    logging.info("Coverage calculation completed.")
+    logger.info("Coverage calculation completed.")
 
     """
     Example of usage:
@@ -501,7 +495,7 @@ def get_stats(
     None
     """
 
-    logging.info("Generating statistics for contacts made by each probe.")
+    logger.info("Generating statistics for contacts made by each probe.")
 
     sshcu.check_if_exists(contacts_unbinned_path)
     sshcu.check_if_exists(sparse_mat_path)
@@ -517,8 +511,8 @@ def get_stats(
     out_inter_chr_freq_path = os.path.join(output_dir, f"{sample_name}_norm_inter_chr_freq.tsv")
 
     if os.path.exists(out_stats_path) and not force:
-        logging.warning(f"Output file already exists: {out_stats_path}")
-        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"Output file already exists: {out_stats_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
     oligos_delim = "," if oligos_path.endswith(".csv") else "\t"
@@ -638,9 +632,9 @@ def get_stats(
     df_chr_nrm.to_csv(out_chr_freq_path, sep='\t', index=False)
     df_chr_inter_only_nrm.to_csv(out_inter_chr_freq_path, sep='\t', index=False)
 
-    logging.info(f"Statistics saved to {out_stats_path}")
-    logging.info(f"Normalized chr contacts saved to {out_chr_freq_path}")
-    logging.info(f"Normalized inter-only chr contacts saved to {out_inter_chr_freq_path}")
+    logger.info(f"Statistics saved to {out_stats_path}")
+    logger.info(f"Normalized chr contacts saved to {out_chr_freq_path}")
+    logger.info(f"Normalized inter-only chr contacts saved to {out_inter_chr_freq_path}")
 
     """
     Example of usage:
@@ -693,7 +687,7 @@ def edit_genome_ref(
 
     # Creating the artificial chromosome using annealing oligos sequences
     # and the enzyme sequence
-    logging.info(f"Creating the artificial chromosome with the annealing oligos and the enzyme {enzyme}")
+    logger.info(f"Creating the artificial chromosome with the annealing oligos and the enzyme {enzyme}")
 
     df = pd.read_csv(annealing_input, sep=',')
     ssDNA_seq_series = df[df["type"] == "ss"]['sequence_modified']
@@ -722,7 +716,7 @@ def edit_genome_ref(
 
     # Inserting the artificial chromosome at the end of the genome .FASTA file
     genome_name = os.path.basename(genome_input)
-    logging.info(f"Inserting the artificial chromosome at the end of the original genome .FASTA file")
+    logger.info(f"Inserting the artificial chromosome at the end of the original genome .FASTA file")
     with open(genome_input, "r") as f:
         genome = f.read()
 
@@ -730,15 +724,15 @@ def edit_genome_ref(
 
     # Concatenate with additional FASTA sequence(s), if any
     if additional_fasta_path:
-        logging.info(f"Looking for additional FASTA sequence(s) to concatenate with {genome_name}")
+        logger.info(f"Looking for additional FASTA sequence(s) to concatenate with {genome_name}")
         add_fasta_name = os.path.basename(additional_fasta_path)
-        logging.info(f"Concatenating {add_fasta_name} with the genome .FASTA file")
+        logger.info(f"Concatenating {add_fasta_name} with the genome .FASTA file")
         with open(additional_fasta_path, "r") as f:
             add_fasta = f.read()
 
         # Check line length
         if len(add_fasta.split("\n")[1]) != lg:
-            logging.warning(f"Line length of {add_fasta_name} is not equal to {lg}")
+            logger.warning(f"Line length of {add_fasta_name} is not equal to {lg}")
 
             # remove existing line breaks and add new ones
             add_fasta = add_fasta.replace("\n", "")
@@ -751,7 +745,7 @@ def edit_genome_ref(
     with open(new_genome_output, "w") as f:
         f.write(new_genome)
 
-    logging.info(f"Artificial chromosome created and inserted at the end of the genome .FASTA file")
+    logger.info(f"Artificial chromosome created and inserted at the end of the genome .FASTA file")
 
 
 def profile_contacts(
@@ -797,8 +791,8 @@ def profile_contacts(
         os.makedirs(basedir)
 
     if os.path.exists(output_path) and not force:
-        logging.warning(f"Output file already exists: {output_path}")
-        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"Output file already exists: {output_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
     chr_coord_delim = "," if chromosomes_coord_path.endswith(".csv") else "\t"
@@ -916,8 +910,8 @@ def rebin_profile(
         output_path = contacts_unbinned_path.replace("0kb_profile", f"{bin_suffix}_profile")
 
     if os.path.exists(output_path) and not force:
-        logging.warning(f"Output file already exists: {output_path}")
-        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"Output file already exists: {output_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
     df = pd.read_csv(contacts_unbinned_path, sep='\t')
@@ -1026,41 +1020,41 @@ def subsample(
         end_part = match.group(2)
         output_path = f"{prefix}_{suffix}{end_part}"
     else:
-        logging.error("Input file does not match expected pattern")
+        logger.error("Input file does not match expected pattern")
         raise ValueError("Input file does not match expected pattern")
 
     if os.path.exists(output_path) and not force:
-        logging.warning(f"Output file {output_path} already exists. skipping subsampling.")
-        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"Output file {output_path} already exists. skipping subsampling.")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
     # Log the start of subsampling
-    logging.info(f"Starting subsampling of {input_path} to {output_path}.gz with seed {seed} and size {size}")
+    logger.info(f"Starting subsampling of {input_path} to {output_path}.gz with seed {seed} and size {size}")
 
     # Run seqtk to subsample the FASTQ file
     seqtk_command = f"seqtk sample -s {seed} {input_path} {size} > {output_path}"
     try:
         subprocess.run(seqtk_command, shell=True, check=True)
-        logging.info(f"Subsampling completed successfully for {output_path}")
+        logger.info(f"Subsampling completed successfully for {output_path}")
     except subprocess.CalledProcessError as e:
-        logging.error(f"Error in subsampling {input_path}: {e}")
+        logger.error(f"Error in subsampling {input_path}: {e}")
         raise
 
     # Optionally compress the output file
     if compress:
         sshcu.check_gzip()
         if os.path.exists(output_path + ".gz"):
-            logging.warning(f"Output file {output_path}.gz already exists. removing it.")
+            logger.warning(f"Output file {output_path}.gz already exists. removing it.")
             os.remove(output_path + ".gz")
 
         gzip_command = f"gzip {output_path}"
-        logging.info(f"Compressing {output_path}")
+        logger.info(f"Compressing {output_path}")
         try:
             subprocess.run(gzip_command, shell=True, check=True)
             output_path += ".gz"
-            logging.info(f"Compression completed successfully for {output_path}")
+            logger.info(f"Compression completed successfully for {output_path}")
         except subprocess.CalledProcessError as e:
-            logging.error(f"Error in compressing {output_path}: {e}")
+            logger.error(f"Error in compressing {output_path}: {e}")
             raise
 
 

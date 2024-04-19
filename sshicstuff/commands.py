@@ -127,7 +127,7 @@ class Hiconly(AbstractCommand):
                                                         if the file exists [default: False]
     """
     def execute(self):
-        sshc.onlyhic(
+        sshcf.onlyhic(
             sample_sparse_mat=self.args["<sparse_matrix_input>"],
             oligos_capture_path=self.args["<oligos_capture_input>"],
             output_path=self.args["--output"],
