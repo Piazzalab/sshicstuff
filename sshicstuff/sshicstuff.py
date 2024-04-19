@@ -436,7 +436,7 @@ def get_stats(
         Path to the input chr_centros_coordinates.tsv file.
     oligos_path : str
         Path to the oligos input CSV file.
-    cis_range: int, default=5000
+    cis_range: int, default=50000
         Cis range to be considered around the probe.
     output_dir : str
         Path to the output directory.
