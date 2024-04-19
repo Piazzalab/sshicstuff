@@ -5,6 +5,9 @@ import logging
 import numpy as np
 import pandas as pd
 
+import sys
+print(sys.path)
+
 import sshicstuff.utils as sshcu
 
 # Configure logging
@@ -306,6 +309,55 @@ def associate_oligo_to_frag(
     ../data/inputs/capture_oligo_positions.csv \
     -F
     """
+
+
+def compare_with_wt(
+        stats1_path: str,
+        stats2_path: str,
+        output_dir: str = None,
+):
+    """
+    Compare the capture efficiency of a sample with a wild-type reference.
+
+    Gives a .csv file with the with the ratio of the capture efficiency
+    of the sample over the wild-type reference.
+
+
+    Parameters
+    ----------
+    stats1_path : str
+        Path to the statistics file of the sample.
+    stats2_path : str
+        Path to the statistics file of the wild-type reference.
+    output_dir : str
+        Path to the output directory.
+
+    Returns
+    -------
+    None
+    """
+    df_sample: pd.DataFrame = pd.read_csv(stats1_path, header=0, sep="\t")
+    df_wt: pd.DataFrame = pd.read_csv(stats2_path, sep='\t')
+
+    df_cap_eff = pd.DataFrame(columns=[
+        "probe",
+        "capture_efficiency",
+        f"dsdna_norm_capture_efficiency_{wt_name}",
+        f"ratio"
+    ])
+
+    df_stats[f"capture_efficiency_vs_{wt_ref_name}"] = np.nan
+    for index, row in df_stats.iterrows():
+        probe = row['probe']
+        wt_capture_eff = df_wt.loc[df_wt['probe'] == probe, "dsdna_norm_capture_efficiency"].tolist()[0]
+
+        if wt_capture_eff > 0:
+            df_stats.loc[index, f"capture_efficiency_vs_{wt_ref_name}"] = \
+                df_stats.loc[index, 'dsdna_norm_capture_efficiency'] / wt_capture_eff
+
+    df_stats.to_csv(statistics_path, sep='\t')
+
+    pass
 
 
 def coverage(

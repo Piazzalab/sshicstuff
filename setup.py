@@ -50,5 +50,7 @@ setuptools.setup(
     classifiers=CLASSIFIERS,
     packages=setuptools.find_packages(),
     install_requires=REQUIREMENTS,
-    include_package_data=True
+    include_package_data=True,
+    entry_points={"console_scripts": ["sshicstuff=sshicstuff.main:main"]},
+
 )
