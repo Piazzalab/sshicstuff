@@ -8,7 +8,7 @@ CWD = os.getcwd()
 TESTDIR = join(dirname(CWD), "test_data")
 CAPTURE = join(TESTDIR, "capture_oligo_positions.csv")
 ANNEALING = join(TESTDIR, "annealing_oligo_positions.csv")
-COORDS = join(TESTDIR, "chr_coords.csv")
+COORDS = join(TESTDIR, "chr_coords.tsv")
 GENOME = join(TESTDIR, "S288c_DSB_LY_Capture.fa")
 DPNII = "gatc"
 SEED = 42
@@ -71,19 +71,53 @@ def test_coverage():
 
 
 def test_profile():
-    pass
+    args = (
+        "-c {0} -C {1} -f {2} -a {3} -F -N"
+    ).format(
+        CAPTURE,
+        COORDS,
+        join(TESTDIR, "AD162/AD162_pcrdupkept_filtered.tsv"),
+        join(TESTDIR, "additional_probe_groups.tsv")
+    )
+    proc = shcmd.Profile(args.split(" "), {})
+    proc.execute()
 
 
 def test_rebin():
-    pass
+    args = (
+        "-b 10000 -c {0} -p {1} -F"
+    ).format(
+        COORDS,
+        join(TESTDIR, "AD162/AD162_pcrdupkept_0kb_profile_frequencies.tsv"),
+    )
+    proc = shcmd.Rebin(args.split(" "), {})
+    proc.execute()
 
 
 def test_stats():
-    pass
+    args = (
+        "-c {0} -C {1} -m {2} -p {3} -F -r 50000"
+    ).format(
+        CAPTURE,
+        COORDS,
+        join(TESTDIR, "AD162/AD162_pcrdupkept.txt"),
+        join(TESTDIR, "AD162/AD162_pcrdupkept_0kb_profile_frequencies.tsv")
+    )
+
+    proc = shcmd.Stats(args.split(" "), {})
+    proc.execute()
 
 
 def test_aggregate():
-    pass
-
+    args = (
+        "-c {0} -h {1} -p {2} -T {3} -w 150000 -N -I -L"
+    ).format(
+        CAPTURE,
+        COORDS,
+        join(TESTDIR, "AD162/AD162_pcrdupkept_10kb_profile_frequencies.tsv"),
+        "-E chr3 -E chr2 -E 2_micron -E mitochondrion -E chr_artificial_donor -E chr_artificial_ssDNA"
+    )
+    proc = shcmd.Aggregate(args.split(" "), {})
+    proc.execute()
 
 
