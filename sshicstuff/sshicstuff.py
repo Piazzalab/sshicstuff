@@ -135,6 +135,7 @@ def aggregate(
         df_grouped: pd.DataFrame = df_merged_telos_areas.groupby(['chr', 'chr_bins'], as_index=False).mean(
             numeric_only=True)
         df_grouped.drop(columns=['telo_l', 'telo_r', 'genome_bins'], axis=1, inplace=True)
+        del df_merged, df_merged_telos_areas_part_a, df_merged_telos_areas_part_b
 
         if arm_length_classification:
             if "category" not in df_coords.columns:
@@ -143,7 +144,6 @@ def aggregate(
                     "Must be in the form small_small or long_middle concerning lengths of left_right arms")
             else:
                 logger.info("Classifying the contacts by chromosome arm lengths")
-                aggregated_dir = os.path.join(output_dir, "aggregated_by_arm_sizes")
 
                 df_arms_size: pd.DataFrame = pd.DataFrame(columns=["chr", "arm", "size", "category"])
                 for _, row in df_coords.iterrows():
@@ -155,22 +155,20 @@ def aggregate(
                         df_arms_size.loc[len(df_arms_size)] = chr_, "left", left_, category_.split("_")[0]
                         df_arms_size.loc[len(df_arms_size)] = chr_, "right", right_, category_.split("_")[1]
 
-                df_merged = pd.merge(df_contacts, df_telos, on='chr')
-                df_merged_telos_areas_part_a = df_merged[
-                    df_merged.chr_bins < (df_merged.telo_l + 3000 + 1000)]
+                df_merged2 = pd.merge(df_contacts, df_telos, on='chr')
+                df_merged_telos_areas_part_a = df_merged2[df_merged2.chr_bins < (df_merged2.telo_l + 3000 + 1000)]
                 df_merged_telos_areas_part_a.insert(2, 'arm', 'left')
-                df_merged_telos_areas_part_b = df_merged[
-                    df_merged.chr_bins > (df_merged.telo_r - 3000 - 1000)]
+                df_merged_telos_areas_part_b = df_merged2[df_merged2.chr_bins > (df_merged2.telo_r - 3000 - 1000)]
                 df_merged_telos_areas_part_b.insert(2, 'arm', 'right')
 
                 df_telo_freq = pd.concat((df_merged_telos_areas_part_a, df_merged_telos_areas_part_b))
-                df_merged2 = pd.merge(df_telo_freq, df_arms_size, on=['chr', 'arm'])
-                df_merged2.drop(columns=['telo_l', 'telo_r', 'size'], inplace=True)
+                df_merged3 = pd.merge(df_telo_freq, df_arms_size, on=['chr', 'arm'])
+                df_merged3.drop(columns=['telo_l', 'telo_r', 'size'], inplace=True)
 
-                df_grouped = df_merged2.groupby(by='category', as_index=False).mean(numeric_only=True)
-                df_grouped.drop(columns=['chr_bins', 'genome_bins'], inplace=True)
-                df_grouped = df_grouped.rename(columns={'category': 'fragments'}).T
-                df_grouped.to_csv(output_prefix + "_by_arm_sizes.tsv", sep='\t', header=False)
+                df_grouped_by_arm = df_merged3.groupby(by='category', as_index=False).mean(numeric_only=True)
+                df_grouped_by_arm.drop(columns=['chr_bins', 'genome_bins'], inplace=True)
+                df_grouped_by_arm = df_grouped_by_arm.rename(columns={'category': 'fragments'}).T
+                df_grouped_by_arm.to_csv(output_prefix + "_by_arm_sizes.tsv", sep='\t', header=False)
 
     else:
         return
@@ -188,28 +186,15 @@ def aggregate(
 
     for col in fragments + groups:
         if col in fragments:
-            name = df_oligos.loc[df_oligos["fragment"] == int(col), 'name'].values[0]
+            name = col
         else:
             name = col[1:]
 
         if df_grouped[col].sum() == 0:
             continue
 
-        df_chr_centros_pivot: pd.DataFrame = df_grouped.pivot_table(index='chr_bins',
-                                                                    columns='chr', values=col, fill_value=0)
-
+        df_chr_centros_pivot = df_grouped.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=0)
         df_chr_centros_pivot.to_csv(output_prefix + f"_{name}_per_chr.tsv", sep='\t', index=False)
-
-    """
-    Example of usage
-
-    python3 ./main.py aggregate 
-    ../data/sandbox/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree_10kb_profile_frequencies.tsv
-    ../data/sandbox/S288c_DSB_LY_Capture_artificial_coordinates.tsv
-    ../data/sandbox/capture_oligo_positions.csv
-    -w 150000 -E chr3 -E chr2 -E 2_micron -E mitochondrion -E chr_artificial_donor -E chr_artificial_ssDNA
-    -I -N -C
-    """
 
 
 def associate_oligo_to_frag(
