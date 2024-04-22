@@ -256,10 +256,10 @@ class Profile(AbstractCommand):
         -N, --normalize                                        Normalize the coverage by the total number of contacts [default: False]
     """
     def execute(self):
-        check_exists(self.args["--filtered-table"], self.args["--oligos-capture"], self.args["--chr-coord"])
+        check_exists(self.args["--filtered-table"], self.args["--oligo-capture"], self.args["--chr-coord"])
         sshc.profile_contacts(
             filtered_table_path=self.args["--filtered-table"],
-            oligos_capture_path=self.args["--oligos-capture"],
+            oligos_capture_path=self.args["--oligo-capture"],
             chromosomes_coord_path=self.args["--chr-coord"],
             output_path=self.args["--output"],
             additional_groups_path=self.args["--additional"],
@@ -340,7 +340,7 @@ class Stats(AbstractCommand):
             contacts_unbinned_path=self.args["--profile"],
             sparse_mat_path=self.args["--sparse-mat"],
             chr_coord_path=self.args["--chr-coord"],
-            oligos_path=self.args["--oligos-capture"],
+            oligos_path=self.args["--oligo-capture"],
             output_dir=self.args["--output"],
             cis_range=int(self.args["--cis-range"]),
             force=self.args["--force"]
@@ -352,7 +352,7 @@ class Aggregate(AbstractCommand):
     Aggregate contacts around specific regions of centromeres or telomeres.
 
     usage:
-        aggregate -c OLIGO_CAPTURE -h CHR_COORD -p PROFILE [-o OUTPUT] [-C] [-E CHRS] [-I] [-l] [-N] [-T] [-w WINDOW]
+        aggregate -c OLIGO_CAPTURE -h CHR_COORD -p PROFILE [-o OUTPUT] [-C] [-E CHRS...] [-I] [-L] [-N] [-T] [-w WINDOW]
 
     Arguments:
         -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture CSV file
@@ -369,7 +369,7 @@ class Aggregate(AbstractCommand):
         -I, --inter                                 Only keep inter-chr contacts, i.e., removing contacts between
                                                     a probe and it own chr [default: True]
 
-        -l, --arm-length                            Classify telomeres aggregated in according to their arm length.
+        -L, --arm-length                            Classify telomeres aggregated in according to their arm length.
 
         -N, --normalize                             Normalize the contacts by the total number of contacts
                                                     [default: False]
@@ -385,9 +385,9 @@ class Aggregate(AbstractCommand):
 
     def execute(self):
         check_exists(
-            self.args["<contacts_binned_path>"],
-            self.args["<chr_coord_path>"],
-            self.args["<oligos_path>"]
+            self.args["--profile"],
+            self.args["--chr-coord"],
+            self.args["--oligo-capture"]
         )
 
         if self.args["--cen"] == self.args["--tel"]:
@@ -396,9 +396,9 @@ class Aggregate(AbstractCommand):
             raise ValueError("You must specify either telomeres or centromeres. Not both")
 
         sshc.aggregate(
-            binned_contacts_path=self.args["<contacts_binned_path>"],
-            chr_coord_path=self.args["<chr_coord_path>"],
-            oligos_capture_path=self.args["<oligos_path>"],
+            binned_contacts_path=self.args["--profile"],
+            chr_coord_path=self.args["--chr-coord"],
+            oligos_capture_path=self.args["--oligo-capture"],
             window_size=int(self.args["--window"]),
             telomeres=self.args["--tel"],
             centromeres=self.args["--cen"],
