@@ -10,6 +10,7 @@ from hicstuff.log import logger
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
 
+
 def aggregate(
         binned_contacts_path: str,
         chr_coord_path: str,
@@ -57,15 +58,6 @@ def aggregate(
     -------
     None
     """
-
-    if telomeres == centromeres:
-        logger.error("You must specify either telomeres or centromeres. Not both")
-        logger.error("Exiting...")
-        return
-
-    sshcu.check_if_exists(binned_contacts_path)
-    sshcu.check_if_exists(chr_coord_path)
-    sshcu.check_if_exists(oligos_capture_path)
 
     if output_dir is None:
         output_dir = os.path.dirname(binned_contacts_path)
@@ -250,8 +242,6 @@ def associate_oligo_to_frag(
 
     logger.info("Associating oligos to fragments based on the fragment id, start and end positions.")
 
-    sshcu.check_if_exists(oligos_capture_path)
-    sshcu.check_if_exists(fragments_path)
     sshcu.check_file_extension(fragments_path, ".txt")
     sshcu.check_file_extension(oligos_capture_path, [".csv", ".tsv", ".txt"])
 
