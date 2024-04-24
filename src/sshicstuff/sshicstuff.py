@@ -4,8 +4,9 @@ import subprocess
 import numpy as np
 import pandas as pd
 
-import sshicstuff.utils as sshcu
-from hicstuff.log import logger
+import sshicstuff.utils as utils
+import sshicstuff.log as log
+logger = log.logger
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
@@ -173,7 +174,7 @@ def aggregate(
     else:
         return
 
-    df_grouped = sshcu.sort_by_chr(df_grouped, chr_list, 'chr', 'chr_bins')
+    df_grouped = utils.sort_by_chr(df_grouped, chr_list, 'chr', 'chr_bins')
     df_grouped['chr_bins'] = df_grouped['chr_bins'].astype('int64')
 
     logger.info(f"Compute mean, median, std on the aggregated contacts per probe or group of probes, per chromosome")
@@ -227,8 +228,8 @@ def associate_oligo_to_frag(
 
     logger.info("Associating oligos to fragments based on the fragment id, start and end positions.")
 
-    sshcu.check_file_extension(fragments_path, ".txt")
-    sshcu.check_file_extension(oligos_capture_path, [".csv", ".tsv", ".txt"])
+    utils.check_file_extension(fragments_path, ".txt")
+    utils.check_file_extension(oligos_capture_path, [".csv", ".tsv", ".txt"])
 
     # Read the oligos and fragments files
     oligos_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
@@ -472,10 +473,10 @@ def get_stats(
 
     logger.info("Generating statistics for contacts made by each probe.")
 
-    sshcu.check_if_exists(contacts_unbinned_path)
-    sshcu.check_if_exists(sparse_mat_path)
-    sshcu.check_if_exists(chr_coord_path)
-    sshcu.check_if_exists(oligos_path)
+    utils.check_if_exists(contacts_unbinned_path)
+    utils.check_if_exists(sparse_mat_path)
+    utils.check_if_exists(chr_coord_path)
+    utils.check_if_exists(oligos_path)
 
     if output_dir is None:
         output_dir = os.path.dirname(contacts_unbinned_path)
@@ -754,9 +755,9 @@ def profile_contacts(
         Force the overwriting of the output file if the file exists.
     """
 
-    sshcu.check_if_exists(filtered_table_path)
-    sshcu.check_if_exists(oligos_capture_path)
-    sshcu.check_if_exists(chromosomes_coord_path)
+    utils.check_if_exists(filtered_table_path)
+    utils.check_if_exists(oligos_capture_path)
+    utils.check_if_exists(chromosomes_coord_path)
 
     if not output_path:
         output_path = filtered_table_path.replace("filtered.tsv", "0kb_profile_contacts.tsv")
@@ -787,7 +788,7 @@ def profile_contacts(
     df_contacts: pd.DataFrame = df_contacts.astype(dtype={'chr': str, 'start': int, 'sizes': int})
 
     for x in ['a', 'b']:
-        y = sshcu.frag2(x)
+        y = utils.frag2(x)
         df2 = df[~pd.isna(df['name_' + x])]
 
         for probe in probes:
@@ -810,7 +811,7 @@ def profile_contacts(
 
     group = df_contacts.groupby(by=['chr', 'start', 'sizes'], as_index=False)
     df_contacts: pd.DataFrame = group.sum()
-    df_contacts = sshcu.sort_by_chr(df_contacts, chr_list, 'chr', 'start')
+    df_contacts = utils.sort_by_chr(df_contacts, chr_list, 'chr', 'start')
     df_contacts.index = range(len(df_contacts))
 
     for probe, frag in zip(probes, fragments):
@@ -832,9 +833,9 @@ def profile_contacts(
     if additional_groups_path:
         df_additional: pd.DataFrame = pd.read_csv(additional_groups_path, sep='\t')
         probes_to_fragments = dict(zip(probes, fragments))
-        sshcu.make_groups_of_probes(df_additional, df_contacts, probes_to_fragments)
+        utils.make_groups_of_probes(df_additional, df_contacts, probes_to_fragments)
         if normalize:
-            sshcu.make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
+            utils.make_groups_of_probes(df_additional, df_frequencies, probes_to_fragments)
 
     df_contacts.to_csv(output_path, sep='\t', index=False)
     if normalize:
@@ -877,8 +878,8 @@ def rebin_profile(
         Force the overwriting of the output file if the file exists.
     """
 
-    sshcu.check_if_exists(contacts_unbinned_path)
-    sshcu.check_if_exists(chromosomes_coord_path)
+    utils.check_if_exists(contacts_unbinned_path)
+    utils.check_if_exists(chromosomes_coord_path)
 
     bin_suffix = f'{bin_size // 1000}kb'
     if not output_path:
@@ -934,7 +935,7 @@ def rebin_profile(
     df_binned.drop(columns=["start_bin", "end_bin"], inplace=True)
 
     df_binned = df_binned.groupby(["chr", "chr_bins"]).sum().reset_index()
-    df_binned = sshcu.sort_by_chr(df_binned, chr_list, 'chr_bins')
+    df_binned = utils.sort_by_chr(df_binned, chr_list, 'chr_bins')
     df_binned = pd.merge(df_template, df_binned, on=['chr', 'chr_bins'], how='left')
     df_binned.drop(columns=["start", "end", "sizes"], inplace=True)
     df_binned.fillna(0, inplace=True)
@@ -975,7 +976,7 @@ def subsample(
         Whether to overwrite the output file if it already exists.
     """
 
-    sshcu.check_seqtk()
+    utils.check_seqtk()
 
     # Determine the appropriate suffix for output file based on size
     if size >= 1000000000:
@@ -1017,7 +1018,7 @@ def subsample(
 
     # Optionally compress the output file
     if compress:
-        sshcu.check_gzip()
+        utils.check_gzip()
         if os.path.exists(output_path + ".gz"):
             logger.warning(f"Output file {output_path}.gz already exists. removing it.")
             os.remove(output_path + ".gz")

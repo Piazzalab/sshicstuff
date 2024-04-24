@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import numpy as np
 
-import sshicstuff.utils as sshcu
+import src.sshicstuff.utils as sshcu
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -8,7 +8,6 @@ texting with the right API). By default the log file is disabled, but can be
 enabled or changed using set_file_handler.
 """
 
-
 import logging
 import logging.handlers
 import requests

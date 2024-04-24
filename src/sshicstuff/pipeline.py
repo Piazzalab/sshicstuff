@@ -4,9 +4,9 @@ import itertools
 import logging
 from typing import List
 
-import sshicstuff.filter as shcf
-import sshicstuff.sshicstuff as shc
-import sshicstuff.utils as shcu
+import src.sshicstuff.filter as shcf
+import src.sshicstuff.sshicstuff as shc
+import src.sshicstuff.utils as shcu
 
 
 logging.basicConfig(

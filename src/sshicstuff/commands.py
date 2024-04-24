@@ -1,9 +1,11 @@
 import os
 from docopt import docopt
 
-from hicstuff.log import logger
-import sshicstuff.sshicstuff as sshc
+import sshicstuff as sshc
 import sshicstuff.filter as sshcf
+
+import sshicstuff.log as log
+logger = log.logger
 
 
 def check_exists(*args):

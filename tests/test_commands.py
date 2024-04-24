@@ -1,5 +1,4 @@
 import os
-import pytest
 from os.path import join, dirname
 import sshicstuff.commands as shcmd
 

@@ -47,8 +47,10 @@ setuptools.setup(
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
     url=URL,
+    package_dir={"": "src"},
+    packages=setuptools.find_packages(where="src"),
     classifiers=CLASSIFIERS,
-    packages=setuptools.find_packages(),
-    # install_requires=REQUIREMENTS,
-    include_package_data=True
+    install_requires=REQUIREMENTS,
+    include_package_data=True,
+    zip_safe=False,
 )

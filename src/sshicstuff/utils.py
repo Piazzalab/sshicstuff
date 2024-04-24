@@ -4,14 +4,10 @@ import os
 import shutil
 import numpy as np
 import pandas as pd
-import logging
 import subprocess
 
-from typing import List
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+import sshicstuff.log as log
+logger = log.logger
 
 
 def check_file_extension(file_path: str, extension: str | list[str]):
@@ -34,13 +30,13 @@ def check_file_extension(file_path: str, extension: str | list[str]):
         for ext in extension:
             if file_path.endswith(ext):
                 return
-        logging.error(f"File {file_path} does not have the correct extension {extension}.")
+        logger.error(f"File {file_path} does not have the correct extension {extension}.")
 
     else:
         if file_path.endswith(extension):
             return
         else:
-            logging.error(f"File {file_path} does not have the correct extension {extension}.")
+            logger.error(f"File {file_path} does not have the correct extension {extension}.")
 
 
 def check_gzip():
@@ -54,17 +50,17 @@ def check_gzip():
         version_match = re.search(r"gzip (\d+\.\d+)", result.stdout)
         if version_match:
             version = version_match.group(1)
-            logging.info(f"gzip version {version} is installed.")
+            logger.info(f"gzip version {version} is installed.")
             return version
         else:
-            logging.error("Unable to determine gzip version from the output.")
+            logger.error("Unable to determine gzip version from the output.")
             return None
     except subprocess.CalledProcessError:
-        logging.error("gzip is not installed or not functioning correctly. "
+        logger.error("gzip is not installed or not functioning correctly. "
                       "Please install or fix gzip before running this function.")
         return None
     except Exception as e:
-        logging.error(f"Unexpected error when checking gzip version: {e}")
+        logger.error(f"Unexpected error when checking gzip version: {e}")
         return None
 
 
@@ -85,7 +81,7 @@ def check_if_exists(file_path: str):
     if os.path.exists(file_path):
         return
     else:
-        logging.error(f"File {file_path} does not exist.")
+        logger.error(f"File {file_path} does not exist.")
 
 
 def check_seqtk():
@@ -99,13 +95,13 @@ def check_seqtk():
         version_match = re.search(r"Version: (\S+)", result.stdout)
         if version_match:
             version = version_match.group(1)
-            logging.info(f"seqtk version {version} is installed.")
+            logger.info(f"seqtk version {version} is installed.")
             return version
         else:
-            logging.error("Unable to determine seqtk version from the output.")
+            logger.error("Unable to determine seqtk version from the output.")
             return None
     except subprocess.CalledProcessError:
-        logging.error("seqtk is not installed or not functioning correctly. "
+        logger.error("seqtk is not installed or not functioning correctly. "
                       "Please install or fix seqtk before running this function.")
         return None
 
@@ -210,7 +206,7 @@ def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: 
             continue
 
 
-def sort_by_chr(df: pd.DataFrame, chr_list: List[str], *args: str):
+def sort_by_chr(df: pd.DataFrame, chr_list: list[str], *args: str):
     """
     Sort a DataFrame by chromosome and then by other columns.
 
