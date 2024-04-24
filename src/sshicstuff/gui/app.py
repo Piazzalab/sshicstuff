@@ -5,8 +5,8 @@ from dash import html, dcc
 from dash.dependencies import Input, Output
 
 # Import your page layouts here
-import home
-import probes_viewer
+import sshicstuff.gui.home as home
+import sshicstuff.gui.viewer as viewer
 
 # Create a Dash application instance:
 server = Flask(__name__, template_folder='templates', )
@@ -39,7 +39,7 @@ def display_page(value):
     if value == 'home':
         return home.layout
     elif value == 'probes-viewer':
-        return probes_viewer.layout
+        return viewer.layout
 
 
 if __name__ == '__main__':

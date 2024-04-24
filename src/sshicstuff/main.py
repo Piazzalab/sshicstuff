@@ -36,7 +36,14 @@ The subcommands are:
 
     stats               Generate statistics and normalization for contacts made by each probe.
 
+    compare             Compare the capture efficiency of a sample with that of a wild type
+                        (may be another sample).
+
     aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
+
+    pipeline            Run the entire pipeline from subsampling to aggregation.
+
+    view                Open a graphical user interface to visualize 4-C like profile
 """
 
 from docopt import docopt

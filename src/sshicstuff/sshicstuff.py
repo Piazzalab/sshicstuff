@@ -281,53 +281,70 @@ def associate_oligo_to_frag(
     """
 
 
-# def compare_with_wt(
-#         stats1_path: str,
-#         stats2_path: str,
-#         output_dir: str = None,
-# ):
-#     """
-#     Compare the capture efficiency of a sample with a wild-type reference.
-#
-#     Gives a .csv file with the with the ratio of the capture efficiency
-#     of the sample over the wild-type reference.
-#
-#
-#     Parameters
-#     ----------
-#     stats1_path : str
-#         Path to the statistics file of the sample.
-#     stats2_path : str
-#         Path to the statistics file of the wild-type reference.
-#     output_dir : str
-#         Path to the output directory.
-#
-#     Returns
-#     -------
-#     None
-#     """
-#     df_sample: pd.DataFrame = pd.read_csv(stats1_path, header=0, sep="\t")
-#     df_wt: pd.DataFrame = pd.read_csv(stats2_path, sep='\t')
-#
-#     df_cap_eff = pd.DataFrame(columns=[
-#         "probe",
-#         "capture_efficiency",
-#         f"dsdna_norm_capture_efficiency_{wt_name}",
-#         f"ratio"
-#     ])
-#
-#     df_stats[f"capture_efficiency_vs_{wt_ref_name}"] = np.nan
-#     for index, row in df_stats.iterrows():
-#         probe = row['probe']
-#         wt_capture_eff = df_wt.loc[df_wt['probe'] == probe, "dsdna_norm_capture_efficiency"].tolist()[0]
-#
-#         if wt_capture_eff > 0:
-#             df_stats.loc[index, f"capture_efficiency_vs_{wt_ref_name}"] = \
-#                 df_stats.loc[index, 'dsdna_norm_capture_efficiency'] / wt_capture_eff
-#
-#     df_stats.to_csv(statistics_path, sep='\t')
+def compare_with_wt(
+        stats1_path: str,
+        stats2_path: str,
+        ref_name: str,
+        output_dir: str = None
+) -> None:
+    """
+    Compare the capture efficiency of a sample with a wild-type reference.
 
-    pass
+    Gives a .csv file with the with the ratio of the capture efficiency
+    of the sample over the wild-type reference.
+
+
+    Parameters
+    ----------
+    stats1_path : str
+        Path to the statistics file of the sample.
+    stats2_path : str
+        Path to the statistics file of the wild-type reference.
+    ref_name : str
+        Name of the wild-type reference.
+    output_dir : str
+        Path to the output directory.
+
+    Returns
+    -------
+    None
+    """
+
+    logger.info("Comparing the capture efficiency of a sample with a wild-type reference.")
+    logger.info("Be sure to have same number of reads for both samples. Otherwise use subsample function.")
+
+    df_sample: pd.DataFrame = pd.read_csv(stats1_path, header=0, sep="\t")
+    df_wt: pd.DataFrame = pd.read_csv(stats2_path, sep='\t')
+
+    df_cap_eff = pd.DataFrame(columns=[
+        "probe",
+        "capture_efficiency",
+        f"capture_efficiency_{ref_name}",
+        f"ratio_sample_vs_wt"
+    ])
+
+    for index, row in df_sample.iterrows():
+        probe = row['probe']
+        cap_eff = row['dsdna_norm_capture_efficiency']
+
+        if probe in df_wt['probe'].tolist():
+            cap_eff_wt = df_wt.loc[df_wt['probe'] == probe, "dsdna_norm_capture_efficiency"].tolist()[0]
+            ratio = cap_eff / cap_eff_wt if cap_eff_wt != 0 else np.nan
+
+        else:
+            cap_eff_wt = np.nan
+            ratio = np.nan
+
+        df_cap_eff.loc[index, "probe"] = probe
+        df_cap_eff.loc[index, "capture_efficiency"] = cap_eff
+        df_cap_eff.loc[index, f"capture_efficiency_{ref_name}"] = cap_eff_wt
+        df_cap_eff.loc[index, f"ratio_sample_vs_{ref_name}"] = ratio
+
+    if output_dir is None:
+        output_dir = os.path.dirname(stats1_path)
+
+    output_path = os.path.join(output_dir, f"{os.path.basename(stats1_path).split('.')[0]}_vs_{ref_name}.csv")
+    df_cap_eff.to_csv(output_path, sep='\t', index=False)
 
 
 def coverage(
@@ -666,21 +683,21 @@ def edit_genome_ref(
     logger.info(f"Creating the artificial chromosome with the annealing oligos and the enzyme {enzyme}")
 
     df = pd.read_csv(annealing_input, sep=',')
-    ssDNA_seq_series = df[df["type"] == "ss"]['sequence_modified']
-    ssDNA_seq = [seq.lower() for seq in ssDNA_seq_series.values]
+    ssdna_seq_series = df[df["type"] == "ss"]['sequence_modified']
+    ssdna_seq = [seq.lower() for seq in ssdna_seq_series.values]
 
     lg = fasta_line_length
     s = fragment_size - len(enzyme)
     p = fasta_spacer
     oneline = p * int(s/2) + enzyme + p * s
 
-    for seq in ssDNA_seq:
+    for seq in ssdna_seq:
         middle = len(seq) // 2
-        dpnII_pos = seq.find(enzyme)
-        if dpnII_pos < middle:
-            seq2 = seq[dpnII_pos+len(enzyme):].upper()
+        enzyme_pos = seq.find(enzyme)
+        if enzyme_pos < middle:
+            seq2 = seq[enzyme_pos+len(enzyme):].upper()
         else:
-            seq2 = seq[:dpnII_pos].upper()
+            seq2 = seq[:enzyme_pos].upper()
 
         oneline += seq2 + p * s + enzyme + p * s
 
