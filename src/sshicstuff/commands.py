@@ -3,9 +3,10 @@ from docopt import docopt
 
 import sshicstuff as sshc
 import sshicstuff.filter as sshcf
-import sshicstuff.gui.app as app
+from sshicstuff.gui.app import app
 
 import sshicstuff.log as log
+import sshicstuff.pipeline as pip
 logger = log.logger
 
 
@@ -130,7 +131,7 @@ class Associate(AbstractCommand):
     def execute(self):
         check_exists(self.args["--oligo-capture"], self.args["--fragments"])
         sshc.associate_oligo_to_frag(
-            oligos_capture_path=self.args["--oligo-capture"],
+            oligo_capture_path=self.args["--oligo-capture"],
             fragments_path=self.args["--fragments"],
             frag_id_shift=int(self.args["--shift"]),
             force=self.args["--force"]
@@ -163,7 +164,7 @@ class Hiconly(AbstractCommand):
         check_exists(self.args["--sparse-matrix"], self.args["--oligos-capture"])
         sshcf.onlyhic(
             sample_sparse_mat=self.args["--sparse-matrix"],
-            oligos_capture_path=self.args["--oligos-capture"],
+            oligo_capture_path=self.args["--oligos-capture"],
             output_path=self.args["--output"],
             n_flanking_fragment=int(self.args["--flanking-number"])
         )
@@ -194,7 +195,7 @@ class Filter(AbstractCommand):
         check_exists(self.args["--fragments"], self.args["--oligos-capture"], self.args["--sparse-matrix"])
         sshcf.filter_contacts(
             sparse_mat_path=self.args["--sparse-matrix"],
-            oligos_capture_path=self.args["--oligos-capture"],
+            oligo_capture_path=self.args["--oligos-capture"],
             fragments_list_path=self.args["--fragments"],
             output_path=self.args["--output"],
             frag_id_shift=int(self.args["--shift"]),
@@ -262,7 +263,7 @@ class Profile(AbstractCommand):
         check_exists(self.args["--filtered-table"], self.args["--oligo-capture"], self.args["--chr-coord"])
         sshc.profile_contacts(
             filtered_table_path=self.args["--filtered-table"],
-            oligos_capture_path=self.args["--oligo-capture"],
+            oligo_capture_path=self.args["--oligo-capture"],
             chromosomes_coord_path=self.args["--chr-coord"],
             output_path=self.args["--output"],
             additional_groups_path=self.args["--additional"],
@@ -343,7 +344,7 @@ class Stats(AbstractCommand):
             contacts_unbinned_path=self.args["--profile"],
             sparse_mat_path=self.args["--sparse-mat"],
             chr_coord_path=self.args["--chr-coord"],
-            oligos_path=self.args["--oligo-capture"],
+            oligo_path=self.args["--oligo-capture"],
             output_dir=self.args["--output"],
             cis_range=int(self.args["--cis-range"]),
             force=self.args["--force"]
@@ -365,24 +366,24 @@ class Aggregate(AbstractCommand):
         -p PROFILE, --profile PROFILE                       Path to the profile .tsv file with the binning of your choice
                                                             (recommended 1kb for telomeres and 10kb for centromes)
     Options:
-        -C, --cen                                   Aggregate only centromeric regions [default: False]
+        -C, --cen                                           Aggregate only centromeric regions [default: False]
 
-        -E CHRS, --exclude=CHRS                     Exclude the chromosome(s) from the analysis
+        -E CHRS, --exclude=CHRS                             Exclude the chromosome(s) from the analysis
 
-        -I, --inter                                 Only keep inter-chr contacts, i.e., removing contacts between
-                                                    a probe and it own chr [default: True]
+        -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
+                                                            a probe and it own chr [default: True]
 
-        -L, --arm-length                            Classify telomeres aggregated in according to their arm length.
+        -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
 
-        -N, --normalize                             Normalize the contacts by the total number of contacts
-                                                    [default: False]
+        -N, --normalize                                     Normalize the contacts by the total number of contacts
+                                                            [default: False]
 
-        -o OUTPUT, --output OUTPUT                  Desired output directory
+        -o OUTPUT, --output OUTPUT                          Desired output directory
 
-        -T, --tel                                   Aggregate only telomeric regions [default: False]
+        -T, --tel                                           Aggregate only telomeric regions [default: False]
 
-        -w WINDOW, --window WINDOW                  Window size around the centromere or telomere to aggregate contacts
-                                                    [default: 150000]
+        -w WINDOW, --window WINDOW                          Window size around the centromere or telomere to aggregate contacts
+                                                            [default: 150000]
 
     """
 
@@ -401,7 +402,7 @@ class Aggregate(AbstractCommand):
         sshc.aggregate(
             binned_contacts_path=self.args["--profile"],
             chr_coord_path=self.args["--chr-coord"],
-            oligos_capture_path=self.args["--oligo-capture"],
+            oligo_capture_path=self.args["--oligo-capture"],
             window_size=int(self.args["--window"]),
             telomeres=self.args["--tel"],
             centromeres=self.args["--cen"],
@@ -444,10 +445,6 @@ class Compare(AbstractCommand):
         )
 
 
-class Pipeline(AbstractCommand):
-    pass
-
-
 class View(AbstractCommand):
     """
     Open a graphical user interface to visualize 4-C like profile.
@@ -460,7 +457,116 @@ class View(AbstractCommand):
         app.run_server(debug=True)
 
 
+class Pipeline(AbstractCommand):
+
+    """
+    Run the entire pipeline containing following steps:
+    - Filter
+    - HiC only
+    - Coverage (full and HiC only)
+    - Associate (probe <-> read)
+    - Profile
+    - Stats
+    - Rebin
+    - Aggregate (cen & telo)
+
+    usage:
+        pipeline -c OLIGO_CAPTURE -C CHR_COORD -f FRAGMENTS -m SPARSE_MATRIX
+        [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I] [-L]
+        [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-r CIS_RANGE] [-s SHIFT]
+        [--window-size-cen WINDOW_SIZE_CEN] [--window-size-telo WINDOW_SIZE_TELO]
+        [--binning-aggregate-cen BIN_CEN] [--binning-aggregate-telo BIN_TELO]
+        [--copy-inputs]
 
 
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture file (.tsv/.csv)
+
+        -C CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file containing
+                                                            the chromosome arms length and coordinates of centromeres
+
+        -f FRAGMENTS, --fragments FRAGMENTS                 Path to the digested fragments list file (hicstuff output)
+
+        -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX     Path to the sparse matrix file (hicstuff graal output)
+
+    Options:
+        -a ADDITIONAL_GROUPS, --additional-groups ADDITIONAL_GROUPS
+                                                            Path to the additional probe groups file
+
+        -b BINNING_SIZES, --binning-sizes BINNING_SIZES     List of binning sizes to rebin the contacts
+                                                            [default: 1000]
+
+        -E CHRS, --exclude=CHRS                             Exclude the chromosome(s) from the analysis
+
+        -F, --force                                         Force the overwriting of the output file if it exists
+                                                            [default: False]
+
+        -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
+                                                            a probe and it own chr [default: True]
+
+        -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
+
+        -n FLANKING_NUMBER, --flanking-number NUMBER        Number of flanking fragments around the fragment
+                                                            containing the oligo to consider and remove [default: 2]
+
+        -N, --normalize                                     Normalize the coverage by the total number of contacts
+                                                            [default: False]
+
+        -o OUTPUT, --output OUTPUT                          Desired output directory
+
+        -r CIS_RANGE, --cis-range CIS_RANGE                 Cis range to be considered around the probe
+                                                            [default: 50000]
+
+        -s SHIFT, --shift SHIFT                             Shift the fragment id by this value [default: 0]
 
 
+        --binning-aggregate-cen BIN_CEN                     Binning size of the aggregated profiles to use
+                                                            for CENTROMERES
+
+        --binning-aggregate-telo BIN_TELO                   Binning size of the aggregated profiles to use
+                                                            for TELOMERES
+
+        --copy-inputs                                       Copy inputs files for reproducibility [default: True]
+
+        --window-size-cen WINDOW_SIZE_CEN                   Window size around the centromeres to aggregate contacts
+                                                            [default: 150000]
+
+        --window-size-telo WINDOW_SIZE_TELO                 Window size around the telomeres to aggregate contacts
+                                                            [default: 15000]
+
+    """
+
+    def execute(self):
+        check_exists(
+            self.args["--sparse-matrix"],
+            self.args["--oligo-capture"],
+            self.args["--fragments"],
+            self.args["--chr-coord"]
+        )
+
+        binsizes = []
+        if self.args["--binning-sizes"]:
+            binsizes = [int(b) for b in self.args["--binning-sizes"]]
+
+        pip.full_pipeline(
+            sample_sparse_mat=self.args["--sparse-matrix"],
+            oligo_capture=self.args["--oligo-capture"],
+            fragments_list=self.args["--fragments"],
+            chr_coordinates=self.args["--chr-coord"],
+            output_dir=self.args["--output"],
+            additional_groups=self.args["--additional-groups"],
+            bin_sizes=binsizes,
+            cen_agg_window_size=int(self.args["--window-size-cen"]),
+            cen_aggregated_binning=int(self.args["--binning-aggregate-cen"]),
+            telo_agg_window_size=int(self.args["--window-size-telo"]),
+            telo_agg_binning=int(self.args["--binning-aggregate-telo"]),
+            arm_length_classification=self.args["--arm-length"],
+            excluded_chr=self.args["--exclude"],
+            cis_region_size=int(self.args["--cis-range"]),
+            n_flanking_fragments=int(self.args["--flanking-number"]),
+            inter_chr_only=self.args["--inter"],
+            frag_id_shift=int(self.args["--shift"]),
+            copy_inputs=self.args["--copy-inputs"],
+            force=self.args["--force"],
+            normalize=self.args["--normalize"]
+        )

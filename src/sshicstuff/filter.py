@@ -1,25 +1,23 @@
 import os
-import logging
 import pandas as pd
 import numpy as np
 
-import src.sshicstuff.utils as sshcu
+import sshicstuff.utils as utils
+import sshicstuff.log as log
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = log.logger
 
 
-def oligos_correction(oligos_path):
-    delim = "," if oligos_path.endswith(".csv") else "\t"
-    oligos = pd.read_csv(oligos_path, sep=delim)
+def oligo_correction(oligo_path):
+    delim = "," if oligo_path.endswith(".csv") else "\t"
+    oligo = pd.read_csv(oligo_path, sep=delim)
     column_to_keep = ['chr', 'start', 'end', 'name', 'type', 'sequence']
-    oligos = oligos[column_to_keep]
-    oligos.columns = [oligos.columns[i].lower() for i in range(len(oligos.columns))]
-    oligos.sort_values(by=['chr', 'start'], inplace=True)
-    oligos.reset_index(drop=True, inplace=True)
+    oligo = oligo[column_to_keep]
+    oligo.columns = [oligo.columns[i].lower() for i in range(len(oligo.columns))]
+    oligo.sort_values(by=['chr', 'start'], inplace=True)
+    oligo.reset_index(drop=True, inplace=True)
 
-    return oligos
+    return oligo
 
 
 def fragments_correction(fragments_path, shift=0):
@@ -48,34 +46,34 @@ def sparse_mat_correction(sparse_mat_path):
     return contacts
 
 
-def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
+def starts_match(fragments: pd.DataFrame, oligo: pd.DataFrame) -> pd.DataFrame:
     """
-    Update the start positions of the oligos DataFrame based on the corresponding fragment positions.
+    Update the start positions of the oligo DataFrame based on the corresponding fragment positions.
 
-    If the capture oligo is inside a fragment, update the start position of the oligos DataFrame with the start
+    If the capture oligo is inside a fragment, update the start position of the oligo DataFrame with the start
     position of the fragment.
 
     Parameters
     ----------
     fragments : pd.DataFrame
         The fragments DataFrame.
-    oligos : pd.DataFrame
-        The oligos DataFrame.
+    oligo : pd.DataFrame
+        The oligo DataFrame.
 
     Returns
     -------
     pd.DataFrame
-        The updated oligos DataFrame.
+        The updated oligo DataFrame.
     """
     l_starts = []
-    for i in range(len(oligos)):
-        oligos_chr = oligos['chr'][i]
-        middle = int((oligos['end'][i] - oligos['start'][i] - 1) / 2 + oligos['start'][i] - 1)
-        if oligos_chr == 'chr_artificial':
+    for i in range(len(oligo)):
+        oligo_chr = oligo['chr'][i]
+        middle = int((oligo['end'][i] - oligo['start'][i] - 1) / 2 + oligo['start'][i] - 1)
+        if oligo_chr == 'chr_artificial':
             for k in reversed(range(len(fragments))):
                 interval = range(fragments['start'][k], fragments['end'][k])
                 fragments_chr = fragments['chr'][k]
-                if middle in interval and fragments_chr == oligos_chr:
+                if middle in interval and fragments_chr == oligo_chr:
                     l_starts.append(fragments['start'][k])
                     break
         else:
@@ -83,16 +81,16 @@ def starts_match(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
                 interval = range(fragments['start'][k], fragments['end'][k] + 1)
                 fragments_chr = fragments['chr'][k]
 
-                if middle in interval and fragments_chr == oligos_chr:
+                if middle in interval and fragments_chr == oligo_chr:
                     l_starts.append(fragments['start'][k])
                     break
-    oligos['start'] = list(l_starts)
-    return oligos
+    oligo['start'] = list(l_starts)
+    return oligo
 
 
-def oligos_fragments_joining(fragments: pd.DataFrame, oligos: pd.DataFrame) -> pd.DataFrame:
+def oligo_fragments_joining(fragments: pd.DataFrame, oligo: pd.DataFrame) -> pd.DataFrame:
     """
-    Join the oligos and fragments DataFrames, removing fragments that do not contain an oligo region.
+    Join the oligo and fragments DataFrames, removing fragments that do not contain an oligo region.
 
     Updates the start and end columns with the corresponding fragment positions.
 
@@ -100,53 +98,53 @@ def oligos_fragments_joining(fragments: pd.DataFrame, oligos: pd.DataFrame) -> p
     ----------
     fragments : pd.DataFrame
         The fragments DataFrame.
-    oligos : pd.DataFrame
-        The oligos DataFrame.
+    oligo : pd.DataFrame
+        The oligo DataFrame.
 
     Returns
     -------
     pd.DataFrame
-        The joined oligos and fragments DataFrame.
+        The joined oligo and fragments DataFrame.
     """
-    oligos = starts_match(fragments, oligos)
-    oligos.set_index(['chr', 'start'])
-    oligos.pop("end")
+    oligo = starts_match(fragments, oligo)
+    oligo.set_index(['chr', 'start'])
+    oligo.pop("end")
     fragments.set_index(['chr', 'start'])
-    oligos_fragments = fragments.merge(oligos, on=['chr', 'start'])
-    oligos_fragments.sort_values(by=['chr', 'start'])
-    return oligos_fragments
+    oligo_fragments = fragments.merge(oligo, on=['chr', 'start'])
+    oligo_fragments.sort_values(by=['chr', 'start'])
+    return oligo_fragments
 
 
-def first_join(x: str, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame) -> pd.DataFrame:
+def first_join(x: str, oligo_fragments: pd.DataFrame, contacts: pd.DataFrame) -> pd.DataFrame:
     """
-    Join the contacts and oligos_fragments DataFrames, keeping only the rows that have their 'x' fragment
+    Join the contacts and oligo_fragments DataFrames, keeping only the rows that have their 'x' fragment
     (either 'frag_a' or 'frag_b', see contacts_correction function).
 
     Parameters
     ----------
     x : str
         Either 'a' or 'b', indicating whether to join on 'frag_a' or 'frag_b'.
-    oligos_fragments : pd.DataFrame
-        The joined oligos and fragments DataFrame.
+    oligo_fragments : pd.DataFrame
+        The joined oligo and fragments DataFrame.
     contacts : pd.DataFrame
         The corrected contacts DataFrame.
 
     Returns
     -------
     pd.DataFrame
-        The joined contacts and oligos_fragments DataFrame.
+        The joined contacts and oligo_fragments DataFrame.
     """
 
-    joined = contacts.merge(oligos_fragments, left_on='frag_'+x, right_on='frag', how='inner')
+    joined = contacts.merge(oligo_fragments, left_on='frag_'+x, right_on='frag', how='inner')
     return joined
 
 
 def second_join(
-        x: str, fragments: pd.DataFrame, oligos_fragments: pd.DataFrame, contacts: pd.DataFrame) -> pd.DataFrame:
+        x: str, fragments: pd.DataFrame, oligo_fragments: pd.DataFrame, contacts: pd.DataFrame) -> pd.DataFrame:
     """
     Add the fragments DataFrame information (=columns) for the y fragment after the first join
     (see first_join function). This is only for the y fragment, because the x fragments already have their
-    information in the oligos_fragments DataFrame.
+    information in the oligo_fragments DataFrame.
 
     Parameters
     ----------
@@ -154,8 +152,8 @@ def second_join(
         Either 'a' or 'b', indicating which fragment corresponds to an oligo.
     fragments : pd.DataFrame
         The corrected fragments DataFrame.
-    oligos_fragments : pd.DataFrame
-        The joined oligos and fragments DataFrame.
+    oligo_fragments : pd.DataFrame
+        The joined oligo and fragments DataFrame.
     contacts : pd.DataFrame
         The corrected contacts DataFrame.
 
@@ -164,8 +162,8 @@ def second_join(
     pd.DataFrame
         The joined DataFrame with added fragment information for the y fragment.
     """
-    new_contacts = first_join(x, oligos_fragments, contacts)
-    y = sshcu.frag2(x)
+    new_contacts = first_join(x, oligo_fragments, contacts)
+    y = utils.frag2(x)
     joined = new_contacts.join(fragments.drop("frag", axis=1),
                                on='frag_'+y,
                                lsuffix='_' + x[-1],
@@ -182,7 +180,7 @@ def second_join(
 
 def filter_contacts(
         sparse_mat_path: str,
-        oligos_capture_path: str,
+        oligo_capture_path: str,
         fragments_list_path: str,
         output_path: str = None,
         frag_id_shift: int = 0,
@@ -219,7 +217,7 @@ def filter_contacts(
     sparse_mat_path : str
         Path to the sparse matrix file (hicstuff given output).
 
-    oligos_capture_path : str
+    oligo_capture_path : str
         Path to the oligo capture file (sshicstuff mandatory table).
 
     fragments_list_path : str
@@ -234,7 +232,7 @@ def filter_contacts(
         Default is 0.
 
     force : bool
-        Force the overwriting of the oligos file even if the columns are already present.
+        Force the overwriting of the oligo file even if the columns are already present.
         Default is True.
 
     Returns
@@ -250,29 +248,29 @@ def filter_contacts(
         os.makedirs(out_basedir)
 
     if not force and os.path.exists(output_path):
-        logging.warning(f"Output file already exists: {output_path}")
-        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"Output file already exists: {output_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
-    sshcu.check_if_exists(sparse_mat_path)
-    sshcu.check_if_exists(oligos_capture_path)
-    sshcu.check_if_exists(fragments_list_path)
+    utils.check_if_exists(sparse_mat_path)
+    utils.check_if_exists(oligo_capture_path)
+    utils.check_if_exists(fragments_list_path)
 
-    sshcu.check_file_extension(sparse_mat_path, ".txt")
-    sshcu.check_file_extension(oligos_capture_path, [".csv", ".tsv"])
-    sshcu.check_file_extension(fragments_list_path, ".txt")
+    utils.check_file_extension(sparse_mat_path, ".txt")
+    utils.check_file_extension(oligo_capture_path, [".csv", ".tsv"])
+    utils.check_file_extension(fragments_list_path, ".txt")
 
     df_fragments: pd.DataFrame = fragments_correction(fragments_list_path, frag_id_shift)
-    df_oligos: pd.DataFrame = oligos_correction(oligos_capture_path)
+    df_oligo: pd.DataFrame = oligo_correction(oligo_capture_path)
     df_contacts: pd.DataFrame = sparse_mat_correction(sparse_mat_path)
 
     """
     Joining of the 3 dataframes
     """
 
-    df_oligos_fragments = oligos_fragments_joining(df_fragments, df_oligos)
-    df1 = second_join('a', df_fragments, df_oligos_fragments, df_contacts)
-    df2 = second_join('b', df_fragments, df_oligos_fragments, df_contacts)
+    df_oligo_fragments = oligo_fragments_joining(df_fragments, df_oligo)
+    df1 = second_join('a', df_fragments, df_oligo_fragments, df_contacts)
+    df2 = second_join('b', df_fragments, df_oligo_fragments, df_contacts)
     df_contacts_joined = pd.concat([df1, df2])
     df_contacts_joined.drop("frag", axis=1, inplace=True)
     df_contacts_joined.sort_values(by=['frag_a', 'frag_b', 'start_a', 'start_b'], inplace=True)
@@ -280,22 +278,12 @@ def filter_contacts(
 
     df_contacts_filtered.to_csv(output_path, sep='\t', index=False)
 
-    logging.info(f"Filtered contacts saved to {output_path}")
-
-    """
-    Example of usage:
-    
-    python3 ./main.py filter \
-      ../data/sandbox/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
-      ../data/sandbox/capture_oligo_positions.csv \
-      ../data/sandbox/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt \
-      -s 0 -F
-    """
+    logger.info(f"Filtered contacts saved to {output_path}")
 
 
 def onlyhic(
         sample_sparse_mat: str,
-        oligos_capture_path: str,
+        oligo_capture_path: str,
         n_flanking_fragment: int = 2,
         output_path: str = None,
         force: bool = False
@@ -310,7 +298,7 @@ def onlyhic(
     sample_sparse_mat : str
         Path to the sparse matrix file (hicstuff given output).
 
-    oligos_capture_path : str
+    oligo_capture_path : str
         Path to the oligo capture file (sshicstuff mandatory table).
 
     n_flanking_fragment : int
@@ -322,7 +310,7 @@ def onlyhic(
         Default is None.
 
     force : bool
-        Force the overwriting of the oligos file even if the columns are already present.
+        Force the overwriting of the oligo file even if the columns are already present.
         Default is True.
 
     Returns
@@ -331,25 +319,25 @@ def onlyhic(
     """
 
     if not output_path:
-        output_path = sample_sparse_mat.replace(".txt", "_HiC_only.txt")
+        output_path = sample_sparse_mat.replace(".txt", "_hic_only.txt")
 
     if not force and os.path.exists(output_path):
-        logging.info(f"Output file already exists: {output_path}")
-        logging.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.info(f"Output file already exists: {output_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
-    sshcu.check_if_exists(sample_sparse_mat)
-    sshcu.check_if_exists(oligos_capture_path)
-    sshcu.check_file_extension(sample_sparse_mat, ".txt")
-    sshcu.check_file_extension(oligos_capture_path, [".csv", ".tsv"])
+    utils.check_if_exists(sample_sparse_mat)
+    utils.check_if_exists(oligo_capture_path)
+    utils.check_file_extension(sample_sparse_mat, ".txt")
+    utils.check_file_extension(oligo_capture_path, [".csv", ".tsv"])
 
-    oligos_capture_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
+    oligo_capture_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
     df_sparse_mat = pd.read_csv(sample_sparse_mat, sep='\t', header=None)
-    df_oligos = pd.read_csv(oligos_capture_path, sep=oligos_capture_delim)
+    df_oligo = pd.read_csv(oligo_capture_path, sep=oligo_capture_delim)
 
     df_contacts_hic_only = df_sparse_mat.copy(deep=True)
 
-    ssdna_frag = df_oligos['fragment'].tolist()
+    ssdna_frag = df_oligo['fragment'].tolist()
     ssdna_frag_flanking = []
     for f in ssdna_frag:
         for i in range(1, n_flanking_fragment + 1):
@@ -372,14 +360,4 @@ def onlyhic(
 
     df_contacts_hic_only.to_csv(output_path, sep='\t', index=False, header=False)
 
-    logging.info(f"Hi-C only contacts saved to {output_path}")
-
-    """
-    Example of usage:
-    
-    python3 ./main.py hiconly \
-      ../data/sandbox/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
-      ../data/sandbox/capture_oligo_positions.csv \
-      -n 2 \
-      -F
-    """
+    logger.info(f"Hi-C only contacts saved to {output_path}")

@@ -15,7 +15,7 @@ pd.options.mode.chained_assignment = None
 def aggregate(
         binned_contacts_path: str,
         chr_coord_path: str,
-        oligos_capture_path: str,
+        oligo_capture_path: str,
         window_size: int,
         telomeres: bool = False,
         centromeres: bool = False,
@@ -35,8 +35,8 @@ def aggregate(
         Path to the binned_contacts.tsv file.
     chr_coord_path : str
         Path to the chr_centros_coordinates.tsv file containing the centromeres coordinates.
-    oligos_capture_path : str
-        Path to the oligos_capture.tsv file.
+    oligo_capture_path : str
+        Path to the oligo_capture.tsv file.
     telomeres : bool, default=False
         Whether to aggregate the contacts around the telomeres.
     centromeres : bool, default=False
@@ -62,8 +62,9 @@ def aggregate(
 
     if output_dir is None:
         output_dir = os.path.dirname(binned_contacts_path)
-        output_dir = os.path.join(output_dir, 'aggregated')
-        output_dir = os.path.join(output_dir, 'telomeres') if telomeres else os.path.join(output_dir, 'centromeres')
+
+    output_dir = os.path.join(output_dir, 'aggregated')
+    output_dir = os.path.join(output_dir, 'telomeres') if telomeres else os.path.join(output_dir, 'centromeres')
 
     os.makedirs(output_dir, exist_ok=True)
     sample_name = re.match(r".+\/(.+)_profile", binned_contacts_path).group(1)
@@ -72,17 +73,17 @@ def aggregate(
     output_prefix = os.path.join(output_dir, sample_short_name) + f"_agg_on_"
     output_prefix += "telo" if telomeres else "cen"
 
-    oligos_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
+    oligo_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
     coords_delim = "\t" if chr_coord_path.endswith(".tsv") else ","
     df_coords: pd.DataFrame = pd.read_csv(chr_coord_path, sep=coords_delim, index_col=None)
-    df_oligos: pd.DataFrame = pd.read_csv(oligos_capture_path, sep=oligos_delim)
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=oligo_delim)
     df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep='\t')
 
     binsize = int(df_contacts.loc[2, 'chr_bins'] - df_contacts.loc[1, 'chr_bins']) * 1000
     logger.info(f"Contacts binned profile with resolution of : {binsize} bp")
 
     chr_list = list(df_coords['chr'].unique())
-    fragments = df_oligos["fragment"].astype(str).tolist()
+    fragments = df_oligo["fragment"].astype(str).tolist()
     groups = [g for g in df_contacts.columns if g.startswith("$")]
 
     if len(excluded_chr_list) > 0:
@@ -96,8 +97,8 @@ def aggregate(
         #   We have to set them as NaN to not bias the average
         logger.info("Excluding intra-chr contacts")
         for frag in fragments:
-            ii_frag = df_oligos.loc[df_oligos["fragment"] == int(frag)].index[0]
-            probe_chr_ori = df_oligos.loc[ii_frag, 'chr_ori']
+            ii_frag = df_oligo.loc[df_oligo["fragment"] == int(frag)].index[0]
+            probe_chr_ori = df_oligo.loc[ii_frag, 'chr_ori']
             if probe_chr_ori not in excluded_chr_list:
                 df_contacts.loc[df_contacts['chr'] == probe_chr_ori, frag] = np.nan
 
@@ -199,44 +200,44 @@ def aggregate(
 
 
 def associate_oligo_to_frag(
-        oligos_capture_path: str,
+        oligo_capture_path: str,
         fragments_path: str,
         frag_id_shift: int = 0,
         force: bool = True
 ):
     """
-    Associate oligos to fragments based on the fragment name.
-    It adds 3 columns directly at the end of the oligos file :
+    Associate oligo to fragments based on the fragment name.
+    It adds 3 columns directly at the end of the oligo file :
     - fragment : id of the fragment, from fragment_list (hicstuff file output)
     - fragment_start : start position of the fragment
     - fragment_end : end position of the fragment
 
     Parameters
     ----------
-    oligos_capture_path : str
-        Path to the .csv file containing the oligos.
+    oligo_capture_path : str
+        Path to the .csv file containing the oligo.
     fragments_path : str
         Path to the .csv file containing the fragments.
     frag_id_shift : int
         Shift to apply to the fragment ids.
     force : bool
-        If True, the function will overwrite the oligos file.
+        If True, the function will overwrite the oligo file.
     Returns
     -------
     None
     """
 
-    logger.info("Associating oligos to fragments based on the fragment id, start and end positions.")
+    logger.info("Associating oligo to fragments based on the fragment id, start and end positions.")
 
     utils.check_file_extension(fragments_path, ".txt")
-    utils.check_file_extension(oligos_capture_path, [".csv", ".tsv", ".txt"])
+    utils.check_file_extension(oligo_capture_path, [".csv", ".tsv", ".txt"])
 
-    # Read the oligos and fragments files
-    oligos_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
-    df_oligos = pd.read_csv(oligos_capture_path, sep=oligos_delim)
+    # Read the oligo and fragments files
+    oligo_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
+    df_oligo = pd.read_csv(oligo_capture_path, sep=oligo_delim)
 
-    if "fragment" in df_oligos.columns and not force:
-        logger.info("Oligos already associated to fragments. Use --force=True to overwrite.")
+    if "fragment" in df_oligo.columns and not force:
+        logger.info("oligo already associated to fragments. Use --force=True to overwrite.")
         return
 
     df_fragments = pd.read_csv(fragments_path, sep='\t')
@@ -246,7 +247,7 @@ def associate_oligo_to_frag(
     fragments_id = []
     fragments_start = []
     fragments_end = []
-    for index, row in df_oligos.iterrows():
+    for index, row in df_oligo.iterrows():
         (chr_, probe_start, probe_end, probe_chr_ori, probe_start_ori,
          probe_end_ori, probe_type, probe, probe_seq) = row[:9]
         df_sub_fragments = df_fragments[df_fragments['chrom'] == chr_]
@@ -264,21 +265,13 @@ def associate_oligo_to_frag(
         fragments_start.append(frag_start)
         fragments_end.append(frag_end)
 
-    df_oligos['fragment'] = fragments_id
-    df_oligos['fragment_start'] = fragments_start
-    df_oligos['fragment_end'] = fragments_end
-    df_oligos.to_csv(oligos_capture_path, sep=",", index=False)
+    df_oligo['fragment'] = fragments_id
+    df_oligo['fragment_start'] = fragments_start
+    df_oligo['fragment_end'] = fragments_end
+    df_oligo.to_csv(oligo_capture_path, sep=",", index=False)
 
-    logger.info("Oligos associated to fragments successfully.")
+    logger.info("oligo associated to fragments successfully.")
 
-    """
-    Example of usage:
-
-    python3 ./main.py associate \
-    ../data/inputs/capture_oligo_positions.csv \
-    ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt \
-    -F
-    """
 
 
 def compare_with_wt(
@@ -437,21 +430,12 @@ def coverage(
 
     logger.info("Coverage calculation completed.")
 
-    """
-    Example of usage:
-
-    python3 ./main.py coverage \
-    ../data/samples/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt \
-    ../data/inputs/fragments_list_S288c_DSB_LY_Capture_artificial_DpnIIHinfI.txt \
-     -s 0 -F -N
-    """
-
 
 def get_stats(
         contacts_unbinned_path: str,
         sparse_mat_path: str,
         chr_coord_path: str,
-        oligos_path: str,
+        oligo_path: str,
         output_dir: str = None,
         cis_range: int = 50000,
         force: bool = False,
@@ -473,8 +457,8 @@ def get_stats(
         Path to the sparse_contacts_input.txt file (generated by hicstuff).
     chr_coord_path : str
         Path to the input chr_centros_coordinates.tsv file.
-    oligos_path : str
-        Path to the oligos input CSV file.
+    oligo_path : str
+        Path to the oligo input CSV file.
     cis_range: int, default=50000
         Cis range to be considered around the probe.
     output_dir : str
@@ -493,7 +477,7 @@ def get_stats(
     utils.check_if_exists(contacts_unbinned_path)
     utils.check_if_exists(sparse_mat_path)
     utils.check_if_exists(chr_coord_path)
-    utils.check_if_exists(oligos_path)
+    utils.check_if_exists(oligo_path)
 
     if output_dir is None:
         output_dir = os.path.dirname(contacts_unbinned_path)
@@ -508,8 +492,8 @@ def get_stats(
         logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
-    oligos_delim = "," if oligos_path.endswith(".csv") else "\t"
-    df_oligos: pd.DataFrame = pd.read_csv(oligos_path, sep=oligos_delim)
+    oligo_delim = "," if oligo_path.endswith(".csv") else "\t"
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_path, sep=oligo_delim)
 
     coords_delim = "\t" if chr_coord_path.endswith(".tsv") else ","
     df_coords: pd.DataFrame = pd.read_csv(chr_coord_path, sep=coords_delim, index_col=None)
@@ -533,17 +517,17 @@ def get_stats(
         "coverage_over_hic_contacts", "cis", "trans",
         "intra_chr", "inter_chr"])
 
-    probes = df_oligos['name'].to_list()
-    fragments = df_oligos['fragment'].astype(str).to_list()
+    probes = df_oligo['name'].to_list()
+    fragments = df_oligo['fragment'].astype(str).to_list()
     for index, (probe, frag) in enumerate(zip(probes, fragments)):
         df_stats.loc[index, "probe"] = probe
         df_stats.loc[index, "fragment"] = frag
-        df_stats.loc[index, "type"] = df_oligos.loc[index, "type"]
+        df_stats.loc[index, "type"] = df_oligo.loc[index, "type"]
 
         #  get the probe's original coordinates
-        self_chr_ori = df_oligos.loc[index, "chr_ori"]
-        self_start_ori = df_oligos.loc[index, "start_ori"]
-        self_stop_ori = df_oligos.loc[index, "stop_ori"]
+        self_chr_ori = df_oligo.loc[index, "chr_ori"]
+        self_start_ori = df_oligo.loc[index, "start_ori"]
+        self_stop_ori = df_oligo.loc[index, "stop_ori"]
 
         df_stats.loc[index, "chr"] = self_chr_ori
 
@@ -606,13 +590,13 @@ def get_stats(
                 chr_inter_only_contacts_nrm[chrom].append(c2)
 
     #  capture_efficiency_vs_dsdna: amount of contact for one oligo divided
-    #  by the mean of all other 'ds' oligos in the genome
+    #  by the mean of all other 'ds' oligo in the genome
     n3 = df_stats.loc[:, 'contacts']
     d3 = np.mean(df_stats.loc[df_stats['type'] == 'ds', 'contacts'])
     df_stats['dsdna_norm_capture_efficiency'] = n3 / d3
 
     df_chr_nrm = pd.DataFrame({
-        "probe": probes, "fragment": fragments, "type": df_oligos["type"].values
+        "probe": probes, "fragment": fragments, "type": df_oligo["type"].values
     })
 
     df_chr_inter_only_nrm = df_chr_nrm.copy(deep=True)
@@ -629,17 +613,6 @@ def get_stats(
     logger.info(f"Normalized chr contacts saved to {out_chr_freq_path}")
     logger.info(f"Normalized inter-only chr contacts saved to {out_inter_chr_freq_path}")
 
-    """
-    Example of usage:
-
-    python3 ./main.py stats
-    ../data/sandbox/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree_0kb_profile_contacts.tsv
-    ../data/sandbox/AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree.txt
-    ../data/sandbox/S288c_DSB_LY_Capture_artificial_coordinates.tsv
-    ../data/sandbox/capture_oligo_positions.csv
-    -F
-    """
-
 
 def edit_genome_ref(
         annealing_input: str,
@@ -651,7 +624,7 @@ def edit_genome_ref(
         additional_fasta_path: str = None
 ):
     """
-    Create an artificial chromosome that is the concatenation of the annealing oligos and the enzyme sequence.
+    Create an artificial chromosome that is the concatenation of the annealing oligo and the enzyme sequence.
 
     Insert it at the end of the original genome .FASTA file.
 
@@ -659,7 +632,7 @@ def edit_genome_ref(
     ----------
 
     annealing_input : str
-        Path to the annealing oligos input CSV file.
+        Path to the annealing oligo input CSV file.
     genome_input : str
         Path to the original genome .FASTA file.
     enzyme : str
@@ -667,7 +640,7 @@ def edit_genome_ref(
     fragment_size : int, default=150
         Size of a digested fragment / read.
     fasta_spacer : str, default="N"
-        Spacer character to insert between the enzyme and the annealing oligos.
+        Spacer character to insert between the enzyme and the annealing oligo.
     fasta_line_length : int, default=60
         Number of characters per line in the FASTA file.
     additional_fasta_path : str, default=None
@@ -678,9 +651,9 @@ def edit_genome_ref(
     basedir = os.path.dirname(genome_input)
     artificial_chr_path = os.path.join(basedir, "chr_artificial_ssDNA.fa")
 
-    # Creating the artificial chromosome using annealing oligos sequences
+    # Creating the artificial chromosome using annealing oligo sequences
     # and the enzyme sequence
-    logger.info(f"Creating the artificial chromosome with the annealing oligos and the enzyme {enzyme}")
+    logger.info(f"Creating the artificial chromosome with the annealing oligo and the enzyme {enzyme}")
 
     df = pd.read_csv(annealing_input, sep=',')
     ssdna_seq_series = df[df["type"] == "ss"]['sequence_modified']
@@ -743,7 +716,7 @@ def edit_genome_ref(
 
 def profile_contacts(
         filtered_table_path: str,
-        oligos_capture_path: str,
+        oligo_capture_path: str,
         chromosomes_coord_path: str,
         normalize: bool = False,
         output_path: str = None,
@@ -758,8 +731,8 @@ def profile_contacts(
     ----------
     filtered_table_path : str
         Path to the filtered table (sshictuff filter script output).
-    oligos_capture_path : str
-        Path to the oligos capture file (table .csv or .tsv for oligos capture information).
+    oligo_capture_path : str
+        Path to the oligo capture file (table .csv or .tsv for oligo capture information).
     chromosomes_coord_path : str
         Path to the chromosomes coordinates file containing the length of each chromosome arms.
     normalize : bool
@@ -773,7 +746,7 @@ def profile_contacts(
     """
 
     utils.check_if_exists(filtered_table_path)
-    utils.check_if_exists(oligos_capture_path)
+    utils.check_if_exists(oligo_capture_path)
     utils.check_if_exists(chromosomes_coord_path)
 
     if not output_path:
@@ -795,10 +768,10 @@ def profile_contacts(
     df_chr_len["chr_start"] = df_chr_len["length"].shift().fillna(0).astype("int64")
     df_chr_len["cumu_start"] = df_chr_len["chr_start"].cumsum()
 
-    oligos_delim = "," if oligos_capture_path.endswith(".csv") else "\t"
-    df_oligos: pd.DataFrame = pd.read_csv(oligos_capture_path, sep=oligos_delim)
-    probes = df_oligos['name'].to_list()
-    fragments = df_oligos['fragment'].astype(str).to_list()
+    oligo_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=oligo_delim)
+    probes = df_oligo['name'].to_list()
+    fragments = df_oligo['fragment'].astype(str).to_list()
 
     df: pd.DataFrame = pd.read_csv(filtered_table_path, sep='\t')
     df_contacts: pd.DataFrame = pd.DataFrame(columns=['chr', 'start', 'sizes'])
@@ -958,15 +931,6 @@ def rebin_profile(
     df_binned.fillna(0, inplace=True)
 
     df_binned.to_csv(output_path, sep='\t', index=False)
-
-    """
-    Example of usage
-
-    python3 ./main.py rebin
-    ../data/sandbox//AD241_S288c_DSB_LY_Capture_artificial_cutsite_q30_PCRfree_0kb_profile_frequencies.tsv
-    ../data/sandbox/S288c_DSB_LY_Capture_artificial_coordinates.tsv \
-    -b 10000 -F
-    """
 
 
 def subsample(

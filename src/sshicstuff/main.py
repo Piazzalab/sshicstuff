@@ -41,7 +41,7 @@ The subcommands are:
 
     aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
 
-    pipeline            Run the entire pipeline from subsampling to aggregation.
+    pipeline            Run the entire pipeline from filtering to aggregation.
 
     view                Open a graphical user interface to visualize 4-C like profile
 """
