@@ -13,5 +13,7 @@ plotly>=5.5.0
 pyfastx~=2.1.0
 pysam~=0.22.0
 pytest>=8.1.0
+requests~=2.31.0
 scipy>=1.10.0
 setuptools~=68.2.2
+sshicstuff~=1.0.0
