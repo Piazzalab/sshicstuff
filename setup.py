@@ -11,7 +11,7 @@ import codecs
 CLASSIFIERS = [
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.10",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Topic :: Scientific/Engineering :: Visualization",
@@ -53,4 +53,6 @@ setuptools.setup(
     install_requires=REQUIREMENTS,
     include_package_data=True,
     zip_safe=False,
+    entry_points={"console_scripts": ["shicstuff=shicstuff.main:main"]}
+
 )

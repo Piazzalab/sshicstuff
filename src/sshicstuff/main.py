@@ -41,7 +41,6 @@ The subcommands are:
 
 from docopt import docopt
 from docopt import DocoptExit
-
 import sshicstuff.commands as commands
 from sshicstuff.version import __version__
 
