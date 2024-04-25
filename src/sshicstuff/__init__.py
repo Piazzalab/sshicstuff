@@ -1,5 +1,4 @@
 from .commands import *
-from .filter import *
 from .sshicstuff import *
 from .version import __version__
 from .utils import *
