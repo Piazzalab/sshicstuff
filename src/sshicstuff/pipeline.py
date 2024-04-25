@@ -48,7 +48,7 @@ def full_pipeline(
         arm_length_classification: bool = False,
         excluded_chr: list[str] = None,
         cis_region_size: int = 50000,
-        n_flanking_fragments: int = 2,
+        n_flanking_dsdna: int = 2,
         inter_chr_only: bool = False,
         frag_id_shift: int = 0,
         copy_inputs: bool = True,
@@ -92,10 +92,10 @@ def full_pipeline(
     )
 
     logger.info("HiC only : keep only Hi-C reads, create a new sparse matrix file 'hic_only'")
-    sshic.onlyhic(
+    sshic.hic_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_path=oligo_capture_with_frag,
-        n_flanking_fragment=n_flanking_fragments,
+        n_flanking_dsdna=n_flanking_dsdna,
         output_path=join(output_dir, hiconly_name),
         force=force
     )

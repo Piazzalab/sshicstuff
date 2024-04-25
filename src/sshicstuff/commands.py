@@ -154,7 +154,8 @@ class Hiconly(AbstractCommand):
         -o OUTPUT, --output OUTPUT                              Path to the output file
 
         -n FLANKING_NUMBER, --flanking-number NUMBER            Number of flanking fragments around the fragment
-                                                                containing the oligo to consider and remove [default: 0]
+                                                                containing a DSDNA oligo to consider and remove
+                                                                [default: 2]
 
         -F, --force                                             Force the overwriting of the file if
                                                                 it exists [default: False]
@@ -165,7 +166,8 @@ class Hiconly(AbstractCommand):
             sample_sparse_mat=self.args["--sparse-matrix"],
             oligo_capture_path=self.args["--oligos-capture"],
             output_path=self.args["--output"],
-            n_flanking_fragment=int(self.args["--flanking-number"])
+            n_flanking_dsdna=int(self.args["--flanking-number"]),
+            force=self.args["--force"]
         )
 
 
@@ -506,7 +508,8 @@ class Pipeline(AbstractCommand):
         -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
 
         -n FLANKING_NUMBER, --flanking-number NUMBER        Number of flanking fragments around the fragment
-                                                            containing the oligo to consider and remove [default: 2]
+                                                            containing a DSDNA oligo to consider and remove
+                                                            [default: 2]
 
         -N, --normalize                                     Normalize the coverage by the total number of contacts
                                                             [default: False]
@@ -562,7 +565,7 @@ class Pipeline(AbstractCommand):
             arm_length_classification=self.args["--arm-length"],
             excluded_chr=self.args["--exclude"],
             cis_region_size=int(self.args["--cis-range"]),
-            n_flanking_fragments=int(self.args["--flanking-number"]),
+            n_flanking_dsdna=int(self.args["--flanking-number"]),
             inter_chr_only=self.args["--inter"],
             frag_id_shift=int(self.args["--shift"]),
             copy_inputs=self.args["--copy-inputs"],

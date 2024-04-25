@@ -861,7 +861,7 @@ def fragments_correction(fragments_path, shift=0):
 def hic_only(
         sample_sparse_mat: str,
         oligo_capture_path: str,
-        n_flanking_fragment: int = 2,
+        n_flanking_dsdna: int = 2,
         output_path: str = None,
         force: bool = False
 ) -> None:
@@ -878,7 +878,7 @@ def hic_only(
     oligo_capture_path : str
         Path to the oligo capture file (sshicstuff mandatory table).
 
-    n_flanking_fragment : int
+    n_flanking_dsdna : int
         Number of flanking fragments to remove around the probe fragment.
         Default is 2.
 
@@ -914,30 +914,37 @@ def hic_only(
 
     df_contacts_hic_only = df_sparse_mat.copy(deep=True)
 
-    ssdna_frag = df_oligo['fragment'].tolist()
-    ssdna_frag_flanking = []
-    for f in ssdna_frag:
-        for i in range(1, n_flanking_fragment + 1):
-            ssdna_frag_flanking.append(f + i)
-            ssdna_frag_flanking.append(f - i)
+    ssdna_frag = df_oligo.loc[df_oligo["type"] == "ss", "fragment"].tolist()
+    df_ssdna = pd.DataFrame(ssdna_frag, columns=['fragments'])
 
-    ssdna_frag_all = np.unique(ssdna_frag + ssdna_frag_flanking)
-    df_ssdna = pd.DataFrame(ssdna_frag_all, columns=['fragments'])
+    dsdna_frag = df_oligo.loc[df_oligo["type"] == "ds", "fragment"].tolist()
+    dsdna_frag_flanking = []
+    for f in dsdna_frag:
+        for i in range(1, n_flanking_dsdna + 1):
+            dsdna_frag_flanking.append(f + i)
+            dsdna_frag_flanking.append(f - i)
+
+    dsdna_frag_all = np.unique(dsdna_frag + dsdna_frag_flanking)
+    df_dsdna = pd.DataFrame(dsdna_frag_all, columns=['fragments'])
+
+    df_frag = pd.concat([df_ssdna, df_dsdna])
+    del df_ssdna, df_dsdna
 
     df_sparse_mat["index"] = df_sparse_mat.index
-    matches_a = pd.merge(df_sparse_mat, df_ssdna, left_on=0, right_on='fragments', how='inner', indicator=True)
-    matches_b = pd.merge(df_sparse_mat, df_ssdna, left_on=1, right_on='fragments', how='inner', indicator=True)
+    matches_a = pd.merge(df_sparse_mat, df_frag, left_on=0, right_on='fragments', how='inner', indicator=True)
+    matches_b = pd.merge(df_sparse_mat, df_frag, left_on=1, right_on='fragments', how='inner', indicator=True)
     index_to_drop = np.unique(np.concatenate((matches_a['index'].to_numpy(), matches_b['index'].to_numpy())))
 
     df_contacts_hic_only.drop(index_to_drop, inplace=True)
 
-    df_contacts_hic_only.iloc[0, 0] -= len(df_ssdna)
-    df_contacts_hic_only.iloc[0, 1] -= len(df_ssdna)
+    df_contacts_hic_only.iloc[0, 0] -= len(df_frag)
+    df_contacts_hic_only.iloc[0, 1] -= len(df_frag)
     df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
 
     df_contacts_hic_only.to_csv(output_path, sep='\t', index=False, header=False)
 
     logger.info(f"Hi-C only contacts saved to {output_path}")
+
 
 
 def oligo_correction(oligo_path):

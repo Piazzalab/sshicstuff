@@ -6,6 +6,7 @@ import sshicstuff.commands as shcmd
 CWD = os.getcwd()
 TESTDIR = join(dirname(CWD), "test_data")
 CAPTURE = join(TESTDIR, "capture_oligo_positions.csv")
+CAPTURE_FRAGMENTS = CAPTURE.replace(".csv", "_fragments_associated.csv")
 ANNEALING = join(TESTDIR, "annealing_oligo_positions.csv")
 COORDS = join(TESTDIR, "chr_coords.tsv")
 GENOME = join(TESTDIR, "S288c_DSB_LY_Capture.fa")
@@ -40,8 +41,8 @@ def test_associate():
 
 def test_hiconly():
     args = (
-        "-c {0} -m {1} -n 2 -F"
-    ).format(CAPTURE, join(TESTDIR, "AD162/AD162_pcrdupkept.txt"))
+        "-c {0} -m {1} -n 3 -F"
+    ).format(CAPTURE_FRAGMENTS, join(TESTDIR, "AD162/AD162_pcrdupkept.txt"))
     proc = shcmd.Hiconly(args.split(" "), {})
     proc.execute()
 
