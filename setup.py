@@ -53,6 +53,5 @@ setuptools.setup(
     install_requires=REQUIREMENTS,
     include_package_data=True,
     zip_safe=False,
-    entry_points={"console_scripts": ["shicstuff=shicstuff.main:main"]}
-
+    entry_points={"console_scripts": ["sshicstuff=sshicstuff.main:main"]}
 )
