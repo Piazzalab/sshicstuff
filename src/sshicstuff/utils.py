@@ -82,6 +82,7 @@ def check_if_exists(file_path: str):
         return
     else:
         logger.error(f"File {file_path} does not exist.")
+        sys.exit(1)
 
 
 def check_seqtk():
@@ -99,11 +100,11 @@ def check_seqtk():
             return version
         else:
             logger.error("Unable to determine seqtk version from the output.")
-            return None
+            sys.exit(1)
     except subprocess.CalledProcessError:
         logger.error("seqtk is not installed or not functioning correctly. "
                       "Please install or fix seqtk before running this function.")
-        return None
+        sys.exit(1)
 
 
 def copy(source_path, destination_path):
@@ -120,9 +121,10 @@ def copy(source_path, destination_path):
     """
     try:
         shutil.copy(source_path, destination_path)
-        print(f"File {source_path.split('/')[-1]} copied successfully.")
+        logger.info(f"File {source_path.split('/')[-1]} copied successfully.")
     except IOError as e:
-        print(f"Unable to copy file. Error: {e}")
+        logger.error(f"Unable to copy file. Error: {e}")
+        sys.exit(1)
 
 
 def detect_delimiter(path: str):
