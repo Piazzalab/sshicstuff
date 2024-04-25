@@ -84,10 +84,18 @@ def full_pipeline(
         if additional_groups:
             shcu.copy(additional_groups, copy_dir)
 
+    logger.info("Associate : Associate oligo/probe name to fragment/read ID that contains it")
+    shc.associate_oligo_to_frag(
+        oligo_capture_path=oligo_capture,
+        fragments_path=fragments_list,
+        force=force,
+        frag_id_shift=frag_id_shift
+    )
+
     logger.info("HiC only : keep only Hi-C reads, create a new sparse matrix file 'hic_only'")
     shcf.onlyhic(
         sample_sparse_mat=sample_sparse_mat,
-        oligo_capture_path=oligo_capture,
+        oligo_capture_path=oligo_capture_with_frag,
         n_flanking_fragment=n_flanking_fragments,
         output_path=join(output_dir, hiconly_name),
         force=force
@@ -121,14 +129,6 @@ def full_pipeline(
         frag_id_shift=frag_id_shift,
         normalize=normalize,
         force=force
-    )
-
-    logger.info("Associate : Associate oligo/probe name to fragment/read ID that contains it")
-    shc.associate_oligo_to_frag(
-        oligo_capture_path=oligo_capture,
-        fragments_path=fragments_list,
-        force=force,
-        frag_id_shift=frag_id_shift
     )
 
     logger.info("Profile : Generate a 4C-like profile for each ssDNA oligo")
