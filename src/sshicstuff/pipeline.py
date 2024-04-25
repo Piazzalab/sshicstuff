@@ -68,6 +68,8 @@ def full_pipeline(
     profile_0kb_contacts_name = sample_name + "_0kb_profile_contacts.tsv"
     profile_0kb_frequencies_name = sample_name + "_0kb_profile_frequencies.tsv"
 
+    oligo_capture_with_frag = oligo_capture.replace(".csv", "_fragments_associated.csv")
+
     logger.info(f" -- Sample {sample_name} -- ")
 
     os.makedirs(output_dir, exist_ok=True)
@@ -133,7 +135,7 @@ def full_pipeline(
     logger.info("Basal résolution : 0 kb (unbinned)")
     shc.profile_contacts(
         filtered_table_path=join(output_dir, filtered_name),
-        oligo_capture_path=oligo_capture,
+        oligo_capture_path=oligo_capture_with_frag,
         chromosomes_coord_path=chr_coordinates,
         normalize=normalize,
         force=force,
@@ -145,7 +147,7 @@ def full_pipeline(
         contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
         sparse_mat_path=sample_sparse_mat,
         chr_coord_path=chr_coordinates,
-        oligo_path=oligo_capture,
+        oligo_path=oligo_capture_with_frag,
         output_dir=output_dir,
         cis_range=cis_region_size
     )
@@ -179,7 +181,7 @@ def full_pipeline(
     shc.aggregate(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
-        oligo_capture_path=oligo_capture,
+        oligo_capture_path=oligo_capture_with_frag,
         window_size=cen_agg_window_size,
         centromeres=True,
         output_dir=output_dir,
@@ -197,7 +199,7 @@ def full_pipeline(
     shc.aggregate(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
-        oligo_capture_path=oligo_capture,
+        oligo_capture_path=oligo_capture_with_frag,
         window_size=telo_agg_window_size,
         telomeres=True,
         output_dir=output_dir,

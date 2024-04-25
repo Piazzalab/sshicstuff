@@ -232,13 +232,17 @@ def associate_oligo_to_frag(
     utils.check_file_extension(fragments_path, ".txt")
     utils.check_file_extension(oligo_capture_path, [".csv", ".tsv", ".txt"])
 
+    output_path: str = oligo_capture_path.replace(".csv", "_fragments_associated.csv")
+    logger.info(f"Creating a new oligo_capture table : {output_path.split('/')[-1]}")
+
+    if os.path.exists(output_path) and not force:
+        logger.info(f"Output file already exists: {output_path}")
+        logger.info("Use the --force / -F flag to overwrite the existing file.")
+        return
+
     # Read the oligo and fragments files
     oligo_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
     df_oligo = pd.read_csv(oligo_capture_path, sep=oligo_delim)
-
-    if "fragment" in df_oligo.columns and not force:
-        logger.info("oligo already associated to fragments. Use --force=True to overwrite.")
-        return
 
     df_fragments = pd.read_csv(fragments_path, sep='\t')
     df_fragments['frag'] = [k for k in range(len(df_fragments))]
@@ -268,10 +272,9 @@ def associate_oligo_to_frag(
     df_oligo['fragment'] = fragments_id
     df_oligo['fragment_start'] = fragments_start
     df_oligo['fragment_end'] = fragments_end
-    df_oligo.to_csv(oligo_capture_path, sep=",", index=False)
+    df_oligo.to_csv(output_path, sep=",", index=False)
 
-    logger.info("oligo associated to fragments successfully.")
-
+    logger.info("Oligos associated to fragments successfully.")
 
 
 def compare_with_wt(
