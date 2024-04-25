@@ -1,8 +1,7 @@
 import os
-from os.path import join, dirname
+from os.path import join
 
-import sshicstuff.filter as shcf
-import sshicstuff.sshicstuff as shc
+import sshicstuff.sshicstuff as sshic
 import sshicstuff.utils as shcu
 import sshicstuff.log as log
 
@@ -85,7 +84,7 @@ def full_pipeline(
             shcu.copy(additional_groups, copy_dir)
 
     logger.info("Associate : Associate oligo/probe name to fragment/read ID that contains it")
-    shc.associate_oligo_to_frag(
+    sshic.associate_oligo_to_frag(
         oligo_capture_path=oligo_capture,
         fragments_path=fragments_list,
         force=force,
@@ -93,7 +92,7 @@ def full_pipeline(
     )
 
     logger.info("HiC only : keep only Hi-C reads, create a new sparse matrix file 'hic_only'")
-    shcf.onlyhic(
+    sshic.onlyhic(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_path=oligo_capture_with_frag,
         n_flanking_fragment=n_flanking_fragments,
@@ -102,7 +101,7 @@ def full_pipeline(
     )
 
     logger.info("Filter : Only keep pairs of reads that contain at least one oligo/probe")
-    shcf.filter_contacts(
+    sshic.filter_contacts(
         sparse_mat_path=sample_sparse_mat,
         oligo_capture_path=oligo_capture,
         fragments_list_path=fragments_list,
@@ -113,7 +112,7 @@ def full_pipeline(
 
     logger.info("Coverage : Calculate the coverage per fragment and save the result to a bedgraph")
 
-    shc.coverage(
+    sshic.coverage(
         sparse_mat_path=sample_sparse_mat,
         fragments_list_path=fragments_list,
         frag_id_shift=frag_id_shift,
@@ -123,7 +122,7 @@ def full_pipeline(
 
     logger.info("Coverage : Calculate the coverage per fragment but from the")
     logger.info("'hic_only' sparse matrix and save the result to a bedgraph")
-    shc.coverage(
+    sshic.coverage(
         sparse_mat_path=join(output_dir, hiconly_name),
         fragments_list_path=fragments_list,
         frag_id_shift=frag_id_shift,
@@ -133,7 +132,7 @@ def full_pipeline(
 
     logger.info("Profile : Generate a 4C-like profile for each ssDNA oligo")
     logger.info("Basal résolution : 0 kb (unbinned)")
-    shc.profile_contacts(
+    sshic.profile_contacts(
         filtered_table_path=join(output_dir, filtered_name),
         oligo_capture_path=oligo_capture_with_frag,
         chromosomes_coord_path=chr_coordinates,
@@ -143,7 +142,7 @@ def full_pipeline(
     )
 
     logger.info("Stats : Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...)")
-    shc.get_stats(
+    sshic.get_stats(
         contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
         sparse_mat_path=sample_sparse_mat,
         chr_coord_path=chr_coordinates,
@@ -157,14 +156,14 @@ def full_pipeline(
         bin_suffix = str(bn // 1000) + "kb"
         logger.info(f"Rebinning at {bin_suffix}")
 
-        shc.rebin_profile(
+        sshic.rebin_profile(
             contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
             chromosomes_coord_path=chr_coordinates,
             bin_size=bn,
             force=force
         )
 
-        shc.rebin_profile(
+        sshic.rebin_profile(
             contacts_unbinned_path=join(output_dir, profile_0kb_frequencies_name),
             chromosomes_coord_path=chr_coordinates,
             bin_size=bn,
@@ -178,7 +177,7 @@ def full_pipeline(
         "_0kb_profile_", f"_{binsize_for_cen // 1000}kb_profile_"
     )
 
-    shc.aggregate(
+    sshic.aggregate(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
         oligo_capture_path=oligo_capture_with_frag,
@@ -196,7 +195,7 @@ def full_pipeline(
         "_0kb_profile_", f"_{binsize_for_telo // 1000}kb_profile_"
     )
 
-    shc.aggregate(
+    sshic.aggregate(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
         oligo_capture_path=oligo_capture_with_frag,
