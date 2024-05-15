@@ -3,10 +3,10 @@ dash>=2.16.1
 dash-bootstrap-components~=1.6.0
 docopt~=0.6.2
 flask~=3.0.3
-hicstuff>=3.2.2
+hicstuff>=3.2.3
 matplotlib>=3.6.0
 numpy>=1.26.0
-pairtools==1.0.2
+pairtools==1.1.0
 pandas>=2.2.0
 pip~=23.3.1
 plotly>=5.5.0
@@ -16,4 +16,3 @@ pytest>=8.1.0
 requests~=2.31.0
 scipy>=1.10.0
 setuptools~=68.2.2
-sshicstuff~=1.0.0
