@@ -9,7 +9,6 @@ logger = log.logger
 
 SEED = 1999
 CWD = os.getcwd()
-DEFAULT_DATA_DIR = join(CWD, "data")
 
 """
 Example of usage :
@@ -58,8 +57,9 @@ def full_pipeline(
 
     # Files and path alias names
     sample_name = os.path.basename(sample_sparse_mat).split('.')[0]
+    input_basedir = os.path.dirname(sample_sparse_mat)
     if not output_dir:
-        output_dir = join(DEFAULT_DATA_DIR, sample_name)
+        output_dir = join(input_basedir, sample_name)
 
     copy_dir = join(output_dir, "inputs")
     hiconly_name = sample_name + "_hic_only.txt"
