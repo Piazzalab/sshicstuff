@@ -49,7 +49,6 @@ def full_pipeline(
         cis_region_size: int = 50000,
         n_flanking_dsdna: int = 2,
         inter_chr_only: bool = False,
-        frag_id_shift: int = 0,
         copy_inputs: bool = True,
         force: bool = False,
         normalize: bool = False,
@@ -88,7 +87,6 @@ def full_pipeline(
         oligo_capture_path=oligo_capture,
         fragments_path=fragments_list,
         force=force,
-        frag_id_shift=frag_id_shift
     )
     if copy_inputs:
         shcu.copy(oligo_capture_with_frag, copy_dir)
@@ -108,7 +106,6 @@ def full_pipeline(
         oligo_capture_path=oligo_capture,
         fragments_list_path=fragments_list,
         output_path=join(output_dir, filtered_name),
-        frag_id_shift=frag_id_shift,
         force=force
     )
 
@@ -117,7 +114,6 @@ def full_pipeline(
     sshic.coverage(
         sparse_mat_path=sample_sparse_mat,
         fragments_list_path=fragments_list,
-        frag_id_shift=frag_id_shift,
         normalize=normalize,
         force=force
     )
@@ -127,7 +123,6 @@ def full_pipeline(
     sshic.coverage(
         sparse_mat_path=join(output_dir, hiconly_name),
         fragments_list_path=fragments_list,
-        frag_id_shift=frag_id_shift,
         normalize=normalize,
         force=force
     )
