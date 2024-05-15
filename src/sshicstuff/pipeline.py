@@ -90,6 +90,8 @@ def full_pipeline(
         force=force,
         frag_id_shift=frag_id_shift
     )
+    if copy_inputs:
+        shcu.copy(oligo_capture_with_frag, copy_dir)
 
     logger.info("HiC only : keep only Hi-C reads, create a new sparse matrix file 'hic_only'")
     sshic.hic_only(
