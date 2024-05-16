@@ -1,8 +1,7 @@
 from flask import Flask
 import dash
 import dash_bootstrap_components as dbc
-from dash import html, dcc
-from dash.dependencies import Input, Output
+from dash import html
 
 # Import your page layouts here
 import sshicstuff.gui.browser as browser
