@@ -1,6 +1,5 @@
 import dash
 import json
-from os import listdir
 from dash import html
 from dash import dcc
 from dash import callback
@@ -111,6 +110,7 @@ layout = dbc.Container([
         ], width=2, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '0px'}),
 
         dcc.Store(id='viewer-stored-graphs-axis-range', data={}),
+        dcc.Store(id='viewer-stored-files', data=[]),  # Store for files list
         html.Div(id='viewer-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
         html.Div(id='viewer-graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
     ]),
@@ -120,7 +120,8 @@ layout = dbc.Container([
 @callback(
     [Output("viewer-oligo-dropdown", "options"),
      Output("viewer-coord-dropdown", "options"),
-     Output("viewer-clear-list", "n_clicks")],
+     Output("viewer-clear-list", "n_clicks"),
+     Output("viewer-stored-files", "data")],
     [Input("viewer-upload-files", "filename"),
      Input("viewer-upload-files", "contents"),
      Input("viewer-clear-list", "n_clicks")],
@@ -139,24 +140,15 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
 
     n_clicks = 0
     if len(files) == 0:
-        return files, files, n_clicks
+        return files, files, n_clicks, files
+
     else:
         options = []
         for f in files:
             if "profile" in f:
                 continue
             options.append({'label': f, 'value': os.path.join(TEMPORARY_DIRECTORY, f)})
-        return options, options, n_clicks
-
-
-def update_table(file_path, delim):
-    if file_path and delim:
-        df = pd.read_csv(file_path, sep=delim)
-        data = df.to_dict('records')
-        columns = [{"name": i, "id": i} for i in df.columns]
-        return data, columns
-    return None, None
-
+        return options, options, n_clicks, files
 
 @callback(
     Output('viewer-slider-output-container', 'children'),
@@ -215,15 +207,16 @@ def create_card(index, sample_options, probe_options, graph_options, sample_valu
 
 @callback(
     Output('viewer-dynamic-probes-cards', 'children'),
-    Input('viewer-number-probes', 'value'),
-    Input('viewer-oligo-dropdown', 'value'),
+    [Input('viewer-stored-files', 'data'),
+     Input('viewer-number-probes', 'value'),
+     Input('viewer-oligo-dropdown', 'value')],
     State('viewer-dynamic-probes-cards', 'children'),
 )
-def update_probes_cards(n_cards, capture_oligos, cards_children):
+def update_probes_cards(files, n_cards, capture_oligos, cards_children):
     if n_cards is None or n_cards == 0:
         return []
 
-    all_samples_items = sorted([f for f in listdir(TEMPORARY_DIRECTORY) if "profile" in f])
+    all_samples_items = sorted([f for f in files if "profile" in f])
     samples_options = [{'label': s, 'value': s} for s in all_samples_items]
     graph_options = [{'label': f'graph {x}', 'value': f'graph {x}'} for x in range(n_cards)]
 
