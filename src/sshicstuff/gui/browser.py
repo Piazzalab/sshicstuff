@@ -17,7 +17,7 @@ if not os.path.exists(TEMPORARY_DIRECTORY):
 layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            html.H2('Probes Viewer'),
+            html.H2('Profil browser'),
         ], width=12, style={'margin-top': '20px', 'margin-bottom': '20px'})
     ]),
 
@@ -25,7 +25,7 @@ layout = dbc.Container([
         dbc.Col([
             html.H6('Upload files'),
             dcc.Upload(
-                id="viewer-upload-files",
+                id="upload-files",
                 children=html.Div(
                     ["Drag and drop or click to select a file to upload."]
                 ),
@@ -44,7 +44,7 @@ layout = dbc.Container([
 
         dbc.Col([
             html.Button(
-                id="viewer-clear-list",
+                id="clear-list",
                 className="btn btn-danger",
                 children="Clear list",
             )
@@ -53,13 +53,13 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            dcc.Dropdown(id='viewer-oligo-dropdown',
+            dcc.Dropdown(id='oligo-dropdown',
                          placeholder="Select capture oligos file",
                          multi=False),
         ], width=6, style={'margin-top': '10px', 'margin-bottom': '20px'}),
 
         dbc.Col([
-            dcc.Dropdown(id='viewer-coord-dropdown',
+            dcc.Dropdown(id='coord-dropdown',
                          placeholder="Select chr. coordinates file",
                          multi=False),
         ], width=6, style={'margin-top': '10px', 'margin-bottom': '20px'}),
@@ -67,7 +67,7 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            dcc.Input(id='viewer-number-probes', type='number', value=2, step='1',
+            dcc.Input(id='number-probes', type='number', value=2, step='1',
                       placeholder='How many cards :',
                       style={
                           'width': '100%',
@@ -81,10 +81,10 @@ layout = dbc.Container([
         ], width=2, style={'margin-top': '20px'}),
 
         dbc.Col([
-            html.Div(id='viewer-slider-output-container',
+            html.Div(id='slider-output-container',
                      style={'margin-top': '10px', 'font-size': '16px', 'margin-bottom': '10px'}),
             dcc.Slider(
-                id='viewer-binning-slider',
+                id='binning-slider',
                 min=0,
                 max=100,
                 step=1,
@@ -96,7 +96,7 @@ layout = dbc.Container([
 
         dbc.Col([
             dcc.Checklist(
-                id="viewer-sync-box",
+                id="sync-box",
                 options=[{"label": "Synchronize axis", "value": "sync"}],
                 value=[],
                 inline=True,
@@ -106,25 +106,25 @@ layout = dbc.Container([
         ], width=2, style={'margin-top': '20px', 'margin-bottom': '10px', 'margin-left': '0px'}),
 
         dbc.Col([
-            html.Button(id="viewer-plot-button", className="plot-button", children="Plot"),
+            html.Button(id="plot-button", className="plot-button", children="Plot"),
         ], width=2, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '0px'}),
 
-        dcc.Store(id='viewer-stored-graphs-axis-range', data={}),
-        dcc.Store(id='viewer-stored-files', data=[]),  # Store for files list
-        html.Div(id='viewer-dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
-        html.Div(id='viewer-graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        dcc.Store(id='stored-graphs-axis-range', data={}),
+        dcc.Store(id='stored-files', data=[]),  # Store for files list
+        html.Div(id='dynamic-probes-cards', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        html.Div(id='graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
     ]),
 ])
 
 
 @callback(
-    [Output("viewer-oligo-dropdown", "options"),
-     Output("viewer-coord-dropdown", "options"),
-     Output("viewer-clear-list", "n_clicks"),
-     Output("viewer-stored-files", "data")],
-    [Input("viewer-upload-files", "filename"),
-     Input("viewer-upload-files", "contents"),
-     Input("viewer-clear-list", "n_clicks")],
+    [Output("oligo-dropdown", "options"),
+     Output("coord-dropdown", "options"),
+     Output("clear-list", "n_clicks"),
+     Output("stored-files", "data")],
+    [Input("upload-files", "filename"),
+     Input("upload-files", "contents"),
+     Input("clear-list", "n_clicks")],
 )
 def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
     if uploaded_filenames is not None and uploaded_file_contents is not None:
@@ -151,8 +151,8 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
         return options, options, n_clicks, files
 
 @callback(
-    Output('viewer-slider-output-container', 'children'),
-    [Input('viewer-binning-slider', 'value')])
+    Output('slider-output-container', 'children'),
+    [Input('binning-slider', 'value')])
 def update_output(value):
     return f'Binning resolution : {value} kb'
 
@@ -162,7 +162,7 @@ def create_card(index, sample_options, probe_options, graph_options, sample_valu
     card = dbc.Col(
         dbc.Card([
             dbc.CardHeader(html.Div(
-                id={'type': 'viewer-probe-card-header', 'index': index},
+                id={'type': 'probe-card-header', 'index': index},
                 style={'font-size': '12px'})),
 
             dbc.CardBody([
@@ -206,11 +206,11 @@ def create_card(index, sample_options, probe_options, graph_options, sample_valu
 
 
 @callback(
-    Output('viewer-dynamic-probes-cards', 'children'),
-    [Input('viewer-stored-files', 'data'),
-     Input('viewer-number-probes', 'value'),
-     Input('viewer-oligo-dropdown', 'value')],
-    State('viewer-dynamic-probes-cards', 'children'),
+    Output('dynamic-probes-cards', 'children'),
+    [Input('stored-files', 'data'),
+     Input('number-probes', 'value'),
+     Input('oligo-dropdown', 'value')],
+    State('dynamic-probes-cards', 'children'),
 )
 def update_probes_cards(files, n_cards, capture_oligos, cards_children):
     if n_cards is None or n_cards == 0:
@@ -267,7 +267,7 @@ def update_probes_cards(files, n_cards, capture_oligos, cards_children):
 
 
 @callback(
-    Output({'type': 'viewer-probe-card-header', 'index': MATCH}, 'children'),
+    Output({'type': 'probe-card-header', 'index': MATCH}, 'children'),
     Input({'type': 'probe-dropdown', 'index': MATCH}, 'value'),
     Input({'type': 'sample-dropdown', 'index': MATCH}, 'value'),
 )
@@ -355,11 +355,11 @@ def update_figure(
 
 
 @callback(
-    Output('viewer-graphs', 'children'),
-    Input('viewer-plot-button', 'n_clicks'),
-    Input('viewer-stored-graphs-axis-range', 'data'),
-    State('viewer-binning-slider', 'value'),
-    State('viewer-coord-dropdown', 'value'),
+    Output('graphs', 'children'),
+    Input('plot-button', 'n_clicks'),
+    Input('stored-graphs-axis-range', 'data'),
+    State('binning-slider', 'value'),
+    State('coord-dropdown', 'value'),
     State({'type': 'sample-dropdown', 'index': ALL}, 'value'),
     State({'type': 'probe-dropdown', 'index': ALL}, 'value'),
     State({'type': 'graph-dropdown', 'index': ALL}, 'value')
@@ -376,7 +376,7 @@ def update_graphs( n_clicks, axis_range, binning_value, coords_value, samples_va
 
     x_range = None
     y_range = None
-    if triggerd_input == 'viewer-stored-graphs-axis-range':
+    if triggerd_input == 'stored-graphs-axis-range':
         if axis_range:
             x_range = axis_range['x_range']
             y_range = axis_range['y_range']
@@ -428,9 +428,9 @@ def update_graphs( n_clicks, axis_range, binning_value, coords_value, samples_va
 
 
 @callback(
-    Output('viewer-stored-graphs-axis-range', 'data'),
+    Output('stored-graphs-axis-range', 'data'),
     Input({'type': 'graph', 'index': ALL}, 'relayoutData'),
-    State('viewer-sync-box', 'value')
+    State('sync-box', 'value')
 )
 def update_figure_range(relayout_data, sync_value):
     if not sync_value:

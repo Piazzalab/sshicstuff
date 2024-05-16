@@ -6,10 +6,10 @@ from dash.dependencies import Input, Output
 
 # Import your page layouts here
 import sshicstuff.gui.home as home
-import sshicstuff.gui.viewer as viewer
+import sshicstuff.gui.browser as viewer
 
 # Create a Dash application instance:
-server = Flask(__name__, template_folder='templates', )
+server = Flask(__name__, template_folder='templates')
 app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP, 'assets/style.css'])
 app.config.suppress_callback_exceptions = True
 
