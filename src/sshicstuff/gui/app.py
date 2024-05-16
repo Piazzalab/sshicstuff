@@ -5,8 +5,7 @@ from dash import html, dcc
 from dash.dependencies import Input, Output
 
 # Import your page layouts here
-import sshicstuff.gui.home as home
-import sshicstuff.gui.browser as viewer
+import sshicstuff.gui.browser as browser
 
 # Create a Dash application instance:
 server = Flask(__name__, template_folder='templates')
@@ -15,31 +14,15 @@ app.config.suppress_callback_exceptions = True
 
 # Set up the app layout
 app.layout = html.Div([
-    dcc.Tabs(id="tabs",
-             value='home',
-             parent_className='custom-tabs',
-             className='custom-tabs-container',
-             children=[
-                 dcc.Tab(label='Home', value='home',
-                         className='custom-tab', selected_className='custom-tab-selected'),
-                 dcc.Tab(label='Probes viewer', value='probes-viewer',
-                         className='custom-tab', selected_className='custom-tab-selected')
-             ]),
-    html.Div(id='page-content'),
-    dcc.Store(id='data-basedir'),
-    dcc.Store(id='selected-samples')
+    dbc.Row(
+        dbc.Col(
+            html.H1('Single stranded DNA specific Hi-C (ssHiC) browser'),
+            width={'size': 10, 'offset': 1},
+            style={'text-align': 'center', 'margin-top': '50px', 'margin-bottom': '50px'}
+        )
+    ),
+    browser.layout,
 ])
-
-
-# Callback to update the page content based on the selected tab
-@app.callback(
-    Output('page-content', 'children'),
-    [Input('tabs', 'value')])
-def display_page(value):
-    if value == 'home':
-        return home.layout
-    elif value == 'probes-viewer':
-        return viewer.layout
 
 
 if __name__ == '__main__':

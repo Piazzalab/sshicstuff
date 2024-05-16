@@ -17,12 +17,6 @@ if not os.path.exists(TEMPORARY_DIRECTORY):
 layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            html.H2('Profil browser'),
-        ], width=12, style={'margin-top': '20px', 'margin-bottom': '20px'})
-    ]),
-
-    dbc.Row([
-        dbc.Col([
             html.H6('Upload files'),
             dcc.Upload(
                 id="upload-files",
