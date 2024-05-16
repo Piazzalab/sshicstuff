@@ -44,57 +44,65 @@ layout = dbc.Container([
 
     dbc.Row([
         dbc.Col([
-            dcc.Dropdown(id='oligo-dropdown',
-                         placeholder="Select capture oligos file",
-                         multi=False),
-        ], width=6, style={'margin-top': '10px', 'margin-bottom': '20px'}),
+            html.H6('Input files dropdown'),
+            dbc.Row([
+                dcc.Dropdown(
+                    id='oligo-dropdown',
+                    placeholder="Select capture oligos file",
+                    multi=False),
+            ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+
+            dbc.Row([
+                dcc.Dropdown(
+                    id='coord-dropdown',
+                    placeholder="Select chr. coordinates file",
+                    multi=False),
+            ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+
+            dbc.Row([
+                dcc.Dropdown(
+                    id='samples-dropdown',
+                    placeholder="Select sample file",
+                    multi=False
+                ),
+            ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+
+            dbc.Row([
+                dcc.Dropdown(
+                    id='probes-dropdown',
+                    placeholder="Select probe(s) or group of probes",
+                    multi=True
+                ),
+            ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+        ], width=6),
 
         dbc.Col([
-            dcc.Dropdown(id='coord-dropdown',
-                         placeholder="Select chr. coordinates file",
-                         multi=False),
-        ], width=6, style={'margin-top': '10px', 'margin-bottom': '20px'}),
+            dbc.Row([
+                html.Div(id='slider-output-container',
+                         style={'margin-top': '10px', 'font-size': '16px', 'margin-bottom': '10px'}),
+                dcc.Slider(
+                    id='binning-slider',
+                    min=0,
+                    max=100,
+                    step=1,
+                    value=10,
+                    marks={i: str(i) for i in range(0, 101, 10)},
+                    included=False,
+                ),
+            ]),
+
+            dbc.Row([
+                dbc.Col([
+                    html.Button(id="plot-button", className="plot-button", children="Plot"),
+                ], width=2)
+            ], style={'margin-top': '40px', 'margin-bottom': '0px', 'margin-left': '0px'}),
+
+        ], width=6),
     ]),
 
     dbc.Row([
-        dbc.Col([
-            dcc.Dropdown(
-                id='samples-dropdown',
-                placeholder="Select sample file",
-                multi=False
-            ),
-        ], width=6, style={'margin-top': '10px', 'margin-bottom': '20px'}),
-
-        dbc.Col([
-            dcc.Dropdown(
-                id='probes-dropdown',
-                placeholder="Select probe(s) or group of probes",
-                multi=True
-            ),
-        ], width=6, style={'margin-top': '10px', 'margin-bottom': '20px'}),
-    ]),
-
-    dbc.Row([
-        dbc.Col([
-            html.Div(id='slider-output-container',
-                     style={'margin-top': '10px', 'font-size': '16px', 'margin-bottom': '10px'}),
-            dcc.Slider(
-                id='binning-slider',
-                min=0,
-                max=100,
-                step=1,
-                value=10,
-                marks={i: str(i) for i in range(0, 101, 10)},
-                included=False,
-            ),
-        ], width=6, style={'margin-top': '0px', 'margin-bottom': '10px', 'margin-left': '0px'}),
-
-        dbc.Col([
-            html.Button(id="plot-button", className="plot-button", children="Plot"),
-        ], width=2, style={'margin-top': '20px', 'margin-bottom': '0px', 'margin-left': '0px'}),
-    ]),
-
-    html.Div(id='graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        html.Div(id='graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+    ])
 ])
 
 
