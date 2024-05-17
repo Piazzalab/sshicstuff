@@ -70,7 +70,12 @@ def uploaded_files():
             files.append(filename)
     return files
 
-def rebin_live(df: pd.DataFrame, bin_size: int, df_coords: pd.DataFrame):
+
+def rebin_live(
+        df: pd.DataFrame,
+        bin_size: int,
+        df_coords: pd.DataFrame,
+):
     """
     Rebin function for the GUI to change resolution of contacts in live mode.
     """
@@ -95,6 +100,17 @@ def rebin_live(df: pd.DataFrame, bin_size: int, df_coords: pd.DataFrame):
     df["start_bin"] = df["start"] // bin_size * bin_size
     df["end_bin"] = df["end"] // bin_size * bin_size
     df.drop(columns=["genome_start"], inplace=True)
+
+    chr_filter = df["chr"].unique()
+    if len(chr_filter) == 1:
+        unique_chr = chr_filter[0]
+        unique_start = df["start_bin"].min()
+        unique_end = df["end_bin"].max()
+        df_template = df_template[
+            (df_template["chr"] == unique_chr) &
+            (df_template["chr_bins"] >= unique_start) &
+            (df_template["chr_bins"] <= unique_end)
+            ]
 
     df_cross_bins = df[df["start_bin"] != df["end_bin"]].copy()
     df_in_bin = df.drop(df_cross_bins.index)

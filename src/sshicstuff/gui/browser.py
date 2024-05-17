@@ -1,7 +1,7 @@
 import re
 from dash import html, dcc, callback
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State, ALL
+from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 
 from sshicstuff.gui.common import *
@@ -43,6 +43,7 @@ layout = dbc.Container([
     ]),
 
     dbc.Row([
+        # Input files dropdown COLUMN
         dbc.Col([
             html.H6('Input files dropdown'),
             dbc.Row([
@@ -76,10 +77,11 @@ layout = dbc.Container([
             ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
         ], width=6),
 
+        # Region & binning settings COLUMN
         dbc.Col([
             dbc.Row([
-                html.Div(id='slider-output-container',
-                         style={'margin-top': '10px', 'font-size': '16px', 'margin-bottom': '10px'}),
+                html.Div(
+                    id='slider-output-container', style={'font-size': '14px', 'margin-bottom': '10px'}),
                 dcc.Slider(
                     id='binning-slider',
                     min=0,
@@ -92,12 +94,98 @@ layout = dbc.Container([
             ]),
 
             dbc.Row([
-                dbc.Col([
-                    html.Button(id="plot-button", className="plot-button", children="Plot"),
-                ], width=2)
-            ], style={'margin-top': '40px', 'margin-bottom': '0px', 'margin-left': '0px'}),
+                dbc.Label("Region", style={'font-size': '14px', 'margin-top': '20px'}),
+            ]),
 
+            dbc.Row([
+                dbc.Col([
+                    dcc.Dropdown(
+                        id='region-dropdown',
+                        value=None,
+                        placeholder="Select chromosome",
+                        multi=False),
+
+                ], width=6),
+
+                dbc.Col([
+                    dcc.Input(
+                        id='start-pos',
+                        placeholder="Start",
+                        value=None,
+                        type='text',
+                        className="custom-input"
+                    ),
+                ], width=3),
+
+                dbc.Col([
+                    dcc.Input(
+                        id='end-pos',
+                        placeholder="End",
+                        value=None,
+                        className="custom-input"
+                    ),
+                ], width=3),
+
+            ]),
         ], width=6),
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(
+                id="plot-button", className="plot-button", children="Plot",
+                style={'margin-top': '25px'}),
+        ], width=2),
+
+        dbc.Col([
+            dbc.Label("Y min", style={'font-size': '14px', 'margin-top': '10px'}),
+            dcc.Input(
+                id='y-min', type='number', value=None,
+                placeholder='Y min', className="custom-input"),
+        ], width=1),
+
+        dbc.Col([
+            dbc.Label("Y max", style={'font-size': '14px', 'margin-top': '10px'}),
+            dcc.Input(
+                id='y-max', type='number', value=None,
+                placeholder='Y max', className="custom-input"),
+        ], width=1),
+
+        dbc.Col([
+            dbc.Label("Height", style={'font-size': '14px', 'margin-top': '10px'}),
+            dcc.Input(
+                id='height', type='number', value=600, step=20,
+                placeholder='Height', className="custom-input"),
+        ], width=1),
+
+        dbc.Col([
+            dbc.Label("Width", style={'font-size': '14px', 'margin-top': '10px'}),
+            dcc.Input(
+                id='width', type='number', value=1500, step=20,
+                placeholder='Width', className="custom-input"),
+        ], width=1),
+
+        dbc.Col([
+            dcc.Checklist(
+                id="log-scale-box",
+                options=[{"label": "Log scale", "value": "no"}],
+                value=[],
+                inline=True,
+                className='custom-checkbox-label',
+                labelStyle={"margin": "5px"}
+            )
+        ], width=2, style={'margin-top': '20px', 'margin-bottom': '20px'}),
+
+        dbc.Col([
+            dcc.Checklist(
+                id="chr-delimit-box",
+                options=[{"label": "Delimiter", "value": "no"}],
+                value=[],
+                inline=True,
+                className='custom-checkbox-label',
+                labelStyle={"margin": "5px"}
+            )
+        ], width=2, style={'margin-top': '20px', 'margin-bottom': '20px'}),
     ]),
 
     dbc.Row([
@@ -150,6 +238,21 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
 
 
 @callback(
+    Output("region-dropdown", "options"),
+    [Input("coord-dropdown", "value")],
+)
+def update_region_dropdown(coord_value):
+    if coord_value is None:
+        return []
+
+    df = pd.read_csv(coord_value, sep='\t')
+    chr_list = df['chr'].unique()
+    chr_list = [f"{c}" for c in chr_list]
+
+    return [{'label': c, 'value': c} for c in chr_list]
+
+
+@callback(
     Output("probes-dropdown", "options"),
     [Input("oligo-dropdown", "value"),
      Input("samples-dropdown", "value")],
@@ -181,26 +284,78 @@ def update_probes_dropdown(oligo_value, sample_value):
     [State('binning-slider', 'value'),
      State('coord-dropdown', 'value'),
      State('samples-dropdown', 'value'),
-     State('probes-dropdown', 'value')]
+     State('probes-dropdown', 'value'),
+     State('region-dropdown', 'value'),
+     State('start-pos', 'value'),
+     State('end-pos', 'value'),
+     State('y-min', 'value'),
+     State('y-max', 'value'),
+     State('log-scale-box', 'value'),
+     State('chr-delimit-box', 'value'),
+     State('height', 'value'),
+     State('width', 'value'),]
 )
-def update_graph(n_clicks, binning_value, coords_value, samples_value, probes_value):
+def update_graph(
+        n_clicks,
+        binning_value,
+        coords_value,
+        samples_value,
+        probes_value,
+        region_value,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        log_scale,
+        delimit,
+        height,
+        width
+):
     if n_clicks is None or n_clicks == 0:
         return None
     if not samples_value or not probes_value:
         return None
 
     fig = go.Figure()
+
+    # coordinates & genomic (cumulative) positions stuff
     df_coords = pd.read_csv(coords_value, sep='\t')
+    df_chr_len = df_coords[["chr", "length"]]
+    df_chr_len["chr_start"] = df_chr_len["length"].shift().fillna(0).astype("int64")
+    df_chr_len["cumu_start"] = df_chr_len["chr_start"].cumsum()
+
     df_samples = pd.read_csv(samples_value, sep='\t')
     sample_name = samples_value.split('/')[-1].split('.')[0]
 
     df = df_samples[["chr", "start", "sizes", "genome_start"] + probes_value]
+
+    if region_value:
+        df = df[df["chr"] == region_value]
+        x_max_basal = df_chr_len.loc[df_chr_len["chr"] == region_value]["length"].tolist()[0]
+        x_min = int(x_min) if x_min else 0
+        x_max = int(x_max) if x_max else x_max_basal
+        if x_max > x_max_basal:
+            x_max = x_max_basal
+        x_label = f"{region_value} position (bp)"
+
+    else:
+        x_min = 0
+        x_max = df_chr_len["cumu_start"].max()
+        x_label = "Genomic position (bp)"
+
+    df = df[(df["start"] >= x_min) & (df["start"] <= x_max)]
+
     if binning_value > 0:
-        x_col = "genome_bins"
         binning_value *= 1000  # kbp convert to bp
         df = rebin_live(df, binning_value, df_coords)
+
+    if region_value:
+        x_col = "chr_bins" if binning_value else "start"
     else:
-        x_col = "genome_start"
+        x_col = "genome_bins" if binning_value else "genome_start"
+
+    y_min = float(y_min) if y_min else 0
+    y_max = float(y_max) if y_max else df[probes_value].max().max()
 
     for j in range(len(probes_value)):
         frag = probes_value[j]
@@ -217,48 +372,52 @@ def update_graph(n_clicks, binning_value, coords_value, samples_value, probes_va
         )
 
     fig.update_layout(
-        width=1500,
-        height=600,
+        width=width,
+        height=height,
         title=f"{sample_name}",
-        xaxis=dict(domain=[0.0, 0.9], title="Genomic position (bp)"),
+        xaxis=dict(domain=[0.0, 0.9], title=x_label),
         yaxis=dict(title="Contact frequency"),
+        xaxis_type='linear',
+        xaxis_tickformat="d",
+        xaxis_range=[x_min, x_max],
+        yaxis_range=[y_min, y_max],
         hovermode='closest',
         plot_bgcolor='white',
         paper_bgcolor='white'
     )
 
-    df_chr_len = df_coords[["chr", "length"]]
-    df_chr_len["chr_start"] = df_chr_len["length"].shift().fillna(0).astype("int64")
-    df_chr_len["cumu_start"] = df_chr_len["chr_start"].cumsum()
+    if log_scale:
+        fig.update_layout(yaxis_type="log")
 
-    for xi, x_pos in enumerate(df_chr_len["cumu_start"].to_list()):
-        name_pos = x_pos + 100
-        fig.add_shape(
-            type='line',
-            yref='paper',
-            xref='x',
-            x0=x_pos, x1=x_pos,
-            y0=0, y1=1,
-            line=dict(color='gray', width=1, dash='dot')
-        )
+    if delimit and not region_value:
+        for xi, x_pos in enumerate(df_chr_len["cumu_start"].to_list()):
+            name_pos = x_pos + 100
+            fig.add_shape(
+                type='line',
+                yref='paper',
+                xref='x',
+                x0=x_pos, x1=x_pos,
+                y0=0, y1=1,
+                line=dict(color='gray', width=1, dash='dot')
+            )
 
-        fig.add_annotation(
-            go.layout.Annotation(
-                x=name_pos,
-                y=1.07,
-                yref="paper",
-                text=df_chr_len.loc[xi, "chr"],
-                showarrow=False,
-                xanchor="center",
-                font=dict(size=11, color=colors_hex[xi]),
-                textangle=330
-            ),
-            xref="x"
-        )
+            fig.add_annotation(
+                go.layout.Annotation(
+                    x=name_pos,
+                    y=1.07,
+                    yref="paper",
+                    text=df_chr_len.loc[xi, "chr"],
+                    showarrow=False,
+                    xanchor="center",
+                    font=dict(size=11, color=colors_hex[xi]),
+                    textangle=330
+                ),
+                xref="x"
+            )
 
     graph_layout = dcc.Graph(
-        config={'displayModeBar': True, 'scrollZoom': True},
-        style={'height': 'auto', 'width': '100%'},
+        config={'displayModeBar': True, 'scrollZoom': True, 'doubleClick': 'reset'},
+        style={'height': '100%', 'width': '100%'},
         figure=fig
     )
     return graph_layout

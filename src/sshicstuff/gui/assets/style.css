@@ -57,46 +57,22 @@ h4, h5, h6 {
     border-top: 3px solid #e36209;
 }
 
-.blue-button {
-    background-color: #2f99c0;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    width: 200px;
-}
-
-.green-button {
-    background-color: #64c279;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    width: 140px;
-}
 
 .plot-button {
     background-color: #199cce;
     color: white;
     border: none;
-    border-radius: 6px;
-    padding: 10px 15px;
-    font-size: 16px;
+    border-radius: 40px;
+    padding: 14px 14px;
+    font-size: 20px;
     cursor: pointer;
-    width: 80px;
+    width: 120px;
 }
-
-
 
 .custom-tooltip {
     left: 10px !important;
     width: 600px !important;
 }
-
 
 .custom-delete-button {
   background-color: rgba(200, 200, 200, 0.5);
@@ -114,7 +90,6 @@ h4, h5, h6 {
   transform: scale(1.05);
 }
 
-
 .custom-checkbox-label {
     align-items: center;
     margin: 10px;
@@ -123,4 +98,14 @@ h4, h5, h6 {
 
 .custom-checkbox-label input[type="checkbox"] {
     margin-right: 5px;
+}
+
+.custom-input{
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 5px;
+  font-size: 16px;
+  background-color: #fff;
+  color: #333;
 }
