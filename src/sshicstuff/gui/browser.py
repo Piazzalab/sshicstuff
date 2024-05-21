@@ -1,12 +1,22 @@
 import re
+import os
 
 import numpy as np
+import pandas as pd
+import plotly.graph_objs as go
 from dash import html, dcc, callback
 import dash_bootstrap_components as dbc
 import dash_daq as daq
 from dash.dependencies import Input, Output, State
 
-from sshicstuff.gui.common import *
+# common.py
+from sshicstuff.gui.common import TEMPORARY_DIRECTORY
+from sshicstuff.gui.common import colors_rgba
+from sshicstuff.gui.common import colors_hex
+from sshicstuff.gui.common import empty_figure
+from sshicstuff.gui.common import uploaded_files
+from sshicstuff.gui.common import save_file
+from sshicstuff.gui.common import rebin_live
 
 
 if not os.path.exists(TEMPORARY_DIRECTORY):
