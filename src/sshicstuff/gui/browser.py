@@ -329,6 +329,10 @@ def update_graph(
 
     df = df_samples[["chr", "start", "sizes", "genome_start"] + probes_value]
 
+    if binning_value > 0:
+        binning_value *= 1000  # kbp convert to bp
+        df = rebin_live(df, binning_value, df_coords)
+
     if region_value:
         df = df[df["chr"] == region_value]
         x_max_basal = df_chr_len.loc[df_chr_len["chr"] == region_value]["length"].tolist()[0]
@@ -337,22 +341,20 @@ def update_graph(
         if x_max > x_max_basal:
             x_max = x_max_basal
         x_label = f"{region_value} position (bp)"
+        x_col = "chr_bins" if binning_value else "start"
 
     else:
         x_min = 0
         x_max = df_chr_len["cumu_start"].max()
         x_label = "Genomic position (bp)"
-
-    df = df[(df["start"] >= x_min) & (df["start"] <= x_max)]
-
-    if binning_value > 0:
-        binning_value *= 1000  # kbp convert to bp
-        df = rebin_live(df, binning_value, df_coords)
-
-    if region_value:
-        x_col = "chr_bins" if binning_value else "start"
-    else:
         x_col = "genome_bins" if binning_value else "genome_start"
+
+    if binning_value:
+        x_min = x_min // binning_value * binning_value
+        x_max = x_max // binning_value * binning_value
+        df = df[(df["chr_bins"] >= x_min) & (df["chr_bins"] <= x_max)]
+    else:
+        df = df[(df["start"] >= x_min) & (df["start"] <= x_max)]
 
     y_min = float(y_min) if y_min else 0
     y_max = float(y_max) if y_max else df[probes_value].max().max()
