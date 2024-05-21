@@ -156,7 +156,7 @@ layout = dbc.Container([
         dbc.Col([
             dbc.Label("Width", style={'font-size': '14px', 'margin-top': '10px'}),
             dcc.Input(
-                id='width', type='number', value=1500, step=20,
+                id='width', type='number', value=1600, step=20,
                 placeholder='Width', className="custom-input"),
         ], width=1),
 
@@ -164,19 +164,12 @@ layout = dbc.Container([
             daq.BooleanSwitch(
                 id='re-scale-switch',
                 on=False,
-                label='Re-scale'
+                label='Re-scale',
+
             ),
             html.Div(id='re-scale-output',
-                     style={'margin-top': '10px', 'margin-left': '30px', 'font-size': '12px'}),
+                     style={'margin-top': '10px', 'margin-left': '20px', 'font-size': '12px'}),
 
-        ], width=1, style={'margin-top': '10px', 'margin-bottom': '10px', 'margin-left': '20px'}),
-
-        dbc.Col([
-            daq.BooleanSwitch(
-                id='delimiter-switch',
-                on=False,
-                label='Delimiter'
-            ),
         ], width=1, style={'margin-top': '10px', 'margin-bottom': '10px', 'margin-left': '20px'}),
     ]),
 
@@ -193,5 +186,5 @@ layout = dbc.Container([
             style={'height': '100%', 'width': '100%'},
             figure=empty_figure
         )
-    ])
+    ], style={'margin-left': '-50px'}),
 ])
