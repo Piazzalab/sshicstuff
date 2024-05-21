@@ -3,6 +3,7 @@ from os.path import join
 import pandas as pd
 import numpy as np
 import base64
+from plotly import graph_objs as go
 
 from sshicstuff import utils
 
@@ -52,6 +53,25 @@ colors_hex = ['#000000', '#0c090a', '#2c3e50', '#34495e', '#7f8c8d', '#8e44ad', 
               '#bdc3c7', '#2c3e50', '#7f8c8d', '#f39c12', '#27ae60', '#9b59b6', '#3498db', '#e67e22',
               '#95a5a6', '#d35400', '#f1c40f', '#2980b9', '#e74c3c', '#2ecc71', '#8e44ad', '#34495e',
               '#1abc9c', '#c0392b', '#16a085', '#27ae60', '#7f8c8d', '#f39c12', '#bdc3c7']
+
+empty_figure = go.Figure(
+    layout=go.Layout(
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        annotations=[
+            dict(
+                x=0.5,
+                y=0.5,
+                text="No data available",
+                showarrow=False,
+                font=dict(size=28)
+            )
+        ],
+        hovermode='closest',
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+)
 
 
 def save_file(name, content):

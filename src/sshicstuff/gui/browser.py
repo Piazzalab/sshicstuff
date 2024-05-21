@@ -2,7 +2,6 @@ import re
 from dash import html, dcc, callback
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
-import plotly.graph_objs as go
 
 from sshicstuff.gui.common import *
 
@@ -189,7 +188,18 @@ layout = dbc.Container([
     ]),
 
     dbc.Row([
-        html.Div(id='graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        # html.Div(id='graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+        dcc.Graph(
+            id='graph',
+            config={
+                'displayModeBar': True,
+                'scrollZoom': True,
+                'doubleClick': 'reset',
+                'autosizable': False
+            },
+            style={'height': '100%', 'width': '100%'},
+            figure=empty_figure
+        )
     ])
 ])
 
@@ -279,8 +289,9 @@ def update_probes_dropdown(oligo_value, sample_value):
 
 
 @callback(
-    Output('graphs', 'children'),
+    Output('graph', 'figure'),
     Input('plot-button', 'n_clicks'),
+    Input('graph', 'relayoutData'),
     [State('binning-slider', 'value'),
      State('coord-dropdown', 'value'),
      State('samples-dropdown', 'value'),
@@ -297,24 +308,26 @@ def update_probes_dropdown(oligo_value, sample_value):
 )
 def update_graph(
         n_clicks,
+        relayout_data,
         binning_value,
         coords_value,
         samples_value,
         probes_value,
         region_value,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
+        user_x_min,
+        user_x_max,
+        user_y_min,
+        user_y_max,
         log_scale,
         delimit,
         height,
         width
 ):
+
     if n_clicks is None or n_clicks == 0:
-        return None
+        return empty_figure
     if not samples_value or not probes_value:
-        return None
+        return empty_figure
 
     fig = go.Figure()
 
@@ -336,8 +349,8 @@ def update_graph(
     if region_value:
         df = df[df["chr"] == region_value]
         x_max_basal = df_chr_len.loc[df_chr_len["chr"] == region_value]["length"].tolist()[0]
-        x_min = int(x_min) if x_min else 0
-        x_max = int(x_max) if x_max else x_max_basal
+        x_min = int(user_x_min) if user_x_min else 0
+        x_max = int(user_x_max) if user_x_max else x_max_basal
         if x_max > x_max_basal:
             x_max = x_max_basal
         x_label = f"{region_value} position (bp)"
@@ -356,8 +369,8 @@ def update_graph(
     else:
         df = df[(df["start"] >= x_min) & (df["start"] <= x_max)]
 
-    y_min = float(y_min) if y_min else 0
-    y_max = float(y_max) if y_max else df[probes_value].max().max()
+    y_min = float(user_y_min) if user_y_min else 0
+    y_max = float(user_y_max) if user_y_max else df[probes_value].max().max()
 
     for j in range(len(probes_value)):
         frag = probes_value[j]
@@ -417,10 +430,15 @@ def update_graph(
                 xref="x"
             )
 
-    graph_layout = dcc.Graph(
-        config={'displayModeBar': True, 'scrollZoom': True, 'doubleClick': 'reset'},
-        style={'height': '100%', 'width': '100%'},
-        figure=fig
-    )
-    return graph_layout
+    if relayout_data:
+        if 'xaxis.range[0]' in relayout_data:
+            new_x_min = relayout_data['xaxis.range[0]']
+            new_x_max = relayout_data['xaxis.range[1]']
+            if user_y_max:
+                y_max = user_y_max
+            else:
+                y_max = df[(df[x_col] >= new_x_min) & (df[x_col] <= new_x_max)][probes_value].max().max()
+            fig.update_layout(xaxis_range=[new_x_min, new_x_max], yaxis_range=[y_min, y_max])
+
+    return fig
 
