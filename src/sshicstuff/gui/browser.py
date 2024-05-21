@@ -1,6 +1,9 @@
 import re
+
+import numpy as np
 from dash import html, dcc, callback
 import dash_bootstrap_components as dbc
+import dash_daq as daq
 from dash.dependencies import Input, Output, State
 
 from sshicstuff.gui.common import *
@@ -165,26 +168,23 @@ layout = dbc.Container([
         ], width=1),
 
         dbc.Col([
-            dcc.Checklist(
-                id="log-scale-box",
-                options=[{"label": "Log scale", "value": "no"}],
-                value=[],
-                inline=True,
-                className='custom-checkbox-label',
-                labelStyle={"margin": "5px"}
-            )
-        ], width=2, style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            daq.BooleanSwitch(
+                id='re-scale-switch',
+                on=False,
+                label='Re-scale'
+            ),
+            html.Div(id='re-scale-output',
+                     style={'margin-top': '10px', 'margin-left': '30px', 'font-size': '12px'}),
+
+        ], width=1, style={'margin-top': '10px', 'margin-bottom': '10px', 'margin-left': '20px'}),
 
         dbc.Col([
-            dcc.Checklist(
-                id="chr-delimit-box",
-                options=[{"label": "Delimiter", "value": "no"}],
-                value=[],
-                inline=True,
-                className='custom-checkbox-label',
-                labelStyle={"margin": "5px"}
-            )
-        ], width=2, style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            daq.BooleanSwitch(
+                id='delimiter-switch',
+                on=False,
+                label='Delimiter'
+            ),
+        ], width=1, style={'margin-top': '10px', 'margin-bottom': '10px', 'margin-left': '20px'}),
     ]),
 
     dbc.Row([
@@ -290,6 +290,7 @@ def update_probes_dropdown(oligo_value, sample_value):
 
 @callback(
     Output('graph', 'figure'),
+    Output('re-scale-output', 'children'),
     Input('plot-button', 'n_clicks'),
     Input('graph', 'relayoutData'),
     [State('binning-slider', 'value'),
@@ -301,8 +302,8 @@ def update_probes_dropdown(oligo_value, sample_value):
      State('end-pos', 'value'),
      State('y-min', 'value'),
      State('y-max', 'value'),
-     State('log-scale-box', 'value'),
-     State('chr-delimit-box', 'value'),
+     State('re-scale-switch', 'on'),
+     State('delimiter-switch', 'on'),
      State('height', 'value'),
      State('width', 'value'),]
 )
@@ -318,16 +319,17 @@ def update_graph(
         user_x_max,
         user_y_min,
         user_y_max,
-        log_scale,
+        re_scale,
         delimit,
         height,
         width
 ):
 
+    re_scale_output = ""
     if n_clicks is None or n_clicks == 0:
-        return empty_figure
+        return empty_figure, re_scale_output
     if not samples_value or not probes_value:
-        return empty_figure
+        return empty_figure, re_scale_output
 
     fig = go.Figure()
 
@@ -372,6 +374,23 @@ def update_graph(
     y_min = float(user_y_min) if user_y_min else 0
     y_max = float(user_y_max) if user_y_max else df[probes_value].max().max()
 
+    if re_scale:
+        data = df[probes_value].values
+        if y_max <= 1.:
+            # sqrt transformation
+            new_data = np.sqrt(data + 1e-8)
+            y_max = np.sqrt(y_max) if not user_y_max else user_y_max
+            y_min = np.sqrt(y_min) if y_min > 0 else 0
+            re_scale_output = "sqrt"
+        else:
+            # log transformation
+            new_data = np.log(data + 1)
+            y_max = np.log(y_max) if not user_y_max else user_y_max
+            y_min = 0
+            re_scale_output = "log"
+
+        df[probes_value] = new_data
+
     for j in range(len(probes_value)):
         frag = probes_value[j]
         trace_id = j
@@ -400,9 +419,6 @@ def update_graph(
         plot_bgcolor='white',
         paper_bgcolor='white'
     )
-
-    if log_scale:
-        fig.update_layout(yaxis_type="log")
 
     if delimit and not region_value:
         for xi, x_pos in enumerate(df_chr_len["cumu_start"].to_list()):
@@ -440,5 +456,4 @@ def update_graph(
                 y_max = df[(df[x_col] >= new_x_min) & (df[x_col] <= new_x_max)][probes_value].max().max()
             fig.update_layout(xaxis_range=[new_x_min, new_x_max], yaxis_range=[y_min, y_max])
 
-    return fig
-
+    return fig, re_scale_output
