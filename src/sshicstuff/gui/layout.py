@@ -174,17 +174,15 @@ layout = dbc.Container([
     ]),
 
     dbc.Row([
-        # html.Div(id='graphs', children=[], style={'margin-top': '20px', 'margin-bottom': '20px'}),
         dcc.Graph(
             id='graph',
             config={
                 'displayModeBar': True,
-                'scrollZoom': True,
+                'scrollZoom': False,
                 'doubleClick': 'reset',
-                'autosizable': False
             },
             style={'height': '100%', 'width': '100%'},
-            figure=empty_figure
+            figure=empty_figure,
         )
-    ], style={'margin-left': '-50px'}),
+    ]),
 ])
