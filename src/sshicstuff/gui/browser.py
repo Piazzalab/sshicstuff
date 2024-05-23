@@ -1,12 +1,7 @@
 import re
 import os
 
-import dash
 import pandas as pd
-
-# plotly
-import plotly.graph_objs as go
-from plotly.subplots import make_subplots
 
 # dash
 from dash import callback
