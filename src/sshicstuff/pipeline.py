@@ -143,7 +143,9 @@ def full_pipeline(
     if plot:
         logger.info("Plot : Plot the 4C-like 0kb profile")
         for profile in profile_types:
+            logger.info(f"Plotting {profile}")
             for r in [True, False]:
+                logger.info(f"Rescale : {r}")
                 sshic.plot_profiles(
                     profile_contacts_path=join(output_dir, profile),
                     oligo_capture_path=oligo_capture_with_frag,
@@ -185,7 +187,9 @@ def full_pipeline(
         if plot:
             logger.info(f"Plot : Plot the 4C-like {bin_suffix} profile")
             for profile in profile_types:
+                logger.info(f"Plotting {profile}")
                 for r in [True, False]:
+                    logger.info(f"Rescale : {r}")
                     sshic.plot_profiles(
                         profile_contacts_path=join(output_dir, profile.replace("0kb", bin_suffix)),
                         oligo_capture_path=oligo_capture_with_frag,

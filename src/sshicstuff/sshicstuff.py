@@ -996,9 +996,6 @@ def plot_profiles(
     if 'frequencies' in profile_contacts_path:
         profile_type = 'frequencies'
 
-    logger.info(f"Plotting {profile_type} profiles.")
-    logger.info(f"Rescale: {rescale}")
-
     b = re.search(r'_(\d+)kb_profile_', profile_contacts_path).group(1)
     if b == 0:
         binsize = 0
