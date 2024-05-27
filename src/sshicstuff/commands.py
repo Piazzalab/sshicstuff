@@ -519,7 +519,7 @@ class Pipeline(AbstractCommand):
     usage:
         pipeline -c OLIGO_CAPTURE -C CHR_COORD -f FRAGMENTS -m SPARSE_MATRIX
         [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I] [-L]
-        [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-P] [-r CIS_RANGE]
+        [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-r CIS_RANGE]
         [--window-size-cen WINDOW_SIZE_CEN] [--window-size-telo WINDOW_SIZE_TELO]
         [--binning-aggregate-cen BIN_CEN] [--binning-aggregate-telo BIN_TELO]
         [--copy-inputs]
@@ -560,8 +560,6 @@ class Pipeline(AbstractCommand):
                                                             [default: False]
 
         -o OUTPUT, --output OUTPUT                          Desired output directory
-
-        -P, --plot                                          Plot the profiles after the pipeline [default: False]
 
         -r CIS_RANGE, --cis-range CIS_RANGE                 Cis range to be considered around the probe
                                                             [default: 50000]
@@ -613,6 +611,5 @@ class Pipeline(AbstractCommand):
             inter_chr_only=self.args["--inter"],
             copy_inputs=self.args["--copy-inputs"],
             force=self.args["--force"],
-            normalize=self.args["--normalize"],
-            plot=self.args["--plot"]
+            normalize=self.args["--normalize"]
         )

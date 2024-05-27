@@ -21,7 +21,7 @@ python3 -m sshicstuff.main pipeline
 -a /home/nicolas/Documents/projects/sshicstuff/test_data/additional_probe_groups.tsv
 -b 1000 -b 2000 -b 5000 -b 10000
 -E chr2 -E chr3 -E 2_micron -E mitochondrion -E chr_artificial_donor -E chr_artificial_ssDNA
--F -I -L -N -P
+-F -I -L -N
 -n 2
 -o /home/nicolas/Documents/projects/sshicstuff/test_data/AD162-TEST-PIPELINE
 --binning-aggregate-cen 10000
@@ -52,7 +52,6 @@ def full_pipeline(
         copy_inputs: bool = True,
         force: bool = False,
         normalize: bool = False,
-        plot: bool = False
 ):
 
     # Files and path alias names
@@ -139,22 +138,6 @@ def full_pipeline(
         additional_groups_path=additional_groups
     )
 
-    profile_types = [profile_0kb_contacts_name, profile_0kb_frequencies_name]
-    if plot:
-        logger.info("Plot : Plot the 4C-like 0kb profile")
-        for profile in profile_types:
-            logger.info(f"Plotting {profile}")
-            for r in [True, False]:
-                logger.info(f"Rescale : {r}")
-                sshic.plot_profiles(
-                    profile_contacts_path=join(output_dir, profile),
-                    oligo_capture_path=oligo_capture_with_frag,
-                    chr_coord_path=chr_coordinates,
-                    output_dir=output_dir,
-                    exclude_chromosomes=excluded_chr,
-                    rescale=r
-                )
-
     logger.info("Stats : Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...)")
     sshic.get_stats(
         contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
@@ -183,21 +166,6 @@ def full_pipeline(
             bin_size=bn,
             force=force
         )
-
-        if plot:
-            logger.info(f"Plot : Plot the 4C-like {bin_suffix} profile")
-            for profile in profile_types:
-                logger.info(f"Plotting {profile}")
-                for r in [True, False]:
-                    logger.info(f"Rescale : {r}")
-                    sshic.plot_profiles(
-                        profile_contacts_path=join(output_dir, profile.replace("0kb", bin_suffix)),
-                        oligo_capture_path=oligo_capture_with_frag,
-                        chr_coord_path=chr_coordinates,
-                        output_dir=output_dir,
-                        exclude_chromosomes=excluded_chr,
-                        rescale=r
-                    )
 
     logger.info("Aggregate : Aggregate all 4C-like profiles on centromeric regions")
 
