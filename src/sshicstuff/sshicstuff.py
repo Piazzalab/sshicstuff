@@ -11,7 +11,6 @@ import sshicstuff.utils as utils
 import sshicstuff.log as log
 import sshicstuff.gui.graph as graph
 from sshicstuff.gui.common import chr_to_exclude
-from sshicstuff.gui.colors import colors_hex, colors_rgba, chr_colors
 
 
 logger = log.logger
@@ -1026,9 +1025,9 @@ def plot_profiles(
     df_coords = pd.read_csv(chr_coord_path, sep='\t')
 
     if not exclude_chromosomes:
-        exclude_chromosomes = graph.chr_to_exclude
+        exclude_chromosomes = chr_to_exclude
     else:
-        exclude_chromosomes = list(set(exclude_chromosomes) | set(graph.chr_to_exclude))
+        exclude_chromosomes = list(set(exclude_chromosomes) | set(chr_to_exclude))
 
     df = df[~df['chr'].isin(exclude_chromosomes)]
     df_coords = df_coords[~df_coords['chr'].isin(exclude_chromosomes)]
