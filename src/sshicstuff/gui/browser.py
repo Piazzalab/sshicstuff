@@ -23,10 +23,17 @@ if not os.path.exists(TEMPORARY_DIRECTORY):
     
 
 @callback(
-    Output('slider-output-container', 'children'),
+    Output('binning-slider-output-container', 'children'),
     [Input('binning-slider', 'value')])
 def update_output(value):
     return f'Binning resolution : {value} kb'
+
+
+@callback(
+    Output('window-slider-output-container', 'children'),
+    [Input('window-slider', 'value')])
+def update_output(value):
+    return f'Smoothing window : {value}'
 
 
 @callback(

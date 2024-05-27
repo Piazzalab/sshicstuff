@@ -40,20 +40,19 @@ layout = dbc.Container([
     dbc.Row([
         # Input files dropdown COLUMN
         dbc.Col([
-            html.H6('Input files dropdown'),
             dbc.Row([
                 dcc.Dropdown(
                     id='oligo-dropdown',
                     placeholder="Select capture oligos file",
                     multi=False),
-            ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+            ], style={'margin-top': '25px'}),
 
             dbc.Row([
                 dcc.Dropdown(
                     id='coord-dropdown',
                     placeholder="Select chr. coordinates file",
                     multi=False),
-            ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+            ], style={'margin-top': '25px'}),
 
             dbc.Row([
                 dcc.Dropdown(
@@ -61,7 +60,7 @@ layout = dbc.Container([
                     placeholder="Select sample file",
                     multi=False
                 ),
-            ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
+            ], style={'margin-top': '25px'}),
 
             dbc.Row([
                 dcc.Dropdown(
@@ -69,14 +68,14 @@ layout = dbc.Container([
                     placeholder="Select probe(s) or group of probes",
                     multi=True
                 ),
-            ], style={'margin-top': '10px', 'margin-bottom': '20px'}),
-        ], width=6),
+            ], style={'margin-top': '25px'}),
+        ], width=6, style={'margin-top': '20px'}),
 
         # Region & binning settings COLUMN
         dbc.Col([
             dbc.Row([
                 html.Div(
-                    id='slider-output-container', style={'font-size': '14px', 'margin-bottom': '10px'}),
+                    id='binning-slider-output-container', style={'font-size': '14px', 'margin-bottom': '10px'}),
                 dcc.Slider(
                     id='binning-slider',
                     min=0,
@@ -86,7 +85,22 @@ layout = dbc.Container([
                     marks={i: str(i) for i in range(0, 101, 10)},
                     included=False,
                 ),
-            ]),
+            ], style={'margin-top': '20px'}),
+
+            dbc.Row([
+                html.Div(
+                    id='window-slider-output-container', style={'font-size': '14px', 'margin-bottom': '10px'}),
+                dcc.Slider(
+                    id='window-slider',
+                    min=1,
+                    max=20,
+                    step=1,
+                    value=1,
+                    marks={1: '1'} | {i: str(i) for i in range(2, 21, 2)},
+                    included=False,
+                ),
+            ], style={'margin-top': '20px'}),
+
 
             dbc.Row([
                 dbc.Label("Region", style={'font-size': '14px', 'margin-top': '20px'}),
@@ -167,7 +181,7 @@ layout = dbc.Container([
                 label='log-scale',
             ),
         ], width=1, style={'margin-top': '10px', 'margin-bottom': '10px', 'margin-left': '20px'}),
-    ]),
+    ], style={'margin-top': '30px'}),
 
     dbc.Row([
         dcc.Graph(
