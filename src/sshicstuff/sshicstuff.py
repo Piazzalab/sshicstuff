@@ -4,8 +4,16 @@ import subprocess
 import numpy as np
 import pandas as pd
 
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
+
 import sshicstuff.utils as utils
 import sshicstuff.log as log
+import sshicstuff.gui.graph as graph
+from sshicstuff.gui.common import chr_to_exclude
+from sshicstuff.gui.colors import colors_hex, colors_rgba, chr_colors
+
+
 logger = log.logger
 
 #   Set as None to avoid SettingWithCopyWarning
@@ -933,7 +941,6 @@ def hic_only(
     logger.info(f"Hi-C only contacts saved to {output_path}")
 
 
-
 def oligo_correction(oligo_path):
     delim = "," if oligo_path.endswith(".csv") else "\t"
     oligo = pd.read_csv(oligo_path, sep=delim)
@@ -971,6 +978,159 @@ def oligo_fragments_joining(fragments: pd.DataFrame, oligo: pd.DataFrame) -> pd.
     oligo_fragments = fragments.merge(oligo, on=['chr', 'start'])
     oligo_fragments.sort_values(by=['chr', 'start'])
     return oligo_fragments
+
+
+def plot_profiles(
+        profile_contacts_path: str,
+        oligo_capture_path: str,
+        chr_coord_path: str,
+        output_dir: str = None,
+        exclude_chromosomes: list[str] = None,
+        rescale: bool = False,
+        user_y_max: float = None,
+        width: int = 1200,
+        height: int = 600
+):
+
+    profile_type = 'contacts'
+    if 'frequencies' in profile_contacts_path:
+        profile_type = 'frequencies'
+
+    logger.info(f"Plotting {profile_type} profiles.")
+    logger.info(f"Rescale: {rescale}")
+
+    b = re.search(r'_(\d+)kb_profile_', profile_contacts_path).group(1)
+    if b == 0:
+        binsize = 0
+        bin_suffix = "0kb"
+    else:
+        binsize = int(b) * 1000  # kb to bp
+        bin_suffix = f"{b}kb"
+
+    df: pd.DataFrame = pd.read_csv(profile_contacts_path, sep='\t')
+    samp_name = os.path.basename(profile_contacts_path).split('.')[0]
+    frags_col = df.filter(regex='^\d+$|^\$').columns.to_list()
+
+    # Create the output directory
+    if not output_dir:
+        output_dir = os.path.dirname(profile_contacts_path)
+
+    output_dir = os.path.join(output_dir, "plots")
+    output_dir = os.path.join(output_dir, bin_suffix)
+    if rescale:
+        output_dir = os.path.join(output_dir, "rescaled")
+    else:
+        output_dir = os.path.join(output_dir, "raw")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=',')
+    probes_to_frag = dict(zip(df_oligo['fragment'].astype(str), df_oligo['name'].astype(str)))
+    df_coords = pd.read_csv(chr_coord_path, sep='\t')
+
+    if not exclude_chromosomes:
+        exclude_chromosomes = graph.chr_to_exclude
+    else:
+        exclude_chromosomes = list(set(exclude_chromosomes) | set(graph.chr_to_exclude))
+
+    df = df[~df['chr'].isin(exclude_chromosomes)]
+    df_coords = df_coords[~df_coords['chr'].isin(exclude_chromosomes)]
+
+    chr_list = df.chr.values
+    chr_list_unique = pd.unique(df.chr)
+    n_chr = len(chr_list_unique)
+
+    df_coords = df_coords[["chr", "length"]]
+    df_coords["chr_start"] = df_coords["length"].shift().fillna(0).astype("int64")
+    df_coords["cumu_start"] = df_coords["chr_start"].cumsum()
+    full_genome_size = df_coords.loc[n_chr - 1, 'cumu_start'] + df_coords.loc[n_chr - 1, 'length']
+
+    x_min = 0.
+    x_max = full_genome_size
+    x_col = "genome_start"
+    if binsize > 0:
+        x_max = x_max // binsize * binsize + binsize
+        x_col = "genome_bins"
+
+    y_min = 0.
+    y_max = user_y_max if user_y_max else df[frags_col].max().max()
+
+    rescale_output = ""
+    if rescale:
+        data = df[frags_col].values
+        new_data, y_max, y_min, rescale_output = graph.transform_data(data, y_max, user_y_max, y_min)
+        df[frags_col] = new_data
+
+    # Make the genome color bar per chromosome
+    df_10kb_tmp = graph.build_bins_template(df_coords=df_coords, bin_size=10000)
+    colorbar, chr_ticks_pos = graph.colorbar_maker(df_10kb_tmp)
+
+    for ii_f, frag in enumerate(frags_col):
+        fig = make_subplots(
+            rows=2, cols=1, row_heights=[0.94, 0.06], vertical_spacing=0.06,
+            specs=[[{'type': 'scatter'}], [{'type': 'bar'}]]
+        )
+
+        if frag in probes_to_frag:
+            probe = probes_to_frag[frag]
+            output_name = f"{frag}_{probe}_{profile_type}_{bin_suffix}"
+        else:
+            probe = ""
+            output_name = f"{frag}_{profile_type}_{bin_suffix}"
+
+        if rescale:
+            output_name += f"_{rescale_output}"
+        output_name += ".png"
+
+        output_path = os.path.join(output_dir, output_name)
+
+        fig.add_trace(
+            go.Scatter(
+                x=df[x_col],
+                y=df[frag],
+                mode='lines',
+                line=dict(width=1, color=graph.colors_rgba[ii_f]),
+                marker=dict(size=4),
+                showlegend=False
+            ),
+            row=1, col=1
+        )
+
+        fig.add_trace(colorbar, row=2, col=1)
+        title = f" {samp_name} <br> {frag} - {probe}"
+        fig.update_layout(
+            title=title,
+            xaxis=dict(
+                title=dict(text="Genomic coordinates", standoff=80),
+                range=[x_min, x_max]
+            ),
+            xaxis2=dict(
+                tickmode='array',
+                tickvals=chr_ticks_pos,
+                ticktext=df['chr'].unique(),
+                tickfont=dict(size=12),
+            ),
+            yaxis=dict(
+                title=f"{profile_type.capitalize()} - {rescale_output}",
+            ),
+            yaxis2=dict(
+                showticklabels=False,
+            ),
+
+            xaxis_showgrid=False,
+            yaxis_showgrid=False,
+            xaxis_type='linear',
+            xaxis_tickformat="d",
+            xaxis_range=[x_min, x_max],
+            yaxis_range=[y_min, y_max],
+            hovermode='closest',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=width,
+            height=height,
+        )
+
+        fig.write_image(output_path, format="png", scale=0.96)
 
 
 def profile_contacts(
@@ -1173,7 +1333,7 @@ def rebin_profile(
     df_cross_bins_a["chr_bins"] = df_cross_bins["start_bin"]
     df_cross_bins_b["chr_bins"] = df_cross_bins["end_bin"]
 
-    fragments_columns = df.filter(regex='^\d+$').columns.to_list()
+    fragments_columns = df.filter(regex='^\d+$|^\$').columns.to_list()
 
     correction_factors = (df_cross_bins_b["end"] - df_cross_bins_b["chr_bins"]) / df_cross_bins_b["sizes"]
     for c in fragments_columns:

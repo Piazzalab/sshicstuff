@@ -197,6 +197,7 @@ class Filter(AbstractCommand):
             force=self.args["--force"]
         )
 
+
 class Coverage(AbstractCommand):
     """
     Calculate the coverage per fragment and save the result to a bedgraph.
@@ -448,6 +449,60 @@ class View(AbstractCommand):
         app.run_server(debug=True)
 
 
+class Plot(AbstractCommand):
+    """
+    Plot a 4-C like profile.
+
+    usage:
+        plot -p PROFILE [-c OLIGO_CAPTURE] [-C CHR_COORD] [-E CHRS...]
+        [-h HEIGHT] [-o OUTPUT] [-R] [-w WIDTH] [-y YMAX]
+
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture CSV file
+
+        -C CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file
+
+        -p PROFILE, --profile PROFILE                       Path to the profile file (mandatory)
+
+
+
+    Options:
+
+        -E CHRS, --exclude=CHRS             Exclude the chromosome(s)
+
+        -h HEIGHT, --height HEIGHT          Height of the plot
+
+        -o OUTPUT, --output OUTPUT          Desired output directory
+
+        -R, --rescale                       Rescale the y-axis of the plot (log or sqrt)
+                                            according the nature of the data (contacts vs frequencies)
+
+        -w WIDTH, --width WIDTH             Width of the plot
+
+        -y YMAX, --ymax YMAX               Maximum value of the y-axis
+
+    """
+
+    def execute(self):
+        check_exists(
+            self.args["--profile"],
+            self.args["--chr-coord"],
+            self.args["--oligo-capture"]
+        )
+
+        sshic.plot_profiles(
+            profile_contacts_path=self.args["--profile"],
+            chr_coord_path=self.args["--chr-coord"],
+            oligo_capture_path=self.args["--oligo-capture"],
+            output_dir=self.args["--output"],
+            exclude_chromosomes=self.args["--exclude"],
+            rescale=self.args["--rescale"],
+            user_y_max=self.args["--ymax"],
+            width=int(self.args["--width"]),
+            height=int(self.args["--height"])
+        )
+
+
 class Pipeline(AbstractCommand):
 
     """
@@ -464,7 +519,7 @@ class Pipeline(AbstractCommand):
     usage:
         pipeline -c OLIGO_CAPTURE -C CHR_COORD -f FRAGMENTS -m SPARSE_MATRIX
         [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I] [-L]
-        [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-r CIS_RANGE]
+        [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-P] [-r CIS_RANGE]
         [--window-size-cen WINDOW_SIZE_CEN] [--window-size-telo WINDOW_SIZE_TELO]
         [--binning-aggregate-cen BIN_CEN] [--binning-aggregate-telo BIN_TELO]
         [--copy-inputs]
@@ -505,6 +560,8 @@ class Pipeline(AbstractCommand):
                                                             [default: False]
 
         -o OUTPUT, --output OUTPUT                          Desired output directory
+
+        -P, --plot                                          Plot the profiles after the pipeline [default: False]
 
         -r CIS_RANGE, --cis-range CIS_RANGE                 Cis range to be considered around the probe
                                                             [default: 50000]
@@ -556,5 +613,6 @@ class Pipeline(AbstractCommand):
             inter_chr_only=self.args["--inter"],
             copy_inputs=self.args["--copy-inputs"],
             force=self.args["--force"],
-            normalize=self.args["--normalize"]
+            normalize=self.args["--normalize"],
+            plot=self.args["--plot"]
         )

@@ -28,8 +28,10 @@ The subcommands are:
     compare             Compare the capture efficiency of a sample with that of a wild type
                         (may be another sample).
     aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
-    pipeline            Run the entire pipeline from filtering to aggregation.
+    plot                Plot a 4C-like profile.
     view                Open a graphical user interface to visualize 4-C like profile
+    pipeline            Run the entire pipeline from filtering to aggregation.
+
 """
 
 from docopt import docopt
