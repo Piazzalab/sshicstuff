@@ -162,14 +162,10 @@ layout = dbc.Container([
 
         dbc.Col([
             daq.BooleanSwitch(
-                id='re-scale-switch',
+                id='log-scale-switch',
                 on=False,
-                label='Re-scale',
-
+                label='log-scale',
             ),
-            html.Div(id='re-scale-output',
-                     style={'margin-top': '10px', 'margin-left': '20px', 'font-size': '12px'}),
-
         ], width=1, style={'margin-top': '10px', 'margin-bottom': '10px', 'margin-left': '20px'}),
     ]),
 

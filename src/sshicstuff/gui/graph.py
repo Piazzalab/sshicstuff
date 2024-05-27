@@ -5,7 +5,6 @@ import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
 from sshicstuff.gui.common import sort_by_chr
-from sshicstuff.gui.common import chr_to_exclude
 from sshicstuff.gui.colors import colors_hex, colors_rgba, chr_colors
 
 
@@ -14,23 +13,6 @@ from sshicstuff.gui.colors import colors_hex, colors_rgba, chr_colors
      METHODS
 ###################
 """
-
-
-def transform_data(data: np.array, y_max: float, user_y_max: float, y_min: float):
-    if data.max().max() <= 1.:
-        # squared root transformation
-        new_data = np.sqrt(data + 1e-8)
-        y_max = np.sqrt(y_max) if not user_y_max else user_y_max
-        y_min = np.sqrt(y_min) if y_min > 0 else 0
-        re_scale_output = "sqrt"
-    else:
-        # log transformation
-        new_data = np.log(data + 1)
-        y_max = np.log(y_max) if not user_y_max else user_y_max
-        y_min = 0
-        re_scale_output = "log"
-
-    return new_data, y_max, y_min, re_scale_output
 
 
 def build_bins_template(df_coords: pd.DataFrame, bin_size: int) -> pd.DataFrame:
@@ -127,14 +109,13 @@ def colorbar_maker(df_bins: pd.DataFrame):
 
 
 def figure_maker(
-        relayout_data: dict,
         binsize: int,
         df_coords: pd.DataFrame,
         df: pd.DataFrame,
         sample_name: str,
         probes: list,
         chr_region: str,
-        rescale: bool,
+        log_scale: bool,
         user_x_min: str,
         user_x_max: str,
         user_y_min: str,
@@ -180,10 +161,12 @@ def figure_maker(
     y_min = float(user_y_min) if user_y_min else 0.
     y_max = float(user_y_max) if user_y_max else df[probes].max().max()
 
-    rescale_output = ""
-    if rescale:
+    if log_scale:
         data = df[probes].values
-        new_data, y_max, y_min, rescale_output = transform_data(data, y_max, user_y_max, y_min)
+        data[data == 0] = np.nan
+        new_data = np.log10(data)
+        y_max = np.log10(new_data.max().max()) if not user_y_max else float(user_y_max)
+        y_min = np.log10(new_data.min().min()) if not user_y_min else float(user_y_min)
         df[probes] = new_data
 
     # Making the figure(s)
@@ -214,6 +197,7 @@ def figure_maker(
             ),
             xaxis_type='linear',
             xaxis_tickformat="d",
+            yaxis_format="e" if log_scale else "d",
             plot_bgcolor='white',
             paper_bgcolor='white',
             width=width,
@@ -269,6 +253,7 @@ def figure_maker(
                 yaxis_showgrid=False,
                 xaxis_type='linear',
                 xaxis_tickformat="d",
+                yaxis_tickformat=".2e" if log_scale else "d",
                 xaxis_range=[x_min, x_max],
                 yaxis_range=[y_min, y_max],
                 hovermode='closest',
@@ -278,4 +263,4 @@ def figure_maker(
                 height=height,
             )
 
-    return fig, rescale_output
+    return fig

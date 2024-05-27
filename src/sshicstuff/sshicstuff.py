@@ -1055,7 +1055,10 @@ def plot_profiles(
     rescale_output = ""
     if rescale:
         data = df[frags_col].values
-        new_data, y_max, y_min, rescale_output = graph.transform_data(data, y_max, user_y_max, y_min)
+        data[data == 0] = np.nan
+        new_data = np.log10(data)
+        y_max = np.log10(new_data.max().max()) if not user_y_max else float(user_y_max)
+        y_min = np.log10(new_data.min().min())
         df[frags_col] = new_data
 
     # Make the genome color bar per chromosome
