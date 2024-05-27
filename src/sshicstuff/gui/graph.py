@@ -5,9 +5,15 @@ import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
 from sshicstuff.gui.common import sort_by_chr
-from sshicstuff.gui.common import chr_colors
-from sshicstuff.gui.common import colors_hex
-from sshicstuff.gui.common import colors_rgba
+from sshicstuff.gui.common import chr_to_exclude
+from sshicstuff.gui.colors import colors_hex, colors_rgba, chr_colors
+
+
+"""
+###################
+     METHODS
+###################
+"""
 
 
 def transform_data(data: np.array, y_max: float, user_y_max: float, y_min: float):
@@ -65,7 +71,7 @@ def rebin_live(df: pd.DataFrame, df_template: pd.DataFrame, bin_size: int):
     df_cross_bins_a["chr_bins"] = df_cross_bins["start_bin"]
     df_cross_bins_b["chr_bins"] = df_cross_bins["end_bin"]
 
-    fragments_columns = df.filter(regex='^\d+$').columns.to_list()
+    fragments_columns = df.filter(regex='^\d+$|^\$').columns.to_list()
 
     correction_factors = (df_cross_bins_b["end"] - df_cross_bins_b["chr_bins"]) / df_cross_bins_b["sizes"]
     for c in fragments_columns:
@@ -171,7 +177,7 @@ def figure_maker(
         df_bins = df_bins[(df_bins['chr_bins'] >= x_min) & (df_bins['chr_bins'] <= x_max)]
         df = rebin_live(df, df_bins, binsize)
 
-    y_min = float(user_y_min) if user_y_min else 0
+    y_min = float(user_y_min) if user_y_min else 0.
     y_max = float(user_y_max) if user_y_max else df[probes].max().max()
 
     rescale_output = ""
