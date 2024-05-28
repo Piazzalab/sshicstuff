@@ -118,6 +118,7 @@ def update_probes_dropdown(oligo_value, sample_value):
     Output('graph', 'figure'),
     Input('plot-button', 'n_clicks'),
     [State('binning-slider', 'value'),
+     State('window-slider', 'value'),
      State('coord-dropdown', 'value'),
      State('samples-dropdown', 'value'),
      State('probes-dropdown', 'value'),
@@ -133,6 +134,7 @@ def update_probes_dropdown(oligo_value, sample_value):
 def update_graph(
         n_clicks,
         binning_value,
+        rolling_value,
         coords_value,
         samples_value,
         probes_value,
@@ -172,6 +174,7 @@ def update_graph(
 
     figure = graph.figure_maker(
         binsize=binsize,
+        rolling_window=rolling_value,
         df_coords=df_coords,
         df=df,
         sample_name=sample_name,

@@ -110,6 +110,7 @@ def colorbar_maker(df_bins: pd.DataFrame):
 
 def figure_maker(
         binsize: int,
+        rolling_window: int,
         df_coords: pd.DataFrame,
         df: pd.DataFrame,
         sample_name: str,
@@ -157,6 +158,11 @@ def figure_maker(
         x_max = x_max // binsize * binsize + binsize
         df_bins = df_bins[(df_bins['chr_bins'] >= x_min) & (df_bins['chr_bins'] <= x_max)]
         df = rebin_live(df, df_bins, binsize)
+
+        if rolling_window > 1:
+            for chr_ in chr_list_unique:
+                df.loc[df['chr'] == chr_, probes] = (
+                    df.loc[df['chr'] == chr_, probes].rolling(window=rolling_window, min_periods=1).mean())
 
     y_min = float(user_y_min) if user_y_min else 0.
     y_max = float(user_y_max) if user_y_max else df[probes].max().max()
