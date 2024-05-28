@@ -454,32 +454,35 @@ class Plot(AbstractCommand):
     Plot a 4-C like profile.
 
     usage:
-        plot -p PROFILE [-c OLIGO_CAPTURE] [-C CHR_COORD] [-E CHRS...]
-        [-h HEIGHT] [-o OUTPUT] [-R] [-w WIDTH] [-y YMAX]
+        plot -p PROFILE -c OLIGO_CAPTURE -C CHR_COORD [-E CHRS...]
+        [-h HEIGHT] [-L] [-o OUTPUT] [-r ROLLING_WINDOW] [-w WIDTH] [-y YMIN] [-Y YMAX]
 
     Arguments:
-        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture CSV file
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE             Path to the oligo capture CSV file
 
-        -C CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file
+        -C CHR_COORD, --chr-coord CHR_COORD                         Path to the chromosome coordinates file
 
-        -p PROFILE, --profile PROFILE                       Path to the profile file (mandatory)
+        -p PROFILE, --profile PROFILE                               Path to the profile file (mandatory)
 
 
 
     Options:
 
-        -E CHRS, --exclude=CHRS             Exclude the chromosome(s)
+        -E CHRS, --exclude=CHRS                                     Exclude the chromosome(s)
 
-        -h HEIGHT, --height HEIGHT          Height of the plot
+        -h HEIGHT, --height HEIGHT                                  Height of the plot
 
-        -o OUTPUT, --output OUTPUT          Desired output directory
+        -L, --log                                                   Rescale the y-axis of the plot with np.log
 
-        -R, --rescale                       Rescale the y-axis of the plot (log or sqrt)
-                                            according the nature of the data (contacts vs frequencies)
+        -o OUTPUT, --output OUTPUT                                  Desired output directory
 
-        -w WIDTH, --width WIDTH             Width of the plot
+        -r ROLLING_WINDOW, --rolling-window  ROLLING_WINDOW         Apply a rolling window to the profile
 
-        -y YMAX, --ymax YMAX               Maximum value of the y-axis
+        -w WIDTH, --width WIDTH                                     Width of the plot
+
+        -y YMIN, --ymin YMIN                                        Maximum value of the y-axis
+
+        -Y YMAX, --ymax YMAX                                        Maximum value of the y-axis
 
     """
 
@@ -490,13 +493,16 @@ class Plot(AbstractCommand):
             self.args["--oligo-capture"]
         )
 
+        rolling_window = 1 if not self.args["--rolling-window"] else int(self.args["--rolling-window"])
         sshic.plot_profiles(
             profile_contacts_path=self.args["--profile"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_path=self.args["--oligo-capture"],
             output_dir=self.args["--output"],
+            rolling_window=rolling_window,
             exclude_chromosomes=self.args["--exclude"],
-            rescale=self.args["--rescale"],
+            log_scale=self.args["--log"],
+            user_y_min=self.args["--ymin"],
             user_y_max=self.args["--ymax"],
             width=int(self.args["--width"]),
             height=int(self.args["--height"])

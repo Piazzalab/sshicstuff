@@ -984,8 +984,10 @@ def plot_profiles(
         oligo_capture_path: str,
         chr_coord_path: str,
         output_dir: str = None,
+        rolling_window: int = 1,
         exclude_chromosomes: list[str] = None,
-        rescale: bool = False,
+        log_scale: bool = False,
+        user_y_min: float = None,
         user_y_max: float = None,
         width: int = 1200,
         height: int = 600
@@ -1004,7 +1006,7 @@ def plot_profiles(
         bin_suffix = f"{b}kb"
 
     df: pd.DataFrame = pd.read_csv(profile_contacts_path, sep='\t')
-    samp_name = os.path.basename(profile_contacts_path).split('.')[0]
+    sample_name = os.path.basename(profile_contacts_path).split('_0kb_')[0]
     frags_col = df.filter(regex='^\d+$|^\$').columns.to_list()
 
     # Create the output directory
@@ -1013,8 +1015,8 @@ def plot_profiles(
 
     output_dir = os.path.join(output_dir, "plots")
     output_dir = os.path.join(output_dir, bin_suffix)
-    if rescale:
-        output_dir = os.path.join(output_dir, "rescaled")
+    if log_scale:
+        output_dir = os.path.join(output_dir, "log")
     else:
         output_dir = os.path.join(output_dir, "raw")
     if not os.path.exists(output_dir):
@@ -1042,46 +1044,36 @@ def plot_profiles(
     full_genome_size = df_coords.loc[n_chr - 1, 'cumu_start'] + df_coords.loc[n_chr - 1, 'length']
 
     x_min = 0.
-    x_max = full_genome_size
-    x_col = "genome_start"
-    if binsize > 0:
-        x_max = x_max // binsize * binsize + binsize
-        x_col = "genome_bins"
+    x_max = full_genome_size if binsize == 0 else full_genome_size // binsize * binsize + binsize
+    y_min = float(user_y_min) if user_y_min else df[frags_col].min().min()
+    y_max = float(user_y_max) if user_y_max else df[frags_col].max().max()
+    x_col = "genome_start" if binsize == 0 else "genome_bins"
 
-    y_min = 0.
-    y_max = user_y_max if user_y_max else df[frags_col].max().max()
+    if rolling_window > 1:
+        for chr_ in chr_list_unique:
+            df.loc[df['chr'] == chr_, frags_col] = (
+                df.loc[df['chr'] == chr_, frags_col].rolling(window=rolling_window, min_periods=1).mean())
 
-    rescale_output = ""
-    if rescale:
+    if log_scale:
         data = df[frags_col].values
         data[data == 0] = np.nan
         new_data = np.log10(data)
         y_max = np.log10(new_data.max().max()) if not user_y_max else float(user_y_max)
-        y_min = np.log10(new_data.min().min())
+        y_min = np.log10(new_data.min().min()) if not user_y_min else float(user_y_min)
         df[frags_col] = new_data
 
-    # Make the genome color bar per chromosome
     df_10kb_tmp = graph.build_bins_template(df_coords=df_coords, bin_size=10000)
     colorbar, chr_ticks_pos = graph.colorbar_maker(df_10kb_tmp)
 
+    # plot for each prob or group of probes
     for ii_f, frag in enumerate(frags_col):
+        probe = probes_to_frag.get(frag, "")
+        output_path = os.path.join(output_dir, f"{frag}_{probe}_{profile_type}_0kb.png")
+
         fig = make_subplots(
             rows=2, cols=1, row_heights=[0.94, 0.06], vertical_spacing=0.06,
             specs=[[{'type': 'scatter'}], [{'type': 'bar'}]]
         )
-
-        if frag in probes_to_frag:
-            probe = probes_to_frag[frag]
-            output_name = f"{frag}_{probe}_{profile_type}_{bin_suffix}"
-        else:
-            probe = ""
-            output_name = f"{frag}_{profile_type}_{bin_suffix}"
-
-        if rescale:
-            output_name += f"_{rescale_output}"
-        output_name += ".png"
-
-        output_path = os.path.join(output_dir, output_name)
 
         fig.add_trace(
             go.Scatter(
@@ -1096,7 +1088,7 @@ def plot_profiles(
         )
 
         fig.add_trace(colorbar, row=2, col=1)
-        title = f" {samp_name} <br> {frag} - {probe}"
+        title = f" {sample_name} <br> {frag} - {probe}"
         fig.update_layout(
             title=title,
             xaxis=dict(
@@ -1110,7 +1102,7 @@ def plot_profiles(
                 tickfont=dict(size=12),
             ),
             yaxis=dict(
-                title=f"{profile_type.capitalize()} - {rescale_output}",
+                title=f"{profile_type.capitalize()} - {'log' if log else ''}",
             ),
             yaxis2=dict(
                 showticklabels=False,
@@ -1120,6 +1112,7 @@ def plot_profiles(
             yaxis_showgrid=False,
             xaxis_type='linear',
             xaxis_tickformat="d",
+            yaxis_tickformat='%.4e' if log_scale else '%.4d',
             xaxis_range=[x_min, x_max],
             yaxis_range=[y_min, y_max],
             hovermode='closest',
