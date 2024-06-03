@@ -1062,7 +1062,7 @@ def plot_profiles(
     # plot for each prob or group of probes
     for ii_f, frag in enumerate(frags_col):
         probe = probes_to_frag.get(frag, "")
-        output_path = os.path.join(output_dir, f"{frag}_{probe}_{profile_type}_0kb.png")
+        output_path = os.path.join(output_dir, f"{frag}_{probe}_{profile_type}_0kb.pdf")
 
         fig = make_subplots(
             rows=2, cols=1, row_heights=[0.94, 0.06], vertical_spacing=0.06,
@@ -1082,7 +1082,7 @@ def plot_profiles(
         )
 
         fig.add_trace(colorbar, row=2, col=1)
-        title = f" {sample_name} <br> {frag} - {probe}"
+        title = f" {sample_name} <br> {frag} {'- ' + probe}"
         fig.update_layout(
             title=title,
             xaxis=dict(
@@ -1096,7 +1096,7 @@ def plot_profiles(
                 tickfont=dict(size=12),
             ),
             yaxis=dict(
-                title=f"{profile_type.capitalize()} - {'log' if log else ''}",
+                title=f"{profile_type.capitalize()}{' - log' if log_scale else ''}",
             ),
             yaxis2=dict(
                 showticklabels=False,
@@ -1116,7 +1116,7 @@ def plot_profiles(
             height=height,
         )
 
-        fig.write_image(output_path, format="png", scale=0.96)
+        fig.write_image(output_path, format="pdf", scale=0.96)
 
 
 def profile_contacts(
