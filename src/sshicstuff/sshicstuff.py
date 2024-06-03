@@ -1052,9 +1052,12 @@ def plot_profiles(
         data = df[frags_col].values
         data[data == 0] = np.nan
         new_data = np.log10(data)
-        y_max = np.log10(new_data.max().max()) if not user_y_max else float(user_y_max)
-        y_min = np.log10(new_data.min().min()) if not user_y_min else float(user_y_min)
+        y_max = np.nanmin(new_data) if not user_y_max else float(user_y_max)
+        y_min = np.nanmax(new_data) if not user_y_min else float(user_y_min)
         df[frags_col] = new_data
+
+    y_ticks = np.linspace(y_min, y_max, 5)
+    y_tick_text = [f"{tick:.3f}" for tick in y_ticks]
 
     df_10kb_tmp = graph.build_bins_template(df_coords=df_coords, bin_size=10000)
     colorbar, chr_ticks_pos = graph.colorbar_maker(df_10kb_tmp)
@@ -1087,7 +1090,9 @@ def plot_profiles(
             title=title,
             xaxis=dict(
                 title=dict(text="Genomic coordinates", standoff=80),
-                range=[x_min, x_max]
+                tickformat='d',
+                range=[x_min, x_max],
+                showgrid=False,
             ),
             xaxis2=dict(
                 tickmode='array',
@@ -1097,6 +1102,10 @@ def plot_profiles(
             ),
             yaxis=dict(
                 title=f"{profile_type.capitalize()}{' - log' if log_scale else ''}",
+                tickvals=y_ticks,
+                ticktext=y_tick_text,
+                range=[y_min, y_max],
+                showgrid=False,
             ),
             yaxis2=dict(
                 showticklabels=False,

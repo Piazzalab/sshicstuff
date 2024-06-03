@@ -171,9 +171,12 @@ def figure_maker(
         data = df[probes].values
         data[data == 0] = np.nan
         new_data = np.log10(data)
-        y_max = np.log10(new_data.max().max()) if not user_y_max else float(user_y_max)
-        y_min = np.log10(new_data.min().min()) if not user_y_min else float(user_y_min)
+        y_max = np.nanmin(new_data) if not user_y_max else float(user_y_max)
+        y_min = np.nanmax(new_data) if not user_y_min else float(user_y_min)
         df[probes] = new_data
+
+    y_ticks = np.linspace(y_min, y_max, 5)
+    y_tick_text = [f"{tick:.3f}" for tick in y_ticks]
 
     # Making the figure(s)
     if chr_region:
@@ -195,11 +198,16 @@ def figure_maker(
             title=f"{sample_name}",
             xaxis=dict(
                 title=f"{chr_region} coordinates",
-                range=[x_min, x_max]
+                tickformat='d',
+                range=[x_min, x_max],
+                showgrid=False,
             ),
             yaxis=dict(
                 title="Contact frequency",
-                range=[y_min, y_max]
+                tickvals=y_ticks,
+                ticktext=y_tick_text,
+                range=[y_min, y_max],
+                showgrid=False,
             ),
             xaxis_type='linear',
             xaxis_tickformat="d",
@@ -240,7 +248,9 @@ def figure_maker(
                 title=f"{sample_name}",
                 xaxis=dict(
                     title=dict(text="Genomic coordinates", standoff=80),
-                    range=[x_min, x_max]
+                    tickformat='d',
+                    range=[x_min, x_max],
+                    showgrid=False,
                 ),
                 xaxis2=dict(
                     tickmode='array',
@@ -249,19 +259,16 @@ def figure_maker(
                     tickfont=dict(size=12),
                 ),
                 yaxis=dict(
-                    title="Contact frequency"
+                    title="Contact frequency",
+                    tickvals=y_ticks,
+                    ticktext=y_tick_text,
+                    range=[y_min, y_max],
+                    showgrid=False,
                 ),
                 yaxis2=dict(
                     showticklabels=False,
                 ),
-
-                xaxis_showgrid=False,
-                yaxis_showgrid=False,
                 xaxis_type='linear',
-                xaxis_tickformat="d",
-                yaxis_tickformat='%.4e' if log_scale else '%.4d',
-                xaxis_range=[x_min, x_max],
-                yaxis_range=[y_min, y_max],
                 hovermode='closest',
                 plot_bgcolor='white',
                 paper_bgcolor='white',
