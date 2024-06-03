@@ -4,8 +4,9 @@ import os
 import pandas as pd
 
 # dash
-from dash import callback
+from dash import callback, dcc
 from dash.dependencies import Input, Output, State
+import plotly.io as pio
 
 # common.py
 from sshicstuff.gui.common import TEMPORARY_DIRECTORY
@@ -191,4 +192,18 @@ def update_graph(
     )
 
     return figure
+
+
+@callback(
+    Output("download-figure-pdf", "data"),
+    Input("btn-figure-pdf", "n_clicks"),
+    [State("graph", "figure")],
+)
+def export_figure(n_clicks, figure):
+    if n_clicks is None or n_clicks == 0:
+        return
+
+    tmp_pdf = "figure.pdf"
+    pio.write_image(figure, tmp_pdf, format="pdf")
+    return dcc.send_file(tmp_pdf)
 

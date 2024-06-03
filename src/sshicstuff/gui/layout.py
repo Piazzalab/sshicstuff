@@ -195,4 +195,15 @@ layout = dbc.Container([
             figure=empty_figure,
         )
     ]),
+
+    dbc.Row([
+        dbc.Col([
+            html.Button(
+                id="btn-figure-pdf",
+                className="export-button",
+                children="Export to PDF",
+                style={'margin-top': '20px', 'margin-bottom': '40px'}),
+        ], width=2),
+        dcc.Download(id="download-figure-pdf"),
+    ]),
 ])
