@@ -18,9 +18,6 @@ VARIABLES TO IMPORT
 CWD = os.getcwd()
 TEMPORARY_DIRECTORY = join(CWD, "__cache__")
 
-chr_to_exclude = ["chr_artificial_donor", "chr_artificial_ssDNA"]
-
-
 empty_figure = go.Figure(
     layout=go.Layout(
         xaxis=dict(visible=False),

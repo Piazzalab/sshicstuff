@@ -10,7 +10,6 @@ from plotly.subplots import make_subplots
 import sshicstuff.utils as utils
 import sshicstuff.log as log
 import sshicstuff.gui.graph as graph
-from sshicstuff.gui.common import chr_to_exclude
 
 
 logger = log.logger
@@ -1025,11 +1024,6 @@ def plot_profiles(
     df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=',')
     probes_to_frag = dict(zip(df_oligo['fragment'].astype(str), df_oligo['name'].astype(str)))
     df_coords = pd.read_csv(chr_coord_path, sep='\t')
-
-    if not exclude_chromosomes:
-        exclude_chromosomes = chr_to_exclude
-    else:
-        exclude_chromosomes = list(set(exclude_chromosomes) | set(chr_to_exclude))
 
     df = df[~df['chr'].isin(exclude_chromosomes)]
     df_coords = df_coords[~df_coords['chr'].isin(exclude_chromosomes)]
