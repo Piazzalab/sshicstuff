@@ -202,7 +202,7 @@ def aggregate(
             continue
 
         df_chr_centros_pivot = df_grouped.pivot_table(index='chr_bins', columns='chr', values=col, fill_value=0)
-        df_chr_centros_pivot.to_csv(output_prefix + f"_{name}_per_chr.tsv", sep='\t', index=False)
+        df_chr_centros_pivot.to_csv(output_prefix + f"_{name}_per_chr.tsv", sep='\t')
 
 
 def associate_oligo_to_frag(
