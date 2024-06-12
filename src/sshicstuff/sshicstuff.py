@@ -85,7 +85,7 @@ def aggregate(
     df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=oligo_delim)
     df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep='\t')
 
-    binsize = int(df_contacts.loc[2, 'chr_bins'] - df_contacts.loc[1, 'chr_bins']) * 1000
+    binsize = int(df_contacts.loc[2, 'chr_bins'] - df_contacts.loc[1, 'chr_bins'])
     logger.info(f"Contacts binned profile with resolution of : {binsize} bp")
 
     chr_list = list(df_coords['chr'].unique())
