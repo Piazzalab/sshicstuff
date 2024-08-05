@@ -1,7 +1,7 @@
 import os
 from docopt import docopt
 
-import methods
+import sshicstuff.methods
 import sshicstuff.log as log
 import sshicstuff.pipeline as pip
 from sshicstuff.gui.app import app
