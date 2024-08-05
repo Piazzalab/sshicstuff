@@ -1,5 +1,5 @@
 biopython>=1.83
-dash>=2.16.1
+dash>=2.17.1
 dash-bootstrap-components~=1.6.0
 docopt~=0.6.2
 flask~=3.0.3
@@ -7,7 +7,7 @@ hicstuff>=3.2.3
 matplotlib>=3.6.0
 numpy>=1.26.0
 pairtools==1.1.0
-pandas>=2.2.0
+pandas>=2.2.2
 pip~=24.2
 plotly>=5.5.0
 pyfastx~=2.1.0
@@ -15,5 +15,4 @@ pysam~=0.22.0
 pytest>=8.1.0
 requests~=2.31.0
 scipy>=1.10.0
-setuptools~=70.0.0
-sshicstuff~=1.0.0
+setuptools~=72.1.0
