@@ -13,17 +13,17 @@ CWD = os.getcwd()
 """
 Example of usage :
 
-python3 -m sshicstuff.main pipeline 
--c /home/nicolas/Documents/projects/sshicstuff/test_data/capture_oligo_positions.csv
--C /home/nicolas/Documents/projects/sshicstuff/test_data/chr_coords.tsv
--f /home/nicolas/Documents/projects/sshicstuff/test_data/AD162/fragments_list.txt
--m /home/nicolas/Documents/projects/sshicstuff/test_data/AD162/AD162_pcrdupkept.txt
--a /home/nicolas/Documents/projects/sshicstuff/test_data/additional_probe_groups.tsv
+sshicstuff pipeline 
+-c <path_to>/capture_oligo_positions.csv
+-C <path_to>/chr_coords.tsv
+-f <path_to>/AD162/fragments_list.txt
+-m <path_to>/AD162/AD162_pcrdupkept.txt
+-a <path_to>/additional_probe_groups.tsv
 -b 1000 -b 2000 -b 5000 -b 10000
 -E chr2 -E chr3 -E 2_micron -E mitochondrion -E chr_artificial_donor -E chr_artificial_ssDNA
 -F -I -L -N
 -n 2
--o /home/nicolas/Documents/projects/sshicstuff/test_data/AD162-TEST-PIPELINE
+-o <path_to>/AD162-TEST-PIPELINE
 --binning-aggregate-cen 10000
 --binning-aggregate-telo 1000
 --window-size-cen 150000
@@ -110,11 +110,11 @@ def full_pipeline(
     )
 
     logger.info("Coverage : Calculate the coverage per fragment and save the result to a bedgraph")
-
     sshic.coverage(
         sparse_mat_path=sample_sparse_mat,
         fragments_list_path=fragments_list,
         normalize=normalize,
+        output_path=join(output_dir, sample_name + "_coverage.bedgraph"),
         force=force
     )
 
@@ -124,6 +124,7 @@ def full_pipeline(
         sparse_mat_path=join(output_dir, hiconly_name),
         fragments_list_path=fragments_list,
         normalize=normalize,
+        output_path=join(output_dir, hiconly_name.replace(".txt", "_coverage.bedgraph")),
         force=force
     )
 
