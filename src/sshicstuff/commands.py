@@ -1,11 +1,11 @@
 import os
 from docopt import docopt
 
-import sshicstuff as sshic
-from sshicstuff.gui.app import app
-
+import methods
 import sshicstuff.log as log
 import sshicstuff.pipeline as pip
+from sshicstuff.gui.app import app
+
 logger = log.logger
 
 
@@ -59,7 +59,7 @@ class Subsample(AbstractCommand):
     """
     def execute(self):
         check_exists(self.args["--input"])
-        sshic.subsample(
+        methods.subsample(
             input_path=self.args["--input"],
             seed=int(self.args["--seed"]),
             size=int(self.args["--size"]),
@@ -96,7 +96,7 @@ class Genomaker(AbstractCommand):
 
     def execute(self):
         check_exists(self.args["--oligo-annealing"], self.args["--genome"])
-        sshic.edit_genome_ref(
+        methods.edit_genome_ref(
             self.args["--oligo-annealing"],
             self.args["--genome"],
             self.args["--enzyme"],
@@ -127,7 +127,7 @@ class Associate(AbstractCommand):
 
     def execute(self):
         check_exists(self.args["--oligo-capture"], self.args["--fragments"])
-        sshic.associate_oligo_to_frag(
+        methods.associate_oligo_to_frag(
             oligo_capture_path=self.args["--oligo-capture"],
             fragments_path=self.args["--fragments"],
             force=self.args["--force"]
@@ -159,7 +159,7 @@ class Hiconly(AbstractCommand):
     """
     def execute(self):
         check_exists(self.args["--sparse-matrix"], self.args["--oligos-capture"])
-        sshic.hic_only(
+        methods.hic_only(
             sample_sparse_mat=self.args["--sparse-matrix"],
             oligo_capture_path=self.args["--oligos-capture"],
             output_path=self.args["--output"],
@@ -189,7 +189,7 @@ class Filter(AbstractCommand):
     """
     def execute(self):
         check_exists(self.args["--fragments"], self.args["--oligos-capture"], self.args["--sparse-matrix"])
-        sshic.filter_contacts(
+        methods.filter_contacts(
             sparse_mat_path=self.args["--sparse-matrix"],
             oligo_capture_path=self.args["--oligos-capture"],
             fragments_list_path=self.args["--fragments"],
@@ -219,7 +219,7 @@ class Coverage(AbstractCommand):
     """
     def execute(self):
         check_exists(self.args["--fragments"], self.args["--sparse-mat"])
-        sshic.coverage(
+        methods.coverage(
             sparse_mat_path=self.args["--sparse-mat"],
             fragments_list_path=self.args["--fragments"],
             output_path=self.args["--output"],
@@ -253,7 +253,7 @@ class Profile(AbstractCommand):
     """
     def execute(self):
         check_exists(self.args["--filtered-table"], self.args["--oligo-capture"], self.args["--chr-coord"])
-        sshic.profile_contacts(
+        methods.profile_contacts(
             filtered_table_path=self.args["--filtered-table"],
             oligo_capture_path=self.args["--oligo-capture"],
             chromosomes_coord_path=self.args["--chr-coord"],
@@ -285,7 +285,7 @@ class Rebin(AbstractCommand):
     """
     def execute(self):
         check_exists(self.args["--profile"], self.args["--chr-coord"])
-        sshic.rebin_profile(
+        methods.rebin_profile(
             contacts_unbinned_path=self.args["--profile"],
             chromosomes_coord_path=self.args["--chr-coord"],
             bin_size=int(self.args["--binsize"]),
@@ -332,7 +332,7 @@ class Stats(AbstractCommand):
             self.args["--chr-coord"],
             self.args["--oligo-capture"]
         )
-        sshic.get_stats(
+        methods.get_stats(
             contacts_unbinned_path=self.args["--profile"],
             sparse_mat_path=self.args["--sparse-mat"],
             chr_coord_path=self.args["--chr-coord"],
@@ -391,7 +391,7 @@ class Aggregate(AbstractCommand):
             logger.error("Exiting...")
             raise ValueError("You must specify either telomeres or centromeres. Not both")
 
-        sshic.aggregate(
+        methods.aggregate(
             binned_contacts_path=self.args["--profile"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_path=self.args["--oligo-capture"],
@@ -429,7 +429,7 @@ class Compare(AbstractCommand):
 
     def execute(self):
         check_exists(self.args["--sample-stats"], self.args["--reference-stats"])
-        sshic.compare_with_wt(
+        methods.compare_with_wt(
             stats1_path=self.args["--sample-stats"],
             stats2_path=self.args["--reference-stats"],
             ref_name=self.args["--name"],
@@ -494,7 +494,7 @@ class Plot(AbstractCommand):
         )
 
         rolling_window = 1 if not self.args["--rolling-window"] else int(self.args["--rolling-window"])
-        sshic.plot_profiles(
+        methods.plot_profiles(
             profile_contacts_path=self.args["--profile"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_path=self.args["--oligo-capture"],

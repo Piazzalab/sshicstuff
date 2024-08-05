@@ -1,5 +1,5 @@
 from .commands import *
-from .sshicstuff import *
+from .methods import *
 from .version import __version__
 from .utils import *
 from .pipeline import *

@@ -1,7 +1,7 @@
 import os
 from os.path import join
 
-import sshicstuff.sshicstuff as sshic
+import sshicstuff.methods as sshic
 import sshicstuff.utils as shcu
 import sshicstuff.log as log
 
