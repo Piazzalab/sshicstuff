@@ -492,14 +492,21 @@ chr_artificial  73      439     366      W              ss     Probe_URA-L-16220
 ```
 
 **chr :** chromosome location of the annealing oligo in the reference genome (fasta). May differ from its original position.
+
 **start :** start position of the annealing oligo.
+
 **end :** end position of the annealing oligo.
+
 **length :** length of the annealing oligo.
+
 **orientation :** orientation of the annealing oligo (W : Watson, C: Crick).
+
 **type :** type of the annealing oligo (ss : single-stranded, ds: double-stranded).
-**name :** name of the annealing oligo, also called probe. In general. 
-it is composed of the distance from the DSB, L or R for left or right side of the DSB, and the restriction enzyme used.
+
+**name :** name of the annealing oligo, also called probe. In general it is composed of the distance from the DSB, L or R for left or right side of the DSB, and the restriction enzyme used.
+
 **sequence_original :** original sequence of the annealing oligo.
+
 **sequence_modified :** modified sequence of the annealing oligo including SNPs.
 
 
@@ -521,13 +528,21 @@ chr_artificial  73     439    chr5     101544 		101623	  ss    Probe_URA-L-16220
 
 
 **chr :** chromosome location of the annealing oligo in the reference genome (fasta). May differ from its original position.
+
 **start :** start position of the annealing oligo.
+
 **end :** end position of the annealing oligo.
+
 **chr_ori :** original position of the oligo (not the artificial chromosome)
+
 **start_ori :** position start of the oligo on the original chromsome.
+
 **stop_ori :** positions stop of the oligo on the original chromosome.
+
 **type :** for example ss or ds.
+
 **name :** name of the capture oligo, also called probe. Same nomenclature as annealing. 
+
 **sequence :** sequence of the capture oligo.
 
 
@@ -561,15 +576,20 @@ id	chrom	start_pos	end_pos	size	gc_content
 ```
 
 **id:** 1 based restriction fragment index within chromosome.
+
 **chrom:** Chromosome identifier. Order should be the same as in info_contigs.txt or pairs files.
+
 **start_pos:** 0-based start of fragment, in base pairs.
+
 **end_pos:** 0-based end of fragment, in base pairs.
+
 **size:** Size of fragment, in base pairs.
+
 **gc_content:** Proportion of G and C nucleotide in the fragment.
 
 
 
-Extension *`.txt`* (tab separated)
+Extension : *`.txt`* (tab separated)
 
 #### Chromosome coordinates file structure
 
@@ -613,10 +633,12 @@ Sum_left_noLY_pool2	     Probe_URA-L-15683-SspI-RC,Probe_URA-L-6532-MfeI-RC,Prob
 ```
 
 **name :** name of your group of probes.
+
 **probes :** concerned probes to put together.
+
 **action :** the way you aggregate contacts of your group (*e.g.,* average, sum, median etc ...)
 
-Extension *`.tsv`* (tab separated)
+Extension : *`.tsv`* (tab separated)
 
 
 
