@@ -8,6 +8,7 @@
 
 It is recommended to use a virtual environment to install the dependencies. We suggest you to use the 
 requirements.yml file to install a conda environment or mamba.
+
 You can do it as follows:
 
 ```bash
@@ -434,11 +435,7 @@ usage:
     view
 ```
 
-
-
-#### Demo :
-
-<video src="/home/nicolas/Documents/projects/sshicstuff/img/dash-demo.webm"></video>
+![dash](img/demo-dash.png)
 
 ### Plot
 
