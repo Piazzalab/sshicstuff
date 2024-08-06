@@ -114,7 +114,7 @@ def full_pipeline(
         sparse_mat_path=sample_sparse_mat,
         fragments_list_path=fragments_list,
         normalize=normalize,
-        output_path=join(output_dir, sample_name + "_coverage.bedgraph"),
+        output_dir=output_dir,
         force=force
     )
 
@@ -124,7 +124,7 @@ def full_pipeline(
         sparse_mat_path=join(output_dir, hiconly_name),
         fragments_list_path=fragments_list,
         normalize=normalize,
-        output_path=join(output_dir, hiconly_name.replace(".txt", "_coverage.bedgraph")),
+        output_dir=output_dir,
         force=force
     )
 
