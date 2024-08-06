@@ -16,3 +16,4 @@ pytest>=8.1.0
 requests~=2.31.0
 scipy>=1.10.0
 setuptools~=72.1.0
+kaleido>=0.2.1
