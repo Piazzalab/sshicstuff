@@ -1,9 +1,5 @@
 # sshicstuff: a pipeline for analyzing ssDNA-specific Hi-C data
 
-![strip](img/strip.png)
-
-
-
 ## Dependencies  
 
 It is recommended to use a virtual environment to install the dependencies. We suggest you to use the 
@@ -641,16 +637,27 @@ Sum_left_noLY_pool2	     Probe_URA-L-15683-SspI-RC,Probe_URA-L-6532-MfeI-RC,Prob
 Extension : *`.tsv`* (tab separated)
 
 
-
 ## Citation
 
-Please cite sshicstuff and ssDNA specific Hi-C as follows :
+#### Please cite sshicstuff and ssDNA specific Hi-C as follows :
 
-> TODO : add DOI here
+Agnès Dumont, Nicolas Mendiboure, Jérôme Savocco, Loqmen Anani, Pierrick Moreau, 
+Agnès Thierry, Laurent Modolo, Daniel Jost, Aurèle Piazza.
+
+Mechanism of homology search expansion during recombinational DNA break repair in Saccharomyces cerevisiae
+
+doi : https://doi.org/10.1016/j.molcel.2024.08.003
+
+Zenodo : https://doi.org/10.5281/zenodo.13236909
+
+
+
 
 
 
 ## Credit
+
+![strip](img/strip.png)
 
 hicstuff : Cyril Matthey-Doret, Lyam Baudry, Amaury Bignaud, Axel Cournac,  Remi-Montagne, Nadège Guiglielmoni, Théo Foutel Rodier and Vittore F.  Scolari. 2020. hicstuff: Simple library/pipeline to generate and handle  Hi-C data . Zenodo. http://doi.org/10.5281/zenodo.4066363
 
