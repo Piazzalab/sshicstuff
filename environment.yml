@@ -5,8 +5,8 @@ channels:
   - bioconda
 dependencies:
   - biopython=1.84
-  - bowtie2
-  - cooler
+  - bowtie2=2.5.1
+  - cooler=0.10.2
   - docopt=0.6.2
   - minimap2
   - matplotlib>=3.6.0
@@ -21,9 +21,9 @@ dependencies:
   - samtools
   - scipy>=1.10.0
   - seqtk
-  - dash>=2.17.1
+  - dash>=2.18.1
   - dash-bootstrap-components=1.6.0
-  - dash-daq
+  - dash-daq=0.5.0
   - flask=3.0.3
   - pytest>=8.1.0
   - setuptools=72.1.0
