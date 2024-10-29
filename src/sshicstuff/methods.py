@@ -10,6 +10,7 @@ from plotly.subplots import make_subplots
 import sshicstuff.utils as utils
 import sshicstuff.log as log
 import sshicstuff.gui.graph as graph
+import sshicstuff.gui.colors as colors
 
 
 logger = log.logger
@@ -983,8 +984,9 @@ def plot_profiles(
         oligo_capture_path: str,
         chr_coord_path: str,
         output_dir: str = None,
+        extension: str = "pdf",
         rolling_window: int = 1,
-        exclude_chromosomes: list[str] = None,
+        region: str = None,
         log_scale: bool = False,
         user_y_min: float = None,
         user_y_max: float = None,
@@ -996,6 +998,17 @@ def plot_profiles(
     if 'frequencies' in profile_contacts_path:
         profile_type = 'frequencies'
 
+    df: pd.DataFrame = pd.read_csv(profile_contacts_path, sep='\t')
+    frags_col = df.filter(regex='^\d+$|^\$').columns.to_list()
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=',')
+    probes_to_frag = dict(zip(df_oligo['fragment'].astype(str), df_oligo['name'].astype(str)))
+    df_coords = pd.read_csv(chr_coord_path, sep='\t')
+
+
+    full_genome_size = df_coords.loc[:, 'length'].sum()
+    x_min = 0
+    x_max = full_genome_size
+
     b = re.search(r'_(\d+)kb_profile_', profile_contacts_path).group(1)
     if b == 0:
         binsize = 0
@@ -1004,9 +1017,7 @@ def plot_profiles(
         binsize = int(b) * 1000  # kb to bp
         bin_suffix = f"{b}kb"
 
-    df: pd.DataFrame = pd.read_csv(profile_contacts_path, sep='\t')
-    sample_name = os.path.basename(profile_contacts_path).split('_0kb_')[0]
-    frags_col = df.filter(regex='^\d+$|^\$').columns.to_list()
+    sample_name = os.path.basename(profile_contacts_path).split(f'_{bin_suffix}_')[0]
 
     # Create the output directory
     if not output_dir:
@@ -1021,34 +1032,56 @@ def plot_profiles(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=',')
-    probes_to_frag = dict(zip(df_oligo['fragment'].astype(str), df_oligo['name'].astype(str)))
-    df_coords = pd.read_csv(chr_coord_path, sep='\t')
 
-    df = df[~df['chr'].isin(exclude_chromosomes)]
-    df_coords = df_coords[~df_coords['chr'].isin(exclude_chromosomes)]
-
-    chr_list = df.chr.values
     chr_list_unique = pd.unique(df.chr)
     n_chr = len(chr_list_unique)
 
-    df_coords = df_coords[["chr", "length"]]
-    df_coords["chr_start"] = df_coords["length"].shift().fillna(0).astype("int64")
-    df_coords["cumu_start"] = df_coords["chr_start"].cumsum()
-    full_genome_size = df_coords.loc[n_chr - 1, 'cumu_start'] + df_coords.loc[n_chr - 1, 'length']
-
-    x_min = 0.
-    x_max = full_genome_size if binsize == 0 else full_genome_size // binsize * binsize + binsize
-    y_min = float(user_y_min) if user_y_min else df[frags_col].min().min()
-    y_max = float(user_y_max) if user_y_max else df[frags_col].max().max()
+    # Set coordinates preference
+    coord_mode = ["genomic", "unbinned"]
     x_col = "genome_start" if binsize == 0 else "genome_bins"
+    if region:
+        coord_mode[0] = "chromosomal"
+        chr_, range_ = region.split(":")
+        max_chr_region_len = df_coords.loc[df_coords.chr == chr_, 'length'].values[0]
+        x_col = "start" if binsize == 0 else "chr_bins"
+        if range_ == "":
+            df = df[df['chr'] == chr_]
+            df_coords = df_coords[df_coords['chr'] == chr_]
+            x_min = 0
+            x_max = max_chr_region_len
+        else:
+            start, end = range_.split("-")
+            start, end = int(start), int(end)
+            x_min = start
+            x_max = end
 
-    if rolling_window > 1:
-        for chr_ in chr_list_unique:
-            df.loc[df['chr'] == chr_, frags_col] = (
-                df.loc[df['chr'] == chr_, frags_col].rolling(window=rolling_window, min_periods=1).mean())
+        df = df[(df['chr'] == chr_) & (df[x_col] >= x_min) & (df[x_col] <= x_max)]
+        x_col = "start" if binsize == 0 else "chr_bins"
 
+    if binsize > 0:
+        df_bins = graph.build_bins_template(df_coords, binsize)
+        chr_bins = df_bins.chr_bins.values
+        genome_bins = df_bins.genome_bins.values
+        n_bins = len(chr_bins)
+        if region:
+            df_bins = df_bins[df_bins['chr'] == chr_]
+
+        coord_mode[1] = "binned"
+        x_min = x_min // binsize * binsize
+        x_max = x_max // binsize * binsize + binsize
+        df_bins = df_bins[(df_bins['chr_bins'] >= x_min) & (df_bins['chr_bins'] <= x_max)]
+
+        if rolling_window > 1:
+            for chr_ in chr_list_unique:
+                df.loc[df['chr'] == chr_, frags_col] = (
+                    df.loc[df['chr'] == chr_, frags_col].rolling(window=rolling_window, min_periods=1).mean())
+
+    y_min = float(user_y_min) if user_y_min else 0.
+    y_max = float(user_y_max) if user_y_max else df[frags_col].max().max()
+
+    log_status = ""
     if log_scale:
+        log_status = "log_"
         data = df[frags_col].values
         data[data == 0] = np.nan
         new_data = np.log10(data)
@@ -1059,74 +1092,123 @@ def plot_profiles(
     y_ticks = np.linspace(y_min, y_max, 5)
     y_tick_text = [f"{tick:.3f}" for tick in y_ticks]
 
-    df_10kb_tmp = graph.build_bins_template(df_coords=df_coords, bin_size=10000)
-    colorbar, chr_ticks_pos = graph.colorbar_maker(df_10kb_tmp)
+    if region:
+        for ii_f, frag in enumerate(frags_col):
+            fig = go.Figure()
+            probe = probes_to_frag.get(frag, "")
+            output_path = os.path.join(
+                output_dir,
+                f"{sample_name}_{frag}_{probe}_{profile_type}_{bin_suffix}_{log_status}{region}.{extension}"
+            )
 
-    # plot for each prob or group of probes
-    for ii_f, frag in enumerate(frags_col):
-        probe = probes_to_frag.get(frag, "")
-        output_path = os.path.join(output_dir, f"{frag}_{probe}_{profile_type}_0kb.pdf")
+            fig.add_trace(
+                go.Scattergl(
+                    x=df[x_col],
+                    y=df[frag],
+                    name=frag,
+                    mode='lines',
+                    line=dict(width=1, color=colors.colors_rgba[ii_f]),
+                    marker=dict(size=4),
+                    showlegend=False
+                )
+            )
 
-        fig = make_subplots(
-            rows=2, cols=1, row_heights=[0.94, 0.06], vertical_spacing=0.06,
-            specs=[[{'type': 'scatter'}], [{'type': 'bar'}]]
-        )
+            fig.update_layout(
+                title=f"{sample_name}",
+                xaxis=dict(
+                    title=dict(text=f"{region} coordinates", standoff=80),
+                    tickformat='d',
+                    range=[x_min, x_max],
+                    showgrid=False,
+                ),
+                yaxis=dict(
+                    title=f"{profile_type.capitalize()}{' - log' if log_scale else ''}",
+                    tickvals=y_ticks,
+                    ticktext=y_tick_text,
+                    range=[y_min, y_max],
+                    showgrid=False,
+                ),
+                xaxis_type='linear',
+                xaxis_tickformat="d",
+                yaxis_tickformat='%.4e' if log_scale else '%.4d',
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                width=width,
+                height=height,
+            )
 
-        fig.add_trace(
-            go.Scatter(
-                x=df[x_col],
-                y=df[frag],
-                mode='lines',
-                line=dict(width=1, color=graph.colors_rgba[ii_f]),
-                marker=dict(size=4),
-                showlegend=False
-            ),
-            row=1, col=1
-        )
+            fig.write_image(output_path, format=extension, scale=0.96)
 
-        fig.add_trace(colorbar, row=2, col=1)
-        title = f" {sample_name} <br> {frag} {'- ' + probe}"
-        fig.update_layout(
-            title=title,
-            xaxis=dict(
-                title=dict(text="Genomic coordinates", standoff=80),
-                tickformat='d',
-                range=[x_min, x_max],
-                showgrid=False,
-            ),
-            xaxis2=dict(
-                tickmode='array',
-                tickvals=chr_ticks_pos,
-                ticktext=df['chr'].unique(),
-                tickfont=dict(size=12),
-            ),
-            yaxis=dict(
-                title=f"{profile_type.capitalize()}{' - log' if log_scale else ''}",
-                tickvals=y_ticks,
-                ticktext=y_tick_text,
-                range=[y_min, y_max],
-                showgrid=False,
-            ),
-            yaxis2=dict(
-                showticklabels=False,
-            ),
+    else:
+        df_10kb_tmp = graph.build_bins_template(df_coords=df_coords, bin_size=10000)
+        colorbar, chr_ticks_pos = graph.colorbar_maker(df_10kb_tmp)
 
-            xaxis_showgrid=False,
-            yaxis_showgrid=False,
-            xaxis_type='linear',
-            xaxis_tickformat="d",
-            yaxis_tickformat='%.4e' if log_scale else '%.4d',
-            xaxis_range=[x_min, x_max],
-            yaxis_range=[y_min, y_max],
-            hovermode='closest',
-            plot_bgcolor='white',
-            paper_bgcolor='white',
-            width=width,
-            height=height,
-        )
+        # plot for each prob or group of probes
+        for ii_f, frag in enumerate(frags_col):
+            probe = probes_to_frag.get(frag, "")
+            output_path = os.path.join(
+                output_dir, f"{sample_name}_{frag}_{probe}_{profile_type}_{bin_suffix}_{log_status}.{extension}"
+            )
 
-        fig.write_image(output_path, format="pdf", scale=0.96)
+            fig = make_subplots(
+                rows=2, cols=1, row_heights=[0.94, 0.06], vertical_spacing=0.06,
+                specs=[[{'type': 'scatter'}], [{'type': 'bar'}]]
+            )
 
+            fig.add_trace(
+                go.Scatter(
+                    x=df[x_col],
+                    y=df[frag],
+                    mode='lines',
+                    line=dict(width=1, color=graph.colors_rgba[ii_f]),
+                    marker=dict(size=4),
+                    showlegend=False
+                ),
+                row=1, col=1
+            )
+
+            fig.add_trace(colorbar, row=2, col=1)
+            title = f" {sample_name} <br> {frag} {'- ' + probe}"
+            fig.update_layout(
+                title=title,
+                xaxis=dict(
+                    title=dict(text="Genomic coordinates", standoff=80),
+                    tickformat='d',
+                    range=[x_min, x_max],
+                    showgrid=False,
+                ),
+                xaxis2=dict(
+                    tickmode='array',
+                    tickvals=chr_ticks_pos,
+                    ticktext=df['chr'].unique(),
+                    tickfont=dict(size=12),
+                ),
+                yaxis=dict(
+                    title=f"{profile_type.capitalize()}{' - log' if log_scale else ''}",
+                    tickvals=y_ticks,
+                    ticktext=y_tick_text,
+                    range=[y_min, y_max],
+                    showgrid=False,
+                ),
+                yaxis2=dict(
+                    showticklabels=False,
+                ),
+
+                xaxis_showgrid=False,
+                yaxis_showgrid=False,
+                xaxis_type='linear',
+                xaxis_tickformat="d",
+                yaxis_tickformat='%.4e' if log_scale else '%.4d',
+                xaxis_range=[x_min, x_max],
+                yaxis_range=[y_min, y_max],
+                hovermode='closest',
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                width=width,
+                height=height,
+            )
+
+            fig.write_image(output_path, format=extension, scale=0.96)
 
 def profile_contacts(
         filtered_table_path: str,

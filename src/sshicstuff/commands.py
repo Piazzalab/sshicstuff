@@ -454,35 +454,37 @@ class Plot(AbstractCommand):
     Plot a 4-C like profile.
 
     usage:
-        plot -p PROFILE -c OLIGO_CAPTURE -C CHR_COORD [-E CHRS...]
-        [-h HEIGHT] [-L] [-o OUTPUT] [-r ROLLING_WINDOW] [-w WIDTH] [-y YMIN] [-Y YMAX]
+        plot -c OLIGO_CAPTURE -C CHR_COORD -p PROFILE [-e EXT] [-h HEIGHT] [-L] [-o OUTDIR]
+        [-R REGION] [-r ROLLING_WINDOW] [-w WIDTH] [-y YMIN] [-Y YMAX]
 
     Arguments:
-        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE             Path to the oligo capture CSV file
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE             Path to the oligo capture CSV file (with fragment associated)
 
         -C CHR_COORD, --chr-coord CHR_COORD                         Path to the chromosome coordinates file
 
         -p PROFILE, --profile PROFILE                               Path to the profile file (mandatory)
 
 
-
     Options:
 
-        -E CHRS, --exclude=CHRS                                     Exclude the chromosome(s)
+        -e EXT, --file-extension EXT                                File extension of the output file (png, pdf, svg, etc.)
 
-        -h HEIGHT, --height HEIGHT                                  Height of the plot
+        -h HEIGHT, --height HEIGHT                                  Height of the plot (pixels)
 
         -L, --log                                                   Rescale the y-axis of the plot with np.log
 
-        -o OUTPUT, --output OUTPUT                                  Desired output directory
+        -o OUTDIR, --output OUTDIR                                  Desired output DIRECTORY
 
-        -r ROLLING_WINDOW, --rolling-window  ROLLING_WINDOW         Apply a rolling window to the profile
+        -R REGION, --region REGION                                  Region to plot (chrN:start-end), start/end in bp
+                                                                    Just write chrN: for the whole chromosome
 
-        -w WIDTH, --width WIDTH                                     Width of the plot
+        -r ROLLING_WINDOW, --rolling-window  ROLLING_WINDOW         Apply a rolling window to the profile (convolution size)
 
-        -y YMIN, --ymin YMIN                                        Maximum value of the y-axis
+        -w WIDTH, --width WIDTH                                     Width of the plot (pixels)
 
-        -Y YMAX, --ymax YMAX                                        Maximum value of the y-axis
+        -y YMIN, --ymin YMIN                                        Minimum value of the y-axis (unit of the Y axis)
+
+        -Y YMAX, --ymax YMAX                                        Maximum value of the y-axis (unit of the Y axis)
 
     """
 
@@ -499,8 +501,9 @@ class Plot(AbstractCommand):
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_path=self.args["--oligo-capture"],
             output_dir=self.args["--output"],
+            extension=self.args["--file-extension"],
+            region=self.args["--region"],
             rolling_window=rolling_window,
-            exclude_chromosomes=self.args["--exclude"],
             log_scale=self.args["--log"],
             user_y_min=self.args["--ymin"],
             user_y_max=self.args["--ymax"],
