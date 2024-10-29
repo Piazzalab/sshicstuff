@@ -454,8 +454,8 @@ class Plot(AbstractCommand):
     Plot a 4-C like profile.
 
     usage:
-        plot -c OLIGO_CAPTURE -C CHR_COORD -p PROFILE [-e EXT] [-h HEIGHT] [-L] [-o OUTDIR]
-        [-R REGION] [-r ROLLING_WINDOW] [-w WIDTH] [-y YMIN] [-Y YMAX]
+        plot -c OLIGO_CAPTURE -C CHR_COORD -p PROFILE [-e EXT] [-H HEIGHT] [-L]
+        [-o OUTDIR] [-R REGION] [-r ROLLING_WINDOW] [-W WIDTH] [-y YMIN] [-Y YMAX]
 
     Arguments:
         -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE             Path to the oligo capture CSV file (with fragment associated)
@@ -464,12 +464,11 @@ class Plot(AbstractCommand):
 
         -p PROFILE, --profile PROFILE                               Path to the profile file (mandatory)
 
-
     Options:
 
         -e EXT, --file-extension EXT                                File extension of the output file (png, pdf, svg, etc.)
 
-        -h HEIGHT, --height HEIGHT                                  Height of the plot (pixels)
+        -H HEIGHT, --height HEIGHT                                  Height of the plot (pixels)
 
         -L, --log                                                   Rescale the y-axis of the plot with np.log
 
@@ -480,7 +479,7 @@ class Plot(AbstractCommand):
 
         -r ROLLING_WINDOW, --rolling-window  ROLLING_WINDOW         Apply a rolling window to the profile (convolution size)
 
-        -w WIDTH, --width WIDTH                                     Width of the plot (pixels)
+        -W WIDTH, --width WIDTH                                     Width of the plot (pixels)
 
         -y YMIN, --ymin YMIN                                        Minimum value of the y-axis (unit of the Y axis)
 
