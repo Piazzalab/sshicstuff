@@ -5,7 +5,7 @@ import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
 from sshicstuff.gui.common import sort_by_chr
-from sshicstuff.gui.colors import colors_hex, colors_rgba, chr_colors
+import sshicstuff.colors as colors
 
 
 """
@@ -85,10 +85,11 @@ def colorbar_maker(df_bins: pd.DataFrame):
     n_bins = len(chr_bins)
 
     full_chr_bins = []
+    chr_colors_list = colors.chr_colorbar
     for ii_, chr_ in enumerate(chr_list):
         chr_num = chr_2_num[chr_]
         full_chr_bins.append(f"{chr_num}:{chr_bins[ii_]}")
-        x_colors.append(chr_colors[chr_num % len(colors_hex)])
+        x_colors.append(chr_colors_list[chr_num % len(chr_colors_list)])
         if chr_num != prev_chr:
             if prev_chr is not None:
                 chr_ticks_pos.append((ii_ + chr_start) / 2)
@@ -171,12 +172,14 @@ def figure_maker(
         data = df[probes].values
         data[data == 0] = np.nan
         new_data = np.log10(data)
-        y_max = np.nanmin(new_data) if not user_y_max else float(user_y_max)
-        y_min = np.nanmax(new_data) if not user_y_min else float(user_y_min)
+        y_min = np.nanmin(new_data) if not user_y_max else float(user_y_max)
+        y_max = np.nanmax(new_data) if not user_y_min else float(user_y_min)
         df[probes] = new_data
 
     y_ticks = np.linspace(y_min, y_max, 5)
     y_tick_text = [f"{tick:.3f}" for tick in y_ticks]
+
+    colors_rgba = colors.generate('rgba', len(probes))
 
     # Making the figure(s)
     if chr_region:

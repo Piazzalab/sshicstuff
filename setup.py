@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*-coding:Utf-8 -*
 
-
-# To install the package, run :  ` pip install -e . `
+# To install the package, run :  `pip install -e . `
 
 import setuptools
 import codecs
 
+from sshicstuff.version import __version__
 
 CLASSIFIERS = [
     "Intended Audience :: Science/Research",
@@ -21,13 +21,12 @@ CLASSIFIERS = [
 
 NAME = "sshicstuff"
 
-MAJOR = 1
-MINOR = 1
-MAINTENANCE = 0
+MAJOR, MINOR, MAINTENANCE = __version__.split(".")
+
 VERSION = "{}.{}.{}".format(MAJOR, MINOR, MAINTENANCE)
 
 LICENSE = "GPLv3"
-AUTHOR = "Nicolas Mendiboure, Loqmen Anani"
+AUTHOR = "Nicolas Mendiboure"
 AUTHOR_EMAIL = "nicolas.mendiboure@ens-lyon.fr"
 URL = "https://github.com/nmendiboure/ssHiCstuff"
 

@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 import sshicstuff.utils as utils
 import sshicstuff.log as log
 import sshicstuff.gui.graph as graph
-import sshicstuff.gui.colors as colors
+import sshicstuff.colors as colors
 
 
 logger = log.logger
@@ -1085,12 +1085,14 @@ def plot_profiles(
         data = df[frags_col].values
         data[data == 0] = np.nan
         new_data = np.log10(data)
-        y_max = np.nanmin(new_data) if not user_y_max else float(user_y_max)
-        y_min = np.nanmax(new_data) if not user_y_min else float(user_y_min)
+        y_min = np.nanmin(new_data) if not user_y_max else float(user_y_max)
+        y_max = np.nanmax(new_data) if not user_y_min else float(user_y_min)
         df[frags_col] = new_data
 
     y_ticks = np.linspace(y_min, y_max, 5)
     y_tick_text = [f"{tick:.3f}" for tick in y_ticks]
+
+    colors_rgba = colors.generate('rgba', len(frags_col))
 
     if region:
         for ii_f, frag in enumerate(frags_col):
@@ -1107,7 +1109,7 @@ def plot_profiles(
                     y=df[frag],
                     name=frag,
                     mode='lines',
-                    line=dict(width=1, color=colors.colors_rgba[ii_f]),
+                    line=dict(width=1, color=colors_rgba[ii_f]),
                     marker=dict(size=4),
                     showlegend=False
                 )
@@ -1160,7 +1162,7 @@ def plot_profiles(
                     x=df[x_col],
                     y=df[frag],
                     mode='lines',
-                    line=dict(width=1, color=graph.colors_rgba[ii_f]),
+                    line=dict(width=1, color=colors_rgba[ii_f]),
                     marker=dict(size=4),
                     showlegend=False
                 ),
