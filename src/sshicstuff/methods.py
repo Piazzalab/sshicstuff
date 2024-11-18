@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 import plotly.graph_objs as go
+import plotly.io as pio
 from plotly.subplots import make_subplots
 
 import sshicstuff.utils as utils
@@ -17,6 +18,8 @@ logger = log.logger
 
 #   Set as None to avoid SettingWithCopyWarning
 pd.options.mode.chained_assignment = None
+
+pio.kaleido.scope.mathjax = None
 
 
 def aggregate(
@@ -1139,7 +1142,7 @@ def plot_profiles(
                 height=height,
             )
 
-            fig.write_image(output_path, format=extension, scale=0.96)
+            pio.write_image(fig, output_path, engine="kaleido")
 
     else:
         df_10kb_tmp = graph.build_bins_template(df_coords=df_coords, bin_size=10000)
@@ -1210,7 +1213,7 @@ def plot_profiles(
                 height=height,
             )
 
-            fig.write_image(output_path, format=extension, scale=0.96)
+            pio.write_image(fig, output_path, engine="kaleido")
 
 def profile_contacts(
         filtered_table_path: str,
