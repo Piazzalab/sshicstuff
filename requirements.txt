@@ -15,5 +15,5 @@ pytest>=8.1.0
 requests~=2.32.0
 scipy>=1.10.0
 setuptools~=75.1.0
-kaleido>=0.4.1
+kaleido>=0.2.1
 hicstuff @ git+https://github.com/koszullab/hicstuff.git
