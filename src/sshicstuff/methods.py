@@ -1044,19 +1044,23 @@ def plot_profiles(
     x_col = "genome_start" if binsize == 0 else "genome_bins"
     if region:
         coord_mode[0] = "chromosomal"
-        chr_, range_ = region.split(":")
+        region_list = region.split("-")
+        if len(region_list) == 1:
+            chr_, start_, end_ = region_list[0], "", ""
+        else:
+            chr_, start_, end_ = region_list
         max_chr_region_len = df_coords.loc[df_coords.chr == chr_, 'length'].values[0]
         x_col = "start" if binsize == 0 else "chr_bins"
-        if range_ == "":
+
+        if not start_ and not end_:
             df = df[df['chr'] == chr_]
             df_coords = df_coords[df_coords['chr'] == chr_]
             x_min = 0
             x_max = max_chr_region_len
         else:
-            start, end = range_.split("-")
-            start, end = int(start), int(end)
-            x_min = start
-            x_max = end
+            start_, end_ = int(start_), int(end_)
+            x_min = start_
+            x_max = end_
 
         df = df[(df['chr'] == chr_) & (df[x_col] >= x_min) & (df[x_col] <= x_max)]
         x_col = "start" if binsize == 0 else "chr_bins"

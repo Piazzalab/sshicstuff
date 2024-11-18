@@ -474,7 +474,7 @@ class Plot(AbstractCommand):
 
         -o OUTDIR, --output OUTDIR                                  Desired output DIRECTORY
 
-        -R REGION, --region REGION                                  Region to plot (chrN:start-end), start/end in bp
+        -R REGION, --region REGION                                  Region to plot (chrN-start-end), start/end in bp
                                                                     Just write chrN: for the whole chromosome
 
         -r ROLLING_WINDOW, --rolling-window  ROLLING_WINDOW         Apply a rolling window to the profile (convolution size)
