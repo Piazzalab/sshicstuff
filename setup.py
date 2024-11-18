@@ -6,7 +6,16 @@
 import setuptools
 import codecs
 
-from sshicstuff.version import __version__
+
+from setuptools import setup, find_packages
+from distutils.util import convert_path
+
+
+main_ns = {}
+ver_path = convert_path('src/sshicstuff/version.py')
+with open(ver_path) as ver_file:
+    exec(ver_file.read(), main_ns)
+__version__ = main_ns['__version__']
 
 CLASSIFIERS = [
     "Intended Audience :: Science/Research",
