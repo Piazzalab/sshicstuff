@@ -494,6 +494,37 @@ class Plot(AbstractCommand):
             self.args["--oligo-capture"]
         )
 
+        if not self.args["--rolling-window"]:
+            rolling_window = 1
+        else:
+            rolling_window = int(self.args["--rolling-window"])
+
+        if not self.args["--log"]:
+            log_scale = False
+        else:
+            log_scale = self.args["--log"]
+
+        if not self.args["--ymin"]:
+            user_y_min = None
+        else:
+            user_y_min = float(self.args["--ymin"])
+
+        if not self.args["--ymax"]:
+            user_y_max = None
+        else:
+            user_y_max = float(self.args["--ymax"])
+
+        if not self.args["--width"]:
+            width = 1200
+        else:
+            width = int(self.args["--width"])
+
+        if not self.args["--height"]:
+            height = 600
+        else:
+            height = int(self.args["--height"])
+
+
         rolling_window = 1 if not self.args["--rolling-window"] else int(self.args["--rolling-window"])
         methods.plot_profiles(
             profile_contacts_path=self.args["--profile"],
@@ -503,11 +534,11 @@ class Plot(AbstractCommand):
             extension=self.args["--file-extension"],
             region=self.args["--region"],
             rolling_window=rolling_window,
-            log_scale=self.args["--log"],
-            user_y_min=self.args["--ymin"],
-            user_y_max=self.args["--ymax"],
-            width=int(self.args["--width"]),
-            height=int(self.args["--height"])
+            log_scale=log_scale,
+            user_y_min=user_y_min,
+            user_y_max=user_y_max,
+            width=width,
+            height=height
         )
 
 
