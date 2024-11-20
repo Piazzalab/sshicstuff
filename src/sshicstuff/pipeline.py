@@ -61,7 +61,8 @@ def full_pipeline(
         output_dir = join(input_basedir, sample_name)
 
     copy_dir = join(output_dir, "inputs")
-    hiconly_name = sample_name + "_hic_only.txt"
+    dsdnaonly_name = sample_name + "_dsdna_only.txt"
+    ssdnaonly_name = sample_name + "_ssdna_only.txt"
     filtered_name = sample_name + "_filtered.tsv"
     profile_0kb_contacts_name = sample_name + "_0kb_profile_contacts.tsv"
     profile_0kb_frequencies_name = sample_name + "_0kb_profile_frequencies.tsv"
@@ -91,12 +92,20 @@ def full_pipeline(
     if copy_inputs:
         shcu.copy(oligo_capture_with_frag, copy_dir)
 
-    logger.info("HiC only : keep only Hi-C reads, create a new sparse matrix file 'hic_only'")
+    logger.info("dsDNA only : keep only dsDNA reads, create a new sparse matrix file 'hic_only'")
     sshic.sparse_with_dsdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         n_flanking_dsdna=n_flanking_dsdna,
-        output_path=join(output_dir, hiconly_name),
+        output_path=join(output_dir, dsdnaonly_name),
+        force=force
+    )
+
+    logger.info("ssDNA only : keep only ssDNA reads, create a new sparse matrix file 'hic_only'")
+    sshic.sparse_with_ssdna_only(
+        sample_sparse_mat=sample_sparse_mat,
+        oligo_capture_with_frag_path=oligo_capture_with_frag,
+        output_path=join(output_dir, ssdnaonly_name),
         force=force
     )
 
@@ -121,7 +130,7 @@ def full_pipeline(
     logger.info("Coverage : Calculate the coverage per fragment but from the")
     logger.info("'hic_only' sparse matrix and save the result to a bedgraph")
     sshic.coverage(
-        sparse_mat_path=join(output_dir, hiconly_name),
+        sparse_mat_path=join(output_dir, ssdnaonly_name),
         fragments_list_path=fragments_list,
         normalize=normalize,
         output_dir=output_dir,
