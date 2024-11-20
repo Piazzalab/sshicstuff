@@ -25,7 +25,7 @@ pio.kaleido.scope.mathjax = None
 def aggregate(
         binned_contacts_path: str,
         chr_coord_path: str,
-        oligo_capture_path: str,
+        oligo_capture_with_frag_path: str,
         window_size: int,
         telomeres: bool = False,
         centromeres: bool = False,
@@ -45,8 +45,9 @@ def aggregate(
         Path to the binned_contacts.tsv file.
     chr_coord_path : str
         Path to the chr_centros_coordinates.tsv file containing the centromeres coordinates.
-    oligo_capture_path : str
-        Path to the oligo_capture.tsv file.
+    oligo_capture_with_frag_path : str
+        Path to the oligo_capture.tsv file. It must contain the fragments associated with the oligos.
+        c.f associate_oligo_to_frag function.
     telomeres : bool, default=False
         Whether to aggregate the contacts around the telomeres.
     centromeres : bool, default=False
@@ -83,10 +84,10 @@ def aggregate(
     output_prefix = os.path.join(output_dir, sample_short_name) + f"_agg_on_"
     output_prefix += "telo" if telomeres else "cen"
 
-    oligo_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
+    oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
     coords_delim = "\t" if chr_coord_path.endswith(".tsv") else ","
     df_coords: pd.DataFrame = pd.read_csv(chr_coord_path, sep=coords_delim, index_col=None)
-    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=oligo_delim)
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
     df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep='\t')
 
     binsize = int(df_contacts.loc[2, 'chr_bins'] - df_contacts.loc[1, 'chr_bins'])
@@ -435,12 +436,110 @@ def coverage(
 
     logger.info("Coverage calculation completed.")
 
+def edit_genome_ref(
+        annealing_input: str,
+        genome_input: str,
+        enzyme: str,
+        fragment_size: int = 150,
+        fasta_spacer: str = "N",
+        fasta_line_length: int = 80,
+        additional_fasta_path: str = None
+):
+    """
+    Create an artificial chromosome that is the concatenation of the annealing oligo and the enzyme sequence.
+
+    Insert it at the end of the original genome .FASTA file.
+
+    Parameters
+    ----------
+
+    annealing_input : str
+        Path to the annealing oligo input CSV file.
+    genome_input : str
+        Path to the original genome .FASTA file.
+    enzyme : str
+        Restriction Enzyme sequence (e.g., dpnII sequence : gatc).
+    fragment_size : int, default=150
+        Size of a digested fragment / read.
+    fasta_spacer : str, default="N"
+        Spacer character to insert between the enzyme and the annealing oligo.
+    fasta_line_length : int, default=60
+        Number of characters per line in the FASTA file.
+    additional_fasta_path : str, default=None
+        List of additional FASTA files to concatenate with the artificial chromosome ath
+        the end of the genome reference .FASTA file.
+    """
+
+    basedir = os.path.dirname(genome_input)
+    artificial_chr_path = os.path.join(basedir, "chr_artificial_ssDNA.fa")
+
+    # Creating the artificial chromosome using annealing oligo sequences
+    # and the enzyme sequence
+    logger.info(f"Creating the artificial chromosome with the annealing oligo and the enzyme {enzyme}")
+
+    df = pd.read_csv(annealing_input, sep=',')
+    ssdna_seq_series = df[df["type"] == "ss"]['sequence_modified']
+    ssdna_seq = [seq.lower() for seq in ssdna_seq_series.values]
+
+    lg = fasta_line_length
+    s = fragment_size - len(enzyme)
+    p = fasta_spacer
+    oneline = p * int(s/2) + enzyme + p * s
+
+    for seq in ssdna_seq:
+        middle = len(seq) // 2
+        enzyme_pos = seq.find(enzyme)
+        if enzyme_pos < middle:
+            seq2 = seq[enzyme_pos+len(enzyme):].upper()
+        else:
+            seq2 = seq[:enzyme_pos].upper()
+
+        oneline += seq2 + p * s + enzyme + p * s
+
+    lines = "\n".join([oneline[i:i+lg] for i in range(0, len(oneline), lg)])
+    fasta = f">chr_artificial_ssDNA\t ({len(oneline)} bp)\n{lines}"
+
+    with open(artificial_chr_path, "w") as f:
+        f.write(fasta)
+
+    # Inserting the artificial chromosome at the end of the genome .FASTA file
+    genome_name = os.path.basename(genome_input)
+    logger.info(f"Inserting the artificial chromosome at the end of the original genome .FASTA file")
+    with open(genome_input, "r") as f:
+        genome = f.read()
+
+    new_genome = genome + "\n" + fasta + "\n"
+
+    # Concatenate with additional FASTA sequence(s), if any
+    if additional_fasta_path:
+        logger.info(f"Looking for additional FASTA sequence(s) to concatenate with {genome_name}")
+        add_fasta_name = os.path.basename(additional_fasta_path)
+        logger.info(f"Concatenating {add_fasta_name} with the genome .FASTA file")
+        with open(additional_fasta_path, "r") as f:
+            add_fasta = f.read()
+
+        # Check line length
+        if len(add_fasta.split("\n")[1]) != lg:
+            logger.warning(f"Line length of {add_fasta_name} is not equal to {lg}")
+
+            # remove existing line breaks and add new ones
+            add_fasta = add_fasta.replace("\n", "")
+            add_fasta = "\n".join([add_fasta[i:i+lg] for i in range(0, len(add_fasta), lg)])
+
+        # Concatenate the strings
+        new_genome += "\n" + add_fasta
+
+    new_genome_output = genome_input.replace(".fa", "_artificial.fa")
+    with open(new_genome_output, "w") as f:
+        f.write(new_genome)
+
+    logger.info(f"Artificial chromosome created and inserted at the end of the genome .FASTA file")
 
 def get_stats(
         contacts_unbinned_path: str,
         sparse_mat_path: str,
         chr_coord_path: str,
-        oligo_path: str,
+        oligo_capture_with_frag_path: str,
         output_dir: str = None,
         cis_range: int = 50000,
         force: bool = False,
@@ -462,8 +561,9 @@ def get_stats(
         Path to the sparse_contacts_input.txt file (generated by hicstuff).
     chr_coord_path : str
         Path to the input chr_centros_coordinates.tsv file.
-    oligo_path : str
+    oligo_capture_with_frag_path : str
         Path to the oligo input CSV file.
+        Must contain fragments associated Made with the 'associate' command
     cis_range: int, default=50000
         Cis range to be considered around the probe.
     output_dir : str
@@ -482,7 +582,7 @@ def get_stats(
     utils.check_if_exists(contacts_unbinned_path)
     utils.check_if_exists(sparse_mat_path)
     utils.check_if_exists(chr_coord_path)
-    utils.check_if_exists(oligo_path)
+    utils.check_if_exists(oligo_capture_with_frag_path)
 
     if output_dir is None:
         output_dir = os.path.dirname(contacts_unbinned_path)
@@ -497,8 +597,8 @@ def get_stats(
         logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
 
-    oligo_delim = "," if oligo_path.endswith(".csv") else "\t"
-    df_oligo: pd.DataFrame = pd.read_csv(oligo_path, sep=oligo_delim)
+    oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
 
     coords_delim = "\t" if chr_coord_path.endswith(".tsv") else ","
     df_coords: pd.DataFrame = pd.read_csv(chr_coord_path, sep=coords_delim, index_col=None)
@@ -617,107 +717,6 @@ def get_stats(
     logger.info(f"Statistics saved to {out_stats_path}")
     logger.info(f"Normalized chr contacts saved to {out_chr_freq_path}")
     logger.info(f"Normalized inter-only chr contacts saved to {out_inter_chr_freq_path}")
-
-
-def edit_genome_ref(
-        annealing_input: str,
-        genome_input: str,
-        enzyme: str,
-        fragment_size: int = 150,
-        fasta_spacer: str = "N",
-        fasta_line_length: int = 80,
-        additional_fasta_path: str = None
-):
-    """
-    Create an artificial chromosome that is the concatenation of the annealing oligo and the enzyme sequence.
-
-    Insert it at the end of the original genome .FASTA file.
-
-    Parameters
-    ----------
-
-    annealing_input : str
-        Path to the annealing oligo input CSV file.
-    genome_input : str
-        Path to the original genome .FASTA file.
-    enzyme : str
-        Restriction Enzyme sequence (e.g., dpnII sequence : gatc).
-    fragment_size : int, default=150
-        Size of a digested fragment / read.
-    fasta_spacer : str, default="N"
-        Spacer character to insert between the enzyme and the annealing oligo.
-    fasta_line_length : int, default=60
-        Number of characters per line in the FASTA file.
-    additional_fasta_path : str, default=None
-        List of additional FASTA files to concatenate with the artificial chromosome ath
-        the end of the genome reference .FASTA file.
-    """
-
-    basedir = os.path.dirname(genome_input)
-    artificial_chr_path = os.path.join(basedir, "chr_artificial_ssDNA.fa")
-
-    # Creating the artificial chromosome using annealing oligo sequences
-    # and the enzyme sequence
-    logger.info(f"Creating the artificial chromosome with the annealing oligo and the enzyme {enzyme}")
-
-    df = pd.read_csv(annealing_input, sep=',')
-    ssdna_seq_series = df[df["type"] == "ss"]['sequence_modified']
-    ssdna_seq = [seq.lower() for seq in ssdna_seq_series.values]
-
-    lg = fasta_line_length
-    s = fragment_size - len(enzyme)
-    p = fasta_spacer
-    oneline = p * int(s/2) + enzyme + p * s
-
-    for seq in ssdna_seq:
-        middle = len(seq) // 2
-        enzyme_pos = seq.find(enzyme)
-        if enzyme_pos < middle:
-            seq2 = seq[enzyme_pos+len(enzyme):].upper()
-        else:
-            seq2 = seq[:enzyme_pos].upper()
-
-        oneline += seq2 + p * s + enzyme + p * s
-
-    lines = "\n".join([oneline[i:i+lg] for i in range(0, len(oneline), lg)])
-    fasta = f">chr_artificial_ssDNA\t ({len(oneline)} bp)\n{lines}"
-
-    with open(artificial_chr_path, "w") as f:
-        f.write(fasta)
-
-    # Inserting the artificial chromosome at the end of the genome .FASTA file
-    genome_name = os.path.basename(genome_input)
-    logger.info(f"Inserting the artificial chromosome at the end of the original genome .FASTA file")
-    with open(genome_input, "r") as f:
-        genome = f.read()
-
-    new_genome = genome + "\n" + fasta + "\n"
-
-    # Concatenate with additional FASTA sequence(s), if any
-    if additional_fasta_path:
-        logger.info(f"Looking for additional FASTA sequence(s) to concatenate with {genome_name}")
-        add_fasta_name = os.path.basename(additional_fasta_path)
-        logger.info(f"Concatenating {add_fasta_name} with the genome .FASTA file")
-        with open(additional_fasta_path, "r") as f:
-            add_fasta = f.read()
-
-        # Check line length
-        if len(add_fasta.split("\n")[1]) != lg:
-            logger.warning(f"Line length of {add_fasta_name} is not equal to {lg}")
-
-            # remove existing line breaks and add new ones
-            add_fasta = add_fasta.replace("\n", "")
-            add_fasta = "\n".join([add_fasta[i:i+lg] for i in range(0, len(add_fasta), lg)])
-
-        # Concatenate the strings
-        new_genome += "\n" + add_fasta
-
-    new_genome_output = genome_input.replace(".fa", "_artificial.fa")
-    with open(new_genome_output, "w") as f:
-        f.write(new_genome)
-
-    logger.info(f"Artificial chromosome created and inserted at the end of the genome .FASTA file")
-
 
 def filter_contacts(
         sparse_mat_path: str,
@@ -857,7 +856,7 @@ def fragments_correction(fragments_path):
 
 def hic_only(
         sample_sparse_mat: str,
-        oligo_capture_path: str,
+        oligo_capture_with_frag_path: str,
         n_flanking_dsdna: int = 2,
         output_path: str = None,
         force: bool = False
@@ -872,8 +871,9 @@ def hic_only(
     sample_sparse_mat : str
         Path to the sparse matrix file (hicstuff given output).
 
-    oligo_capture_path : str
+    oligo_capture_with_frag_path : str
         Path to the oligo capture file (sshicstuff mandatory table).
+        Must be the file with the fragments associated made with the 'associate' command
 
     n_flanking_dsdna : int
         Number of flanking fragments to remove around the probe fragment.
@@ -901,13 +901,13 @@ def hic_only(
         return
 
     utils.check_if_exists(sample_sparse_mat)
-    utils.check_if_exists(oligo_capture_path)
+    utils.check_if_exists(oligo_capture_with_frag_path)
     utils.check_file_extension(sample_sparse_mat, ".txt")
-    utils.check_file_extension(oligo_capture_path, [".csv", ".tsv"])
+    utils.check_file_extension(oligo_capture_with_frag_path, [".csv", ".tsv"])
 
-    oligo_capture_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
+    oligo_capture_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
     df_sparse_mat = pd.read_csv(sample_sparse_mat, sep='\t', header=None)
-    df_oligo = pd.read_csv(oligo_capture_path, sep=oligo_capture_delim)
+    df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_capture_delim)
 
     df_contacts_hic_only = df_sparse_mat.copy(deep=True)
 
@@ -1221,7 +1221,7 @@ def plot_profiles(
 
 def profile_contacts(
         filtered_table_path: str,
-        oligo_capture_path: str,
+        oligo_capture_with_frag_path: str,
         chromosomes_coord_path: str,
         normalize: bool = False,
         output_path: str = None,
@@ -1236,8 +1236,9 @@ def profile_contacts(
     ----------
     filtered_table_path : str
         Path to the filtered table (sshictuff filter script output).
-    oligo_capture_path : str
+    oligo_capture_with_frag_path : str
         Path to the oligo capture file (table .csv or .tsv for oligo capture information).
+        Must be the file with the fragments associated made with the 'associate' command.
     chromosomes_coord_path : str
         Path to the chromosomes coordinates file containing the length of each chromosome arms.
     normalize : bool
@@ -1251,7 +1252,7 @@ def profile_contacts(
     """
 
     utils.check_if_exists(filtered_table_path)
-    utils.check_if_exists(oligo_capture_path)
+    utils.check_if_exists(oligo_capture_with_frag_path)
     utils.check_if_exists(chromosomes_coord_path)
 
     if not output_path:
@@ -1273,8 +1274,8 @@ def profile_contacts(
     df_chr_len["chr_start"] = df_chr_len["length"].shift().fillna(0).astype("int64")
     df_chr_len["cumu_start"] = df_chr_len["chr_start"].cumsum()
 
-    oligo_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
-    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=oligo_delim)
+    oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
     probes = df_oligo['name'].to_list()
     fragments = df_oligo['fragment'].astype(str).to_list()
 

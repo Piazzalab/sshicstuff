@@ -94,7 +94,7 @@ def full_pipeline(
     logger.info("HiC only : keep only Hi-C reads, create a new sparse matrix file 'hic_only'")
     sshic.hic_only(
         sample_sparse_mat=sample_sparse_mat,
-        oligo_capture_path=oligo_capture_with_frag,
+        oligo_capture_with_frag_path=oligo_capture_with_frag,
         n_flanking_dsdna=n_flanking_dsdna,
         output_path=join(output_dir, hiconly_name),
         force=force
@@ -132,7 +132,7 @@ def full_pipeline(
     logger.info("Basal résolution : 0 kb (unbinned)")
     sshic.profile_contacts(
         filtered_table_path=join(output_dir, filtered_name),
-        oligo_capture_path=oligo_capture_with_frag,
+        oligo_capture_with_frag_path=oligo_capture_with_frag,
         chromosomes_coord_path=chr_coordinates,
         normalize=normalize,
         force=force,
@@ -144,7 +144,7 @@ def full_pipeline(
         contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
         sparse_mat_path=sample_sparse_mat,
         chr_coord_path=chr_coordinates,
-        oligo_path=oligo_capture_with_frag,
+        oligo_capture_with_frag_path=oligo_capture_with_frag,
         output_dir=output_dir,
         cis_range=cis_region_size
     )
@@ -178,7 +178,7 @@ def full_pipeline(
     sshic.aggregate(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
-        oligo_capture_path=oligo_capture_with_frag,
+        oligo_capture_with_frag_path=oligo_capture_with_frag,
         window_size=cen_agg_window_size,
         centromeres=True,
         output_dir=output_dir,
@@ -196,7 +196,7 @@ def full_pipeline(
     sshic.aggregate(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
-        oligo_capture_path=oligo_capture_with_frag,
+        oligo_capture_with_frag_path=oligo_capture_with_frag,
         window_size=telo_agg_window_size,
         telomeres=True,
         output_dir=output_dir,
