@@ -854,95 +854,6 @@ def fragments_correction(fragments_path):
     return fragments
 
 
-def hic_only(
-        sample_sparse_mat: str,
-        oligo_capture_with_frag_path: str,
-        n_flanking_dsdna: int = 2,
-        output_path: str = None,
-        force: bool = False
-) -> None:
-
-    """
-    Create a contact sparse matrix file with the same format as the input file, but with no ssDNA.
-    i.e., it removes fragments containing a probe and the N fragment up/downstream of it.
-
-    Parameters
-    ----------
-    sample_sparse_mat : str
-        Path to the sparse matrix file (hicstuff given output).
-
-    oligo_capture_with_frag_path : str
-        Path to the oligo capture file (sshicstuff mandatory table).
-        Must be the file with the fragments associated made with the 'associate' command
-
-    n_flanking_dsdna : int
-        Number of flanking fragments to remove around the probe fragment.
-        Default is 2.
-
-    output_path : str
-        Path to the output file to be created.
-        Default is None.
-
-    force : bool
-        Force the overwriting of the oligo file even if the columns are already present.
-        Default is True.
-
-    Returns
-    -------
-    None
-    """
-
-    if not output_path:
-        output_path = sample_sparse_mat.replace(".txt", "_hic_only.txt")
-
-    if not force and os.path.exists(output_path):
-        logger.info(f"Output file already exists: {output_path}")
-        logger.warning("Use the --force / -F flag to overwrite the existing file.")
-        return
-
-    utils.check_if_exists(sample_sparse_mat)
-    utils.check_if_exists(oligo_capture_with_frag_path)
-    utils.check_file_extension(sample_sparse_mat, ".txt")
-    utils.check_file_extension(oligo_capture_with_frag_path, [".csv", ".tsv"])
-
-    oligo_capture_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
-    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep='\t', header=None)
-    df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_capture_delim)
-
-    df_contacts_hic_only = df_sparse_mat.copy(deep=True)
-
-    ssdna_frag = df_oligo.loc[df_oligo["type"] == "ss", "fragment"].tolist()
-    df_ssdna = pd.DataFrame(ssdna_frag, columns=['fragments'])
-
-    dsdna_frag = df_oligo.loc[df_oligo["type"] == "ds", "fragment"].tolist()
-    dsdna_frag_flanking = []
-    for f in dsdna_frag:
-        for i in range(1, n_flanking_dsdna + 1):
-            dsdna_frag_flanking.append(f + i)
-            dsdna_frag_flanking.append(f - i)
-
-    dsdna_frag_all = np.unique(dsdna_frag + dsdna_frag_flanking)
-    df_dsdna = pd.DataFrame(dsdna_frag_all, columns=['fragments'])
-
-    df_frag = pd.concat([df_ssdna, df_dsdna])
-    del df_ssdna, df_dsdna
-
-    df_sparse_mat["index"] = df_sparse_mat.index
-    matches_a = pd.merge(df_sparse_mat, df_frag, left_on=0, right_on='fragments', how='inner', indicator=True)
-    matches_b = pd.merge(df_sparse_mat, df_frag, left_on=1, right_on='fragments', how='inner', indicator=True)
-    index_to_drop = np.unique(np.concatenate((matches_a['index'].to_numpy(), matches_b['index'].to_numpy())))
-
-    df_contacts_hic_only.drop(index_to_drop, inplace=True)
-
-    df_contacts_hic_only.iloc[0, 0] -= len(df_frag)
-    df_contacts_hic_only.iloc[0, 1] -= len(df_frag)
-    df_contacts_hic_only.iloc[0, 2] -= len(index_to_drop)
-
-    df_contacts_hic_only.to_csv(output_path, sep='\t', index=False, header=False)
-
-    logger.info(f"Hi-C only contacts saved to {output_path}")
-
-
 def oligo_correction(oligo_path):
     delim = "," if oligo_path.endswith(".csv") else "\t"
     oligo = pd.read_csv(oligo_path, sep=delim)
@@ -1002,7 +913,7 @@ def plot_profiles(
         profile_type = 'frequencies'
 
     df: pd.DataFrame = pd.read_csv(profile_contacts_path, sep='\t')
-    frags_col = df.filter(regex='^\d+$|^\$').columns.to_list()
+    frags_col = df.filter(regex=r'^\d+$|^\$').columns.to_list()
     df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=',')
     probes_to_frag = dict(zip(df_oligo['fragment'].astype(str), df_oligo['name'].astype(str)))
     df_coords = pd.read_csv(chr_coord_path, sep='\t')
@@ -1420,7 +1331,7 @@ def rebin_profile(
     df_cross_bins_a["chr_bins"] = df_cross_bins["start_bin"]
     df_cross_bins_b["chr_bins"] = df_cross_bins["end_bin"]
 
-    fragments_columns = df.filter(regex='^\d+$|^\$').columns.to_list()
+    fragments_columns = df.filter(regex=r'^\d+$|^\$').columns.to_list()
 
     correction_factors = (df_cross_bins_b["end"] - df_cross_bins_b["chr_bins"]) / df_cross_bins_b["sizes"]
     for c in fragments_columns:
@@ -1488,6 +1399,160 @@ def sparse_mat_correction(sparse_mat_path):
     contacts.columns = ['frag_a', 'frag_b', 'contacts']
 
     return contacts
+
+
+def sparse_with_dsdna_only(
+        sample_sparse_mat: str,
+        oligo_capture_with_frag_path: str,
+        n_flanking_dsdna: int = 2,
+        output_path: str = None,
+        force: bool = False
+) -> None:
+
+    """
+    Create a contact sparse matrix file with the same format as the input file, but with no ssDNA.
+    i.e., it removes fragments containing a probe and the N fragment up/downstream of it.
+
+    Parameters
+    ----------
+    sample_sparse_mat : str
+        Path to the sparse matrix file (hicstuff given output).
+
+    oligo_capture_with_frag_path : str
+        Path to the oligo capture file (sshicstuff mandatory table).
+        Must be the file with the fragments associated made with the 'associate' command
+
+    n_flanking_dsdna : int
+        Number of flanking fragments to remove around the probe fragment.
+        Default is 2.
+
+    output_path : str
+        Path to the output file to be created.
+        Default is None.
+
+    force : bool
+        Force the overwriting of the oligo file even if the columns are already present.
+        Default is True.
+
+    Returns
+    -------
+    None
+    """
+
+    if not output_path:
+        output_path = sample_sparse_mat.replace(".txt", "_dsdna_only.txt")
+
+    if not force and os.path.exists(output_path):
+        logger.info(f"Output file already exists: {output_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        return
+
+    utils.check_if_exists(sample_sparse_mat)
+    utils.check_if_exists(oligo_capture_with_frag_path)
+    utils.check_file_extension(sample_sparse_mat, ".txt")
+    utils.check_file_extension(oligo_capture_with_frag_path, [".csv", ".tsv"])
+
+    oligo_capture_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep='\t', header=None)
+    df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_capture_delim)
+
+    df_contacts_dsdna_only = df_sparse_mat.copy(deep=True)
+
+    ssdna_frag = df_oligo.loc[df_oligo["type"] == "ss", "fragment"].tolist()
+    df_ssdna = pd.DataFrame(ssdna_frag, columns=['fragments'])
+
+    dsdna_frag = df_oligo.loc[df_oligo["type"] == "ds", "fragment"].tolist()
+    dsdna_frag_flanking = []
+    for f in dsdna_frag:
+        for i in range(1, n_flanking_dsdna + 1):
+            dsdna_frag_flanking.append(f + i)
+            dsdna_frag_flanking.append(f - i)
+
+    dsdna_frag_all = np.unique(dsdna_frag + dsdna_frag_flanking)
+    df_dsdna = pd.DataFrame(dsdna_frag_all, columns=['fragments'])
+
+    df_frag = pd.concat([df_ssdna, df_dsdna])
+    del df_ssdna, df_dsdna
+
+    df_sparse_mat["index"] = df_sparse_mat.index
+    matches_a = pd.merge(df_sparse_mat, df_frag, left_on=0, right_on='fragments', how='inner', indicator=True)
+    matches_b = pd.merge(df_sparse_mat, df_frag, left_on=1, right_on='fragments', how='inner', indicator=True)
+    index_to_drop = np.unique(np.concatenate((matches_a['index'].to_numpy(), matches_b['index'].to_numpy())))
+
+    df_contacts_dsdna_only.drop(index_to_drop, inplace=True)
+
+    df_contacts_dsdna_only.iloc[0, 0] -= len(df_frag)
+    df_contacts_dsdna_only.iloc[0, 1] -= len(df_frag)
+    df_contacts_dsdna_only.iloc[0, 2] -= len(index_to_drop)
+
+    df_contacts_dsdna_only.to_csv(output_path, sep='\t', index=False, header=False)
+
+    logger.info(f"dsDNA only contacts saved to {output_path}")
+
+
+def sparse_with_ssdna_only(
+        sample_sparse_mat: str,
+        oligo_capture_with_frag_path: str,
+        output_path: str = None,
+        force: bool = False
+) -> None:
+    """
+    Create a contact sparse matrix file with the same format as the input file, but with only ssDNA.
+    The idea is to make ssdna vs ssdna profile after that step
+
+    Parameters
+    ----------
+    sample_sparse_mat : str
+        Path to the sparse matrix file (hicstuff given output).
+
+    oligo_capture_with_frag_path : str
+        Path to the oligo capture file (sshicstuff mandatory table).
+        Must be the file with the fragments associated made with the 'associate' command
+
+    output_path : str
+        Path to the output file to be created.
+        Default is None.
+
+    force : bool
+        Force the overwriting of the oligo file even if the columns are already present.
+        Default is True.
+
+    Returns
+    -------
+    None
+    """
+
+    if not output_path:
+        output_path = sample_sparse_mat.replace(".txt", "_ssdna_only.txt")
+
+    if not force and os.path.exists(output_path):
+        logger.info(f"Output file already exists: {output_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        return
+
+    utils.check_if_exists(sample_sparse_mat)
+    utils.check_if_exists(oligo_capture_with_frag_path)
+    utils.check_file_extension(sample_sparse_mat, ".txt")
+    utils.check_file_extension(oligo_capture_with_frag_path, [".csv", ".tsv"])
+
+    oligo_capture_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep='\t', header=0)
+    df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_capture_delim)
+
+    df_contacts_ssdna_only = df_sparse_mat.copy(deep=True)
+    ssdna_frag = pd.unique(df_oligo.loc[df_oligo["type"] == "ss", "fragment"]).tolist()
+
+    df_contacts_ssdna_only = df_contacts_ssdna_only[
+        df_contacts_ssdna_only.iloc[:, 0].isin(ssdna_frag) &
+        df_contacts_ssdna_only.iloc[:, 1].isin(ssdna_frag)
+    ]
+
+    df_contacts_ssdna_only.columns = [len(ssdna_frag), len(ssdna_frag), len(df_contacts_ssdna_only)+1]
+    df_contacts_ssdna_only.reset_index(drop=True, inplace=True)
+
+    df_contacts_ssdna_only.to_csv(output_path, sep='\t', index=False, header=True)
+    logger.info(f"ssDNA only contacts saved to {output_path}")
+
 
 
 def starts_match(fragments: pd.DataFrame, oligo: pd.DataFrame) -> pd.DataFrame:

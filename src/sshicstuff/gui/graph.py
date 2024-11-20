@@ -53,7 +53,7 @@ def rebin_live(df: pd.DataFrame, df_template: pd.DataFrame, bin_size: int):
     df_cross_bins_a["chr_bins"] = df_cross_bins["start_bin"]
     df_cross_bins_b["chr_bins"] = df_cross_bins["end_bin"]
 
-    fragments_columns = df.filter(regex='^\d+$|^\$').columns.to_list()
+    fragments_columns = df.filter(regex=r'^\d+$|^\$').columns.to_list()
 
     correction_factors = (df_cross_bins_b["end"] - df_cross_bins_b["chr_bins"]) / df_cross_bins_b["sizes"]
     for c in fragments_columns:

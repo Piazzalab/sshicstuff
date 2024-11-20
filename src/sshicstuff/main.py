@@ -15,21 +15,38 @@ options:
 
 The subcommands are:
     subsample           Subsample and compress FASTQ file using seqtk.
+
     genomaker           Create a chromosome artificial that is the concatenation of the
                         annealing oligos and the enzyme sequence.
+
     associate           Associate oligo/probe name to fragment/read ID that contains it.
-    hiconly             Keep only Hi-C reads from a sparse matrix file (i.e., remove all ssDNA reads).
+
+    dsdnaconly          Keep only Hi-C (dsdna sites) reads from a sparse matrix file (i.e., remove all ssDNA reads).
+                        Generate a new sparse matrix file with only dsDNA reads.
+
+    ssdnaconly          Keep only ssDNA reads from a sparse matrix file (i.e., remove all dsdna reads).
+                        Generate a new sparse matrix file with only ssDNA reads.
+
     filter              Filter reads from a sparse matrix and keep only pairs of reads that contain at least one
-                        oligo/probe.
+                        oligo/probe (ssdna reads vs whole genome).
+
     coverage            Calculate the coverage per fragment and save the result to a bedgraph.
+
     profile             Generate a 4C-like profile for each ssDNA oligo.
+
     rebin               Rebin change binning resolution of a 4C-like profile
+
     stats               Generate statistics and normalization for contacts made by each probe.
+
     compare             Compare the capture efficiency of a sample with that of a wild type
                         (may be another sample).
+
     aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
+
     plot                Plot a 4C-like profile.
+
     view                Open a graphical user interface to visualize 4-C like profile
+
     pipeline            Run the entire pipeline from filtering to aggregation.
 
 """

@@ -92,7 +92,7 @@ def full_pipeline(
         shcu.copy(oligo_capture_with_frag, copy_dir)
 
     logger.info("HiC only : keep only Hi-C reads, create a new sparse matrix file 'hic_only'")
-    sshic.hic_only(
+    sshic.sparse_with_dsdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         n_flanking_dsdna=n_flanking_dsdna,

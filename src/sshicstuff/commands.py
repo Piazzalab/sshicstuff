@@ -134,13 +134,13 @@ class Associate(AbstractCommand):
         )
 
 
-class Hiconly(AbstractCommand):
+class Dsdnaonly(AbstractCommand):
     """
     Filter the sparse matrix by removing all the ss DNA specific contacts.
     Retain only the contacts between non-ss DNA fragments.
 
     usage:
-        hiconly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-n FLANKING_NUMBER] [-F]
+        dsdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-n FLANKING_NUMBER] [-F]
 
     Arguments:
         -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
@@ -152,8 +152,8 @@ class Hiconly(AbstractCommand):
     Options:
         -o OUTPUT, --output OUTPUT                              Path to the output file
 
-        -n FLANKING_NUMBER, --flanking-number NUMBER            Number of flanking fragments around the fragment
-                                                                containing a DSDNA oligo to consider and remove
+        -n FLANKING_NUMBER, --flanking-number NUMBER            Number of flanking fragments to remove
+                                                                around a ssdna probe/fragment
                                                                 [default: 2]
 
         -F, --force                                             Force the overwriting of the file if
@@ -161,7 +161,7 @@ class Hiconly(AbstractCommand):
     """
     def execute(self):
         check_exists(self.args["--sparse-matrix"], self.args["--oligos-capture"])
-        methods.hic_only(
+        methods.sparse_with_dsdna_only(
             sample_sparse_mat=self.args["--sparse-matrix"],
             oligo_capture_with_frag_path=self.args["--oligos-capture"],
             output_path=self.args["--output"],
@@ -169,6 +169,35 @@ class Hiconly(AbstractCommand):
             force=self.args["--force"]
         )
 
+
+class Ssdnaonly(AbstractCommand):
+    """
+    Filter the sparse matrix by removing all the ds DNA specific contacts.
+    Retain only the contacts between ss DNA fragments.
+
+    usage:
+        ssdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-F]
+
+    Arguments:
+        -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
+                                                                Must be the file with the fragments associated
+                                                                Made with the 'associate' command
+
+        -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
+
+    Options:
+        -o OUTPUT, --output OUTPUT                              Path to the output file
+
+        -F, --force                                             Force the overwriting of the file if it exists [default: False]
+    """
+    def execute(self):
+        check_exists(self.args["--sparse-matrix"], self.args["--oligos-capture"])
+        methods.sparse_with_ssdna_only(
+            sample_sparse_mat=self.args["--sparse-matrix"],
+            oligo_capture_with_frag_path=self.args["--oligos-capture"],
+            output_path=self.args["--output"],
+            force=self.args["--force"]
+        )
 
 class Filter(AbstractCommand):
     """
