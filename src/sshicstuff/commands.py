@@ -289,6 +289,38 @@ class Genomaker(AbstractCommand):
             additional_fasta_path=self.args["--additional"]
         )
 
+class Merge(AbstractCommand):
+    """
+    Merge two or more sparse matrices into a single sparse matrix
+    The merge is actually a sum of contacts for each individual fragment (reads) of each sparse.
+    All sparse matrices must have the same dimensions and been mapped with the same genome reference.
+
+    usage:
+        merge -f FRAGMENTS [-F] [-o OUTPATH] MATRIX...
+
+    Arguments:
+        -f FRAGMENTS, --fragments FRAGMENTS         Path to the digested fragments list file
+
+        MATRIX...                                   Path to the sparse matrix files to merge
+                                                    (as many as you want)
+
+    Options:
+        -o OUTPATH, --output OUTPATH                Path to the output file
+
+        -F, --force                                 Force the overwriting of the output file if it exists [default: False]
+    """
+
+    def execute(self):
+        matrices = self.args["MATRIX"]
+        check_exists(self.args["--fragments"], *matrices)
+        methods.merge_sparse_mat(
+            fragments_list_path=self.args["--fragments"],
+            output_path=self.args["--output"],
+            force=self.args["--force"],
+            matrices=matrices
+        )
+
+
 class Pipeline(AbstractCommand):
 
     """

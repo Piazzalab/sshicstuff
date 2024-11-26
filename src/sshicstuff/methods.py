@@ -1,6 +1,8 @@
 import os
 import re
 import subprocess
+import datetime
+
 import numpy as np
 import pandas as pd
 
@@ -852,6 +854,51 @@ def fragments_correction(fragments_path):
          })
 
     return fragments
+
+
+def merge_sparse_mat(fragments_list_path: str, output_path: str = None, force: bool = False, matrices: list[str] = None) -> None:
+    if not matrices:
+        logger.error("No sparse matrices provided")
+        return
+
+    N = len(matrices)
+    logger.info("Merging {0} sparse matrices into one".format(N))
+    files = [os.path.basename(matrix) for matrix in matrices]
+    samples_names = [file.split('.')[0] for file in files]
+
+    if os.path.exists(output_path) and not force:
+        logger.warning(f"Output file already exists: {output_path}")
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        return
+
+    utils.check_file_extension(fragments_list_path, ".txt")
+    for i in range(N):
+        utils.check_file_extension(matrices[i], ".txt")
+
+    if not output_path:
+        now_ = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        output_path = os.path.join(os.path.dirname(matrices[0]), f"{now_}_merged_sparse_contacts.tsv")
+
+    df_fragments: pd.DataFrame = pd.read_csv(fragments_list_path, sep='\t')
+    df_sparses: list[pd.DataFrame] = [
+        pd.read_csv(matrix, sep='\t', header=0) for matrix in matrices
+    ]
+
+    n_frags = len(df_fragments)
+    if not all([int(df.columns[0]) == n_frags for df in df_sparses]):
+        logger.error("All the sparse matrices must have the same number of fragments")
+        return
+
+    else:
+        for df in df_sparses:
+            df.columns = ["frag_a", "frag_b", "contacts"]
+
+    df_concatenated: pd.DataFrame = pd.concat(df_sparses)
+    df_merged = df_concatenated.groupby(['frag_a', 'frag_b'], as_index=False)['contacts'].sum()
+
+    df_merged.columns = [n_frags, n_frags, len(df_merged)+1]
+    df_merged.to_csv(output_path, sep='\t', index=False, header=True)
+    logger.info(f"Merged sparse matrix saved to {output_path}")
 
 
 def oligo_correction(oligo_path):
