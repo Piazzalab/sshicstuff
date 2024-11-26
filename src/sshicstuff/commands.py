@@ -296,11 +296,9 @@ class Merge(AbstractCommand):
     All sparse matrices must have the same dimensions and been mapped with the same genome reference.
 
     usage:
-        merge -f FRAGMENTS [-F] [-o OUTPATH] MATRIX...
+        merge [-F] [-o OUTPATH] MATRIX...
 
     Arguments:
-        -f FRAGMENTS, --fragments FRAGMENTS         Path to the digested fragments list file
-
         MATRIX...                                   Path to the sparse matrix files to merge
                                                     (as many as you want)
 
@@ -312,9 +310,8 @@ class Merge(AbstractCommand):
 
     def execute(self):
         matrices = self.args["MATRIX"]
-        check_exists(self.args["--fragments"], *matrices)
+        check_exists( *matrices)
         methods.merge_sparse_mat(
-            fragments_list_path=self.args["--fragments"],
             output_path=self.args["--output"],
             force=self.args["--force"],
             matrices=matrices
