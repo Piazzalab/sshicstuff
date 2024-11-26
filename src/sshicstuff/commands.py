@@ -36,6 +36,7 @@ class AbstractCommand:
         """Execute the commands"""
         raise NotImplementedError
 
+
 class Aggregate(AbstractCommand):
     """
     Aggregate contacts around specific regions of centromeres or telomeres.
