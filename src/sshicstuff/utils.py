@@ -121,7 +121,8 @@ def copy(source_path, destination_path):
     """
     try:
         shutil.copy(source_path, destination_path)
-        logger.info(f"File {source_path.split('/')[-1]} copied successfully.")
+        src_basename = source_path.split('/')[-1]
+        logger.info(f"[Copy] : {src_basename} copied.")
     except IOError as e:
         logger.error(f"Unable to copy file. Error: {e}")
         sys.exit(1)

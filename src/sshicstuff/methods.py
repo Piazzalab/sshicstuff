@@ -93,14 +93,14 @@ def aggregate(
     df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep='\t')
 
     binsize = int(df_contacts.loc[2, 'chr_bins'] - df_contacts.loc[1, 'chr_bins'])
-    logger.info(f"Contacts binned profile with resolution of : {binsize} bp")
+    logger.info(f"[Aggregate] : Contacts binned profile with resolution of : {binsize} bp")
 
     chr_list = list(df_coords['chr'].unique())
     fragments = df_oligo["fragment"].astype(str).tolist()
     groups = [g for g in df_contacts.columns if g.startswith("$")]
 
     if len(excluded_chr_list) > 0:
-        logger.info(f"Excluding chromosomes:  {', '.join(excluded_chr_list)}")
+        logger.info(f"[Aggregate] : Excluding chromosomes:  {', '.join(excluded_chr_list)}")
         df_contacts = df_contacts[~df_contacts['chr'].isin(excluded_chr_list)]
         df_coords = df_coords[~df_coords['chr'].isin(excluded_chr_list)]
 
@@ -108,7 +108,7 @@ def aggregate(
         #   We need to remove for each oligo the number of contact it makes with its own chr.
         #   Because we know that the frequency of intra-chr contact is higher than inter-chr
         #   We have to set them as NaN to not bias the average
-        logger.info("Excluding intra-chr contacts")
+        logger.info("[Aggregate] : Excluding intra-chr contacts")
         for frag in fragments:
             ii_frag = df_oligo.loc[df_oligo["fragment"] == int(frag)].index[0]
             probe_chr_ori = df_oligo.loc[ii_frag, 'chr_ori']
@@ -118,13 +118,13 @@ def aggregate(
         output_prefix += "_inter"
 
     if normalize:
-        logger.info("Normalizing the contacts")
+        logger.info("[Aggregate] : Normalizing the contacts")
         df_contacts.loc[:, fragments] = df_contacts[fragments].div(df_contacts[fragments].sum(axis=0))
         output_prefix += "_norm"
 
     if centromeres:
-        logger.info("Aggregating contacts around centromeres")
-        logger.info(f"Window size: {window_size} bp on each side of the centromere")
+        logger.info(f"[Aggregate] : Aggregating contacts around centromeres")
+        logger.info(f"[Aggregate] : Window size: {window_size} bp on each side of the centromere")
 
         df_merged: pd.DataFrame = pd.merge(df_contacts, df_coords, on='chr')
         df_merged_cen_areas: pd.DataFrame = df_merged[
@@ -155,10 +155,11 @@ def aggregate(
         if arm_length_classification:
             if "category" not in df_coords.columns:
                 logger.error(
+                    "[Aggregate] :"
                     "The 'category' column is missing in the centromeres file. "
                     "Must be in the form small_small or long_middle concerning lengths of left_right arms")
             else:
-                logger.info("Classifying the contacts by chromosome arm lengths")
+                logger.info("[Aggregate] : Classifying the contacts by chromosome arm lengths")
 
                 df_arms_size: pd.DataFrame = pd.DataFrame(columns=["chr", "arm", "size", "category"])
                 for _, row in df_coords.iterrows():
@@ -191,7 +192,7 @@ def aggregate(
     df_grouped = utils.sort_by_chr(df_grouped, chr_list, 'chr', 'chr_bins')
     df_grouped['chr_bins'] = df_grouped['chr_bins'].astype('int64')
 
-    logger.info(f"Compute mean, median, std on the aggregated contacts per probe or group of probes, per chromosome")
+    logger.info(f"[Aggregate] : Compute mean, median, std on the aggregated contacts per probe or group of probes, per chromosome")
     df_aggregated_mean: pd.DataFrame = df_grouped.groupby(by="chr_bins", as_index=False).mean(numeric_only=True)
     df_aggregated_mean.to_csv(output_prefix + "_mean.tsv", sep="\t")
     df_aggregated_std: pd.DataFrame = df_grouped.groupby(by="chr_bins", as_index=False).std(numeric_only=True)
@@ -237,17 +238,17 @@ def associate_oligo_to_frag(
     None
     """
 
-    logger.info("Associating oligo to fragments based on the fragment id, start and end positions.")
+    logger.info("[Associate] : Associate oligo/probe name to fragment/read ID that contains it.")
 
     utils.check_file_extension(fragments_path, ".txt")
     utils.check_file_extension(oligo_capture_path, [".csv", ".tsv", ".txt"])
 
     output_path: str = oligo_capture_path.replace(".csv", "_fragments_associated.csv")
-    logger.info(f"Creating a new oligo_capture table : {output_path.split('/')[-1]}")
+    logger.info(f"[Associate] : Creating a new oligo_capture table : {output_path.split('/')[-1]}")
 
     if os.path.exists(output_path) and not force:
-        logger.info(f"Output file already exists: {output_path}")
-        logger.info("Use the --force / -F flag to overwrite the existing file.")
+        logger.info(f"[Associate] : Output file already exists: {output_path}")
+        logger.info("[Associate] : Use the --force / -F flag to overwrite the existing file.")
         return
 
     # Read the oligo and fragments files
@@ -283,7 +284,7 @@ def associate_oligo_to_frag(
     df_oligo['fragment_end'] = fragments_end
     df_oligo.to_csv(output_path, sep=",", index=False)
 
-    logger.info("Oligos associated to fragments successfully.")
+    logger.info("[Associate] : oligos associated to fragments successfully.")
 
 
 def compare_with_wt(
@@ -380,7 +381,7 @@ def coverage(
     None
     """
 
-    logger.info("Calculating coverage per fragment into a bedgraph.")
+    logger.info("[Coverage] : Calculating coverage per fragment into a bedgraph.")
 
     if output_dir is None:
         output_dir = os.path.dirname(sparse_mat_path)
@@ -425,18 +426,18 @@ def coverage(
 
     output_path = output_path + "_contacts_coverage.bedgraph"
     df_contacts_cov.to_csv(output_path, sep='\t', index=False, header=False)
-    logger.info(f"Contacts coverage file saved to {output_path}")
+    logger.info(f"[Coverage] : Contacts coverage file saved to {output_path}")
 
     if normalize:
         output_path = output_path.replace("_contacts_", "_frequencies_")
-        logger.info("Normalizing coverage by the total number of contacts.")
+        logger.info("[Coverage] : Normalizing coverage by the total number of contacts.")
         df_frequencies_cov: pd.DataFrame = df_contacts_cov.copy(deep=True)
         df_frequencies_cov["contacts"] /= sum(df_frequencies_cov["contacts"])
         df_frequencies_cov.rename(columns={"contacts": "frequencies"})
         df_frequencies_cov.to_csv(output_path, sep='\t', index=False, header=False)
 
 
-    logger.info("Coverage calculation completed.")
+    logger.info("[Coverage] : Coverage calculation completed.")
 
 def edit_genome_ref(
         annealing_input: str,
@@ -579,7 +580,7 @@ def get_stats(
     None
     """
 
-    logger.info("Generating statistics for contacts made by each probe.")
+    logger.info("[Stats] : Generating statistics for contacts made by each probe.")
 
     utils.check_if_exists(contacts_unbinned_path)
     utils.check_if_exists(sparse_mat_path)
@@ -595,8 +596,8 @@ def get_stats(
     out_inter_chr_freq_path = os.path.join(output_dir, f"{sample_name}_norm_inter_chr_freq.tsv")
 
     if os.path.exists(out_stats_path) and not force:
-        logger.warning(f"Output file already exists: {out_stats_path}")
-        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"[Stats] : Output file already exists: {out_stats_path}")
+        logger.warning("[Stats] : Use the --force / -F flag to overwrite the existing file.")
         return
 
     oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
@@ -716,9 +717,9 @@ def get_stats(
     df_chr_nrm.to_csv(out_chr_freq_path, sep='\t', index=False)
     df_chr_inter_only_nrm.to_csv(out_inter_chr_freq_path, sep='\t', index=False)
 
-    logger.info(f"Statistics saved to {out_stats_path}")
-    logger.info(f"Normalized chr contacts saved to {out_chr_freq_path}")
-    logger.info(f"Normalized inter-only chr contacts saved to {out_inter_chr_freq_path}")
+    logger.info(f"[Stats] : Statistics saved to {out_stats_path}")
+    logger.info(f"[Stats] : Normalized chr contacts saved to {out_chr_freq_path}")
+    logger.info(f"[Stats] : Normalized inter-only chr contacts saved to {out_inter_chr_freq_path}")
 
 def filter_contacts(
         sparse_mat_path: str,
@@ -785,8 +786,8 @@ def filter_contacts(
         os.makedirs(out_basedir)
 
     if not force and os.path.exists(output_path):
-        logger.warning(f"Output file already exists: {output_path}")
-        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"[Filter] : Output file already exists: {output_path}")
+        logger.warning("[Filter] : Use the --force / -F flag to overwrite the existing file.")
         return
 
     utils.check_if_exists(sparse_mat_path)
@@ -815,7 +816,7 @@ def filter_contacts(
 
     df_contacts_filtered.to_csv(output_path, sep='\t', index=False)
 
-    logger.info(f"Filtered contacts saved to {output_path}")
+    logger.info(f"[Filter] : Filtered contacts saved to {output_path}")
 
 
 def first_join(x: str, oligo_fragments: pd.DataFrame, contacts: pd.DataFrame) -> pd.DataFrame:
@@ -1336,8 +1337,8 @@ def rebin_profile(
         output_path = contacts_unbinned_path.replace("0kb_profile", f"{bin_suffix}_profile")
 
     if os.path.exists(output_path) and not force:
-        logger.warning(f"Output file already exists: {output_path}")
-        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.warning(f"[Rebin] : Output file already exists: {output_path}")
+        logger.warning("[Rebin] : Use the --force / -F flag to overwrite the existing file.")
         return
 
     df = pd.read_csv(contacts_unbinned_path, sep='\t')
@@ -1486,8 +1487,8 @@ def sparse_with_dsdna_only(
         output_path = sample_sparse_mat.replace(".txt", "_dsdna_only.txt")
 
     if not force and os.path.exists(output_path):
-        logger.info(f"Output file already exists: {output_path}")
-        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.info(f"[Sparse Matrix Graal (dsdna)] Output file already exists: {output_path}")
+        logger.warning("[Sparse Matrix Graal (dsdna)] Use the --force / -F flag to overwrite the existing file.")
         return
 
     utils.check_if_exists(sample_sparse_mat)
@@ -1530,7 +1531,7 @@ def sparse_with_dsdna_only(
 
     df_contacts_dsdna_only.to_csv(output_path, sep='\t', index=False, header=False)
 
-    logger.info(f"dsDNA only contacts saved to {output_path}")
+    logger.info(f"[Sparse Matrix Graal (dsdna)] : dsDNA only contacts saved to {output_path}")
 
 
 def sparse_with_ssdna_only(
@@ -1569,8 +1570,8 @@ def sparse_with_ssdna_only(
         output_path = sample_sparse_mat.replace(".txt", "_ssdna_only.txt")
 
     if not force and os.path.exists(output_path):
-        logger.info(f"Output file already exists: {output_path}")
-        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        logger.info(f"[Sparse Matrix Graal (ssdna)] : Output file already exists: {output_path}")
+        logger.warning("[Sparse Matrix Graal (ssdna)] : Use the --force / -F flag to overwrite the existing file.")
         return
 
     utils.check_if_exists(sample_sparse_mat)
@@ -1594,7 +1595,7 @@ def sparse_with_ssdna_only(
     df_contacts_ssdna_only.reset_index(drop=True, inplace=True)
 
     df_contacts_ssdna_only.to_csv(output_path, sep='\t', index=False, header=True)
-    logger.info(f"ssDNA only contacts saved to {output_path}")
+    logger.info(f"[Sparse Matrix Graal (ssdna)] : ssDNA only contacts saved to {output_path}")
 
 
 
