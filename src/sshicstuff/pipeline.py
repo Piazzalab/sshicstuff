@@ -109,13 +109,15 @@ def full_pipeline(
     )
 
     logger.info("[Coverage] : Calculate the coverage for dsDNA reads only")
-    sshic.coverage(
-        sparse_mat_path=join(dsdna_dir, dsdnaonly_name),
-        fragments_list_path=fragments_list,
-        normalize=normalize,
-        output_dir=dsdna_dir,
-        force=force
-    )
+    for bn in bin_sizes:
+        sshic.coverage(
+            sparse_mat_path=join(dsdna_dir, dsdnaonly_name),
+            fragments_list_path=fragments_list,
+            normalize=normalize,
+            output_dir=dsdna_dir,
+            force=force,
+            bin_size=bn
+        )
 
     """
     ssDNA reads only
@@ -131,13 +133,15 @@ def full_pipeline(
     )
 
     logger.info("[Coverage] : Calculate the coverage per ssDNA fragment and save the result to a bedgraph")
-    sshic.coverage(
-        sparse_mat_path=join(ssdna_dir, ssdnaonly_name),
-        fragments_list_path=fragments_list,
-        normalize=normalize,
-        output_dir=ssdna_dir,
-        force=force
-    )
+    for bn in bin_sizes:
+        sshic.coverage(
+            sparse_mat_path=join(ssdna_dir, ssdnaonly_name),
+            fragments_list_path=fragments_list,
+            normalize=normalize,
+            output_dir=ssdna_dir,
+            force=force,
+            bin_size=bn
+        )
 
     """
     All reads

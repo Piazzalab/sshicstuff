@@ -358,7 +358,8 @@ def coverage(
         fragments_list_path: str,
         output_dir: str = None,
         normalize: bool = False,
-        force: bool = False
+        force: bool = False,
+        bin_size: int = 0
 ) -> None:
     """
     Calculate the coverage per fragment and save the result to a bedgraph file in the output directory.
@@ -375,6 +376,8 @@ def coverage(
         Normalize the coverage by the total number of contacts.
     force : bool
         Force the overwriting of the output file if the file exists.
+    bin_size : int
+        Size of the bin to use for the coverage bedgraph.
 
     Returns
     -------
@@ -428,6 +431,18 @@ def coverage(
     df_contacts_cov.to_csv(output_path, sep='\t', index=False, header=False)
     logger.info(f"[Coverage] : Contacts coverage file saved to {output_path}")
 
+    if bin_size > 0:
+        bin_suffix = str(bin_size // 1000) + "kb"
+        output_path = output_path.replace(".bedgraph", f"_{bin_suffix}.bedgraph")
+        logger.info(f"[Coverage] : Binning the bedgraph at {bin_suffix} resolution.")
+        df_contacts_cov_bin: pd.DataFrame = df_contacts_cov.copy(deep=True)
+        df_contacts_cov_bin['start'] = df_contacts_cov_bin['start'] // bin_size * bin_size
+        df_contacts_cov_bin['end'] = df_contacts_cov_bin['end'] // bin_size * bin_size
+        df_contacts_cov_bin = df_contacts_cov_bin.groupby(['chr', 'start', 'end'], as_index=False).sum()
+        df_contacts_cov_bin.to_csv(output_path, sep='\t', index=False, header=False)
+        logger.info(f"[Coverage] : Contacts coverage binned file saved to {output_path}")
+        df_contacts_cov = df_contacts_cov_bin
+
     if normalize:
         output_path = output_path.replace("_contacts_", "_frequencies_")
         logger.info("[Coverage] : Normalizing coverage by the total number of contacts.")
@@ -435,7 +450,6 @@ def coverage(
         df_frequencies_cov["contacts"] /= sum(df_frequencies_cov["contacts"])
         df_frequencies_cov.rename(columns={"contacts": "frequencies"})
         df_frequencies_cov.to_csv(output_path, sep='\t', index=False, header=False)
-
 
     logger.info("[Coverage] : Coverage calculation completed.")
 

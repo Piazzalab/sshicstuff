@@ -170,6 +170,9 @@ class Coverage(AbstractCommand):
         -m SPARSE_MAT, --sparse-mat SPARSE_MAT              Path to the sparse contacts input file
 
     Options:
+
+        -b BIN_SIZE, --bin-size BIN_SIZE                    Size of the bins to calculate the coverage [default: 0]
+
         -o OUTPUT, --output OUTPUT                          Desired output directory file path
 
         -F, --force                                         Force the overwriting of the output file if it exists [default: False]
@@ -183,7 +186,8 @@ class Coverage(AbstractCommand):
             fragments_list_path=self.args["--fragments"],
             output_dir=self.args["--output"],
             normalize=self.args["--normalize"],
-            force=self.args["--force"]
+            force=self.args["--force"],
+            bin_size=int(self.args["--bin-size"])
         )
 
 class Dsdnaonly(AbstractCommand):
