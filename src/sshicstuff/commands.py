@@ -162,18 +162,18 @@ class Coverage(AbstractCommand):
     Calculate the coverage per fragment and save the result to a bedgraph.
 
     usage:
-        coverage -f FRAGMENTS -m SPARSE_MAT [-o OUTPUT] [-F] [-N]
+        coverage -f FRAGMENTS -m SPARSE_MAT [-o OUTPUT] [-F] [-N] [-b BIN_SIZE]
 
     Arguments:
-        -f FRAGMENTS, --fragments FRAGMENTS                 Path to the fragments input file
+        -f FRAGMENTS, --fragments FRAGMENTS                 Path to the digested fragments list file (hicstuff output)
 
-        -m SPARSE_MAT, --sparse-mat SPARSE_MAT              Path to the sparse contacts input file
+        -m SPARSE_MAT, --sparse-mat SPARSE_MAT              Path to the sparse contacts input file (graal matrix from hicstuff)
 
     Options:
 
-        -b BIN_SIZE, --bin-size BIN_SIZE                    Size of the bins to calculate the coverage [default: 0]
+        -b BIN_SIZE, --bin-size BIN_SIZE                    Size of the bins to calculate the coverage (in bp) [default: 0]
 
-        -o OUTPUT, --output OUTPUT                          Desired output directory file path
+        -o OUTPUT, --output OUTPUT                          Desired output directory file path.
 
         -F, --force                                         Force the overwriting of the output file if it exists [default: False]
 
@@ -358,7 +358,7 @@ class Pipeline(AbstractCommand):
         -a ADDITIONAL_GROUPS, --additional-groups ADDITIONAL_GROUPS
                                                             Path to the additional probe groups file
 
-        -b BINNING_SIZES, --binning-sizes BINNING_SIZES     List of binning sizes to rebin the contacts
+        -b BINNING_SIZES, --binning-sizes BINNING_SIZES     List of binning sizes to rebin the contacts (in bp)
                                                             [default: 1000]
 
         -E CHRS, --exclude=CHRS                             Exclude the chromosome(s) from the analysis
@@ -570,7 +570,7 @@ class Rebin(AbstractCommand):
         rebin -b BINSIZE -c CHR_COORD -p PROFILE [-o OUTPUT] [-F]
 
     Arguments:
-        -b BINSIZE, --binsize BINSIZE                     New resolution to rebin the profile [default: 1000]
+        -b BINSIZE, --binsize BINSIZE                     New resolution to rebin the profile (in bp) [default: 1000]
 
         -c CHR_COORD, --chr-coord CHR_COORD               Path to the chromosome coordinates file
 

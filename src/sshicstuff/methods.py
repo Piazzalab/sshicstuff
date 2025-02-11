@@ -426,10 +426,7 @@ def coverage(
 
     df_contacts_cov.index = df_contacts_cov.id
     df_contacts_cov.drop(columns=['id'], inplace=True)
-
     output_path = output_path + "_contacts_coverage.bedgraph"
-    df_contacts_cov.to_csv(output_path, sep='\t', index=False, header=False)
-    logger.info(f"[Coverage] : Contacts coverage file saved to {output_path}")
 
     if bin_size > 0:
         bin_suffix = str(bin_size // 1000) + "kb"
@@ -442,6 +439,10 @@ def coverage(
         df_contacts_cov_bin.to_csv(output_path, sep='\t', index=False, header=False)
         logger.info(f"[Coverage] : Contacts coverage binned file saved to {output_path}")
         df_contacts_cov = df_contacts_cov_bin
+
+    else:
+        df_contacts_cov.to_csv(output_path, sep='\t', index=False, header=False)
+        logger.info(f"[Coverage] : Contacts coverage file saved to {output_path}")
 
     if normalize:
         output_path = output_path.replace("_contacts_", "_frequencies_")
