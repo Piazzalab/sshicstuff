@@ -9,7 +9,7 @@ from dash.dependencies import Input, Output, State
 import plotly.io as pio
 
 # common.py
-from sshicstuff.gui.common import TEMPORARY_DIRECTORY
+from sshicstuff.gui.common import __CACHE_DIR__
 from sshicstuff.gui.common import empty_figure
 from sshicstuff.gui.common import uploaded_files
 from sshicstuff.gui.common import save_file
@@ -20,8 +20,8 @@ CHR_ARTIFICIAL_EXCLUSION = ["chr_artificial_donor", "chr_artificial_ssDNA"]
 from sshicstuff.gui.layout import layout
 import sshicstuff.gui.graph as graph
 
-if not os.path.exists(TEMPORARY_DIRECTORY):
-    os.makedirs(TEMPORARY_DIRECTORY)
+if not os.path.exists(__CACHE_DIR__):
+    os.makedirs(__CACHE_DIR__)
     
 
 @callback(
@@ -56,7 +56,7 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
     if n_clicks is not None:
         if n_clicks > 0:
             for filename in files:
-                os.remove(os.path.join(TEMPORARY_DIRECTORY, filename))
+                os.remove(os.path.join(__CACHE_DIR__, filename))
             files = []
 
     n_clicks = 0
@@ -68,9 +68,9 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
         samples = []
         for f in files:
             if "profile" in f:
-                samples.append({'label': f, 'value': os.path.join(TEMPORARY_DIRECTORY, f)})
+                samples.append({'label': f, 'value': os.path.join(__CACHE_DIR__, f)})
             else:
-                inputs.append({'label': f, 'value': os.path.join(TEMPORARY_DIRECTORY, f)})
+                inputs.append({'label': f, 'value': os.path.join(__CACHE_DIR__, f)})
         return inputs, inputs, n_clicks, samples
 
 

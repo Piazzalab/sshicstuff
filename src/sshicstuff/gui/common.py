@@ -15,8 +15,8 @@ VARIABLES TO IMPORT
 ###################
 """
 
-CWD = os.getcwd()
-TEMPORARY_DIRECTORY = join(CWD, "__cache__")
+__INSTALL_DIR__ = os.path.dirname(os.path.abspath(__file__))
+__CACHE_DIR__ = join(__INSTALL_DIR__, "__cache__")
 
 empty_figure = go.Figure(
     layout=go.Layout(
@@ -48,7 +48,7 @@ METHODS TO IMPORT
 def save_file(name, content):
     """Decode and store a file uploaded with Plotly Dash."""
     data = content.encode("utf8").split(b";base64,")[1]
-    with open(join(TEMPORARY_DIRECTORY, name), "wb") as fp:
+    with open(join(__CACHE_DIR__, name), "wb") as fp:
         fp.write(base64.decodebytes(data))
 
 
@@ -95,8 +95,8 @@ def transform_data(data: np.array, y_max: float, user_y_max: float, y_min: float
 def uploaded_files():
     """List the files in the upload directory."""
     files = []
-    for filename in os.listdir(TEMPORARY_DIRECTORY):
-        path = join(TEMPORARY_DIRECTORY, filename)
+    for filename in os.listdir(__CACHE_DIR__):
+        path = join(__CACHE_DIR__, filename)
         if os.path.isfile(path):
             files.append(filename)
     return files
