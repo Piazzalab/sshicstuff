@@ -208,7 +208,6 @@ def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: 
         else:
             continue
 
-
 def sort_by_chr(df: pd.DataFrame, chr_list: list[str], *args: str):
     """
     Sort a DataFrame by chromosome and then by other columns.

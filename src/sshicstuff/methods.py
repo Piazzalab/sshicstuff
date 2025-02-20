@@ -403,9 +403,6 @@ def coverage(
     df_hic_contacts: pd.DataFrame = pd.read_csv(
         sparse_mat_path, header=0, sep="\t", names=['frag_a', 'frag_b', 'contacts'])
 
-    df_coverage: pd.DataFrame = df_fragments[['chr', 'start', 'end']]
-    df_coverage['contacts'] = np.nan
-
     df_merged_a: pd.DataFrame = df_hic_contacts.merge(
         df_fragments[['id', 'chr', 'start', 'end']],
         left_on='frag_a',
@@ -432,13 +429,40 @@ def coverage(
         bin_suffix = str(bin_size // 1000) + "kb"
         output_path = output_path.replace(".bedgraph", f"_{bin_suffix}.bedgraph")
         logger.info(f"[Coverage] : Binning the bedgraph at {bin_suffix} resolution.")
-        df_contacts_cov_bin: pd.DataFrame = df_contacts_cov.copy(deep=True)
-        df_contacts_cov_bin['start'] = df_contacts_cov_bin['start'] // bin_size * bin_size
-        df_contacts_cov_bin['end'] = df_contacts_cov_bin['end'] // bin_size * bin_size
-        df_contacts_cov_bin = df_contacts_cov_bin.groupby(['chr', 'start', 'end'], as_index=False).sum()
-        df_contacts_cov_bin.to_csv(output_path, sep='\t', index=False, header=False)
+
+        chr_list = df_contacts_cov['chr'].unique()
+
+        df_bins_all: pd.DataFrame = df_contacts_cov.copy(deep=True)
+        df_bins_all["size"] = df_bins_all["end"] - df_bins_all["start"]
+        df_bins_all['start_bin'] = df_bins_all['start'] // bin_size * bin_size
+        df_bins_all['end_bin'] = df_bins_all['end'] // bin_size * bin_size
+
+        df_cross_bins = df_bins_all[df_bins_all["start_bin"] != df_bins_all["end_bin"]].copy()
+        df_in_bin = df_bins_all.drop(df_cross_bins.index)
+
+        df_cross_bins_a = df_cross_bins.copy()
+        df_cross_bins_b = df_cross_bins.copy()
+        df_cross_bins_a["start_bin"] = df_cross_bins["start_bin"]
+        df_cross_bins_b["start_bin"] = df_cross_bins["end_bin"]
+
+        correction_factors_b = (df_cross_bins_b["end"] - df_cross_bins_b["start_bin"]) / df_cross_bins_b["size"]
+        correction_factors_a = 1 - correction_factors_b
+        df_cross_bins_a["contacts"] *= correction_factors_a
+        df_cross_bins_b["contacts"] *= correction_factors_b
+
+        df_bins_all_corrected = pd.concat((df_in_bin, df_cross_bins_a, df_cross_bins_b))
+        df_bins_all_corrected.drop(columns=["size", "start", "end", "end_bin"], inplace=True)
+        df_bins_all_corrected.rename(columns={"start_bin": "start"}, inplace=True)
+        df_bins_all_corrected =  df_bins_all_corrected.groupby(["chr", "start"]).sum().reset_index()
+        df_bins_all_corrected["end"] = df_bins_all_corrected["start"] + bin_size
+        df_bins_all_corrected["contacts"] = np.round(df_bins_all_corrected["contacts"], 4)
+        df_bins_all_corrected = df_bins_all_corrected[["chr", "start", "end", "contacts"]]
+
+        df_bins_all_corrected = utils.sort_by_chr(df_bins_all_corrected, chr_list, 'chr', 'start')
+
+        df_bins_all_corrected.to_csv(output_path, sep='\t', index=False, header=False)
         logger.info(f"[Coverage] : Contacts coverage binned file saved to {output_path}")
-        df_contacts_cov = df_contacts_cov_bin
+        df_contacts_cov = df_bins_all_corrected
 
     else:
         df_contacts_cov.to_csv(output_path, sep='\t', index=False, header=False)
