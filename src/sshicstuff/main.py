@@ -52,15 +52,18 @@ The subcommands are:
 
 """
 
-from docopt import docopt
-from docopt import DocoptExit
+import importlib.metadata
+
+from docopt import DocoptExit, docopt
+
 import sshicstuff.commands as commands
 
-import importlib.metadata
 __version__ = importlib.metadata.version("sshicstuff")
 
 
 def main():
+    """Main entry point for the sshicstuff CLI."""
+
     args = docopt(__doc__, version=__version__, options_first=True)
     # Retrieve the command to execute.
     command_name = args.pop("<command>").capitalize()
@@ -75,9 +78,9 @@ def main():
     # Retrieve the class from the 'commands' module.
     try:
         command_class = getattr(commands, command_name)
-    except AttributeError:
+    except AttributeError as exc:
         print("Unknown command.")
-        raise DocoptExit()
+        raise DocoptExit() from exc
     # Create an instance of the command.
     command = command_class(command_args, args)
     # Execute the command.

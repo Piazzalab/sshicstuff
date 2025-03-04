@@ -73,8 +73,8 @@ def full_pipeline(
     now = datetime.now()
     now_string = now.strftime("%Y-%m-%d %H:%M:%S")
 
-    logger.info(f"[START] :: {now_string}")
-    logger.info(f"[Pipeline] : {sample_name}")
+    logger.info("[START] : %s", now_string)
+    logger.info("[Pipeline] : %s ", sample_name)
     os.makedirs(output_dir, exist_ok=True)
 
     if copy_inputs:
@@ -94,58 +94,49 @@ def full_pipeline(
     if copy_inputs:
         shcu.copy(oligo_capture_with_frag, copy_dir)
 
-    """
-    dsDNA reads only
-    """
-    dsdna_dir = join(output_dir, "dsdnaonly")
-    os.makedirs(dsdna_dir, exist_ok=True)
+
+    # dsDNA reads only
+
     logger.info("[Sparse Matrix Graal (dsdna)] : creating a new sparse matrix with only dsDNA reads")
     sshic.sparse_with_dsdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         n_flanking_dsdna=n_flanking_dsdna,
-        output_path=join(dsdna_dir, dsdnaonly_name),
+        output_path=join(output_dir, dsdnaonly_name),
         force=force
     )
 
     logger.info("[Coverage] : Calculate the coverage for dsDNA reads only")
-    for bn in bin_sizes:
-        sshic.coverage(
-            sparse_mat_path=join(dsdna_dir, dsdnaonly_name),
-            fragments_list_path=fragments_list,
-            normalize=normalize,
-            output_dir=dsdna_dir,
-            force=force,
-            bin_size=bn
-        )
+    sshic.coverage(
+        sparse_mat_path=sample_sparse_mat,
+        fragments_list_path=fragments_list,
+        normalize=normalize,
+        output_dir=output_dir,
+        force=force,
+    )
 
-    """
-    ssDNA reads only
-    """
-    ssdna_dir = join(output_dir, "ssdnaonly")
-    os.makedirs(ssdna_dir, exist_ok=True)
+    # ssDNA reads only
     logger.info("[Sparse Matrix Graal (ssdna)] : creating a new sparse matrix with only ssDNA reads")
     sshic.sparse_with_ssdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
-        output_path=join(ssdna_dir, ssdnaonly_name),
+        output_path=join(output_dir, ssdnaonly_name),
         force=force
     )
 
     logger.info("[Coverage] : Calculate the coverage per ssDNA fragment and save the result to a bedgraph")
     for bn in bin_sizes:
         sshic.coverage(
-            sparse_mat_path=join(ssdna_dir, ssdnaonly_name),
+            sparse_mat_path=sample_sparse_mat,
             fragments_list_path=fragments_list,
             normalize=normalize,
-            output_dir=ssdna_dir,
+            output_dir=output_dir,
             force=force,
             bin_size=bn
         )
 
-    """
-    All reads
-    """
+    # All reads
+
     logger.info("[Filter] : Only keep pairs of reads that contain at least one oligo/probe")
     sshic.filter_contacts(
         sparse_mat_path=sample_sparse_mat,
@@ -185,10 +176,10 @@ def full_pipeline(
         cis_range=cis_region_size
     )
 
-    logger.info(f"[Rebin] : Change bin resolution of the 4-C like profile (unbinned -> binned)")
+    logger.info("[Rebin] : Change bin resolution of the 4-C like profile (unbinned -> binned)")
     for bn in bin_sizes:
         bin_suffix = str(bn // 1000) + "kb"
-        logger.info(f"[Rebin] : {bin_suffix}")
+        logger.info("[Rebin] : %d", bin_suffix)
 
         sshic.rebin_profile(
             contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
@@ -244,5 +235,5 @@ def full_pipeline(
 
     now = datetime.now()
     now_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    logger.info(f"[Pipeline] : {sample_name} Done ")
-    logger.info(f"[END] :: {now_string}")
+    logger.info("[Pipeline] : %s  Done", {sample_name})
+    logger.info("[END] : %s", now_string)
