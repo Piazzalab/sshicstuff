@@ -29,6 +29,23 @@
                 "--window-size-telo", "15000",
                 "--copy-inputs"
             ]
-        }
+        },
+        {
+            "name": "ENS main coverage",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/adminico/Documents/projects-src/sshicstuff/src/sshicstuff/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "coverage",
+                "-f", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/fragments_list_S288c_DSB_LY_Capture_artificial_v12_DpnIIHinfI.txt",
+                "-m", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree.txt",
+                "-b", "1000",
+                "-c", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v12.tsv",
+                "-F", "-N",
+                "-o", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree",
+            ]
+        },
+
     ]
 }
