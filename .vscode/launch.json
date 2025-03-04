@@ -1,0 +1,34 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "ENS main pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/adminico/Documents/projects-src/sshicstuff/src/sshicstuff/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "pipeline",
+                "-c", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/capture_oligo_positions_v12.csv",
+                "-C", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v12.tsv",
+                "-f", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/fragments_list_S288c_DSB_LY_Capture_artificial_v12_DpnIIHinfI.txt",
+                "-m", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree.txt",
+                "-a", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/additional_probe_groups.tsv",
+                "-b", "1000", "-b", "2000", "-b", "5000", "-b", "10000",
+                "-E", "chr2", "-E", "chr3", "-E", "2_micron", "-E", "mitochondrion", "-E", "chr_artificial_donor", "-E", "chr_artificial_ssDNA",
+                "-F", "-I", "-N", "-L",
+                "-n", "2",
+                "-o", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree",
+                "--binning-aggregate-cen", "10000",
+                "--binning-aggregate-telo", "1000",
+                "--window-size-cen", "150000",
+                "--window-size-telo", "15000",
+                "--copy-inputs"
+            ]
+        }
+    ]
+}
