@@ -461,6 +461,7 @@ def coverage(
     normalize: bool = False,
     force: bool = False,
     bin_size: int = 0,
+    chromosomes_coord_path: str = "",
 ) -> None:
     """
     Calculate the coverage per fragment and save the result to a bedgraph file in the output directory.
@@ -479,6 +480,9 @@ def coverage(
         Force the overwriting of the output file if the file exists.
     bin_size : int
         Size of the bin to use for the coverage bedgraph.
+    chromosomes_coord_path : str
+        Path to the chromosomes coordinates file containing the length of each chromosome arms.
+        Needed for the binning.
 
     Returns
     -------
@@ -541,59 +545,62 @@ def coverage(
     output_path = output_path + "_contacts_coverage.bedgraph"
 
     if bin_size > 0:
-        bin_suffix = str(bin_size // 1000) + "kb"
+        # Define output file name with bin size suffix
+        bin_suffix = f"{bin_size // 1000}kb"
         output_path = output_path.replace(".bedgraph", f"_{bin_suffix}.bedgraph")
-        logger.info("[Coverage] : Binning the bedgraph at %d resolution.", bin_suffix)
+        logger.info("[Coverage] : Binning the bedgraph at %d resolution.", bin_size)
 
-        chr_list = df_contacts_cov["chr"].unique()
+        # Load chromosome sizes
+        utils.check_if_exists(chromosomes_coord_path)
+        delim = "," if chromosomes_coord_path.endswith(".csv") else "\t"
+        df_chrom = pd.read_csv(chromosomes_coord_path, sep=delim)
+        chrom_sizes = dict(zip(df_chrom.chr, df_chrom.length))
 
-        df_bins_all: pd.DataFrame = df_contacts_cov.copy(deep=True)
-        df_bins_all["size"] = df_bins_all["end"] - df_bins_all["start"]
-        df_bins_all["start_bin"] = df_bins_all["start"] // bin_size * bin_size
-        df_bins_all["end_bin"] = df_bins_all["end"] // bin_size * bin_size
+        # Create empty bins for all chromosomes
+        chr_list, chr_bins = [], []
+        for c, l in chrom_sizes.items():
+            chr_list.append([c] * (l // bin_size + 1))
+            chr_bins.append(np.arange(0, (l // bin_size + 1) * bin_size, bin_size))
+        chr_list = np.concatenate(chr_list)
+        chr_bins = np.concatenate(chr_bins)
 
-        df_cross_bins = df_bins_all[
-            df_bins_all["start_bin"] != df_bins_all["end_bin"]
-        ].copy()
-        df_in_bin = df_bins_all.drop(df_cross_bins.index)
+        df_bins = pd.DataFrame({"chr": chr_list, "start": chr_bins, "end": chr_bins + bin_size, "contacts": 0.})
 
-        df_cross_bins_a = df_cross_bins.copy()
-        df_cross_bins_b = df_cross_bins.copy()
-        df_cross_bins_a["start_bin"] = df_cross_bins["start_bin"]
-        df_cross_bins_b["start_bin"] = df_cross_bins["end_bin"]
+        df = df_contacts_cov.copy()
+        df["size"] = df["end"] - df["start"]
+        df["start_bin"] = df["start"] // bin_size * bin_size
+        df["end_bin"] = df["end"] // bin_size * bin_size
+        
+        # Separate contacts spanning multiple bins
+        df_cross = df[df["start_bin"] != df["end_bin"]].copy()
+        df_in_bin = df.drop(df_cross.index)
+        
+        # Adjust contacts for bins that span two bins
+        df_a, df_b = df_cross.copy(), df_cross.copy()
+        df_a["start_bin"], df_b["start_bin"] = df_cross["start_bin"], df_cross["end_bin"]
+        factor_b = (df_b["end"] - df_b["start_bin"]) / df_b["size"]
+        df_a["contacts"] *= (1 - factor_b)
+        df_b["contacts"] *= factor_b
+        
+        # Merge corrected bins
+        df_corrected = pd.concat([df_in_bin, df_a, df_b])
+        df_corrected.drop(columns=["size", "start", "end", "end_bin"], inplace=True)
+        df_corrected.rename(columns={"start_bin": "start"}, inplace=True)
+        df_corrected = df_corrected.groupby(["chr", "start"]).sum().reset_index()
+        df_corrected["end"] = df_corrected["start"] + bin_size
+        df_corrected["contacts"] = np.round(df_corrected["contacts"], 4)
+        
+        # Merge with empty bins
+        df_final = pd.concat([df_bins, df_corrected])
+        df_final = df_final.groupby(["chr", "start", "end"]).sum().reset_index()
+        df_final = utils.sort_by_chr(df_final, chr_list, "chr", "start")
+        df_final["contacts"].fillna(0, inplace=True)
+        
+        # Save output
+        df_final.to_csv(output_path, sep="\t", index=False, header=False)
+        logger.info("[Coverage] : Contacts coverage binned file saved to %s", output_path)
+        df_contacts_cov = df_final
 
-        correction_factors_b = (
-            df_cross_bins_b["end"] - df_cross_bins_b["start_bin"]
-        ) / df_cross_bins_b["size"]
-        correction_factors_a = 1 - correction_factors_b
-        df_cross_bins_a["contacts"] *= correction_factors_a
-        df_cross_bins_b["contacts"] *= correction_factors_b
-
-        df_bins_all_corrected = pd.concat((df_in_bin, df_cross_bins_a, df_cross_bins_b))
-        df_bins_all_corrected.drop(
-            columns=["size", "start", "end", "end_bin"], inplace=True
-        )
-        df_bins_all_corrected.rename(columns={"start_bin": "start"}, inplace=True)
-        df_bins_all_corrected = (
-            df_bins_all_corrected.groupby(["chr", "start"]).sum().reset_index()
-        )
-        df_bins_all_corrected["end"] = df_bins_all_corrected["start"] + bin_size
-        df_bins_all_corrected["contacts"] = np.round(
-            df_bins_all_corrected["contacts"], 4
-        )
-        df_bins_all_corrected = df_bins_all_corrected[
-            ["chr", "start", "end", "contacts"]
-        ]
-
-        df_bins_all_corrected = utils.sort_by_chr(
-            df_bins_all_corrected, chr_list, "chr", "start"
-        )
-
-        df_bins_all_corrected.to_csv(output_path, sep="\t", index=False, header=False)
-        logger.info(
-            "[Coverage] : Contacts coverage binned file saved to %s", output_path
-        )
-        df_contacts_cov = df_bins_all_corrected
 
     else:
         df_contacts_cov.to_csv(output_path, sep="\t", index=False, header=False)

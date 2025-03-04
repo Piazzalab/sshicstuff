@@ -125,18 +125,15 @@ def full_pipeline(
     )
 
     logger.info("[Coverage] : Calculate the coverage per ssDNA fragment and save the result to a bedgraph")
-    for bn in bin_sizes:
-        sshic.coverage(
-            sparse_mat_path=sample_sparse_mat,
-            fragments_list_path=fragments_list,
-            normalize=normalize,
-            output_dir=output_dir,
-            force=force,
-            bin_size=bn
-        )
+    sshic.coverage(
+        sparse_mat_path=sample_sparse_mat,
+        fragments_list_path=fragments_list,
+        normalize=normalize,
+        output_dir=output_dir,
+        force=force,
+    )
 
     # All reads
-
     logger.info("[Filter] : Only keep pairs of reads that contain at least one oligo/probe")
     sshic.filter_contacts(
         sparse_mat_path=sample_sparse_mat,
@@ -147,13 +144,16 @@ def full_pipeline(
     )
 
     logger.info("[Coverage] : Calculate the coverage per fragment and save the result to a bedgraph")
-    sshic.coverage(
-        sparse_mat_path=sample_sparse_mat,
-        fragments_list_path=fragments_list,
-        normalize=normalize,
-        output_dir=output_dir,
-        force=force
-    )
+    for bn in bin_sizes:
+        sshic.coverage(
+            sparse_mat_path=sample_sparse_mat,
+            fragments_list_path=fragments_list,
+            normalize=normalize,
+            output_dir=output_dir,
+            force=force,
+            bin_size=bn,
+            chromosomes_coord_path=chr_coordinates
+        )
 
     logger.info("[Profile] : Generate a 4C-like profile for each ssDNA oligo")
     logger.info("[Profile] : Basal résolution : 0 kb (max resolution)")
