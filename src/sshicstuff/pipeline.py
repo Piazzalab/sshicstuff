@@ -178,7 +178,7 @@ def full_pipeline(
 
     logger.info("[Rebin] : Change bin resolution of the 4-C like profile (unbinned -> binned)")
     for bn in bin_sizes:
-        bin_suffix = str(bn // 1000) + "kb"
+        bin_suffix = shcu.get_bin_suffix(bn)   
         logger.info("[Rebin] : %d", bin_suffix)
 
         sshic.rebin_profile(

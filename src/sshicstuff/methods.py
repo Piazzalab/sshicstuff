@@ -493,6 +493,7 @@ def coverage(
 
     if output_dir is None:
         output_dir = os.path.dirname(sparse_mat_path)
+    os.makedirs(output_dir, exist_ok=True)
 
     output_path = os.path.join(
         output_dir, os.path.basename(sparse_mat_path).split(".")[0]
@@ -546,7 +547,7 @@ def coverage(
 
     if bin_size > 0:
         # Define output file name with bin size suffix
-        bin_suffix = f"{bin_size // 1000}kb"
+        bin_suffix = utils.get_bin_suffix(bin_size)
         output_path = output_path.replace(".bedgraph", f"_{bin_suffix}.bedgraph")
         logger.info("[Coverage] : Binning the bedgraph at %d resolution.", bin_size)
 
@@ -594,8 +595,8 @@ def coverage(
         df_final = pd.concat([df_bins, df_corrected])
         df_final = df_final.groupby(["chr", "start", "end"]).sum().reset_index()
         df_final = utils.sort_by_chr(df_final, chr_list, "chr", "start")
-        df_final["contacts"].fillna(0, inplace=True)
-        
+        df_final["contacts"] = df_final["contacts"].fillna(0)
+
         # Save output
         df_final.to_csv(output_path, sep="\t", index=False, header=False)
         logger.info("[Coverage] : Contacts coverage binned file saved to %s", output_path)
@@ -1584,7 +1585,7 @@ def rebin_profile(
     utils.check_if_exists(contacts_unbinned_path)
     utils.check_if_exists(chromosomes_coord_path)
 
-    bin_suffix = f"{bin_size // 1000}kb"
+    bin_suffix = utils.get_bin_suffix(bin_size)
     if not output_path:
         output_path = contacts_unbinned_path.replace(
             "0kb_profile", f"{bin_suffix}_profile"
