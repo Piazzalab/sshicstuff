@@ -27,14 +27,14 @@ if not os.path.exists(__CACHE_DIR__):
 @callback(
     Output('binning-slider-output-container', 'children'),
     [Input('binning-slider', 'value')])
-def update_output(value):
+def update_binning_output(value):
     return f'Binning resolution : {value} kb'
 
 
 @callback(
     Output('window-slider-output-container', 'children'),
     [Input('window-slider', 'value')])
-def update_output(value):
+def update_smoothing_output(value):
     return f'Smoothing window : {value}'
 
 
