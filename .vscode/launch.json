@@ -30,6 +30,7 @@
                 "--copy-inputs"
             ]
         },
+
         {
             "name": "ENS main coverage",
             "type": "debugpy",
@@ -45,6 +46,15 @@
                 "-F", "-N",
                 "-o", "/home/adminico/Documents/projects-data/sshicstuff/sandbox/AD233_sub4M_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree_dsdna_only",
             ]
+        },
+
+        {
+            "name": "ENS main view",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/adminico/Documents/projects-src/sshicstuff/src/sshicstuff/main.py",
+            "console": "integratedTerminal",
+            "args": ["view"]
         },
 
     ]
