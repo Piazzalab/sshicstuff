@@ -1,5 +1,9 @@
+"""
+Browser callbacks
+"""
 import re
 import os
+from os.path import join
 
 import pandas as pd
 
@@ -8,22 +12,18 @@ from dash import callback, dcc
 from dash.dependencies import Input, Output, State
 import plotly.io as pio
 
-# common.py
-from sshicstuff.gui.common import __CACHE_DIR__
-from sshicstuff.gui.common import empty_figure
-from sshicstuff.gui.common import uploaded_files
-from sshicstuff.gui.common import save_file
+from sshicstuff.core.graph import empty_figure, figure_maker
+from sshicstuff.core.methods import uploaded_files_cache, save_file_cache
 
+
+__INSTALL_DIR__ = os.path.dirname(os.path.abspath(__file__))
+__CACHE_DIR__ = join(__INSTALL_DIR__, "__cache__")
 CHR_ARTIFICIAL_EXCLUSION = ["chr_artificial_donor", "chr_artificial_ssDNA"]
 
-# layout.py
-from sshicstuff.gui.layout import layout
-import sshicstuff.gui.graph as graph
 
 if not os.path.exists(__CACHE_DIR__):
     os.makedirs(__CACHE_DIR__)
     
-
 @callback(
     Output('binning-slider-output-container', 'children'),
     [Input('binning-slider', 'value')])
@@ -50,9 +50,9 @@ def update_smoothing_output(value):
 def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
     if uploaded_filenames is not None and uploaded_file_contents is not None:
         for name, data in zip(uploaded_filenames, uploaded_file_contents):
-            save_file(name, data)
+            save_file_cache(name, data, __CACHE_DIR__)
 
-    files = uploaded_files()
+    files = uploaded_files_cache(__CACHE_DIR__)
     if n_clicks is not None:
         if n_clicks > 0:
             for filename in files:
@@ -174,7 +174,7 @@ def update_graph(
     if binning_value:
         binsize = binning_value * 1000
 
-    figure = graph.figure_maker(
+    figure = figure_maker(
         binsize=binsize,
         rolling_window=rolling_value,
         df_coords=df_coords,

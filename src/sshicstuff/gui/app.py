@@ -5,6 +5,7 @@ from dash import html
 
 # Import your page layouts here
 import sshicstuff.gui.browser as browser
+import sshicstuff.gui.layout as layout
 
 # Create a Dash application instance:
 server = Flask(__name__, template_folder='templates')
@@ -20,7 +21,7 @@ app.layout = html.Div([
             style={'text-align': 'center', 'margin-top': '50px', 'margin-bottom': '50px'}
         )
     ),
-    browser.layout,
+    layout.layout,
 ])
 
 

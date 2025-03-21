@@ -1,10 +1,19 @@
+"""
+This module contains the commands of the program.
+"""
+
 import os
 from docopt import docopt
 
-import sshicstuff.methods as methods
-import sshicstuff.log as log
-import sshicstuff.pipeline as pip
+import sshicstuff.core.methods as methods
+import sshicstuff.core.pipeline as pip
+import sshicstuff.core.stats as stats
+import sshicstuff.core.profile as prof
+import sshicstuff.core.filter as filt
 from sshicstuff.gui.app import app
+
+import sshicstuff.log as log
+
 
 logger = log.logger
 
@@ -15,7 +24,7 @@ def check_exists(*args):
         if os.path.exists(file_path):
             return
         else:
-            logger.error(f"File {file_path} does not exist.")
+            logger.error("File %s does not exist.", file_path)
             raise FileNotFoundError(f"File {file_path} does not exist.")
 
 
@@ -79,13 +88,15 @@ class Aggregate(AbstractCommand):
         check_exists(
             self.args["--profile"],
             self.args["--chr-coord"],
-            self.args["--oligo-capture"]
+            self.args["--oligo-capture"],
         )
 
         if self.args["--cen"] == self.args["--tel"]:
             logger.error("You must specify either telomeres or centromeres. Not both")
             logger.error("Exiting...")
-            raise ValueError("You must specify either telomeres or centromeres. Not both")
+            raise ValueError(
+                "You must specify either telomeres or centromeres. Not both"
+            )
 
         methods.aggregate(
             binned_contacts_path=self.args["--profile"],
@@ -98,8 +109,9 @@ class Aggregate(AbstractCommand):
             excluded_chr_list=self.args["--exclude"],
             inter_only=self.args["--inter"],
             normalize=self.args["--normalize"],
-            arm_length_classification=self.args["--arm-length"]
+            arm_length_classification=self.args["--arm-length"],
         )
+
 
 class Associate(AbstractCommand):
     """
@@ -124,8 +136,9 @@ class Associate(AbstractCommand):
         methods.associate_oligo_to_frag(
             oligo_capture_path=self.args["--oligo-capture"],
             fragments_path=self.args["--fragments"],
-            force=self.args["--force"]
+            force=self.args["--force"],
         )
+
 
 class Compare(AbstractCommand):
     """
@@ -154,8 +167,9 @@ class Compare(AbstractCommand):
             stats1_path=self.args["--sample-stats"],
             stats2_path=self.args["--reference-stats"],
             ref_name=self.args["--name"],
-            output_dir=self.args["--output"]
+            output_dir=self.args["--output"],
         )
+
 
 class Coverage(AbstractCommand):
     """
@@ -181,6 +195,7 @@ class Coverage(AbstractCommand):
 
         -N, --normalize                                     Normalize the coverage by the total number of contacts [default: False]
     """
+
     def execute(self):
         check_exists(self.args["--fragments"], self.args["--sparse-mat"])
         check_exists(self.args["--chr-coord"])
@@ -191,8 +206,9 @@ class Coverage(AbstractCommand):
             normalize=self.args["--normalize"],
             force=self.args["--force"],
             bin_size=int(self.args["--bin-size"]),
-            chromosomes_coord_path=self.args["--chr-coord"]
+            chromosomes_coord_path=self.args["--chr-coord"],
         )
+
 
 class Dsdnaonly(AbstractCommand):
     """
@@ -219,6 +235,7 @@ class Dsdnaonly(AbstractCommand):
         -F, --force                                             Force the overwriting of the file if
                                                                 it exists [default: False]
     """
+
     def execute(self):
         check_exists(self.args["--sparse-matrix"], self.args["--oligos-capture"])
         methods.sparse_with_dsdna_only(
@@ -226,8 +243,9 @@ class Dsdnaonly(AbstractCommand):
             oligo_capture_with_frag_path=self.args["--oligos-capture"],
             output_path=self.args["--output"],
             n_flanking_dsdna=int(self.args["--flanking-number"]),
-            force=self.args["--force"]
+            force=self.args["--force"],
         )
+
 
 class Filter(AbstractCommand):
     """
@@ -248,15 +266,21 @@ class Filter(AbstractCommand):
 
         -F, --force                                             Force the overwriting of the file if it exists [default: False]
     """
+
     def execute(self):
-        check_exists(self.args["--fragments"], self.args["--oligos-capture"], self.args["--sparse-matrix"])
-        methods.filter_contacts(
+        check_exists(
+            self.args["--fragments"],
+            self.args["--oligos-capture"],
+            self.args["--sparse-matrix"],
+        )
+        filt.filter_contacts(
             sparse_mat_path=self.args["--sparse-matrix"],
             oligo_capture_path=self.args["--oligos-capture"],
             fragments_list_path=self.args["--fragments"],
             output_path=self.args["--output"],
-            force=self.args["--force"]
+            force=self.args["--force"],
         )
+
 
 class Genomaker(AbstractCommand):
     """
@@ -294,8 +318,9 @@ class Genomaker(AbstractCommand):
             fragment_size=int(self.args["--fragment-size"]),
             fasta_spacer=self.args["--spacer"],
             fasta_line_length=int(self.args["--line-length"]),
-            additional_fasta_path=self.args["--additional"]
+            additional_fasta_path=self.args["--additional"],
         )
+
 
 class Merge(AbstractCommand):
     """
@@ -318,16 +343,15 @@ class Merge(AbstractCommand):
 
     def execute(self):
         matrices = self.args["MATRIX"]
-        check_exists( *matrices)
+        check_exists(*matrices)
         methods.merge_sparse_mat(
             output_path=self.args["--output"],
             force=self.args["--force"],
-            matrices=matrices
+            matrices=matrices,
         )
 
 
 class Pipeline(AbstractCommand):
-
     """
     Run the entire pipeline containing following steps:
     - Filter
@@ -408,7 +432,7 @@ class Pipeline(AbstractCommand):
             self.args["--sparse-matrix"],
             self.args["--oligo-capture"],
             self.args["--fragments"],
-            self.args["--chr-coord"]
+            self.args["--chr-coord"],
         )
 
         binsizes = []
@@ -434,8 +458,9 @@ class Pipeline(AbstractCommand):
             inter_chr_only=self.args["--inter"],
             copy_inputs=self.args["--copy-inputs"],
             force=self.args["--force"],
-            normalize=self.args["--normalize"]
+            normalize=self.args["--normalize"],
         )
+
 
 class Plot(AbstractCommand):
     """
@@ -479,7 +504,7 @@ class Plot(AbstractCommand):
         check_exists(
             self.args["--profile"],
             self.args["--chr-coord"],
-            self.args["--oligo-capture"]
+            self.args["--oligo-capture"],
         )
 
         if not self.args["--rolling-window"]:
@@ -512,9 +537,12 @@ class Plot(AbstractCommand):
         else:
             height = int(self.args["--height"])
 
-
-        rolling_window = 1 if not self.args["--rolling-window"] else int(self.args["--rolling-window"])
-        methods.plot_profiles(
+        rolling_window = (
+            1
+            if not self.args["--rolling-window"]
+            else int(self.args["--rolling-window"])
+        )
+        prof.plot_profiles(
             profile_contacts_path=self.args["--profile"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_path=self.args["--oligo-capture"],
@@ -526,8 +554,9 @@ class Plot(AbstractCommand):
             user_y_min=user_y_min,
             user_y_max=user_y_max,
             width=width,
-            height=height
+            height=height,
         )
+
 
 class Profile(AbstractCommand):
     """
@@ -554,17 +583,23 @@ class Profile(AbstractCommand):
 
         -N, --normalize                                        Normalize the coverage by the total number of contacts [default: False]
     """
+
     def execute(self):
-        check_exists(self.args["--filtered-table"], self.args["--oligo-capture"], self.args["--chr-coord"])
-        methods.profile_contacts(
+        check_exists(
+            self.args["--filtered-table"],
+            self.args["--oligo-capture"],
+            self.args["--chr-coord"],
+        )
+        prof.profile_contacts(
             filtered_table_path=self.args["--filtered-table"],
             oligo_capture_with_frag_path=self.args["--oligo-capture"],
             chromosomes_coord_path=self.args["--chr-coord"],
             output_path=self.args["--output"],
             additional_groups_path=self.args["--additional"],
             normalize=self.args["--normalize"],
-            force=self.args["--force"]
+            force=self.args["--force"],
         )
+
 
 class Rebin(AbstractCommand):
     """
@@ -585,15 +620,17 @@ class Rebin(AbstractCommand):
 
         -F, --force                                       Force the overwriting of the output file if it exists [default: False]
     """
+
     def execute(self):
         check_exists(self.args["--profile"], self.args["--chr-coord"])
-        methods.rebin_profile(
+        prof.rebin_profile(
             contacts_unbinned_path=self.args["--profile"],
             chromosomes_coord_path=self.args["--chr-coord"],
             bin_size=int(self.args["--binsize"]),
             output_path=self.args["--output"],
-            force=self.args["--force"]
+            force=self.args["--force"],
         )
+
 
 class Ssdnaonly(AbstractCommand):
     """
@@ -615,14 +652,16 @@ class Ssdnaonly(AbstractCommand):
 
         -F, --force                                             Force the overwriting of the file if it exists [default: False]
     """
+
     def execute(self):
         check_exists(self.args["--sparse-matrix"], self.args["--oligos-capture"])
         methods.sparse_with_ssdna_only(
             sample_sparse_mat=self.args["--sparse-matrix"],
             oligo_capture_with_frag_path=self.args["--oligos-capture"],
             output_path=self.args["--output"],
-            force=self.args["--force"]
+            force=self.args["--force"],
         )
+
 
 class Stats(AbstractCommand):
     """
@@ -662,17 +701,18 @@ class Stats(AbstractCommand):
             self.args["--profile"],
             self.args["--sparse-mat"],
             self.args["--chr-coord"],
-            self.args["--oligo-capture"]
+            self.args["--oligo-capture"],
         )
-        methods.get_stats(
+        stats.get_stats(
             contacts_unbinned_path=self.args["--profile"],
             sparse_mat_path=self.args["--sparse-mat"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_with_frag_path=self.args["--oligo-capture"],
             output_dir=self.args["--output"],
             cis_range=int(self.args["--cis-range"]),
-            force=self.args["--force"]
+            force=self.args["--force"],
         )
+
 
 class Subsample(AbstractCommand):
     """
@@ -694,14 +734,16 @@ class Subsample(AbstractCommand):
         -s SEED, --seed SEED      Seed for the random number generator [default: 100]
 
     """
+
     def execute(self):
         check_exists(self.args["--input"])
         methods.subsample(
             input_path=self.args["--input"],
             seed=int(self.args["--seed"]),
             size=int(self.args["--size"]),
-            compress=self.args["--compress"]
+            compress=self.args["--compress"],
         )
+
 
 class View(AbstractCommand):
     """

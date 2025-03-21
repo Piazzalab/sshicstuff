@@ -1,21 +1,50 @@
+"""
+This module contains the functions to build the figures for the GUI and 
+the pipeline plots.
+"""
+
 import pandas as pd
 import numpy as np
 
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
-from sshicstuff.gui.common import sort_by_chr
-import sshicstuff.colors as colors
+import sshicstuff.core.methods as methods
+
+# for the colorbar of the plots (hexadecimal colors)
+chr_colorbar = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+    '#bcbd22', '#17becf', '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5', '#c49c94',
+    '#f7b6d2', '#c7c7c7', '#dbdb8d', '#9edae5', '#393b79', '#5254a3', '#6b6ecf', '#9c9ede',
+]
 
 
-"""
-###################
-     METHODS
-###################
-"""
+empty_figure = go.Figure(
+    layout=go.Layout(
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        annotations=[
+            dict(
+                x=0.5,
+                y=0.5,
+                text="No data available",
+                showarrow=False,
+                font=dict(size=28)
+            )
+        ],
+        hovermode='closest',
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+)
+
 
 
 def build_bins_template(df_coords: pd.DataFrame, bin_size: int) -> pd.DataFrame:
+    """
+    Build a dataframe template of bins for the whole genome.
+    """
+
     chr_sizes = dict(zip(df_coords.chr, df_coords.length))
     chr_list, chr_bins = [], []
 
@@ -64,7 +93,7 @@ def rebin_live(df: pd.DataFrame, df_template: pd.DataFrame, bin_size: int):
     df_binned.drop(columns=["start_bin", "end_bin"], inplace=True)
 
     df_binned = df_binned.groupby(["chr", "chr_bins"]).sum().reset_index()
-    df_binned = sort_by_chr(df_binned, chr_list, 'chr_bins')
+    df_binned = methods.sort_by_chr(df_binned, chr_list, 'chr_bins')
     df_binned = pd.merge(df_template, df_binned,  on=['chr', 'chr_bins'], how='left')
     df_binned.drop(columns=["start", "end", "sizes"], inplace=True)
     df_binned.fillna(0, inplace=True)
@@ -73,6 +102,10 @@ def rebin_live(df: pd.DataFrame, df_template: pd.DataFrame, bin_size: int):
 
 
 def colorbar_maker(df_bins: pd.DataFrame):
+    """
+    Build the color bar for the genome plot.
+    """
+
     x_colors = []
     chr_ticks = []
     chr_ticks_pos = []
@@ -85,7 +118,7 @@ def colorbar_maker(df_bins: pd.DataFrame):
     n_bins = len(chr_bins)
 
     full_chr_bins = []
-    chr_colors_list = colors.chr_colorbar
+    chr_colors_list = chr_colorbar
     for ii_, chr_ in enumerate(chr_list):
         chr_num = chr_2_num[chr_]
         full_chr_bins.append(f"{chr_num}:{chr_bins[ii_]}")
@@ -125,8 +158,11 @@ def figure_maker(
         width: int,
         height: int,
 ):
+    
+    """
+    Build the figure for the GUI-browser.
+    """
 
-    chr_list = df.chr.values
     chr_list_unique = pd.unique(df.chr)
     n_chr = len(chr_list_unique)
 
@@ -148,9 +184,6 @@ def figure_maker(
 
     if binsize > 0:
         df_bins = build_bins_template(df_coords, binsize)
-        chr_bins = df_bins.chr_bins.values
-        genome_bins = df_bins.genome_bins.values
-        n_bins = len(chr_bins)
         if chr_region:
             df_bins = df_bins[df_bins['chr'] == chr_region]
 
@@ -179,7 +212,7 @@ def figure_maker(
     y_ticks = np.linspace(y_min, y_max, 5)
     y_tick_text = [f"{tick:.3f}" for tick in y_ticks]
 
-    colors_rgba = colors.generate('rgba', len(probes))
+    colors_rgba = methods.generate_colors('rgba', len(probes))
 
     # Making the figure(s)
     if chr_region:
