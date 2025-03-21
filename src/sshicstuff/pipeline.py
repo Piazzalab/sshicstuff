@@ -96,7 +96,6 @@ def full_pipeline(
 
 
     # dsDNA reads only
-
     logger.info("[Sparse Matrix Graal (dsdna)] : creating a new sparse matrix with only dsDNA reads")
     sshic.sparse_with_dsdna_only(
         sample_sparse_mat=sample_sparse_mat,
@@ -166,6 +165,14 @@ def full_pipeline(
         additional_groups_path=additional_groups
     )
 
+    logger.info("[Profile] : Generate a profile conaining lony contacts between oligos")
+    sshic.profile_probes_only(
+        filtered_table_path=join(output_dir, filtered_name),
+        oligo_capture_with_frag_path=oligo_capture_with_frag,
+        force=force
+    )
+        
+
     logger.info("[Stats] : Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...)")
     sshic.get_stats(
         contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
@@ -173,7 +180,8 @@ def full_pipeline(
         chr_coord_path=chr_coordinates,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         output_dir=output_dir,
-        cis_range=cis_region_size
+        cis_range=cis_region_size,
+        force=force
     )
 
     logger.info("[Rebin] : Change bin resolution of the 4-C like profile (unbinned -> binned)")

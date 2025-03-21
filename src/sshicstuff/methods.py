@@ -1,4 +1,4 @@
-""" Module containing functions to analyze the contacts and the capture efficiency of the oligos. """
+"""Module containing functions to analyze the contacts and the capture efficiency of the oligos."""
 
 import os
 import re
@@ -261,7 +261,8 @@ def aggregate(
     df_grouped["chr_bins"] = df_grouped["chr_bins"].astype("int64")
 
     logger.info(
-        "[Aggregate] : Compute mean, median, std on the aggregated contacts per probe or group of probes, per chromosome"
+        "[Aggregate] : Compute mean, median, std on the aggregated contacts per probe or group of probes, "
+        "and per chromosome."
     )
     df_aggregated_mean: pd.DataFrame = df_grouped.groupby(
         by="chr_bins", as_index=False
@@ -345,17 +346,9 @@ def associate_oligo_to_frag(
     fragments_start = []
     fragments_end = []
     for _, row in df_oligo.iterrows():
-        (
-            chr_,
-            probe_start,
-            probe_end,
-            probe_chr_ori,
-            probe_start_ori,
-            probe_end_ori,
-            probe_type,
-            probe,
-            probe_seq,
-        ) = row[:9]
+        chr_ = row[0]
+        probe_start = row[1]
+        probe_end = row[2]
         df_sub_fragments = df_fragments[df_fragments["chrom"] == chr_]
         df_sub_fragment_sorted_start = np.sort(df_sub_fragments["start_pos"].to_numpy())
 
@@ -565,24 +558,34 @@ def coverage(
         chr_list = np.concatenate(chr_list)
         chr_bins = np.concatenate(chr_bins)
 
-        df_bins = pd.DataFrame({"chr": chr_list, "start": chr_bins, "end": chr_bins + bin_size, "contacts": 0.})
+        df_bins = pd.DataFrame(
+            {
+                "chr": chr_list,
+                "start": chr_bins,
+                "end": chr_bins + bin_size,
+                "contacts": 0.0,
+            }
+        )
 
         df = df_contacts_cov.copy()
         df["size"] = df["end"] - df["start"]
         df["start_bin"] = df["start"] // bin_size * bin_size
         df["end_bin"] = df["end"] // bin_size * bin_size
-        
+
         # Separate contacts spanning multiple bins
         df_cross = df[df["start_bin"] != df["end_bin"]].copy()
         df_in_bin = df.drop(df_cross.index)
-        
+
         # Adjust contacts for bins that span two bins
         df_a, df_b = df_cross.copy(), df_cross.copy()
-        df_a["start_bin"], df_b["start_bin"] = df_cross["start_bin"], df_cross["end_bin"]
+        df_a["start_bin"], df_b["start_bin"] = (
+            df_cross["start_bin"],
+            df_cross["end_bin"],
+        )
         factor_b = (df_b["end"] - df_b["start_bin"]) / df_b["size"]
-        df_a["contacts"] *= (1 - factor_b)
+        df_a["contacts"] *= 1 - factor_b
         df_b["contacts"] *= factor_b
-        
+
         # Merge corrected bins
         df_corrected = pd.concat([df_in_bin, df_a, df_b])
         df_corrected.drop(columns=["size", "start", "end", "end_bin"], inplace=True)
@@ -590,7 +593,7 @@ def coverage(
         df_corrected = df_corrected.groupby(["chr", "start"]).sum().reset_index()
         df_corrected["end"] = df_corrected["start"] + bin_size
         df_corrected["contacts"] = np.round(df_corrected["contacts"], 4)
-        
+
         # Merge with empty bins
         df_final = pd.concat([df_bins, df_corrected])
         df_final = df_final.groupby(["chr", "start", "end"]).sum().reset_index()
@@ -599,9 +602,10 @@ def coverage(
 
         # Save output
         df_final.to_csv(output_path, sep="\t", index=False, header=False)
-        logger.info("[Coverage] : Contacts coverage binned file saved to %s", output_path)
+        logger.info(
+            "[Coverage] : Contacts coverage binned file saved to %s", output_path
+        )
         df_contacts_cov = df_final
-
 
     else:
         df_contacts_cov.to_csv(output_path, sep="\t", index=False, header=False)
@@ -809,10 +813,11 @@ def get_stats(
     chr_size_dict = {k: v for k, v in zip(df_coords["chr"], df_coords["length"])}
     chr_list = list(chr_size_dict.keys())
 
-    df_unbinned_contacts: pd.DataFrame = pd.read_csv(contacts_unbinned_path, sep="\t")
-    df_unbinned_contacts = df_unbinned_contacts.astype(
-        dtype={"chr": str, "start": int, "sizes": int}
-    )
+    df: pd.DataFrame = pd.read_csv(contacts_unbinned_path, sep="\t")
+    df = df.astype(dtype={"chr": str, "start": int, "sizes": int})
+
+    df_without_artificial = df[~df["chr"].isin(["chr_artificial_ssDNA", "chr_artificial_dsDNA"])]
+    df_only_artificial = df[df["chr"].isin(["chr_artificial_ssDNA", "chr_artificial_dsDNA"])]
 
     df_sparse_contacts: pd.DataFrame = pd.read_csv(
         sparse_mat_path, header=0, sep="\t", names=["frag_a", "frag_b", "contacts"]
@@ -833,6 +838,8 @@ def get_stats(
             "coverage_over_hic_contacts",
             "cis",
             "trans",
+            "cis_with_artificial",
+            "trans_with_artificial",
             "intra_chr",
             "inter_chr",
         ]
@@ -846,41 +853,76 @@ def get_stats(
         df_stats.loc[index, "type"] = df_oligo.loc[index, "type"]
 
         #  get the probe's original coordinates
+        self_chr = df_oligo.loc[index, "chr"]
         self_chr_ori = df_oligo.loc[index, "chr_ori"]
         self_start_ori = df_oligo.loc[index, "start_ori"]
         self_stop_ori = df_oligo.loc[index, "stop_ori"]
 
         df_stats.loc[index, "chr"] = self_chr_ori
 
-        sub_df = df_unbinned_contacts[["chr", "start", "sizes", frag]]
-        sub_df.insert(3, "end", sub_df["start"] + sub_df["sizes"])
-        cis_start = self_start_ori - cis_range
-        cis_stop = self_stop_ori + cis_range
-
-        probe_contacts = sub_df[frag].sum()
-        df_stats.loc[index, "contacts"] = probe_contacts
-        df_stats.loc[index, "coverage_over_hic_contacts"] = (
-            probe_contacts / total_sparse_contacts
-        )
-        probes_contacts_inter = sub_df.query("chr != @self_chr_ori")[frag].sum()
+        # Number of contacts made by the probe
+        sub_df = df[["chr", "start", "sizes", frag]]
+        probe_contacts = df[frag].sum()
 
         if probe_contacts > 0:
-            cis_freq = sub_df.query(
-                "chr == @self_chr_ori & start >= @cis_start & end <= @cis_stop"
+            df_stats.loc[index, "contacts"] = probe_contacts
+            df_stats.loc[index, "coverage_over_hic_contacts"] = (
+                probe_contacts / total_sparse_contacts
+            )
+            probes_contacts_inter = sub_df.query(
+                "chr != @self_chr_ori & chr != @self_chr"
             )[frag].sum()
-            cis_freq /= probe_contacts
-
-            trans_freq = 1 - cis_freq
             inter_chr_freq = probes_contacts_inter / probe_contacts
             intra_chr_freq = 1 - inter_chr_freq
+
+            # A : computing cis contacts for the probes without
+            # considering the artificial chromosomes
+
+            sub_df_without_artificial = df_without_artificial[["chr", "start", "sizes", frag]]
+            sub_df_without_artificial.insert(
+                3,
+                "end",
+                sub_df_without_artificial["start"] + sub_df_without_artificial["sizes"],
+            )
+            cis_start = self_start_ori - cis_range
+            cis_stop = self_stop_ori + cis_range
+            probe_contacts_without_artificial = sub_df_without_artificial[frag].sum()
+            cis_without_artificial_contacts = sub_df_without_artificial.query(
+                "chr == @self_chr_ori & start >= @cis_start & end <= @cis_stop"
+            )[frag].sum()
+            
+            cis_without_artificial_freq = (
+                cis_without_artificial_contacts / probe_contacts_without_artificial
+            )
+
+            # B : computing additional cis portion of contacts for the probes
+            # with only the artificial chromosomes
+
+            cis_only_artificial_contacts = df_only_artificial[frag].sum()
+
+            # C : computing the total cis portion of contacts for the probes
+            # # with the artificial chromosomes and without (rest of the genome)
+            cis_contacts_with_artificial = (
+                cis_without_artificial_contacts + cis_only_artificial_contacts
+            )
+            cis_freq_with_artificial = cis_contacts_with_artificial / probe_contacts
+
+            cis_freq = cis_without_artificial_freq
+            trans_freq = 1 - cis_freq
+            trans_freq_with_artificial = 1 - cis_freq_with_artificial
+
         else:
             cis_freq = 0
             trans_freq = 0
+            cis_freq_with_artificial = 0
+            trans_freq_with_artificial = 0
             inter_chr_freq = 0
             intra_chr_freq = 0
 
         df_stats.loc[index, "cis"] = cis_freq
         df_stats.loc[index, "trans"] = trans_freq
+        df_stats.loc[index, "cis_with_artificial"] = cis_freq_with_artificial
+        df_stats.loc[index, "trans_with_artificial"] = trans_freq_with_artificial
         df_stats.loc[index, "intra_chr"] = intra_chr_freq
         df_stats.loc[index, "inter_chr"] = inter_chr_freq
 
@@ -1072,6 +1114,10 @@ def first_join(
 
 
 def fragments_correction(fragments_path):
+    """
+    Correct the fragments DataFrame by keeping only the columns
+    of interest and sorting the DataFrame by 'chr' and 'start'.
+    """
     fragments = pd.read_csv(fragments_path, sep="\t")
     fragments = pd.DataFrame(
         {
@@ -1135,8 +1181,8 @@ def merge_sparse_mat(
 
 
 def oligo_correction(oligo_path):
-    """ 
-    Correct the oligo DataFrame by keeping only the columns 
+    """
+    Correct the oligo DataFrame by keeping only the columns
     of interest and sorting the DataFrame by 'chr' and 'start'.
     """
     delim = "," if oligo_path.endswith(".csv") else "\t"
@@ -1193,6 +1239,9 @@ def plot_profiles(
     width: int = 1200,
     height: int = 600,
 ):
+    """
+    Plot 4C-like profiles.
+    """
 
     profile_type = "contacts"
     if "frequencies" in profile_contacts_path:
@@ -1263,7 +1312,6 @@ def plot_profiles(
 
     if binsize > 0:
         df_bins = graph.build_bins_template(df_coords, binsize)
-        chr_bins = df_bins.chr_bins.values
         if region:
             df_bins = df_bins[df_bins["chr"] == chr_]
 
@@ -1430,7 +1478,7 @@ def profile_contacts(
     normalize: bool = False,
     output_path: str = None,
     additional_groups_path: str = None,
-    force: bool = False
+    force: bool = False,
 ):
     """
     Organize the contacts made by each probe with the genome and save the results as two .tsv files:
@@ -1557,13 +1605,14 @@ def profile_contacts(
             output_path.replace("contacts", "frequencies"), sep="\t", index=False
         )
 
+
 def profile_probes_only(
     filtered_table_path: str,
     oligo_capture_with_frag_path: str,
     output_path: str = None,
     force: bool = False,
 ):
-    
+
     utils.check_if_exists(filtered_table_path)
     utils.check_if_exists(oligo_capture_with_frag_path)
 
@@ -1580,7 +1629,6 @@ def profile_probes_only(
         logger.warning("Output file already exists: %s", output_path)
         logger.warning("Use the --force / -F flag to overwrite the existing file.")
         return
-    
 
     oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
     df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
@@ -1595,23 +1643,20 @@ def profile_probes_only(
         frag_a = df_oligo.loc[df_oligo["name"] == probe_a, "fragment"].values[0]
         for j, probe_b in enumerate(probes):
             frag_b = df_oligo.loc[df_oligo["name"] == probe_b, "fragment"].values[0]
-            contacts = df2[
-                (df2["frag_a"] == frag_a) & (df2["frag_b"] == frag_b)
-            ]["contacts"].sum()
+            contacts = df2[(df2["frag_a"] == frag_a) & (df2["frag_b"] == frag_b)][
+                "contacts"
+            ].sum()
             square_matrix[i, j] = contacts
-    
-    # normalize the matrix
+
+    # normalize the matrix
     total_contacts = square_matrix.sum()
     if total_contacts > 0:
         square_matrix /= total_contacts
 
-    # make the matrix symmetric
+    # make the matrix symmetric
     square_matrix = np.maximum(square_matrix, square_matrix.T)
     df_contacts = pd.DataFrame(square_matrix, columns=probes, index=probes)
     df_contacts.to_csv(output_path, sep="\t", index=True)
-
-
-
 
 
 def rebin_profile(
