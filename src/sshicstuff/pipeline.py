@@ -179,7 +179,7 @@ def full_pipeline(
     logger.info("[Rebin] : Change bin resolution of the 4-C like profile (unbinned -> binned)")
     for bn in bin_sizes:
         bin_suffix = shcu.get_bin_suffix(bn)   
-        logger.info("[Rebin] : %d", bin_suffix)
+        logger.info("[Rebin] : %s", bin_suffix)
 
         sshic.rebin_profile(
             contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),

@@ -176,15 +176,14 @@ def frag2(x):
 
 def get_bin_suffix(bin_size: int):
     p = int(np.log10(bin_size))
-    k = 10 ** p
+
     if p < 3:
         res = f"{bin_size}bp"
     elif p < 6:
-        res = f"{bin_size // k}kb"
-    elif p < 9:
-        res = f"{bin_size // k}Mb"
+        res = f"{bin_size // int(1e3)}kb"
     else:
-        res = f"{bin_size // k}Gb"
+        res = f"{bin_size // int(1e6)}Mb"
+
     return res
 
 
