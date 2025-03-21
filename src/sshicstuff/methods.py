@@ -1430,7 +1430,7 @@ def profile_contacts(
     normalize: bool = False,
     output_path: str = None,
     additional_groups_path: str = None,
-    force: bool = False,
+    force: bool = False
 ):
     """
     Organize the contacts made by each probe with the genome and save the results as two .tsv files:
@@ -1556,6 +1556,62 @@ def profile_contacts(
         df_frequencies.to_csv(
             output_path.replace("contacts", "frequencies"), sep="\t", index=False
         )
+
+def profile_probes_only(
+    filtered_table_path: str,
+    oligo_capture_with_frag_path: str,
+    output_path: str = None,
+    force: bool = False,
+):
+    
+    utils.check_if_exists(filtered_table_path)
+    utils.check_if_exists(oligo_capture_with_frag_path)
+
+    if not output_path:
+        output_path = filtered_table_path.replace(
+            "filtered.tsv", "probes_vs_probes_profile.tsv"
+        )
+
+    basedir = os.path.dirname(output_path)
+    if not os.path.exists(basedir):
+        os.makedirs(basedir)
+
+    if os.path.exists(output_path) and not force:
+        logger.warning("Output file already exists: %s", output_path)
+        logger.warning("Use the --force / -F flag to overwrite the existing file.")
+        return
+    
+
+    oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
+    probes = df_oligo["name"].to_list()
+    fragments = df_oligo["fragment"].astype(int).to_list()
+
+    df: pd.DataFrame = pd.read_csv(filtered_table_path, sep="\t")
+    df2 = df[df["frag_a"].isin(fragments) & df["frag_b"].isin(fragments)]
+
+    square_matrix = np.zeros((len(probes), len(probes)))
+    for i, probe_a in enumerate(probes):
+        frag_a = df_oligo.loc[df_oligo["name"] == probe_a, "fragment"].values[0]
+        for j, probe_b in enumerate(probes):
+            frag_b = df_oligo.loc[df_oligo["name"] == probe_b, "fragment"].values[0]
+            contacts = df2[
+                (df2["frag_a"] == frag_a) & (df2["frag_b"] == frag_b)
+            ]["contacts"].sum()
+            square_matrix[i, j] = contacts
+    
+    # normalize the matrix
+    total_contacts = square_matrix.sum()
+    if total_contacts > 0:
+        square_matrix /= total_contacts
+
+    # make the matrix symmetric
+    square_matrix = np.maximum(square_matrix, square_matrix.T)
+    df_contacts = pd.DataFrame(square_matrix, columns=probes, index=probes)
+    df_contacts.to_csv(output_path, sep="\t", index=True)
+
+
+
 
 
 def rebin_profile(
