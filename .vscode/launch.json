@@ -32,6 +32,32 @@
         },
 
         {
+            "name": "HOME main pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/nicolas/Documents/projects/sshicstuff/src/sshicstuff/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "pipeline",
+                "-c", "/home/nicolas/Documents/data/sshicstuff/AD296_sub4M/capture_oligo_positions_v10.csv",
+                "-C", "/home/nicolas/Documents/data/sshicstuff/AD296_sub4M/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial.tsv",
+                "-f", "/home/nicolas/Documents/data/sshicstuff/AD296_sub4M/fragments_list_S288c_DSB_LY_Capture_artificial_v10_DpnIIHinfI.txt",
+                "-m", "/home/nicolas/Documents/data/sshicstuff/AD296_sub4M/AD296_sub4M_S288c_DSB_LY_Capture_artificial_v10_cutsite_q20_v312_PCRfree.txt",
+                "-a", "/home/nicolas/Documents/data/sshicstuff/AD296_sub4M/additional_probe_groups.tsv",
+                "-b", "1000", "-b", "2000", "-b", "5000", "-b", "10000",
+                "-E", "chr2", "-E", "chr3", "-E", "2_micron", "-E", "mitochondrion", "-E", "chr_artificial_donor", "-E", "chr_artificial_ssDNA",
+                "-F", "-I", "-N", "-L",
+                "-n", "2",
+                "-o", "/home/nicolas/Documents/data/sshicstuff/AD296_sub4M/AD296_sub4M_S288c_DSB_LY_Capture_artificial_v10_cutsite_q20_v312_PCRfree",
+                "--binning-aggregate-cen", "10000",
+                "--binning-aggregate-telo", "1000",
+                "--window-size-cen", "150000",
+                "--window-size-telo", "15000",
+                "--copy-inputs"
+            ]
+        },
+
+        {
             "name": "ENS main coverage",
             "type": "debugpy",
             "request": "launch",
