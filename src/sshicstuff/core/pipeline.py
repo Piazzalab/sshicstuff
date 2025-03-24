@@ -97,17 +97,18 @@ def full_pipeline(
     logger.info(
         "[Sparse Matrix Graal (dsdna)] : creating a new sparse matrix with only dsDNA reads"
     )
+    dsdna_sparse_mat = join(output_dir, dsdnaonly_name)
     methods.sparse_with_dsdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         n_flanking_dsdna=n_flanking_dsdna,
-        output_path=join(output_dir, dsdnaonly_name),
+        output_path=dsdna_sparse_mat,
         force=force,
     )
 
     logger.info("[Coverage] : Calculate the coverage for dsDNA reads only")
     methods.coverage(
-        sparse_mat_path=sample_sparse_mat,
+        sparse_mat_path=dsdna_sparse_mat,
         fragments_list_path=fragments_list,
         normalize=normalize,
         output_dir=output_dir,
@@ -118,10 +119,11 @@ def full_pipeline(
     logger.info(
         "[Sparse Matrix Graal (ssdna)] : creating a new sparse matrix with only ssDNA reads"
     )
+    ssdna_sparse_mat = join(output_dir, ssdnaonly_name)
     methods.sparse_with_ssdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
-        output_path=join(output_dir, ssdnaonly_name),
+        output_path=ssdna_sparse_mat,
         force=force,
     )
 
@@ -129,7 +131,7 @@ def full_pipeline(
         "[Coverage] : Calculate the coverage per ssDNA fragment and save the result to a bedgraph"
     )
     methods.coverage(
-        sparse_mat_path=sample_sparse_mat,
+        sparse_mat_path=ssdna_sparse_mat,
         fragments_list_path=fragments_list,
         normalize=normalize,
         output_dir=output_dir,
@@ -151,7 +153,7 @@ def full_pipeline(
     logger.info(
         "[Coverage] : Calculate the coverage per fragment and save the result to a bedgraph"
     )
-    for bn in bin_sizes:
+    for bn in [0] + bin_sizes:
         methods.coverage(
             sparse_mat_path=sample_sparse_mat,
             fragments_list_path=fragments_list,
