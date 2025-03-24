@@ -483,9 +483,6 @@ def rebin_profile(
     -------
     None
     """
-    import os
-    import numpy as np
-    import pandas as pd
 
     # Check that input files exist (assumes methods.check_if_exists is defined)
     methods.check_if_exists(contacts_unbinned_path)
