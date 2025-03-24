@@ -683,17 +683,47 @@ def is_debug() -> bool:
 
 
 def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: dict):
-    for _, row in df_groups.iterrows():
-        group_probes = row["probes"].split(",")
-        group_frags = np.unique([prob2frag[probe] for probe in group_probes])
-        group_name = row["name"]
-        group_name = "$" + group_name.lower()
-        if row["action"] == "average":
-            df[group_name] = df[group_frags].mean(axis=1)
-        elif row["action"] == "sum":
-            df[group_name] = df[group_frags].sum(axis=1)
+    """
+    Aggregate probes into groups and add new columns to the DataFrame.
+
+    For each group defined in df_groups, this function maps the comma-separated list of probes
+    to their associated fragment identifiers (converted to strings) using prob2frag, and then computes
+    the row-wise average or sum of the corresponding columns in df. If some fragments are missing,
+    only the available ones are used. If none are found, the new group column is filled with NaN.
+
+    Parameters
+    ----------
+    df_groups : pd.DataFrame
+        DataFrame with group definitions. Must have columns "probes", "name", and "action".
+    df : pd.DataFrame
+        DataFrame containing contact data, where columns corresponding to probes (or fragments) are aggregated.
+    prob2frag : dict
+        Mapping from probe names to fragment identifiers (which may be int or str).
+
+    Returns
+    -------
+    None
+    """
+    # Build a mapping from stringified column names to the actual column names in df
+    col_map = {str(col): col for col in df.columns}
+    
+    for row in df_groups.itertuples(index=False):
+        # Split the comma-separated probes and map each probe to its fragment identifier as string.
+        group_probes = row.probes.split(",")
+        group_frags = np.unique([str(prob2frag.get(probe, probe)) for probe in group_probes])
+        group_name = "$" + row.name.lower()
+
+        # Get only the columns that exist in df (using the stringified mapping)
+        existing_frags = [col_map[frag] for frag in group_frags if frag in col_map]
+        if not existing_frags:
+            logger.warning("Group %s: none of the fragments %s are present in the DataFrame.", 
+                           group_name, group_frags)
+            df[group_name] = np.nan
         else:
-            continue
+            if row.action.lower() == "average":
+                df[group_name] = df[existing_frags].mean(axis=1)
+            elif row.action.lower() == "sum":
+                df[group_name] = df[existing_frags].sum(axis=1)
 
 
 def merge_sparse_mat(
