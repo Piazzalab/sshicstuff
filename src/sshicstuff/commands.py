@@ -10,6 +10,7 @@ import sshicstuff.core.pipeline as pip
 import sshicstuff.core.stats as stats
 import sshicstuff.core.profile as prof
 import sshicstuff.core.filter as filt
+import sshicstuff.core.aggregate as agg
 from sshicstuff.gui.app import app
 
 import sshicstuff.log as log
@@ -98,7 +99,7 @@ class Aggregate(AbstractCommand):
                 "You must specify either telomeres or centromeres. Not both"
             )
 
-        methods.aggregate(
+        agg.aggregate(
             binned_contacts_path=self.args["--profile"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_with_frag_path=self.args["--oligo-capture"],

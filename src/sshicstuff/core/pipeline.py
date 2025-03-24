@@ -20,6 +20,7 @@ import sshicstuff.core.methods as methods
 import sshicstuff.core.filter as filt
 import sshicstuff.core.profile as prof
 import sshicstuff.core.stats as stats
+import sshicstuff.core.aggregate as agg
 import sshicstuff.log as log
 
 logger = log.logger
@@ -222,7 +223,7 @@ def full_pipeline(
         "_0kb_profile_", f"_{binsize_for_cen // 1000}kb_profile_"
     )
 
-    methods.aggregate(
+    agg.aggregate(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
@@ -240,7 +241,7 @@ def full_pipeline(
         "_0kb_profile_", f"_{binsize_for_telo // 1000}kb_profile_"
     )
 
-    methods.aggregate(
+    agg.aggregate(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
         oligo_capture_with_frag_path=oligo_capture_with_frag,

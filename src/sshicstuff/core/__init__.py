@@ -5,3 +5,4 @@ from .profile import *
 from .stats import *
 from .graph import *
 from .filter import *
+from .aggregate import *

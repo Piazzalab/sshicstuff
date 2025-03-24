@@ -1,0 +1,278 @@
+"""
+Aggregate the contacts around region within defined borders.
+"""
+
+
+import os
+import re
+import numpy as np
+import pandas as pd
+from sshicstuff.log import logger
+from sshicstuff.core.methods import sort_by_chr
+
+
+
+def aggregate(
+    binned_contacts_path: str,
+    chr_coord_path: str,
+    oligo_capture_with_frag_path: str,
+    window_size: int,
+    telomeres: bool = False,
+    centromeres: bool = False,
+    output_dir: str = None,
+    excluded_chr_list: list[str] = None,
+    inter_only: bool = True,
+    normalize: bool = True,
+    arm_length_classification: bool = False,
+) -> None:
+    """
+    Aggregate the contacts around centromeres within defined regions.
+
+    Parameters
+    ----------
+
+    binned_contacts_path : str
+        Path to the binned_contacts.tsv file.
+    chr_coord_path : str
+        Path to the chr_centros_coordinates.tsv file containing the centromeres coordinates.
+    oligo_capture_with_frag_path : str
+        Path to the oligo_capture.tsv file. It must contain the fragments associated with the oligos.
+        c.f associate_oligo_to_frag function.
+    telomeres : bool, default=False
+        Whether to aggregate the contacts around the telomeres.
+    centromeres : bool, default=False
+        Whether to aggregate the contacts around the centromeres.
+    window_size : int
+        Size of the region to aggregate around the centromeres.
+    output_dir : str
+        Path to the output directory.
+    excluded_chr_list : list, default=None
+        List of chromosome to exclude from the analysis.
+    inter_only : bool, default=True
+        Whether to exclude the chromosome of the probe from the analysis.
+        (exclude intra-chr contacts)
+    normalize : bool, default=True
+        Whether to normalize the contacts by the total number of contacts remaining.
+    arm_length_classification : bool, default=False
+        Whether to classify the contacts by chromosome arm lengths.
+
+    Returns
+    -------
+    None
+    """
+
+    if output_dir is None:
+        output_dir = os.path.dirname(binned_contacts_path)
+
+    output_dir = os.path.join(output_dir, "aggregated")
+    output_dir = (
+        os.path.join(output_dir, "telomeres")
+        if telomeres
+        else os.path.join(output_dir, "centromeres")
+    )
+
+    os.makedirs(output_dir, exist_ok=True)
+    sample_name = re.match(r".+\/(.+)_profile", binned_contacts_path).group(1)
+    sample_short_name = sample_name.split("_")[0]
+
+    output_prefix = os.path.join(output_dir, sample_short_name) + "_agg_on_"
+    output_prefix += "telo" if telomeres else "cen"
+
+    oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    coords_delim = "\t" if chr_coord_path.endswith(".tsv") else ","
+    df_coords: pd.DataFrame = pd.read_csv(
+        chr_coord_path, sep=coords_delim, index_col=None
+    )
+    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
+    df_contacts: pd.DataFrame = pd.read_csv(binned_contacts_path, sep="\t")
+
+    binsize = int(df_contacts.loc[2, "chr_bins"] - df_contacts.loc[1, "chr_bins"])
+    logger.info(
+        "[Aggregate] : Contacts binned profile with resolution of : %d bp", binsize
+    )
+
+    chr_list = list(df_coords["chr"].unique())
+    fragments = df_oligo["fragment"].astype(str).tolist()
+    groups = [g for g in df_contacts.columns if g.startswith("$")]
+
+    if len(excluded_chr_list) > 0:
+        logger.info(
+            "[Aggregate] : Excluding chromosomes:  %s", ", ".join(excluded_chr_list)
+        )
+        df_contacts = df_contacts[~df_contacts["chr"].isin(excluded_chr_list)]
+        df_coords = df_coords[~df_coords["chr"].isin(excluded_chr_list)]
+
+    if inter_only:
+        #   We need to remove for each oligo the number of contact it makes with its own chr.
+        #   Because we know that the frequency of intra-chr contact is higher than inter-chr
+        #   We have to set them as NaN to not bias the average
+        logger.info("[Aggregate] : Excluding intra-chr contacts")
+        for frag in fragments:
+            ii_frag = df_oligo.loc[df_oligo["fragment"] == int(frag)].index[0]
+            probe_chr_ori = df_oligo.loc[ii_frag, "chr_ori"]
+            if probe_chr_ori not in excluded_chr_list:
+                df_contacts.loc[df_contacts["chr"] == probe_chr_ori, frag] = np.nan
+
+        output_prefix += "_inter"
+
+    if normalize:
+        logger.info("[Aggregate] : Normalizing the contacts")
+        df_contacts.loc[:, fragments] = df_contacts[fragments].div(
+            df_contacts[fragments].sum(axis=0)
+        )
+        output_prefix += "_norm"
+
+    if centromeres:
+        logger.info("[Aggregate] : Aggregating contacts around centromeres")
+        logger.info(
+            "[Aggregate] : Window size: %d bp on each side of the centromere",
+            window_size,
+        )
+
+        df_merged: pd.DataFrame = pd.merge(df_contacts, df_coords, on="chr")
+        df_merged_cen_areas: pd.DataFrame = df_merged[
+            (df_merged.chr_bins > (df_merged.left_arm_length - window_size - binsize))
+            & (df_merged.chr_bins < (df_merged.left_arm_length + window_size))
+        ]
+        df_merged_cen_areas["chr_bins"] = abs(
+            df_merged_cen_areas["chr_bins"]
+            - (df_merged_cen_areas["left_arm_length"] // binsize) * binsize
+        )
+        df_grouped: pd.DataFrame = df_merged_cen_areas.groupby(
+            ["chr", "chr_bins"], as_index=False
+        ).mean(numeric_only=True)
+        df_grouped.drop(
+            columns=["length", "left_arm_length", "right_arm_length", "genome_bins"],
+            axis=1,
+            inplace=True,
+        )
+
+    elif telomeres:
+        df_telos: pd.DataFrame = pd.DataFrame(
+            {"chr": df_coords["chr"], "telo_l": 0, "telo_r": df_coords["length"]}
+        )
+        df_merged: pd.DataFrame = pd.merge(df_contacts, df_telos, on="chr")
+        df_merged_telos_areas_part_a: pd.DataFrame = df_merged[
+            df_merged.chr_bins < (df_merged.telo_l + window_size + binsize)
+        ]
+        df_merged_telos_areas_part_b: pd.DataFrame = df_merged[
+            df_merged.chr_bins > (df_merged.telo_r - window_size - binsize)
+        ]
+        df_merged_telos_areas_part_b["chr_bins"] = abs(
+            df_merged_telos_areas_part_b["chr_bins"]
+            - (df_merged_telos_areas_part_b["telo_r"] // binsize) * binsize
+        )
+        df_merged_telos_areas: pd.DataFrame = pd.concat(
+            (df_merged_telos_areas_part_a, df_merged_telos_areas_part_b)
+        )
+        df_grouped: pd.DataFrame = df_merged_telos_areas.groupby(
+            ["chr", "chr_bins"], as_index=False
+        ).mean(numeric_only=True)
+        df_grouped.drop(
+            columns=["telo_l", "telo_r", "genome_bins"], axis=1, inplace=True
+        )
+        del df_merged, df_merged_telos_areas_part_a, df_merged_telos_areas_part_b
+
+        if arm_length_classification:
+            if "category" not in df_coords.columns:
+                logger.error(
+                    "[Aggregate] :"
+                    "The 'category' column is missing in the centromeres file. "
+                    "Must be in the form small_small or long_middle concerning lengths of left_right arms"
+                )
+            else:
+                logger.info(
+                    "[Aggregate] : Classifying the contacts by chromosome arm lengths"
+                )
+
+                df_arms_size: pd.DataFrame = pd.DataFrame(
+                    columns=["chr", "arm", "size", "category"]
+                )
+                for _, row in df_coords.iterrows():
+                    chr_ = row["chr"]
+                    if chr_ not in excluded_chr_list:
+                        left_, right_, category_ = (
+                            row["left_arm_length"],
+                            row["right_arm_length"],
+                            row["category"],
+                        )
+                        if pd.isna(left_) or pd.isna(right_) or pd.isna(category_):
+                            continue
+                        df_arms_size.loc[len(df_arms_size)] = (
+                            chr_,
+                            "left",
+                            left_,
+                            category_.split("_")[0],
+                        )
+                        df_arms_size.loc[len(df_arms_size)] = (
+                            chr_,
+                            "right",
+                            right_,
+                            category_.split("_")[1],
+                        )
+
+                df_merged2 = pd.merge(df_contacts, df_telos, on="chr")
+                df_merged_telos_areas_part_a = df_merged2[
+                    df_merged2.chr_bins < (df_merged2.telo_l + 3000 + 1000)
+                ]
+                df_merged_telos_areas_part_a.insert(2, "arm", "left")
+                df_merged_telos_areas_part_b = df_merged2[
+                    df_merged2.chr_bins > (df_merged2.telo_r - 3000 - 1000)
+                ]
+                df_merged_telos_areas_part_b.insert(2, "arm", "right")
+
+                df_telo_freq = pd.concat(
+                    (df_merged_telos_areas_part_a, df_merged_telos_areas_part_b)
+                )
+                df_merged3 = pd.merge(df_telo_freq, df_arms_size, on=["chr", "arm"])
+                df_merged3.drop(columns=["telo_l", "telo_r", "size"], inplace=True)
+
+                df_grouped_by_arm = df_merged3.groupby(
+                    by="category", as_index=False
+                ).mean(numeric_only=True)
+                df_grouped_by_arm.drop(
+                    columns=["chr_bins", "genome_bins"], inplace=True
+                )
+                df_grouped_by_arm = df_grouped_by_arm.rename(
+                    columns={"category": "fragments"}
+                ).T
+                df_grouped_by_arm.to_csv(
+                    output_prefix + "_by_arm_sizes.tsv", sep="\t", header=False
+                )
+
+    else:
+        return
+
+    df_grouped = sort_by_chr(df_grouped, chr_list, "chr", "chr_bins")
+    df_grouped["chr_bins"] = df_grouped["chr_bins"].astype("int64")
+
+    logger.info(
+        "[Aggregate] : Compute mean, median, std on the aggregated contacts per probe or group of probes, "
+        "and per chromosome."
+    )
+    df_aggregated_mean: pd.DataFrame = df_grouped.groupby(
+        by="chr_bins", as_index=False
+    ).mean(numeric_only=True)
+    df_aggregated_mean.to_csv(output_prefix + "_mean.tsv", sep="\t")
+    df_aggregated_std: pd.DataFrame = df_grouped.groupby(
+        by="chr_bins", as_index=False
+    ).std(numeric_only=True)
+    df_aggregated_std.to_csv(output_prefix + "_std.tsv", sep="\t")
+    df_aggregated_median: pd.DataFrame = df_grouped.groupby(
+        by="chr_bins", as_index=False
+    ).median(numeric_only=True)
+    df_aggregated_median.to_csv(output_prefix + "_median.tsv", sep="\t")
+
+    for col in fragments + groups:
+        if col in fragments:
+            name = col
+        else:
+            name = col[1:]
+
+        if df_grouped[col].sum() == 0:
+            continue
+
+        df_chr_centros_pivot = df_grouped.pivot_table(
+            index="chr_bins", columns="chr", values=col, fill_value=0
+        )
+        df_chr_centros_pivot.to_csv(output_prefix + f"_{name}_per_chr.tsv", sep="\t")
