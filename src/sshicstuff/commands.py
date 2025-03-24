@@ -582,6 +582,10 @@ class Profile(AbstractCommand):
         -F, --force                                            Force the overwriting of the output file if it exists [default: False]
 
         -N, --normalize                                        Normalize the coverage by the total number of contacts [default: False]
+
+        --probe-only                                           Make a second dataframe that only contains the contacts (in frequencies) between probes (oligos)
+                                                               This should have a squared-like shape [default: False]
+
     """
 
     def execute(self):
@@ -599,6 +603,14 @@ class Profile(AbstractCommand):
             normalize=self.args["--normalize"],
             force=self.args["--force"],
         )
+
+        if self.args["--probe-only"]:
+            prof.profile_probes_only(
+                filtered_table_path=self.args["--filtered-table"],
+                oligo_capture_with_frag_path=self.args["--oligo-capture"],
+                output_path=self.args["--output"],
+                force=self.args["--force"],
+            )
 
 
 class Rebin(AbstractCommand):
