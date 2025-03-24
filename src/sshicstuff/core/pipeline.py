@@ -1,3 +1,17 @@
+"""
+This module contains the full pipeline for the analysis of a single sample.
+The pipeline is composed of the following steps:
+- Create a new sparse matrix with only dsDNA reads
+- Create a new sparse matrix with only ssDNA reads
+- Filter the contacts to keep only the ones with at least one oligo/probe
+- Generate a 4C-like profile for each ssDNA oligo
+- Generate a profile containing only contacts frequencies between oligos
+- Make basic statistics on the contacts (inter/intra chr, cis)
+- Change bin resolution of the 4-C like profile (unbinned -> binned)
+- Aggregate all 4C-like profiles on centromeric regions
+- Aggregate all 4C-like profiles on telomeric regions
+"""
+
 import os
 from os.path import join
 from datetime import datetime
@@ -13,52 +27,34 @@ logger = log.logger
 SEED = 1999
 CWD = os.getcwd()
 
-"""
-Example of usage :
-
-sshicstuff pipeline 
--c <path_to>/capture_oligo_positions.csv
--C <path_to>/chr_coords.tsv
--f <path_to>/AD162/fragments_list.txt
--m <path_to>/AD162/AD162_pcrdupkept.txt
--a <path_to>/additional_probe_groups.tsv
--b 1000 -b 2000 -b 5000 -b 10000
--E chr2 -E chr3 -E 2_micron -E mitochondrion -E chr_artificial_donor -E chr_artificial_ssDNA
--F -I -L -N
--n 2
--o <path_to>/AD162-TEST-PIPELINE
---binning-aggregate-cen 10000
---binning-aggregate-telo 1000
---window-size-cen 150000
---window-size-telo 15000
---copy-inputs
-"""
-
 
 def full_pipeline(
-        sample_sparse_mat: str,
-        oligo_capture: str,
-        fragments_list: str,
-        chr_coordinates: str,
-        output_dir: str = None,
-        additional_groups: str = None,
-        bin_sizes: list[int] = None,
-        cen_agg_window_size: int = 15000,
-        cen_aggregated_binning: int = 10000,
-        telo_agg_window_size: int = 15000,
-        telo_agg_binning: int = 10000,
-        arm_length_classification: bool = False,
-        excluded_chr: list[str] = None,
-        cis_region_size: int = 50000,
-        n_flanking_dsdna: int = 2,
-        inter_chr_only: bool = False,
-        copy_inputs: bool = True,
-        force: bool = False,
-        normalize: bool = False,
+    sample_sparse_mat: str,
+    oligo_capture: str,
+    fragments_list: str,
+    chr_coordinates: str,
+    output_dir: str = None,
+    additional_groups: str = None,
+    bin_sizes: list[int] = None,
+    cen_agg_window_size: int = 15000,
+    cen_aggregated_binning: int = 10000,
+    telo_agg_window_size: int = 15000,
+    telo_agg_binning: int = 10000,
+    arm_length_classification: bool = False,
+    excluded_chr: list[str] = None,
+    cis_region_size: int = 50000,
+    n_flanking_dsdna: int = 2,
+    inter_chr_only: bool = False,
+    copy_inputs: bool = True,
+    force: bool = False,
+    normalize: bool = False,
 ):
+    """ "
+    Run the full pipeline for a given sample
+    """
 
     # Files and path alias names
-    sample_name = os.path.basename(sample_sparse_mat).split('.')[0]
+    sample_name = os.path.basename(sample_sparse_mat).split(".")[0]
     input_basedir = os.path.dirname(sample_sparse_mat)
     if not output_dir:
         output_dir = join(input_basedir, sample_name)
@@ -96,15 +92,16 @@ def full_pipeline(
     if copy_inputs:
         methods.copy(oligo_capture_with_frag, copy_dir)
 
-
     # dsDNA reads only
-    logger.info("[Sparse Matrix Graal (dsdna)] : creating a new sparse matrix with only dsDNA reads")
+    logger.info(
+        "[Sparse Matrix Graal (dsdna)] : creating a new sparse matrix with only dsDNA reads"
+    )
     methods.sparse_with_dsdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         n_flanking_dsdna=n_flanking_dsdna,
         output_path=join(output_dir, dsdnaonly_name),
-        force=force
+        force=force,
     )
 
     logger.info("[Coverage] : Calculate the coverage for dsDNA reads only")
@@ -117,15 +114,19 @@ def full_pipeline(
     )
 
     # ssDNA reads only
-    logger.info("[Sparse Matrix Graal (ssdna)] : creating a new sparse matrix with only ssDNA reads")
+    logger.info(
+        "[Sparse Matrix Graal (ssdna)] : creating a new sparse matrix with only ssDNA reads"
+    )
     methods.sparse_with_ssdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         output_path=join(output_dir, ssdnaonly_name),
-        force=force
+        force=force,
     )
 
-    logger.info("[Coverage] : Calculate the coverage per ssDNA fragment and save the result to a bedgraph")
+    logger.info(
+        "[Coverage] : Calculate the coverage per ssDNA fragment and save the result to a bedgraph"
+    )
     methods.coverage(
         sparse_mat_path=sample_sparse_mat,
         fragments_list_path=fragments_list,
@@ -135,16 +136,20 @@ def full_pipeline(
     )
 
     # All reads
-    logger.info("[Filter] : Only keep pairs of reads that contain at least one oligo/probe")
+    logger.info(
+        "[Filter] : Only keep pairs of reads that contain at least one oligo/probe"
+    )
     filt.filter_contacts(
         sparse_mat_path=sample_sparse_mat,
         oligo_capture_path=oligo_capture,
         fragments_list_path=fragments_list,
         output_path=join(output_dir, filtered_name),
-        force=force
+        force=force,
     )
 
-    logger.info("[Coverage] : Calculate the coverage per fragment and save the result to a bedgraph")
+    logger.info(
+        "[Coverage] : Calculate the coverage per fragment and save the result to a bedgraph"
+    )
     for bn in bin_sizes:
         methods.coverage(
             sparse_mat_path=sample_sparse_mat,
@@ -153,7 +158,7 @@ def full_pipeline(
             output_dir=output_dir,
             force=force,
             bin_size=bn,
-            chromosomes_coord_path=chr_coordinates
+            chromosomes_coord_path=chr_coordinates,
         )
 
     logger.info("[Profile] : Generate a 4C-like profile for each ssDNA oligo")
@@ -164,18 +169,21 @@ def full_pipeline(
         chromosomes_coord_path=chr_coordinates,
         normalize=normalize,
         force=force,
-        additional_groups_path=additional_groups
+        additional_groups_path=additional_groups,
     )
 
-    logger.info("[Profile] : Generate a profile conaining only contacts frequencie between oligos")
+    logger.info(
+        "[Profile] : Generate a profile conaining only contacts frequencie between oligos"
+    )
     prof.profile_probes_only(
         filtered_table_path=join(output_dir, filtered_name),
         oligo_capture_with_frag_path=oligo_capture_with_frag,
-        force=force
+        force=force,
     )
-        
 
-    logger.info("[Stats] : Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...)")
+    logger.info(
+        "[Stats] : Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...)"
+    )
     stats.get_stats(
         contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
         sparse_mat_path=sample_sparse_mat,
@@ -183,26 +191,28 @@ def full_pipeline(
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         output_dir=output_dir,
         cis_range=cis_region_size,
-        force=force
+        force=force,
     )
 
-    logger.info("[Rebin] : Change bin resolution of the 4-C like profile (unbinned -> binned)")
+    logger.info(
+        "[Rebin] : Change bin resolution of the 4-C like profile (unbinned -> binned)"
+    )
     for bn in bin_sizes:
-        bin_suffix = methods.get_bin_suffix(bn)   
+        bin_suffix = methods.get_bin_suffix(bn)
         logger.info("[Rebin] : %s", bin_suffix)
 
         prof.rebin_profile(
             contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
             chromosomes_coord_path=chr_coordinates,
             bin_size=bn,
-            force=force
+            force=force,
         )
 
         prof.rebin_profile(
             contacts_unbinned_path=join(output_dir, profile_0kb_frequencies_name),
             chromosomes_coord_path=chr_coordinates,
             bin_size=bn,
-            force=force
+            force=force,
         )
 
     logger.info("[Aggregate] : Aggregate all 4C-like profiles on centromeric regions")
@@ -221,7 +231,7 @@ def full_pipeline(
         output_dir=output_dir,
         excluded_chr_list=excluded_chr,
         inter_only=inter_chr_only,
-        normalize=normalize
+        normalize=normalize,
     )
 
     logger.info("[Aggregate] : Aggregate all 4C-like profiles on telomeric regions")
@@ -240,7 +250,7 @@ def full_pipeline(
         excluded_chr_list=excluded_chr,
         inter_only=inter_chr_only,
         normalize=normalize,
-        arm_length_classification=arm_length_classification
+        arm_length_classification=arm_length_classification,
     )
 
     now = datetime.now()
