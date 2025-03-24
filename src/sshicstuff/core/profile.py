@@ -459,92 +459,107 @@ def rebin_profile(
     force: bool = False,
 ) -> None:
     """
-    Rebin the contacts from the unbinned contacts file to the binned contacts file.
+    Rebin the contacts profile from an unbinned contacts file into fixed-size bins.
+
+    This function creates a template of bins based on chromosome lengths from the provided
+    coordinates file and assigns contact values from the unbinned file into these bins.
+    For contacts spanning multiple bins, the contact value is split proportionally based
+    on the overlap. The resulting binned profile is then saved as a TSV file.
 
     Parameters
     ----------
     contacts_unbinned_path : str
         Path to the unbinned contacts file.
     chromosomes_coord_path : str
-        Path to the chromosomes coordinates file containing the length of each chromosome arms.
+        Path to the chromosome coordinates file (CSV or TSV) with chromosome lengths.
     bin_size : int
-        Size of the bins (resolution).
-    output_path : str
-        Path to the output file.
-    force : bool
-        Force the overwriting of the output file if the file exists.
-    """
+        Size of the bins (resolution in bp).
+    output_path : str, optional
+        Path to the output file. If not provided, a default is derived from the input path.
+    force : bool, optional
+        If True, overwrite the output file if it exists.
 
+    Returns
+    -------
+    None
+    """
+    import os
+    import numpy as np
+    import pandas as pd
+
+    # Check that input files exist (assumes methods.check_if_exists is defined)
     methods.check_if_exists(contacts_unbinned_path)
     methods.check_if_exists(chromosomes_coord_path)
 
+    # Determine output file name if not provided
     bin_suffix = methods.get_bin_suffix(bin_size)
     if not output_path:
-        output_path = contacts_unbinned_path.replace(
-            "0kb_profile", f"{bin_suffix}_profile"
-        )
-
+        output_path = contacts_unbinned_path.replace("0kb_profile", f"{bin_suffix}_profile")
     if os.path.exists(output_path) and not force:
         logger.warning("[Rebin] : Output file already exists: %s", output_path)
-        logger.warning(
-            "[Rebin] : Use the --force / -F flag to overwrite the existing file."
-        )
+        logger.warning("[Rebin] : Use the --force / -F flag to overwrite the existing file.")
         return
 
+    # Read the unbinned contacts and chromosome coordinates files
     df = pd.read_csv(contacts_unbinned_path, sep="\t")
     coord_delim = "," if chromosomes_coord_path.endswith(".csv") else "\t"
-    df_coords: pd.DataFrame = pd.read_csv(
-        chromosomes_coord_path, sep=coord_delim, index_col=None
-    )
+    df_coords = pd.read_csv(chromosomes_coord_path, sep=coord_delim)
 
+    # Create a template DataFrame with all bins per chromosome
     chr_sizes = dict(zip(df_coords.chr, df_coords.length))
-    chr_list, chr_bins = [], []
+    chr_list_parts, chr_bins_parts = [], []
+    for chrom, length in chr_sizes.items():
+        n_bins = (length // bin_size) + 1
+        chr_list_parts.append(np.full(n_bins, chrom))
+        chr_bins_parts.append(np.arange(0, n_bins * bin_size, bin_size))
+    chr_all = np.concatenate(chr_list_parts)
+    bins_all = np.concatenate(chr_bins_parts)
+    df_template = pd.DataFrame({
+        "chr": chr_all,
+        "chr_bins": bins_all,
+        "genome_bins": np.arange(0, len(bins_all) * bin_size, bin_size)
+    })
 
-    for c, l in chr_sizes.items():
-        chr_list.append([c] * (l // bin_size + 1))
-        chr_bins.append(np.arange(0, (l // bin_size + 1) * bin_size, bin_size))
-
-    chr_list = np.concatenate(chr_list)
-    chr_bins = np.concatenate(chr_bins)
-
-    df_template = pd.DataFrame(
-        {
-            "chr": chr_list,
-            "chr_bins": chr_bins,
-            "genome_bins": np.arange(0, len(chr_bins) * bin_size, bin_size),
-        }
-    )
-
+    # Compute the end coordinate for each contact and assign start and end bin positions
     df["end"] = df["start"] + df["sizes"]
-    df["start_bin"] = df["start"] // bin_size * bin_size
-    df["end_bin"] = df["end"] // bin_size * bin_size
+    df["start_bin"] = (df["start"] // bin_size) * bin_size
+    df["end_bin"] = (df["end"] // bin_size) * bin_size
     df.drop(columns=["genome_start"], inplace=True)
 
-    df_cross_bins = df[df["start_bin"] != df["end_bin"]].copy()
-    df_in_bin = df.drop(df_cross_bins.index)
+    # Separate contacts that fall entirely within one bin from those spanning bins
+    df_in_bin = df.loc[df["start_bin"] == df["end_bin"]].copy()
     df_in_bin["chr_bins"] = df_in_bin["start_bin"]
 
-    df_cross_bins_a = df_cross_bins.copy()
-    df_cross_bins_b = df_cross_bins.copy()
-    df_cross_bins_a["chr_bins"] = df_cross_bins["start_bin"]
-    df_cross_bins_b["chr_bins"] = df_cross_bins["end_bin"]
+    df_cross = df.loc[df["start_bin"] != df["end_bin"]].copy()
+    # For cross-bin contacts, create two copies:
+    #   - one for the first bin (using start_bin)
+    #   - one for the second bin (using end_bin)
+    df_cross_a = df_cross.copy()
+    df_cross_b = df_cross.copy()
+    df_cross_a["chr_bins"] = df_cross_a["start_bin"]
+    df_cross_b["chr_bins"] = df_cross_b["end_bin"]
 
-    fragments_columns = df.filter(regex=r"^\d+$|^\$").columns.to_list()
+    # Identify columns corresponding to fragment data (numeric or starting with '$')
+    fragments_columns = df.filter(regex=r"^\d+$|^\$").columns.tolist()
+    # Compute the fraction that belongs to the second bin for cross-bin contacts
+    correction = (df_cross_b["end"] - df_cross_b["chr_bins"]) / df_cross_b["sizes"]
+    # Apply the proportional split in a vectorized way
+    df_cross_a[fragments_columns] = df_cross_a[fragments_columns].multiply(1 - correction, axis=0)
+    df_cross_b[fragments_columns] = df_cross_b[fragments_columns].multiply(correction, axis=0)
 
-    correction_factors = (
-        df_cross_bins_b["end"] - df_cross_bins_b["chr_bins"]
-    ) / df_cross_bins_b["sizes"]
-    for c in fragments_columns:
-        df_cross_bins_a[c] *= 1 - correction_factors
-        df_cross_bins_b[c] *= correction_factors
+    # Combine in-bin and cross-bin fragments
+    df_combined = pd.concat([df_in_bin, df_cross_a, df_cross_b], ignore_index=True)
+    df_combined.drop(columns=["start_bin", "end_bin"], inplace=True)
 
-    df_binned = pd.concat([df_cross_bins_a, df_cross_bins_b, df_in_bin])
-    df_binned.drop(columns=["start_bin", "end_bin"], inplace=True)
-
-    df_binned = df_binned.groupby(["chr", "chr_bins"]).sum().reset_index()
-    df_binned = methods.sort_by_chr(df_binned, chr_list, "chr_bins")
+    # Group by chromosome and bin to sum the contact values
+    df_binned = df_combined.groupby(["chr", "chr_bins"], as_index=False).sum()
+    # Sort the binned DataFrame (assumes methods.sort_by_chr is defined)
+    df_binned = methods.sort_by_chr(df_binned, list(chr_sizes.keys()), "chr_bins")
+    # Merge with the template to ensure all bins are represented; missing bins are set to 0
     df_binned = pd.merge(df_template, df_binned, on=["chr", "chr_bins"], how="left")
     df_binned.drop(columns=["start", "end", "sizes"], inplace=True)
     df_binned.fillna(0, inplace=True)
 
+    # Save the final binned profile as a TSV file
     df_binned.to_csv(output_path, sep="\t", index=False)
+    logger.info("[Rebin] : Binned profile saved to %s", output_path)
