@@ -167,7 +167,7 @@ def full_pipeline(
         additional_groups_path=additional_groups
     )
 
-    logger.info("[Profile] : Generate a profile conaining lony contacts between oligos")
+    logger.info("[Profile] : Generate a profile conaining only contacts frequencie between oligos")
     prof.profile_probes_only(
         filtered_table_path=join(output_dir, filtered_name),
         oligo_capture_with_frag_path=oligo_capture_with_frag,
