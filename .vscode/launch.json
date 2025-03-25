@@ -103,7 +103,9 @@
                 "-m", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree_probes_matrix.tsv",
                 "-c", "Reds",
                 "-o", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree/plots",
-                "-e", "pdf"
+                "-e", "pdf",
+                "--probes-x", "Native_URA-L-15683-SspI-RC,Native_URA-L-9924-MfeI-RC,Native_URA-L-6532-MfeI-RC,Native_URA-L-6065-SspI-RC,Native_URA-L-2599-MfeI-RC",
+                "--probes-y", "Probe_URA-R-1439-SspI,Probe_URA-R-2715-93-SspI,Probe_URA-R-2954-SspI,Probe_URA-R-8073-SspI,Native_URA-L-3728-SspI-RC,Native_URA-R-2954-SspI"
             ]
         },
 

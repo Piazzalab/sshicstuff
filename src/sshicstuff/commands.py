@@ -566,7 +566,7 @@ class Plotmatrix(AbstractCommand):
 
     usage:
         plotmatrix -m MATRIX [-c COLORMAP] [-e EXT] [-L] [-o OUTPATH]
-        [--probes-x LISTX...] [--probes-y LISTY...] [-t TITLE] [-v VMIN] [-V VMAX]
+        [--probes-x PROBES] [--probes-y PROBES] [-t TITLE] [-v VMIN] [-V VMAX]
 
     Arguments:
         -m MATRIX, --matrix MATRIX                                  Path to the matrix file. Its a .tsv/.csv file containaing the
@@ -582,9 +582,9 @@ class Plotmatrix(AbstractCommand):
 
         -o OUTDIR, --outdir OUTDIR                                  Desired output dir [default: None]
 
-        --probes-x LISTX                                            Probes to keep in X axis (expects a list) [default: None]
+        --probes-x PROBES                                           Probes to keep in X axis (separated by a comma) [default: None]
 
-        --probes-y LISTY                                            Probes to keep in Y axis (expects a list) [default: None]
+        --probes-y PROBES                                           Probes to keep in Y axis (separated by a comma) [default: None]
 
         -t TITLE, --title TITLE                                     Title of the plot [default: None]
 
@@ -598,8 +598,8 @@ class Plotmatrix(AbstractCommand):
         check_exists(self.args["--matrix"])
 
         # for every args thats is 'None', convert tot None
-        probes_x = None if self.args["--probes-x"][0] == "None" else [int(p) for p in self.args["--probes-x"]]
-        probes_y = None if self.args["--probes-y"][0] == "None" else [int(p) for p in self.args["--probes-y"]]
+        probes_x = None if self.args["--probes-x"][0] == "None" else [p for p in self.args["--probes-x"].split(",")]
+        probes_y = None if self.args["--probes-y"][0] == "None" else [p for p in self.args["--probes-y"].split(",")]
         vmin = 0. if self.args["--vmin"] == "None" else float(self.args["--vmin"])
         vmax = None if self.args["--vmax"] == "None" else float(self.args["--vmax"])
         log_scale = self.args["--log"]
