@@ -75,6 +75,39 @@
         },
 
         {
+            "name": "ENS main profile",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/adminico/Documents/projects-src/sshicstuff/src/sshicstuff/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "profile",
+                "-c", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree/inputs/capture_oligo_positions_v12_fragments_associated.csv",
+                "-C", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/S288c_chr_centro_coordinates_S288c_DSB_LY_Capture_artificial_v12.tsv",
+                "-f", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree_filtered.tsv",
+                "-a", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/additional_probe_groups.tsv",
+                "-F", 
+                "-N",
+                "--probes-only"
+            ]
+        },
+
+        {
+            "name": "ENS main plotmatrix",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/adminico/Documents/projects-src/sshicstuff/src/sshicstuff/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "plotmatrix",
+                "-m", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree_probes_matrix.tsv",
+                "-c", "Reds",
+                "-o", "/home/adminico/Documents/projects-data/sshicstuff/sandbox2/AD433_S288c_DSB_LY_Capture_artificial_v12_cutsite_q20_v312_PCRfree/plots",
+                "-e", "pdf"
+            ]
+        },
+
+        {
             "name": "ENS main view",
             "type": "debugpy",
             "request": "launch",
