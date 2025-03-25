@@ -12,7 +12,7 @@ from dash import callback, dcc
 from dash.dependencies import Input, Output, State
 import plotly.io as pio
 
-from sshicstuff.core.graph import empty_figure, figure_maker
+from sshicstuff.core.plot import empty_figure, figure_maker
 from sshicstuff.core.methods import uploaded_files_cache, save_file_cache
 
 

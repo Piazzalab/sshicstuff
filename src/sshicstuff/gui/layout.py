@@ -3,9 +3,9 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 import dash_daq as daq
 
-import sshicstuff.core.graph as graph
+import sshicstuff.core.plot as plot
 
-empty_figure = graph.empty_figure
+empty_figure = plot.empty_figure
 
 layout = dbc.Container([
     dbc.Row([

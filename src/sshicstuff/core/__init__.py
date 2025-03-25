@@ -3,6 +3,6 @@ from .methods import *
 from .pipeline import *
 from .profile import *
 from .stats import *
-from .graph import *
+from .plot import *
 from .filter import *
 from .aggregate import *

@@ -11,6 +11,7 @@ import sshicstuff.core.stats as stats
 import sshicstuff.core.profile as prof
 import sshicstuff.core.filter as filt
 import sshicstuff.core.aggregate as agg
+import sshicstuff.core.plot as plot
 from sshicstuff.gui.app import app
 
 import sshicstuff.log as log
@@ -463,12 +464,12 @@ class Pipeline(AbstractCommand):
         )
 
 
-class Plot(AbstractCommand):
+class Plot4C(AbstractCommand):
     """
     Plot a 4-C like profile.
 
     usage:
-        plot -c OLIGO_CAPTURE -C CHR_COORD -p PROFILE [-e EXT] [-H HEIGHT] [-L]
+        plot4c -c OLIGO_CAPTURE -C CHR_COORD -p PROFILE [-e EXT] [-H HEIGHT] [-L]
         [-o OUTDIR] [-R REGION] [-r ROLLING_WINDOW] [-W WIDTH] [-y YMIN] [-Y YMAX]
 
     Arguments:
@@ -543,7 +544,7 @@ class Plot(AbstractCommand):
             if not self.args["--rolling-window"]
             else int(self.args["--rolling-window"])
         )
-        prof.plot_profiles(
+        plot.plot_profiles(
             profile_contacts_path=self.args["--profile"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_path=self.args["--oligo-capture"],
@@ -559,12 +560,73 @@ class Plot(AbstractCommand):
         )
 
 
+class Plotmatrix(AbstractCommand):
+    """
+    Plot a heatmap of the probes contacts matrix.
+
+    usage:
+        plotmatrix -m MATRIX [-c COLORMAP] [-e EXT] [-L] [-o OUTPATH]
+        [--probes-x LISTX...] [--probes-y LISTY...] [-t TITLE] [-v VMIN] [-V VMAX]
+
+    Arguments:
+        -m MATRIX, --matrix MATRIX                                  Path to the matrix file. Its a .tsv/.csv file containaing the
+                                                                    contacts made by each probes with each other (mandatory)
+
+    Options:
+
+        -c COLORMAP, --colormap COLORMAP                            Colormap to use for the plot [default: viridis]
+
+        -e EXT, --file-extension EXT                                File extension of the output file (png, pdf, svg, etc.) [default: png]
+
+        -L, --log                                                   Rescale the y-axis of the plot with np.log [default: False]
+
+        -o OUTDIR, --outdir OUTDIR                                  Desired output dir [default: None]
+
+        --probes-x LISTX                                            Probes to keep in X axis (expects a list) [default: None]
+
+        --probes-y LISTY                                            Probes to keep in Y axis (expects a list) [default: None]
+
+        -t TITLE, --title TITLE                                     Title of the plot [default: None]
+
+        -v VMIN, --vmin VMIN                                        Minimum value of the y-axis (unit of the Y axis) [default: None]
+
+        -V VMAX, --vmax VMAX                                        Maximum value of the y-axis (unit of the Y axis) [default: None]
+
+    """
+
+    def execute(self):
+        check_exists(self.args["--matrix"])
+
+        # for every args thats is 'None', convert tot None
+        probes_x = None if self.args["--probes-x"][0] == "None" else [int(p) for p in self.args["--probes-x"]]
+        probes_y = None if self.args["--probes-y"][0] == "None" else [int(p) for p in self.args["--probes-y"]]
+        vmin = 0. if self.args["--vmin"] == "None" else float(self.args["--vmin"])
+        vmax = None if self.args["--vmax"] == "None" else float(self.args["--vmax"])
+        log_scale = self.args["--log"]
+        title = None if self.args["--title"] == "None" else self.args["--title"]
+        output_dir = None if self.args["--outdir"] == "None" else self.args["--outdir"]
+
+
+        plot.plot_probes_matrix(
+            probes_matrix_path=self.args["--matrix"],
+            output_dir=output_dir,
+            probes_a=probes_x,
+            probes_b=probes_y,
+            title=title,
+            vmin=vmin,
+            vmax=vmax,
+            logscale=log_scale,
+            extension=self.args["--file-extension"],
+            cmap=self.args["--colormap"],
+        )
+
+
 class Profile(AbstractCommand):
     """
     Generate oligo 4-C profiles, also known as un-binned tables or 0 kn resolution tables.
 
     usage:
-        profile -c OLIGO_CAPTURE -C CHR_COORD -f FILTERED_TAB  [-o OUTPUT] [-a ADDITIONAL] [-F] [-N]
+        profile -c OLIGO_CAPTURE -C CHR_COORD -f FILTERED_TAB  [-o OUTPUT] [-a ADDITIONAL] [-F] [-N] [--probes-only]
 
     Arguments:
         -c OLIGO_CAPTURE, --oligo-capture OLIGOS_CAPTURE       Path to the oligos capture file
@@ -584,7 +646,7 @@ class Profile(AbstractCommand):
 
         -N, --normalize                                        Normalize the coverage by the total number of contacts [default: False]
 
-        --probe-only                                           Make a second dataframe that only contains the contacts (in frequencies) between probes (oligos)
+        --probes-only                                           Make a second dataframe that only contains the contacts (in frequencies) between probes (oligos)
                                                                This should have a squared-like shape [default: False]
 
     """
@@ -605,7 +667,7 @@ class Profile(AbstractCommand):
             force=self.args["--force"],
         )
 
-        if self.args["--probe-only"]:
+        if self.args["--probes-only"]:
             prof.profile_probes_only(
                 filtered_table_path=self.args["--filtered-table"],
                 oligo_capture_with_frag_path=self.args["--oligo-capture"],
