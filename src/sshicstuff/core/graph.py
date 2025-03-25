@@ -217,19 +217,17 @@ def figure_maker(
     # Making the figure(s)
     if chr_region:
         fig = go.Figure()
-        for j in range(len(probes)):
-            frag = probes[j]
-            trace_id = j
+        for trace_id, frag in enumerate(probes):
             fig.add_trace(
-                go.Scattergl(
-                    x=df[x_col],
-                    y=df[frag],
-                    name=frag,
-                    mode='lines',
-                    line=dict(width=1, color=colors_rgba[trace_id]),
-                    marker=dict(size=4)
-                )
+            go.Scattergl(
+                x=df[x_col],
+                y=df[frag],
+                name=frag,
+                mode='lines',
+                line=dict(width=1, color=colors_rgba[trace_id]),
+                marker=dict(size=4)
             )
+        )
         fig.update_layout(
             title=f"{sample_name}",
             xaxis=dict(
@@ -264,52 +262,50 @@ def figure_maker(
             specs=[[{'type': 'scatter'}], [{'type': 'bar'}]]
         )
 
-        for j in range(len(probes)):
-            frag = probes[j]
-            trace_id = j
+        for trace_id, frag in enumerate(probes):
             fig.add_trace(
-                go.Scattergl(
-                    x=df[x_col],
-                    y=df[frag],
-                    name=frag,
-                    mode='lines',
-                    line=dict(width=1, color=colors_rgba[trace_id]),
-                    marker=dict(size=4)
-                ),
-                row=1, col=1
+            go.Scattergl(
+                x=df[x_col],
+                y=df[frag],
+                name=frag,
+                mode='lines',
+                line=dict(width=1, color=colors_rgba[trace_id]),
+                marker=dict(size=4)
+            ),
+            row=1, col=1
             )
-            fig.add_trace(colorbar, row=2, col=1)
+        fig.add_trace(colorbar, row=2, col=1)
 
-            fig.update_layout(
-                title=f"{sample_name}",
-                xaxis=dict(
-                    title=dict(text="Genomic coordinates", standoff=80),
-                    tickformat='d',
-                    range=[x_min, x_max],
-                    showgrid=False,
-                ),
-                xaxis2=dict(
-                    tickmode='array',
-                    tickvals=chr_ticks_pos,
-                    ticktext=df['chr'].unique(),
-                    tickfont=dict(size=12),
-                ),
-                yaxis=dict(
-                    title="Contact frequency",
-                    tickvals=y_ticks,
-                    ticktext=y_tick_text,
-                    range=[y_min, y_max],
-                    showgrid=False,
-                ),
-                yaxis2=dict(
-                    showticklabels=False,
-                ),
-                xaxis_type='linear',
-                hovermode='closest',
-                plot_bgcolor='white',
-                paper_bgcolor='white',
-                width=width,
-                height=height,
-            )
+        fig.update_layout(
+            title=f"{sample_name}",
+            xaxis=dict(
+            title=dict(text="Genomic coordinates", standoff=80),
+            tickformat='d',
+            range=[x_min, x_max],
+            showgrid=False,
+            ),
+            xaxis2=dict(
+            tickmode='array',
+            tickvals=chr_ticks_pos,
+            ticktext=df['chr'].unique(),
+            tickfont=dict(size=12),
+            ),
+            yaxis=dict(
+            title="Contact frequency",
+            tickvals=y_ticks,
+            ticktext=y_tick_text,
+            range=[y_min, y_max],
+            showgrid=False,
+            ),
+            yaxis2=dict(
+            showticklabels=False,
+            ),
+            xaxis_type='linear',
+            hovermode='closest',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=width,
+            height=height,
+        )
 
     return fig
