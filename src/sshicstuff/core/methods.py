@@ -110,17 +110,21 @@ def associate_oligo_to_frag(
 
 
 def check_file_extension(file_path: str | Path, extension: str | list[str]):
+    """
+    Check if a file has the correct extension.
+    """
+
     file_path = str(file_path)  # force string to use endswith()
 
     if isinstance(extension, list):
         for ext in extension:
             if file_path.endswith(ext):
                 return
-        logger.error(f"File {file_path} does not have the correct extension {extension}.")
+        logger.error("File %s does not have the correct extension %s.", file_path, extension)
     else:
         if file_path.endswith(extension):
             return
-        logger.error(f"File {file_path} does not have the correct extension {extension}.")
+        logger.error("File %s does not have the correct extension %s.", file_path, extension)
 
 
 def check_gzip():
@@ -134,7 +138,7 @@ def check_gzip():
         version_match = re.search(r"gzip (\d+\.\d+)", result.stdout)
         if version_match:
             version = version_match.group(1)
-            logger.info(f"gzip version {version} is installed.")
+            logger.info("gzip version %s is installed.", version)
             return version
         else:
             logger.error("Unable to determine gzip version from the output.")
@@ -143,8 +147,11 @@ def check_gzip():
         logger.error("gzip is not installed or not functioning correctly. "
                       "Please install or fix gzip before running this function.")
         return None
-    except Exception as e:
-        logger.error(f"Unexpected error when checking gzip version: {e}")
+    except FileNotFoundError as e:
+        logger.error("gzip not found: %s", e)
+        return None
+    except subprocess.SubprocessError as e:
+        logger.error("Subprocess error when checking gzip version: %s", e)
         return None
 
 
@@ -165,7 +172,7 @@ def check_if_exists(file_path: str):
     if os.path.exists(file_path):
         return
     else:
-        logger.error(f"File {file_path} does not exist.")
+        logger.error("File %s does not exist.", file_path)
         sys.exit(1)
 
 
@@ -180,7 +187,7 @@ def check_seqtk():
         version_match = re.search(r"Version: (\S+)", result.stdout)
         if version_match:
             version = version_match.group(1)
-            logger.info(f"seqtk version {version} is installed.")
+            logger.info("seqtk version %s is installed.", version)
             return version
         else:
             logger.error("Unable to determine seqtk version from the output.")
@@ -323,14 +330,14 @@ def coverage(
     -------
     None
     """
-  
+
     # Set output directory and file name
     if output_dir is None:
         output_dir = os.path.dirname(sparse_mat_path)
     os.makedirs(output_dir, exist_ok=True)
     base_name = os.path.splitext(os.path.basename(sparse_mat_path))[0]
     output_path = os.path.join(output_dir, base_name + "_contacts_coverage.bedgraph")
-    
+
     if os.path.exists(output_path) and not force:
         logger.warning("Output file already exists: %s", output_path)
         logger.warning("Use the --force / -F flag to overwrite the existing file.")
@@ -705,7 +712,7 @@ def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: 
     """
     # Build a mapping from stringified column names to the actual column names in df
     col_map = {str(col): col for col in df.columns}
-    
+
     for row in df_groups.itertuples(index=False):
         # Split the comma-separated probes and map each probe to its fragment identifier as string.
         group_probes = row.probes.split(",")
@@ -715,7 +722,7 @@ def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: 
         # Get only the columns that exist in df (using the stringified mapping)
         existing_frags = [col_map[frag] for frag in group_frags if frag in col_map]
         if not existing_frags:
-            logger.warning("Group %s: none of the fragments %s are present in the DataFrame.", 
+            logger.warning("Group %s: none of the fragments %s are present in the DataFrame.",
                            group_name, group_frags)
             df[group_name] = np.nan
         else:
@@ -728,6 +735,10 @@ def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: 
 def merge_sparse_mat(
     output_path: str = None, force: bool = False, matrices: list[str] = None
 ) -> None:
+    """
+    Merge multiple sparse matrices into one.
+    """
+
     if not matrices:
         logger.error("No sparse matrices provided")
         return
@@ -1064,6 +1075,9 @@ def subsample(
 
 
 def transform_data(data: np.array, y_max: float, user_y_max: float, y_min: float, re_scale: bool):
+    """
+    Transform the data using a log or square root transformation if necessary.
+    """
     re_scale_output = ""
     if re_scale:
         if y_max <= 1.:
