@@ -2,23 +2,22 @@
 Module containing functions to analyze the contacts and the capture efficiency of the oligos.
 """
 
-import os
-from os.path import join
-from pathlib import Path
-import sys
 import base64
+import datetime
+import os
+import random as rd
 import re
 import shutil
 import subprocess
-import datetime
+import sys
+from os.path import join
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import random as rd
 import plotly.io as pio
 
 import sshicstuff.log as log
-
 
 logger = log.logger
 
@@ -926,7 +925,7 @@ def sparse_with_ssdna_only(
     Returns:
         None
     """
-    
+
     # Set the output file name if not provided
     if not output_path:
         output_path = sample_sparse_mat.replace(".txt", "_ssdna_only.txt")
