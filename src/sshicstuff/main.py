@@ -17,11 +17,13 @@ The subcommands are:
     aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
 
     associate           Associate oligo/probe name to fragment/read ID that contains it.
+                        This will copy the oligo_capture.csv file and add a new columns with the fragment ID, start and end.
 
     compare             Compare the capture efficiency of a sample with that of a wild type
                         It may be another sample.
 
     coverage            Calculate the coverage per fragment and save the result to a bedgraph.
+                        Coverage can be normalized and binned at different resolutions.
 
     dsdnaconly          Keep only Hi-C (dsdna sites) reads from a sparse matrix file (i.e., remove all ssDNA reads).
                         Generate a new sparse matrix file with only dsDNA reads.
@@ -32,9 +34,24 @@ The subcommands are:
     genomaker           Create a chromosome artificial that is the concatenation of the
                         annealing oligos and the enzyme sequence.
 
-    pipeline            Run the entire pipeline from filtering to aggregation.
+    merge               Merge multiple sparse matrix files into a single one.
 
-    plot                Plot a 4C-like profile.
+    pipeline            Run the entire pipeline.
+                        It contains the following steps: 
+                            - associate
+                            - dsdnaconly
+                            - ssdnaconly
+                            - coverage of dsdna and ssdna reads separately
+                            - filter
+                            - coverage of all reads at multiple resolutions
+                            - profile (4C-like)
+                            - stats
+                            - rebin
+                            - aggregate on centromeric and telomeric regions
+
+    plot4c              Plot a 4C-like profile. Similar graph as those got with the 'view' interactive command (plotly).
+
+    plotmatrix          Plot a contact matrix of contacts made between all the probes. (matplotlib)
 
     profile             Generate a 4C-like profile for each ssDNA oligo.
 
@@ -47,7 +64,8 @@ The subcommands are:
 
     subsample           Subsample and compress FASTQ file using seqtk.
 
-    view                Open a graphical user interface to visualize 4-C like profile
+    view                Open a graphical user interface to visualize 4-C like profile (flask + dash + plotly).
+                        This will open a web browser with the 4C-like profile u created with the 'profile' command.
 
 
 """
