@@ -565,7 +565,7 @@ class Plotmatrix(AbstractCommand):
     Plot a heatmap of the probes contacts matrix.
 
     usage:
-        plotmatrix -m MATRIX [-c COLORMAP] [-e EXT] [-L] [-o OUTPATH]
+        plotmatrix -m MATRIX [-c COLORMAP] [-L] [-o OUTPATH]
         [--probes-x PROBES] [--probes-y PROBES] [-t TITLE] [-v VMIN] [-V VMAX]
 
     Arguments:
@@ -576,11 +576,9 @@ class Plotmatrix(AbstractCommand):
 
         -c COLORMAP, --colormap COLORMAP                            Colormap to use for the plot [default: viridis]
 
-        -e EXT, --file-extension EXT                                File extension of the output file (png, pdf, svg, etc.) [default: png]
-
         -L, --log                                                   Rescale the y-axis of the plot with np.log [default: False]
 
-        -o OUTDIR, --outdir OUTDIR                                  Desired output dir [default: None]
+        -o OUTPATH, --outpath OUTPATH                               Desired output file path (with extension) [default: None]
 
         --probes-x PROBES                                           Probes to keep in X axis (separated by a comma) [default: None]
 
@@ -598,25 +596,24 @@ class Plotmatrix(AbstractCommand):
         check_exists(self.args["--matrix"])
 
         # for every args thats is 'None', convert tot None
-        probes_x = None if self.args["--probes-x"][0] == "None" else [p for p in self.args["--probes-x"].split(",")]
-        probes_y = None if self.args["--probes-y"][0] == "None" else [p for p in self.args["--probes-y"].split(",")]
+        probes_x = None if self.args["--probes-x"] == "None" else [p for p in self.args["--probes-x"].split(",")]
+        probes_y = None if self.args["--probes-y"] == "None" else [p for p in self.args["--probes-y"].split(",")]
         vmin = 0. if self.args["--vmin"] == "None" else float(self.args["--vmin"])
         vmax = None if self.args["--vmax"] == "None" else float(self.args["--vmax"])
         log_scale = self.args["--log"]
         title = None if self.args["--title"] == "None" else self.args["--title"]
-        output_dir = None if self.args["--outdir"] == "None" else self.args["--outdir"]
+        output_path = None if self.args["--outpath"] == "None" else self.args["--outpath"]
 
 
         plot.plot_probes_matrix(
             probes_matrix_path=self.args["--matrix"],
-            output_dir=output_dir,
+            output_path=output_path,
             probes_a=probes_x,
             probes_b=probes_y,
             title=title,
             vmin=vmin,
             vmax=vmax,
             logscale=log_scale,
-            extension=self.args["--file-extension"],
             cmap=self.args["--colormap"],
         )
 

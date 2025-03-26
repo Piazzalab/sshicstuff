@@ -565,8 +565,7 @@ def plot_probes_matrix(
         probes_matrix_path: str,
         probes_a: list = None,
         probes_b: list= None,
-        extension: str = 'png',
-        output_dir: str = None,
+        output_path: str = None,
         title: str = None,
         logscale: bool = False,
         cmap: str = 'Reds',
@@ -584,12 +583,8 @@ def plot_probes_matrix(
     methods.check_if_exists(probes_matrix_path)
 
     # Set output directory to the input file's directory if not provided
-    if not output_dir:
-        output_dir = os.path.dirname(probes_matrix_path)
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    output_path = os.path.join(output_dir, f"probes_matrix_heatmap.{extension}")
+    output_dir = os.path.dirname(output_path)
+    os.makedirs(output_dir, exist_ok=True)
 
     # Read the probes matrix into a DataFrame (first column as index)
     df = pd.read_csv(probes_matrix_path, sep="\t", index_col=0)
