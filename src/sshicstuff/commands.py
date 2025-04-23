@@ -3,19 +3,18 @@ This module contains the commands of the program.
 """
 
 import os
+
 from docopt import docopt
 
+import sshicstuff.core.aggregate as agg
+import sshicstuff.core.filter as filt
 import sshicstuff.core.methods as methods
 import sshicstuff.core.pipeline as pip
-import sshicstuff.core.stats as stats
-import sshicstuff.core.profile as prof
-import sshicstuff.core.filter as filt
-import sshicstuff.core.aggregate as agg
 import sshicstuff.core.plot as plot
-from sshicstuff.gui.app import app
-
+import sshicstuff.core.profile as prof
+import sshicstuff.core.stats as stats
 import sshicstuff.log as log
-
+from sshicstuff.gui.app import app
 
 logger = log.logger
 
