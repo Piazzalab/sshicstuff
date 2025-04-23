@@ -1,20 +1,17 @@
 """
 Browser callbacks
 """
-import re
 import os
+import re
 from os.path import join
 
 import pandas as pd
-
-# dash
+import plotly.io as pio
 from dash import callback, dcc
 from dash.dependencies import Input, Output, State
-import plotly.io as pio
 
-from sshicstuff.core.plot import empty_figure, figure_maker
 from sshicstuff.core.methods import uploaded_files_cache, save_file_cache
-
+from sshicstuff.core.plot import empty_figure, figure_maker
 
 __INSTALL_DIR__ = os.path.dirname(os.path.abspath(__file__))
 __CACHE_DIR__ = join(__INSTALL_DIR__, "__cache__")
@@ -41,11 +38,11 @@ def update_smoothing_output(value):
 @callback(
     [Output("oligo-dropdown", "options"),
      Output("coord-dropdown", "options"),
-     Output("clear-list", "n_clicks"),
+     Output("clear-list-browser", "n_clicks"),
      Output("samples-dropdown", "options"),],
-    [Input("upload-files", "filename"),
-     Input("upload-files", "contents"),
-     Input("clear-list", "n_clicks")],
+    [Input("upload-files-browser", "filename"),
+     Input("upload-files-browser", "contents"),
+     Input("clear-list-browser", "n_clicks")],
 )
 def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
     if uploaded_filenames is not None and uploaded_file_contents is not None:

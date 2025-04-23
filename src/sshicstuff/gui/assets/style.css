@@ -1,6 +1,7 @@
 body {
     font-family: sans-serif;
 }
+
 h1, h2, h3 {
     color: #2245b7;
 }
@@ -20,6 +21,7 @@ h4, h5, h6 {
     padding-left: 5px;
 }
 
+/* ===== Layout général ===== */
 .custom-container {
     max-width: 1500px;
 }
@@ -27,6 +29,7 @@ h4, h5, h6 {
 .custom-tabs-container {
     width: 85%;
 }
+
 .custom-tabs {
     border-top-left-radius: 3px;
     background-color: #f9f9f9;
@@ -38,9 +41,9 @@ h4, h5, h6 {
     color:#586069;
     border-top-left-radius: 3px;
     border-top-right-radius: 3px;
-    border-top: 3px solid transparent ;
+    border-top: 3px solid transparent;
     border-left: 0px;
-    border-right: 0px ;
+    border-right: 0px;
     border-bottom: 0px;
     background-color: #fafbfc;
     padding: 12px;
@@ -49,6 +52,7 @@ h4, h5, h6 {
     align-items: center;
     justify-content: center;
 }
+
 .custom-tab-selected {
     color: black;
     box-shadow: 1px 1px 0px white;
@@ -57,6 +61,69 @@ h4, h5, h6 {
     border-top: 3px solid #e36209;
 }
 
+/* ===== Sliders ===== */
+.rc-slider {
+    width: 100%;
+    margin: 20px 0;
+}
+
+.rc-slider-track {
+    background-color: #4CAF50;
+    height: 8px;
+    border-radius: 4px;
+}
+
+.rc-slider-rail {
+    background-color: #ddd;
+    height: 8px;
+    border-radius: 4px;
+}
+
+.rc-slider-handle {
+    border-color: #4CAF50;
+    height: 20px;
+    width: 20px;
+    margin-top: -6px;
+    background-color: #FFFFFF;
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.rc-slider-handle:hover,
+.rc-slider-handle-active:active,
+.rc-slider-handle:focus {
+    border-color: #45a049;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.7);
+}
+
+.rc-slider-mark-text {
+    color: #2245b7;
+    font-size: 14px;
+}
+
+.rc-slider-dot {
+    border-color: #888;
+    bottom: -2px;
+}
+
+.rc-slider-dot-active {
+    border-color: #4CAF50;
+}
+
+/* ===== Inputs et boutons ===== */
+.custom-input {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    font-size: 16px;
+    background-color: #fff;
+    color: #333;
+}
+
+.custom-input::placeholder {
+    color: #999;
+    opacity: 1;
+}
 
 .plot-button {
     background-color: #199cce;
@@ -69,7 +136,6 @@ h4, h5, h6 {
     width: 120px;
 }
 
-
 .export-button {
     background-color: #ffffff;
     color: black;
@@ -81,25 +147,57 @@ h4, h5, h6 {
     text-align: center;
 }
 
-.custom-tooltip {
-    left: 10px !important;
-    width: 600px !important;
+.custom-submit-btn {
+    width: 120px;
+    height: 45px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    background-color: #007bff;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+}
+
+.custom-submit-btn:hover {
+    background-color: #0056b3;
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+    padding: 5px 10px;
+    font-size: 14px;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    padding: 5px 10px;
+    font-size: 14px;
 }
 
 .custom-delete-button {
-  background-color: rgba(200, 200, 200, 0.5);
-  color: #333;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.3s;
+    background-color: rgba(200, 200, 200, 0.5);
+    color: #333;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
 }
 
 .custom-delete-button:hover {
-  background-color: rgba(180, 180, 180, 0.7);
-  transform: scale(1.05);
+    background-color: rgba(180, 180, 180, 0.7);
+    transform: scale(1.05);
+}
+
+/* ===== Divers ===== */
+.custom-tooltip {
+    left: 10px !important;
+    width: 600px !important;
 }
 
 .custom-checkbox-label {
@@ -112,12 +210,6 @@ h4, h5, h6 {
     margin-right: 5px;
 }
 
-.custom-input{
-  width: 100%;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 5px;
-  font-size: 16px;
-  background-color: #fff;
-  color: #333;
+#secondary-sites-container .row {
+    margin-bottom: 10px;
 }
