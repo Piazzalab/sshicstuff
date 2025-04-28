@@ -38,7 +38,7 @@ The sshicstuff command line interface is composed of multiple subcommands.
 You can always get a summary of all available commands by running:
 
 
-```bash
+```
 Single Stranded DNA Hi-C pipeline for generating oligo 4-C profiles and aggregated contact matrices.
 
 usage:
@@ -49,57 +49,201 @@ options:
     -v, --version               shows the version
 
 The subcommands are:
-    subsample           Subsample and compress FASTQ file using seqtk.
-    genomaker           Create a chromosome artificial that is the concatenation of the
-                        annealing oligos and the enzyme sequence.
+
+    aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
+    
     associate           Associate oligo/probe name to fragment/read ID that contains it.
-    hiconly             Keep only Hi-C reads from a sparse matrix file (i.e., remove all ssDNA reads).
-    filter              Filter reads from a sparse matrix and keep only pairs of reads that 
-                        contain at least one oligo/probe.
-    coverage            Calculate the coverage per fragment and save the result to a bedgraph.
-    profile             Generate a 4C-like profile for each ssDNA oligo.
-    rebin               Rebin change binning resolution of a 4C-like profile
-    stats               Generate statistics and normalization for contacts made by each probe.
+    
     compare             Compare the capture efficiency of a sample with that of a wild type
                         (may be another sample).
-    aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
+    
+    coverage            Calculate the coverage per fragment and save the result to a bedgraph.
+    
+    dsdnaonly           Filter the sparse matrix by removing all the ss DNA specific contacts.
+                        Retain only the contacts between non-ss DNA fragments.
+    
+    filter              Filter reads from a sparse matrix and keep only pairs of reads that
+                        contain at least one oligo/probe.   
+
+    genomaker           Create a chromosome artificial that is the concatenation of the
+                        annealing oligos and the enzyme sequence.
+                        
+    merge               Merge two or more sparse matrices into a single sparse matrix
+                            
     pipeline            Run the entire pipeline from filtering to aggregation.
+    
+    plot4C              Plot a 4C-like profile.  
+    
+    plotmatrix          Plot a heatmap of the probes contacts matrix.
+
+    profile             Generate a 4C-like profile for each ssDNA oligo.
+    
+    rebin               Rebin change binning resolution of a 4C-like profile
+    
+    ssdnaonly           Filter the sparse matrix by removing all the Hi-C (ds DNA) specific contacts.
+                        Retain only the contacts between ssDNA fragments.
+    
+    stats               Generate statistics and normalization for contacts made by each probe.
+    
+    subsample           Subsample and compress FASTQ file using seqtk.
+
     view                Open a graphical user interface to visualize 4-C like profile.
 ```
 
 
 ## Subcommands :
 
-### Subsample
+### Aggregate
 
-Subsample and compress FASTQ files using seqtk.
+Aggregate contacts around specific regions of centromeres or telomeres.
 
-```bash
-usage:
-    subsample -i INPUT [-c] [-F] [-n SIZE] [-s SEED]
+```
+    usage:
+        aggregate -c OLIGO_CAPTURE -h CHR_COORD -p PROFILE [-o OUTPUT] [-C] [-E CHRS...] [-I] [-L] [-N] [-T] [-w WINDOW]
 
-Arguments:
-    -i INPUT, --input INPUT   Path to the input original FASTQ file (mandatory)
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture CSV file
+                                                            Must be the file with the fragments associated
+                                                            Made with the 'associate' command
 
-options:
-    -c, --compress            Compress the output file with gzip [default: True]
+        -h CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file
 
-    -F, --force               Force the overwriting of the output file if it exists [default: False]
+        -p PROFILE, --profile PROFILE                       Path to the profile .tsv file with the binning of your choice
+                                                            (recommended 1kb for telomeres and 10kb for centromes)
+    Options:
+        -C, --cen                                           Aggregate only centromeric regions [default: False]
 
-    -n SIZE, --size SIZE      Number of reads to subsample [default: 4000000]
+        -E CHRS, --exclude=CHRS                             Exclude the chromosome(s) from the analysis
 
-    -s SEED, --seed SEED      Seed for the random number generator [default: 100]
+        -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
+                                                            a probe and it own chr [default: True]
+
+        -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
+
+        -N, --normalize                                     Normalize the contacts by the total number of contacts
+                                                            [default: False]
+
+        -o OUTPUT, --output OUTPUT                          Desired output directory
+
+        -T, --tel                                           Aggregate only telomeric regions [default: False]
+
+        -w WINDOW, --window WINDOW                          Window size around the centromere or telomere to aggregate contacts
+                                                            [default: 150000]
 ```
 
+### Associate
+
+Associate oligo/probe name to fragment/read ID that contains it.
+
+```
+    usage:
+        associate -f FRAGMENTS -o OLIGO_CAPTURE [-F]
+
+    Arguments:
+        -f FRAGMENTS, --fragments FRAGMENTS                     Path to the fragments file generated by hicstuff
+
+        -o OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE         Path to the oligo capture file
+
+    Options:
+        -F, --force                                             Force the overwriting of the oligos file even if
+                                                                the columns are already present [default: True]
+```
+
+### Compare
+Compare the capture efficiency of a sample with that of a wild type (might be another sample).
+
+```
+    usage:
+        compare -s SAMPLE -r REFERENCE -n NAME [-o OUTPUT]
+
+    Arguments:
+        -s SAMPLE, --sample-stats SAMPLE            Path to the sample statistics file
+                                                    (generated by the stats command)
+
+        -r REFERENCE, --reference-stats REFERENCE   Path to the reference statistics file
+                                                    (generated by the stats command)
+
+        -n NAME, --name NAME                        Name of the wt type reference
+
+    Options:
+        -o OUTPUT, --output OUTPUT          Desired output directory
+```
+
+### Coverage
+Calculate the coverage per fragment and save the result to a bedgraph.
+
+```
+    usage:
+        coverage -f FRAGMENTS -m SPARSE_MAT [-o OUTPUT] [-F] [-N] [-b BIN_SIZE] [-c CHR_COORD]
+
+    Arguments:
+        -f FRAGMENTS, --fragments FRAGMENTS                 Path to the digested fragments list file (hicstuff output)
+
+        -m SPARSE_MAT, --sparse-mat SPARSE_MAT              Path to the sparse contacts input file (graal matrix from hicstuff)
+
+    Options:
+
+        -b BIN_SIZE, --bin-size BIN_SIZE                    Size of the bins to calculate the coverage (in bp) [default: 0]
+
+        -c chr_coord, --chr-coord CHR_COORD                 Path to the chromosome coordinates file. Needed for the binning. [default: None]
+
+        -o OUTPUT, --output OUTPUT                          Desired output directory file path. [default: None]
+
+        -F, --force                                         Force the overwriting of the output file if it exists [default: False]
+
+        -N, --normalize                                     Normalize the coverage by the total number of contacts [default: False]
+```
+
+### DSDNAonly
+Filter the sparse matrix by removing all the ss DNA specific contacts. Retain only the contacts between non-ss DNA fragments.
+
+```
+    usage:
+        dsdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-n FLANKING_NUMBER] [-F]
+
+    Arguments:
+        -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
+                                                                Must be the file with the fragments associated
+                                                                Made with the 'associate' command
+
+        -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
+
+    Options:
+        -o OUTPUT, --output OUTPUT                              Path to the output file
+
+        -n FLANKING_NUMBER, --flanking-number NUMBER            Number of flanking fragments to remove
+                                                                around a ssdna probe/fragment
+                                                                [default: 2]
+
+        -F, --force                                             Force the overwriting of the file if
+                                                                it exists [default: False]
+```
+### Filter
+Filter reads from a sparse matrix and keep only pairs of reads that contain at least one oligo/probe.
+
+```
+    Filter reads from a sparse matrix and keep only pairs of reads that contain at least one oligo/probe.
+
+    usage:
+        filter -f FRAGMENTS -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-F]
+
+    Arguments:
+        -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
+
+        -f FRAGMENTS, --fragments FRAGMENTS                     Path to the digested fragments list file
+
+        -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
+
+    Options:
+        -o OUTPUT, --output OUTPUT                              Path to the output file
+
+        -F, --force                                             Force the overwriting of the file if it exists [default: False]
+```
 ### Genomaker
 
 Create a chromosome artificial that is the concatenation of the annealing oligos and the enzyme sequence.
-Place the newly created chromosome at the end of the genome file.
-Possible to concatenate additional FASTA files to the genome file.
-You can specify the rules for the concatenation.
 
-
-```bash
+```
     usage:
         genomaker -e ENZYME -g GENOME -o OLIGO_ANNEALING [-a ADDITIONAL] [-f FRAGMENT_SIZE] [-l LINE_LENGTH]  [-s SPACER]
 
@@ -108,7 +252,7 @@ You can specify the rules for the concatenation.
 
         -g GENOME, --genome GENOME                                  Path to the genome FASTA file
 
-        -o OLIGO_ANNEALING, --oligo-annealing OLIGO_ANNEALING       Path to the annealing oligo positions CSV file (mandatory)
+        -o OLIGO_ANNEALING, --oligo-annealing OLIGO_ANNEALING       Path to the annealing oligo positions CSV file
 
     options:
         -a ADDITIONAL, --additional ADDITIONAL                      Additional FASTA files to concatenate [default: None]
@@ -117,360 +261,286 @@ You can specify the rules for the concatenation.
 
         -l LINE_LENGTH, --line-length LINE_LENGTH                   Length of the lines in the FASTA file [default: 80]
 
-        -s SPACER, --spacer SPACER              
+        -s SPACER, --spacer SPACER                                  Additional FASTA files to concatenate [default: None]
 ```
 
+### Merge
+Merge two or more sparse matrices into a single sparse matrix
 
-### Associate
-
-Simple and basic script to find and associate for each oligo/probe name  a fragment id from the fragment list generated by hicstuff.
-
-```bash
-usage:
-    associate -f FRAGMENTS -o OLIGO_CAPTURE [-F]
-
-Arguments:
-    -f FRAGMENTS, --fragments FRAGMENTS                     Path to the fragments file generated by hicstuff (mandatory)
-
-    -o OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE         Path to the oligo capture file (mandatory)
-
-Options:
-    -F, --force                                             Force the overwriting of the oligos file even if
-                                                            the columns are already present [default: True]
 ```
+    usage:
+        merge [-F] [-o OUTPATH] MATRIX...
 
+    Arguments:
+        MATRIX...                                   Path to the sparse matrix files to merge
+                                                    (as many as you want)
 
-### Hiconly
+    Options:
+        -o OUTPATH, --output OUTPATH                Path to the output file
 
-Filter the sparse matrix by removing all the ss DNA specific contacts. Retain only the contacts between non-ss DNA fragments.
-
-```bash
-usage:
-    hiconly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-n FLANKING_NUMBER] [-F]
-
-Arguments:
-    -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file (mandatory)
-
-    -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file (mandatory)
-
-Options:
-    -o OUTPUT, --output OUTPUT                              Path to the output file
-
-    -n FLANKING_NUMBER, --flanking-number NUMBER            Number of flanking fragments around the fragment
-                                                            containing a DSDNA oligo to consider and remove
-                                                            [default: 2]
-
-    -F, --force                                             Force the overwriting of the file if
-                                                            it already exists [default: False]
-```
-
-### Filter
-
-Filter reads from a sparse matrix and keep only pairs of reads that contain at least one oligo/probe.
-
-```bash
-Filter reads from a sparse matrix and keep only pairs of reads that contain at least one oligo/probe.
-
-usage:
-    filter -f FRAGMENTS -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-F]
-
-Arguments:
-    -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
-
-    -f FRAGMENTS, --fragments FRAGMENTS                     Path to the digested fragments list file
-
-    -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
-
-Options:
-    -o OUTPUT, --output OUTPUT                              Path to the output file
-
-    -F, --force                                             Force the overwriting of the file if it exists [default: False]
-```
-
-### Coverage
-
-Calculate the coverage per fragment and save the result to a bedgraph.
-
-```bash
-usage:
-    coverage -f FRAGMENTS -m SPARSE_MAT [-o OUTPUT] [-F] [-N]
-
-Arguments:
-    -f FRAGMENTS, --fragments FRAGMENTS       Path to the fragments input file (mandatory)
-
-    -m SPARSE_MAT, --sparse-mat SPARSE_MAT         Path to the sparse contacts input file (mandatory)
-
-Options:
-    -o OUTPUT, --output OUTPUT                          Desired output file path
-
-    -F, --force                                         Force the overwriting of the output file if it exists [default: False]
-
-    -N, --normalize                                     Normalize the coverage by the total number of contacts [default: False]`
-```
-
-### Profile
-
-Generate oligo 4-C profiles, also known as un-binned tables or 0 kn resolution tables.
-
-```bash
-usage:
-    profile -c OLIGO_CAPTURE -C CHR_COORD -f FILTERED_TAB  [-o OUTPUT] [-a ADDITIONAL] [-F] [-N]
-
-Arguments:
-    -c OLIGO_CAPTURE, --oligo-capture OLIGOS_CAPTURE       Path to the oligos capture file
-
-    -C CHR_COORD, --chr-coord CHR_COORD                    Path to the chromosome coordinates file
-
-    -f FILTERED_TAB, --filtered-table FILTERED_TAB         Path to the filtered table file
-
-Options:
-    -o OUTPUT, --output OUTPUT                             Desired output file path
-
-    -a ADDITIONAL, --additional ADDITIONAL                 Additional columns to keep in the output file [default: None]
-
-    -F, --force                                            Force the overwriting of the output file if it exists [default: False]
-
-    -N, --normalize                                        Normalize the coverage by the total number of contacts [default: False]
-```
-
-### Rebin
-
-Change the binning resolution of a 4C-like profile.
-
-```bash
-usage:
-    rebin -b BINSIZE -c CHR_COORD -p PROFILE [-o OUTPUT] [-F]
-
-Arguments:
-    -b BINSIZE, --binsize BINSIZE                     New resolution to rebin the profile [default: 1000]
-
-    -c CHR_COORD, --chr-coord CHR_COORD               Path to the chromosome coordinates file
-
-    -p PROFILE, --profile PROFILE                     Path to the profile file (un-binned, 0 kb)
-
-Options:
-    -o OUTPUT, --output OUTPUT                        Desired output file path
-
-    -F, --force                                       Force the overwriting of the output file if it exists [default: False]
-```
-
-### Stats
-
-Generate statistics about the contacts made by each probe. Additionally, it generates
-the normalized contacts for each probe on each chromosome and on each chromosome except its own.
-
-It generates 3 outcomes files (.tsv):
-- contacts_statistics.tsv: contains different kinds of statistics for each probe.
-- norm_chr_freq.tsv: contains the normalized contacts for each probe on each chromosome.
-- norm_inter_chr_freq.tsv: contains the normalized contacts for each probe on each chromosome except its own.
-
-```bash
-usage:
-    stats -c OLIGO_CAPTURE -C CHR_COORD -m SPARSE_MAT -p PROFILE [-o OUTPUT] [-r CIS_RANGE] [-F]
-
-Arguments:
-    -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligos capture file
-
-    -C CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file
-
-    -m SPARSE_MAT, --sparse-mat SPARSE_MAT              Path to the sparse contacts input file
-
-    -p PROFILE, --profile PROFILE                       Path to the profile file (un-binned, 0 kb)
-
-
-Options:
-    -F, --force                                         Force the overwriting of the output file if the file exists [default: False]
-
-    -o OUTPUT, --output OUTPUT                          Desired output directory
-
-    -r CIS_RANGE, --cis-range CIS_RANGE                 Cis range to be considered around the probe [default: 50000]
-```
-
-
-### Compare
-
-Compare capture efficiency of a sample with a wild-type reference.
-
-```bash
-usage:
-    compare -s SAMPLE -r REFERENCE -n NAME [-o OUTPUT]
-
-Arguments:
-    -s SAMPLE, --sample-stats SAMPLE            Path to the sample statistics file
-                                                (generated by the stats command)
-
-    -r REFERENCE, --reference-stats REFERENCE   Path to the reference statistics file
-                                                (generated by the stats command)
-
-    -n NAME, --name NAME                        Name of the wt type reference
-
-Options:
-    -o OUTPUT, --output OUTPUT          Desired output directory
-```
-
-
-### Aggregate
-
-Aggregate contacts around specific regions of centromeres or telomeres.
-
-```bash
-usage:
-    aggregate -c OLIGO_CAPTURE -h CHR_COORD -p PROFILE [-o OUTPUT] [-C] [-E CHRS...] [-I] [-L] [-N] [-T] [-w WINDOW]
-
-Arguments:
-    -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture CSV file
-
-    -h CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file
-
-    -p PROFILE, --profile PROFILE                       Path to the profile .tsv file with the binning of your choice
-                                                        (recommended 1kb for telomeres and 10kb for centromes)
-Options:
-    -C, --cen                                           Aggregate only centromeric regions [default: False]
-
-    -E CHRS, --exclude=CHRS                             Exclude the chromosome(s) from the analysis
-
-    -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
-                                                        a probe and it own chr [default: True]
-
-    -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
-
-    -N, --normalize                                     Normalize the contacts by the total number of contacts
-                                                        [default: False]
-
-    -o OUTPUT, --output OUTPUT                          Desired output directory
-
-    -T, --tel                                           Aggregate only telomeric regions [default: False]
-
-    -w WINDOW, --window WINDOW                          Window size around the centromere or telomere to aggregate contacts
-                                                        [default: 150000]
+        -F, --force                                 Force the overwriting of the output file if it exists [default: False]
 ```
 
 ### Pipeline
+Run the entire pipeline from filtering to aggregation.
 
-Run the entire pipeline containing following steps:
-- Filter
-- HiC only
-- Coverage (full and HiC only)
-- Associate (probe <-> read)
-- Profile
-- Stats
-- Rebin
-- Aggregate (cen & telo)
-
-```bash
-usage:
-    pipeline -c OLIGO_CAPTURE -C CHR_COORD -f FRAGMENTS -m SPARSE_MATRIX
-    [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I] [-L]
-    [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-r CIS_RANGE]
-    [--window-size-cen WINDOW_SIZE_CEN] [--window-size-telo WINDOW_SIZE_TELO]
-    [--binning-aggregate-cen BIN_CEN] [--binning-aggregate-telo BIN_TELO]
-    [--copy-inputs]
+```
+    usage:
+        pipeline -c OLIGO_CAPTURE -C CHR_COORD -f FRAGMENTS -m SPARSE_MATRIX
+        [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I] [-L]
+        [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-r CIS_RANGE]
+        [--window-size-cen WINDOW_SIZE_CEN] [--window-size-telo WINDOW_SIZE_TELO]
+        [--binning-aggregate-cen BIN_CEN] [--binning-aggregate-telo BIN_TELO]
+        [--copy-inputs]
 
 
-Arguments:
-    -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture file (.tsv/.csv)
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture file (.tsv/.csv)
 
-    -C CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file containing
-                                                        the chromosome arms length and coordinates of centromeres
+        -C CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file containing
+                                                            the chromosome arms length and coordinates of centromeres
 
-    -f FRAGMENTS, --fragments FRAGMENTS                 Path to the digested fragments list file (hicstuff output)
+        -f FRAGMENTS, --fragments FRAGMENTS                 Path to the digested fragments list file (hicstuff output)
 
-    -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX     Path to the sparse matrix file (hicstuff graal output)
+        -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX     Path to the sparse matrix file (hicstuff graal output)
 
-Options:
-    -a ADDITIONAL_GROUPS, --additional-groups ADDITIONAL_GROUPS
-                                                        Path to the additional probe groups file
+    Options:
+        -a ADDITIONAL_GROUPS, --additional-groups ADDITIONAL_GROUPS
+                                                            Path to the additional probe groups file
 
-    -b BINNING_SIZES, --binning-sizes BINNING_SIZES     List of binning sizes to rebin the contacts
-                                                        [default: 1000]
+        -b BINNING_SIZES, --binning-sizes BINNING_SIZES     List of binning sizes to rebin the contacts (in bp)
+                                                            [default: 1000]
 
-    -E CHRS, --exclude=CHRS                             Exclude the chromosome(s) from the analysis
+        -E CHRS, --exclude=CHRS                             Exclude the chromosome(s) from the analysis
 
-    -F, --force                                         Force the overwriting of the output file if it exists
-                                                        [default: False]
+        -F, --force                                         Force the overwriting of the output file if it exists
+                                                            [default: False]
 
-    -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
-                                                        a probe and it own chr [default: True]
+        -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
+                                                            a probe and it own chr [default: True]
 
-    -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
+        -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
 
-    -n FLANKING_NUMBER, --flanking-number NUMBER        Number of flanking fragments around the fragment
-                                                        containing a DSDNA oligo to consider and remove
-                                                        [default: 2]
+        -n FLANKING_NUMBER, --flanking-number NUMBER        Number of flanking fragments around the fragment
+                                                            containing a DSDNA oligo to consider and remove
+                                                            [default: 2]
 
-    -N, --normalize                                     Normalize the coverage by the total number of contacts
-                                                        [default: False]
+        -N, --normalize                                     Normalize the coverage by the total number of contacts
+                                                            [default: False]
 
-    -o OUTPUT, --output OUTPUT                          Desired output directory
+        -o OUTPUT, --output OUTPUT                          Desired output directory
 
-    -r CIS_RANGE, --cis-range CIS_RANGE                 Cis range to be considered around the probe
-                                                        [default: 50000]
+        -r CIS_RANGE, --cis-range CIS_RANGE                 Cis range to be considered around the probe
+                                                            [default: 50000]
 
-    --binning-aggregate-cen BIN_CEN                     Binning size of the aggregated profiles to use
-                                                        for CENTROMERES
+        --binning-aggregate-cen BIN_CEN                     Binning size of the aggregated profiles to use
+                                                            for CENTROMERES
 
-    --binning-aggregate-telo BIN_TELO                   Binning size of the aggregated profiles to use
-                                                        for TELOMERES
+        --binning-aggregate-telo BIN_TELO                   Binning size of the aggregated profiles to use
+                                                            for TELOMERES
 
-    --copy-inputs                                       Copy inputs files for reproducibility [default: True]
+        --copy-inputs                                       Copy inputs files for reproducibility [default: True]
 
-    --window-size-cen WINDOW_SIZE_CEN                   Window size around the centromeres to aggregate contacts
-                                                        [default: 150000]
+        --window-size-cen WINDOW_SIZE_CEN                   Window size around the centromeres to aggregate contacts
+                                                            [default: 150000]
 
-    --window-size-telo WINDOW_SIZE_TELO                 Window size around the telomeres to aggregate contacts
-                                                        [default: 15000]
+        --window-size-telo WINDOW_SIZE_TELO                 Window size around the telomeres to aggregate contacts
+                                                            [default: 15000]
+```
 
+### Plot4C
+Plot a 4C-like profile.
+
+```
+    Plot a 4-C like profile.
+
+    usage:
+        plot4c -c OLIGO_CAPTURE -C CHR_COORD -p PROFILE [-e EXT] [-H HEIGHT] [-L]
+        [-o OUTDIR] [-R REGION] [-r ROLLING_WINDOW] [-W WIDTH] [-y YMIN] [-Y YMAX]
+
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE             Path to the oligo capture CSV file (with fragment associated)
+
+        -C CHR_COORD, --chr-coord CHR_COORD                         Path to the chromosome coordinates file
+
+        -p PROFILE, --profile PROFILE                               Path to the profile file (mandatory)
+
+    Options:
+
+        -e EXT, --file-extension EXT                                File extension of the output file (png, pdf, svg, etc.)
+
+        -H HEIGHT, --height HEIGHT                                  Height of the plot (pixels)
+
+        -L, --log                                                   Rescale the y-axis of the plot with np.log
+
+        -o OUTDIR, --output OUTDIR                                  Desired output DIRECTORY
+
+        -R REGION, --region REGION                                  Region to plot (chrN-start-end), start/end in bp
+                                                                    Just write chrN: for the whole chromosome
+
+        -r ROLLING_WINDOW, --rolling-window  ROLLING_WINDOW         Apply a rolling window to the profile (convolution size)
+
+        -W WIDTH, --width WIDTH                                     Width of the plot (pixels)
+
+        -y YMIN, --ymin YMIN                                        Minimum value of the y-axis (unit of the Y axis)
+
+        -Y YMAX, --ymax YMAX                                        Maximum value of the y-axis (unit of the Y axis)
+```
+
+### Plotmatrix
+Plot a heatmap of the probes contacts matrix.
+
+```
+    usage:
+        plotmatrix -m MATRIX [-c COLORMAP] [-L] [-o OUTPATH]
+        [--probes-x PROBES] [--probes-y PROBES] [-t TITLE] [-v VMIN] [-V VMAX]
+
+    Arguments:
+        -m MATRIX, --matrix MATRIX                                  Path to the matrix file. Its a .tsv/.csv file containaing the
+                                                                    contacts made by each probes with each other (mandatory)
+
+    Options:
+
+        -c COLORMAP, --colormap COLORMAP                            Colormap to use for the plot [default: viridis]
+
+        -L, --log                                                   Rescale the y-axis of the plot with np.log [default: False]
+
+        -o OUTPATH, --outpath OUTPATH                               Desired output file path (with extension) [default: None]
+
+        --probes-x PROBES                                           Probes to keep in X axis (separated by a comma) [default: None]
+
+        --probes-y PROBES                                           Probes to keep in Y axis (separated by a comma) [default: None]
+
+        -t TITLE, --title TITLE                                     Title of the plot [default: None]
+
+        -v VMIN, --vmin VMIN                                        Minimum value of the y-axis (unit of the Y axis) [default: None]
+
+        -V VMAX, --vmax VMAX                                        Maximum value of the y-axis (unit of the Y axis) [default: None]
+```
+
+### Profile
+Generate a 4C-like profile for each ssDNA oligo.
+
+```
+    usage:
+        profile -c OLIGO_CAPTURE -C CHR_COORD -f FILTERED_TAB  [-o OUTPUT] [-a ADDITIONAL] [-F] [-N] [--probes-only]
+
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGOS_CAPTURE       Path to the oligos capture file
+                                                               Must be the file with the fragments associated
+                                                               Made with the 'associate' command
+
+        -C CHR_COORD, --chr-coord CHR_COORD                    Path to the chromosome coordinates file
+
+        -f FILTERED_TAB, --filtered-table FILTERED_TAB         Path to the filtered table file
+
+    Options:
+        -o OUTPUT, --output OUTPUT                             Desired output file path
+
+        -a ADDITIONAL, --additional ADDITIONAL                 Additional columns to keep in the output file [default: None]
+
+        -F, --force                                            Force the overwriting of the output file if it exists [default: False]
+
+        -N, --normalize                                        Normalize the coverage by the total number of contacts [default: False]
+
+        --probes-only                                           Make a second dataframe that only contains the contacts (in frequencies) between probes (oligos)
+                                                               This should have a squared-like shape [default: False]
+```
+
+### Rebin
+Change binning resolution of a 4C-like profile
+
+```
+    usage:
+        rebin -b BINSIZE -c CHR_COORD -p PROFILE [-o OUTPUT] [-F]
+
+    Arguments:
+        -b BINSIZE, --binsize BINSIZE                     New resolution to rebin the profile (in bp) [default: 1000]
+
+        -c CHR_COORD, --chr-coord CHR_COORD               Path to the chromosome coordinates file
+
+        -p PROFILE, --profile PROFILE                     Path to the profile file (un-binned, 0 kb)
+
+    Options:
+        -o OUTPUT, --output OUTPUT                        Desired output file path
+
+        -F, --force                                       Force the overwriting of the output file if it exists [default: False]
+```
+
+### SSDNAonly
+Filter the sparse matrix by removing all the Hi-C (ds DNA) specific contacts. Retain only the contacts between ssDNA fragments.
+
+```
+    usage:
+        ssdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-F]
+
+    Arguments:
+        -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
+                                                                Must be the file with the fragments associated
+                                                                Made with the 'associate' command
+
+        -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
+
+    Options:
+        -o OUTPUT, --output OUTPUT                              Path to the output file
+
+        -F, --force                                             Force the overwriting of the file if it exists [default: False]
+```
+
+### Stats
+Generate statistics and normalization for contacts made by each probe.
+
+```
+    usage:
+        stats -c OLIGO_CAPTURE -C CHR_COORD -m SPARSE_MAT -p PROFILE [-o OUTPUT] [-r CIS_RANGE] [-F]
+
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligos capture file
+                                                            Must be the file with the fragments associated
+                                                            Made with the 'associate' command
+
+        -C CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file
+
+        -m SPARSE_MAT, --sparse-mat SPARSE_MAT              Path to the sparse contacts input file
+
+        -p PROFILE, --profile PROFILE                       Path to the profile file (un-binned, 0 kb)
+
+
+    Options:
+        -F, --force                                         Force the overwriting of the output file if the file exists [default: False]
+
+        -o OUTPUT, --output OUTPUT                          Desired output directory
+
+        -r CIS_RANGE, --cis-range CIS_RANGE                 Cis range to be considered around the probe [default: 50000]
+```
+
+### Subsample
+Subsample and compress FASTQ file using seqtk.
+
+```
+    usage:
+        subsample -i INPUT [-c] [-F] [-n SIZE] [-s SEED]
+
+    Arguments:
+        -i INPUT, --input INPUT   Path to the input original FASTQ file (mandatory)
+
+    options:
+        -c, --compress            Compress the output file with gzip [default: True]
+
+        -F, --force               Force the overwriting of the output file if it exists [default: False]
+
+        -n SIZE, --size SIZE      Number of reads to subsample [default: 4000000]
+
+        -s SEED, --seed SEED      Seed for the random number generator [default: 100]
 ```
 
 ### View
-
 Open a graphical user interface to visualize 4-C like profile.
 
-```bash
-usage:
-    view
 ```
-
-![dash](img/demo-dash.png)
-
-### Plot
-
-Plot a 4-C like profile.
-
-```bash
-usage:
-    plot -p PROFILE -c OLIGO_CAPTURE -C CHR_COORD [-E CHRS...]
-    [-h HEIGHT] [-L] [-o OUTPUT] [-r ROLLING_WINDOW] [-w WIDTH] [-y YMIN] [-Y YMAX]
-
-Arguments:
-    -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE             Path to the oligo capture CSV file
-
-    -C CHR_COORD, --chr-coord CHR_COORD                         Path to the chromosome coordinates file
-
-    -p PROFILE, --profile PROFILE                               Path to the profile file (mandatory)
-
-
-
-Options:
-
-    -E CHRS, --exclude=CHRS                                     Exclude the chromosome(s)
-
-    -h HEIGHT, --height HEIGHT                                  Height of the plot
-
-    -L, --log                                                   Rescale the y-axis of the plot with np.log
-
-    -o OUTPUT, --output OUTPUT                                  Desired output directory
-
-    -r ROLLING_WINDOW, --rolling-window  ROLLING_WINDOW         Apply a rolling window to the profile
-
-    -w WIDTH, --width WIDTH                                     Width of the plot
-
-    -y YMIN, --ymin YMIN                                        Maximum value of the y-axis
-
-    -Y YMAX, --ymax YMAX                                        Maximum value of the y-axis
-
+    usage:
+        view
 ```
-
 
 
 ## Mandatory files structure
@@ -649,7 +719,6 @@ Mechanism of homology search expansion during recombinational DNA break repair i
 doi : https://doi.org/10.1016/j.molcel.2024.08.003
 
 Zenodo : https://doi.org/10.5281/zenodo.13236909
-
 
 
 
