@@ -4,10 +4,12 @@ from dash import dcc, html
 from flask import Flask
 
 # Import your page layouts here
-import layout_browser
-import layout_oligomaker
-import browser_callbacks
-import oligomaker_callbacks
+import sshicstuff.gui.browser_callbacks as bc
+import sshicstuff.gui.oligomaker_callbacks as oc
+import sshicstuff.gui.layout_browser as lb
+import sshicstuff.gui.layout_oligomaker as lo
+
+
 
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -31,8 +33,8 @@ app.layout = html.Div([
 )
 def render_tab_content(tab):
     return html.Div([
-        html.Div(layout_browser.layout, style={'display': 'block' if tab == 'browser-tab' else 'none'}),
-        html.Div(layout_oligomaker.layout, style={'display': 'block' if tab == 'oligo-tab' else 'none'}),
+        html.Div(lb.layout, style={'display': 'block' if tab == 'browser-tab' else 'none'}),
+        html.Div(lo.layout, style={'display': 'block' if tab == 'oligo-tab' else 'none'}),
     ])
 
 
