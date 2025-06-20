@@ -19,8 +19,7 @@ def aggregate(
     output_dir: str = None,
     excluded_chr_list: list[str] = None,
     inter_only: bool = True,
-    normalize: bool = True,
-    arm_length_classification: bool = False,
+    normalize: bool = True
 ) -> None:
     """
     Aggregate contact data around centromeres or telomeres.
@@ -53,8 +52,6 @@ def aggregate(
         If True, exclude intra-chromosome contacts from the analysis. Default is True.
     normalize : bool, optional
         If True, normalize the contact values by the column sums. Default is True.
-    arm_length_classification : bool, optional
-        If True (and telomeres is True), classify contacts by chromosome arm lengths. Default is False.
 
     Returns
     -------
@@ -79,6 +76,7 @@ def aggregate(
 
     # Read input files
     df_coords = pd.read_csv(chr_coord_path, sep=coords_delim)
+    df_coords.columns = [c.lower() for c in df_coords.columns]
     df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
     df_contacts = pd.read_csv(binned_contacts_path, sep="\t")
 
@@ -161,43 +159,6 @@ def aggregate(
         df_grouped = df_telos_all.groupby(["chr", "chr_bins"], as_index=False).mean(numeric_only=True)
         # Drop telomere-specific columns
         df_grouped.drop(columns=["telo_l", "telo_r", "genome_bins"], inplace=True)
-
-        # Optionally classify contacts by chromosome arm lengths
-        if arm_length_classification:
-            if "category" not in df_coords.columns:
-                logger.error(
-                    "[Aggregate] : 'category' column missing in the coordinates file. "
-                    "It must be in the form 'small_small' or 'long_middle' reflecting arm lengths."
-                )
-            else:
-                logger.info("[Aggregate] : Classifying contacts by chromosome arm lengths")
-                # Build a DataFrame of arm sizes via list comprehension
-                arms_data = []
-                for _, row in df_coords.iterrows():
-                    if row["chr"] in excluded_chr_list:
-                        continue
-                    if pd.isna(row["left_arm_length"]) or pd.isna(row["right_arm_length"]) or pd.isna(row["category"]):
-                        continue
-                    left_cat, right_cat = row["category"].split("_")
-                    arms_data.append((row["chr"], "left", row["left_arm_length"], left_cat))
-                    arms_data.append((row["chr"], "right", row["right_arm_length"], right_cat))
-                df_arms_size = pd.DataFrame(arms_data, columns=["chr", "arm", "size", "category"])
-                # Merge and classify using fixed window parameters (e.g., 3000 and 1000)
-                df_merged_tel = pd.merge(df_contacts, df_telos, on="chr")
-                df_left = df_merged_tel.loc[df_merged_tel["chr_bins"] < (df_merged_tel["telo_l"] + 3000 + 1000)].copy()
-                df_left.insert(2, "arm", "left")
-                df_right = df_merged_tel.loc[df_merged_tel["chr_bins"] > (df_merged_tel["telo_r"] - 3000 - 1000)].copy()
-                df_right.insert(2, "arm", "right")
-                df_telo_freq = pd.concat([df_left, df_right])
-                df_merged_arm = pd.merge(df_telo_freq, df_arms_size, on=["chr", "arm"])
-                df_merged_arm.drop(columns=["telo_l", "telo_r", "size"], inplace=True)
-                df_grouped_by_arm = df_merged_arm.groupby("category", as_index=False).mean(numeric_only=True)
-                df_grouped_by_arm.drop(columns=["chr_bins", "genome_bins"], inplace=True)
-                df_grouped_by_arm = df_grouped_by_arm.rename(columns={"category": "fragments"}).T
-                df_grouped_by_arm.to_csv(f"{output_prefix}_by_arm_sizes.tsv", sep="\t", header=False)
-    else:
-        # If neither centromeres nor telomeres are specified, exit the function.
-        return
 
     # Sort the grouped DataFrame by chromosome and bin position using the external helper
     df_grouped = methods.sort_by_chr(df_grouped, chr_list, "chr", "chr_bins")

@@ -41,7 +41,6 @@ def full_pipeline(
     cen_aggregated_binning: int = 10000,
     telo_agg_window_size: int = 15000,
     telo_agg_binning: int = 10000,
-    arm_length_classification: bool = False,
     excluded_chr: list[str] = None,
     cis_region_size: int = 50000,
     n_flanking_dsdna: int = 2,
@@ -252,8 +251,7 @@ def full_pipeline(
         output_dir=output_dir,
         excluded_chr_list=excluded_chr,
         inter_only=inter_chr_only,
-        normalize=normalize,
-        arm_length_classification=arm_length_classification,
+        normalize=normalize
     )
 
     now = datetime.now()

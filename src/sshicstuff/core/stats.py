@@ -75,6 +75,7 @@ def get_stats(
 
     coords_delim = "\t" if chr_coord_path.endswith(".tsv") else ","
     df_chr_coords = pd.read_csv(chr_coord_path, sep=coords_delim)
+    df_chr_coords.columns = [c.lower() for c in df_chr_coords.columns]
 
     chr_sizes = dict(zip(df_chr_coords["chr"], df_chr_coords["length"]))
     chromosomes = list(chr_sizes.keys())

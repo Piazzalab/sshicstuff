@@ -66,6 +66,8 @@ def profile_contacts(
     df_coords: pd.DataFrame = pd.read_csv(
         chromosomes_coord_path, sep=chr_coord_delim, index_col=None
     )
+    df_coords.columns = [c.lower() for c in df_coords.columns]
+
     df_chr_len = df_coords[["chr", "length"]]
     chr_list = list(df_chr_len["chr"].unique())
     df_chr_len["chr_start"] = df_chr_len["length"].shift().fillna(0).astype("int64")
@@ -250,6 +252,7 @@ def rebin_profile(
     df = pd.read_csv(contacts_unbinned_path, sep="\t")
     coord_delim = "," if chromosomes_coord_path.endswith(".csv") else "\t"
     df_coords = pd.read_csv(chromosomes_coord_path, sep=coord_delim)
+    df_coords.columns = [c.lower() for c in df_coords.columns]
 
     # Create a template DataFrame with all bins per chromosome
     chr_sizes = dict(zip(df_coords.chr, df_coords.length))

@@ -371,6 +371,8 @@ def coverage(
         # Load chromosome sizes and create a DataFrame with empty bins for each chromosome.
         delim = "," if chromosomes_coord_path.endswith(".csv") else "\t"
         df_chrom = pd.read_csv(chromosomes_coord_path, sep=delim)
+        df_chrom.columns = [c.lower() for c in df_chrom.columns
+                            ]
         chrom_sizes = df_chrom.set_index("chr")["length"].to_dict()
 
         bins_list = []
@@ -790,41 +792,55 @@ def save_file_cache(name, content, cache_dir):
         fp.write(base64.decodebytes(data))
 
 
-def sort_by_chr(df: pd.DataFrame, chr_list: list[str], *args: str):
+def sort_by_chr(df: pd.DataFrame, chr_list: list[str], *args: str) -> pd.DataFrame:
     """
-    Sort a DataFrame by chromosome and then by other columns.
+    Sort a DataFrame by chromosome (natural order) and then by other columns.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame to sort.
-    chr_list : List[str]
-        List of chromosomes.
+        DataFrame to sort. Must have a 'chr' column.
+    chr_list : list[str]
+        List of chromosome names to define order (e.g., ['chr1', ..., 'chr22', 'chrX', 'chrY']).
     args : str
-        Columns to sort by after the chromosome.
+        Other columns to sort by after chromosome.
 
     Returns
     -------
     pd.DataFrame
         Sorted DataFrame.
     """
-    # use re to identify chromosomes of the form "chrX" with X being a number
+
+    # Create ordering function
+    def order_key(chr_name):
+        match = re.match(r'chr(\d+)(.*)', chr_name)
+        if match:
+            number = int(match.group(1))
+            suffix = match.group(2) or ''
+            return (number, suffix)
+        return (float('inf'), chr_name)
+
+    # Sort chr_list based on numeric order + suffix
     chr_with_number = [c for c in chr_list if re.match(r'chr\d+', c)]
-    chr_with_number.sort(key=lambda x: int(x[3:]))
+    chr_with_number.sort(key=order_key)
     chr_without_number = [c for c in chr_list if c not in chr_with_number]
+    chr_order = chr_with_number + chr_without_number
 
-    order = chr_with_number + chr_without_number
-    df['chr'] = df['chr'].apply(lambda x: order.index(x) if x in order else len(order))
+    # Map each chromosome to its order index
+    chr_rank = {c: i for i, c in enumerate(chr_order)}
 
-    if args:
-        df = df.sort_values(by=['chr', *args])
-    else:
-        df = df.sort_values(by=['chr'])
+    # Create a temporary sorting column
+    df_sorted = df.copy()
+    df_sorted["_chr_rank"] = df_sorted["chr"].map(lambda x: chr_rank.get(x, len(chr_order)))
 
-    df['chr'] = df['chr'].map(lambda x: order[x])
-    df.index = range(len(df))
+    # Sort
+    sort_columns = ["_chr_rank"] + list(args)
+    df_sorted = df_sorted.sort_values(by=sort_columns)
 
-    return df
+    # Clean up
+    df_sorted = df_sorted.drop(columns=["_chr_rank"])
+    df_sorted.index = range(len(df_sorted))
+    return df_sorted
 
 
 def sparse_with_dsdna_only(

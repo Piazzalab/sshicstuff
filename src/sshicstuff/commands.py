@@ -71,8 +71,6 @@ class Aggregate(AbstractCommand):
         -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
                                                             a probe and it own chr [default: True]
 
-        -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
-
         -N, --normalize                                     Normalize the contacts by the total number of contacts
                                                             [default: False]
 
@@ -109,8 +107,7 @@ class Aggregate(AbstractCommand):
             output_dir=self.args["--output"],
             excluded_chr_list=self.args["--exclude"],
             inter_only=self.args["--inter"],
-            normalize=self.args["--normalize"],
-            arm_length_classification=self.args["--arm-length"],
+            normalize=self.args["--normalize"]
         )
 
 
@@ -398,8 +395,6 @@ class Pipeline(AbstractCommand):
         -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
                                                             a probe and it own chr [default: True]
 
-        -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
-
         -n FLANKING_NUMBER, --flanking-number NUMBER        Number of flanking fragments around the fragment
                                                             containing a DSDNA oligo to consider and remove
                                                             [default: 2]
@@ -452,7 +447,6 @@ class Pipeline(AbstractCommand):
             cen_aggregated_binning=int(self.args["--binning-aggregate-cen"]),
             telo_agg_window_size=int(self.args["--window-size-telo"]),
             telo_agg_binning=int(self.args["--binning-aggregate-telo"]),
-            arm_length_classification=self.args["--arm-length"],
             excluded_chr=self.args["--exclude"],
             cis_region_size=int(self.args["--cis-range"]),
             n_flanking_dsdna=int(self.args["--flanking-number"]),
