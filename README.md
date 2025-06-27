@@ -311,9 +311,10 @@ Merge two or more sparse matrices into a single sparse matrix
         -F, --force                                 Force the overwriting of the output file if it exists [default: False]
 ```
 
-### Oigo4sshic
-oligo4sshic is a small rust program to generate oligonucleotides for single-strand Hi-C experiments
+### Design
 
+design is a wrapper to call oligo4sshic program.
+Oligo4sshic is a small rust program to generate oligonucleotides for single-strand Hi-C experiments.
 ```
 Usage: oligo4sshic [OPTIONS] --fasta <FASTA> --output-snp <OUTPUT_SNP> --output-raw <OUTPUT_RAW>
 

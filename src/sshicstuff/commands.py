@@ -350,12 +350,12 @@ class Merge(AbstractCommand):
             matrices=matrices,
         )
 
-class Oligo4sshic(AbstractCommand):
+class Design(AbstractCommand):
     """
     Run the Rust-based oligo4sshic module (by Laurent Modolo).
 
     usage:
-        oligo4sshic [<args>...]
+        design [<args>...]
     """
     def __init__(self, command_args, global_args):
         # Bypass docopt parsing completely

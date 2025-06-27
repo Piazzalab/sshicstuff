@@ -49,7 +49,7 @@ The subcommands are:
                             - rebin
                             - aggregate on centromeric and telomeric regions
 
-    oligo4sshic         generate oligonucleotides for single-strand Hi-C experiments (RUST based sub-module).
+    design              generate oligonucleotides for single-strand Hi-C experiments (RUST based sub-module).
 
     plot4c              Plot a 4C-like profile. Similar graph as those got with the 'view' interactive command (plotly).
 
