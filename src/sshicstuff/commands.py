@@ -3,6 +3,8 @@ This module contains the commands of the program.
 """
 
 import os
+import shutil
+import subprocess
 
 from docopt import docopt
 
@@ -347,6 +349,42 @@ class Merge(AbstractCommand):
             force=self.args["--force"],
             matrices=matrices,
         )
+
+class Oligo4sshic(AbstractCommand):
+    """
+    Run the Rust-based oligo4sshic module (by Laurent Modolo).
+
+    usage:
+        oligo4sshic [<args>...]
+    """
+    def __init__(self, command_args, global_args):
+        # Bypass docopt parsing completely
+        self.args = {"<args>": command_args}
+        self.global_args = global_args
+
+    def execute(self):
+        binary = "oligo4sshic"
+
+        # Check if binary is in PATH
+        if shutil.which(binary) is None:
+            logger.error("The binary '%s' was not found in your PATH.", binary)
+            print(f"Error: The binary '{binary}' is not installed or not in your PATH.")
+            raise SystemExit(1)
+
+        # Print version
+        try:
+            version_output = subprocess.check_output([binary, "--version"], text=True)
+            print(f"{binary} version:\n{version_output.strip()}")
+        except subprocess.CalledProcessError as e:
+            logger.warning("Failed to retrieve version of %s: %s", binary, e)
+
+        # Run with provided args
+        logger.info("Running oligo4sshic with args: %s", self.args["<args>"])
+        try:
+            subprocess.run([binary] + self.args["<args>"], check=True)
+        except subprocess.CalledProcessError as e:
+            logger.error("Oligo4sshic failed with error: %s", e)
+            raise SystemExit(e.returncode)
 
 
 class Pipeline(AbstractCommand):
