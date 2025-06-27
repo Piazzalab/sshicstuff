@@ -2,10 +2,15 @@
 
 ## Dependencies  
 
-It is recommended to use a virtual environment to install the dependencies. We suggest you to use the 
-requirements.yml file to install a conda environment or mamba.
+It is recommended to use a virtual environment to install the dependencies. 
 
-You can do it as follows:
+We suggest you to use the Makefile file one command to install all the dependencies at once:
+
+```bash
+make
+```
+
+Alternatively, for any reason, you can install the dependencies step by step using conda / mamba and pip :
 
 ```bash
 mamba env create -f environment.yml
@@ -23,6 +28,20 @@ Inside the sshicstuff directory, install the package with the following command:
 pip install -e .
 ```
 
+Install the oligo4sshic rust sub-module :
+
+Install rustup if not already installed:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+```
+
+Clone the git repository and install it :
+```bash
+git clone git@gitbio.ens-lyon.fr:LBMC/GM/oligo4sshic.git 
+```
+```bash
+cargo install --path oligo4sshic
+```
 
 ## Description  
 sshicstuff enables the analysis of ssDNA-specific Hi-C contact generated from paired-end Illumina reads. This project has not yet been packaged (coming soon). 
@@ -39,8 +58,6 @@ You can always get a summary of all available commands by running:
 
 
 ```
-Single Stranded DNA Hi-C pipeline for generating oligo 4-C profiles and aggregated contact matrices.
-
 usage:
     sshicstuff [-hv] <command> [<args>...]
 
@@ -49,45 +66,60 @@ options:
     -v, --version               shows the version
 
 The subcommands are:
-
     aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
-    
+
     associate           Associate oligo/probe name to fragment/read ID that contains it.
-    
+                        This will copy the oligo_capture.csv file and add a new columns with the fragment ID, start and end.
+
     compare             Compare the capture efficiency of a sample with that of a wild type
-                        (may be another sample).
-    
+                        It may be another sample.
+
     coverage            Calculate the coverage per fragment and save the result to a bedgraph.
-    
-    dsdnaonly           Filter the sparse matrix by removing all the ss DNA specific contacts.
-                        Retain only the contacts between non-ss DNA fragments.
-    
-    filter              Filter reads from a sparse matrix and keep only pairs of reads that
-                        contain at least one oligo/probe.   
+                        Coverage can be normalized and binned at different resolutions.
+
+    dsdnaconly          Keep only Hi-C (dsdna sites) reads from a sparse matrix file (i.e., remove all ssDNA reads).
+                        Generate a new sparse matrix file with only dsDNA reads.
+
+    filter              Filter reads from a sparse matrix and keep only pairs of reads that contain at least one
+                        oligo/probe (ssdna reads vs whole genome).
 
     genomaker           Create a chromosome artificial that is the concatenation of the
                         annealing oligos and the enzyme sequence.
-                        
-    merge               Merge two or more sparse matrices into a single sparse matrix
-                            
-    pipeline            Run the entire pipeline from filtering to aggregation.
-    
-    plot4C              Plot a 4C-like profile.  
-    
-    plotmatrix          Plot a heatmap of the probes contacts matrix.
+
+    merge               Merge multiple sparse matrix files into a single one.
+
+    pipeline            Run the entire pipeline.
+                        It contains the following steps: 
+                            - associate
+                            - dsdnaconly
+                            - ssdnaconly
+                            - coverage of dsdna and ssdna reads separately
+                            - filter
+                            - coverage of all reads at multiple resolutions
+                            - profile (4C-like)
+                            - stats
+                            - rebin
+                            - aggregate on centromeric and telomeric regions
+
+    oligo4sshic         generate oligonucleotides for single-strand Hi-C experiments (RUST based sub-module).
+
+    plot4c              Plot a 4C-like profile. Similar graph as those got with the 'view' interactive command (plotly).
+
+    plotmatrix          Plot a contact matrix of contacts made between all the probes. (matplotlib)
 
     profile             Generate a 4C-like profile for each ssDNA oligo.
-    
+
     rebin               Rebin change binning resolution of a 4C-like profile
-    
-    ssdnaonly           Filter the sparse matrix by removing all the Hi-C (ds DNA) specific contacts.
-                        Retain only the contacts between ssDNA fragments.
-    
+
+    ssdnaconly          Keep only ssDNA reads from a sparse matrix file (i.e., remove all dsdna reads).
+                        Generate a new sparse matrix file with only ssDNA reads.
+
     stats               Generate statistics and normalization for contacts made by each probe.
-    
+
     subsample           Subsample and compress FASTQ file using seqtk.
 
-    view                Open a graphical user interface to visualize 4-C like profile.
+    view                Open a graphical user interface to visualize 4-C like profile (flask + dash + plotly).
+                        This will open a web browser with the 4C-like profile u created with the 'profile' command.
 ```
 
 
@@ -117,8 +149,6 @@ Aggregate contacts around specific regions of centromeres or telomeres.
 
         -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
                                                             a probe and it own chr [default: True]
-
-        -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
 
         -N, --normalize                                     Normalize the contacts by the total number of contacts
                                                             [default: False]
@@ -281,13 +311,55 @@ Merge two or more sparse matrices into a single sparse matrix
         -F, --force                                 Force the overwriting of the output file if it exists [default: False]
 ```
 
+### Oigo4sshic
+oligo4sshic is a small rust program to generate oligonucleotides for single-strand Hi-C experiments
+
+```
+Usage: oligo4sshic [OPTIONS] --fasta <FASTA> --output-snp <OUTPUT_SNP> --output-raw <OUTPUT_RAW>
+
+Options:
+  -f, --fasta <FASTA>
+          fasta file of the genome
+      --forward-intervals <FORWARD_INTERVALS>
+          comma separated list of chromosomic interval to work on, on the forward strand (e.g. chr_a:1-100,chr_b:200-300) [default: all]
+      --reverse-intervals <REVERSE_INTERVALS>
+          comma separated list of chromosomic interval to work on, on the reverse strand (e.g. chr_a:1-100,chr_b:200-300) [default: ]
+      --output-snp <OUTPUT_SNP>
+          output file with the list of oligos sequence in fasta format with snp
+      --output-raw <OUTPUT_RAW>
+          output file with the list of oligos sequence in fasta format without snp
+      --site <SITE>
+          sequence of the site to look for for [default: GATC]
+      --secondary-sites <SECONDARY_SITES>
+          comma separated list of site sequences that will be disabled by SNPs [default: CAATTG,AATATT,GANTC]
+      --size <SIZE>
+          site of the oligonucleotides [default: 75]
+      --site-start <SITE_START>
+          site start position withing the oligonucleotide sequences [default: 65]
+      --no-snp-zone <NO_SNP_ZONE>
+          number of nucleotides that will not be transformed in SNPs after the site and before the end of the oligonucleotide sequences [default: 5]
+      --complementary-size <COMPLEMENTARY_SIZE>
+          maximum number of complementary bases between two oligonucleotides [default: 7]
+      --snp-number <SNP_NUMBER>
+          number of snp to add to the oligonucleotide sequence [default: 5]
+      --tries <TRIES>
+          number of run to try to find the highest number of oligos [default: 20]
+  -v, --verbose
+          work with the reverse complement of the fasta file
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+```
+
+
 ### Pipeline
 Run the entire pipeline from filtering to aggregation.
 
 ```
     usage:
         pipeline -c OLIGO_CAPTURE -C CHR_COORD -f FRAGMENTS -m SPARSE_MATRIX
-        [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I] [-L]
+        [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I]
         [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-r CIS_RANGE]
         [--window-size-cen WINDOW_SIZE_CEN] [--window-size-telo WINDOW_SIZE_TELO]
         [--binning-aggregate-cen BIN_CEN] [--binning-aggregate-telo BIN_TELO]
@@ -318,8 +390,6 @@ Run the entire pipeline from filtering to aggregation.
 
         -I, --inter                                         Only keep inter-chr contacts, i.e., removing contacts between
                                                             a probe and it own chr [default: True]
-
-        -L, --arm-length                                    Classify telomeres aggregated in according to their arm length.
 
         -n FLANKING_NUMBER, --flanking-number NUMBER        Number of flanking fragments around the fragment
                                                             containing a DSDNA oligo to consider and remove
@@ -669,28 +739,11 @@ chr2	813183	238207	574976
 
 Columns names are obviouse here.
 
-***N.B. :*** 
-
-Possibility to add a supplementary column in the case you want use the options
-
-```-L, --arm-length                                    Classify telomeres aggregated in according to their arm length.``` in the pipeline. 
-
-The column `category` will have the following structure :
-
-```
-category
-small_small
-middle_long
-small_middle
-```
-
-with <size_type_left>_<size_type_right>
-
 Extension *`.tsv`* (tab separated)
 
 #### Additional probe groups file structure
 
-If you want to aggregated multiple probe together by making an average, for instance of all the probes located onf the left distant strand from the break site. You must fill and give as argument this file.
+If you want to aggregate multiple probe together by making an average, for instance of all the probes located onf the left distant strand from the break site. You must fill and give as argument this file.
 
 ```
 name		             probes								           action
