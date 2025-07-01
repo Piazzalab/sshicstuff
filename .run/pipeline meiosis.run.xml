@@ -1,0 +1,25 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="pipeline meiosis" type="PythonConfigurationType" factoryName="Python">
+    <module name="sshicstuff" />
+    <option name="ENV_FILES" value="" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1" />
+    </envs>
+    <option name="SDK_HOME" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="IS_MODULE_SDK" value="true" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sshicstuff/main.py" />
+    <option name="PARAMETERS" value="pipeline -m $PROJECT_DIR$/../../projects-data/sshicstuff/meiosis_sandbox/AD728_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC_parasplit_q20_v312_PCRfree/AD728_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC_parasplit_q20_v312_PCRfree.txt -c $PROJECT_DIR$/../../projects-data/sshicstuff/meiosis_sandbox/AD728_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC_parasplit_q20_v312_PCRfree/Capture_oligo_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC.csv -C $PROJECT_DIR$/../../projects-data/sshicstuff/meiosis_sandbox/AD728_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC_parasplit_q20_v312_PCRfree/sk1_chromosomes_centro_chr4_v1_ssHiC.tsv -f $PROJECT_DIR$/../../projects-data/sshicstuff/meiosis_sandbox/AD728_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC_parasplit_q20_v312_PCRfree/fragments_list_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC_DpnIIHinfI.txt -a $PROJECT_DIR$/../../projects-data/sshicstuff/meiosis_sandbox/AD728_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC_parasplit_q20_v312_PCRfree/additional_probe_groups_CCT6.tsv -n 2 -I -N -o $PROJECT_DIR$/../../projects-data/sshicstuff/meiosis_sandbox/AD728_SK1_Diploid_SynIVv1_SynIVv2_HS16_ssHiC_parasplit_q20_v312_PCRfree/AD728_sk1 -b 1000 -b 2000 -b 5000 -b 10000 --binning-aggregate-cen 10000 --binning-aggregate-telo 1000 --window-size-cen 150000 --window-size-telo 15000 --copy-inputs" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
+    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="MODULE_MODE" value="false" />
+    <option name="REDIRECT_INPUT" value="false" />
+    <option name="INPUT_FILE" value="" />
+    <method v="2" />
+  </configuration>
+</component>
