@@ -401,7 +401,7 @@ class Pipeline(AbstractCommand):
 
     usage:
         pipeline -c OLIGO_CAPTURE -C CHR_COORD -f FRAGMENTS -m SPARSE_MATRIX
-        [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I] [-L]
+        [-a ADDITIONAL_GROUPS] [-b BINNING_SIZES...] [-E CHRS...] [-F] [-I]
         [-n FLANKING_NUMBER] [-N] [-o OUTPUT] [-r CIS_RANGE]
         [--window-size-cen WINDOW_SIZE_CEN] [--window-size-telo WINDOW_SIZE_TELO]
         [--binning-aggregate-cen BIN_CEN] [--binning-aggregate-telo BIN_TELO]

@@ -77,6 +77,8 @@ def aggregate(
     # Read input files
     df_coords = pd.read_csv(chr_coord_path, sep=coords_delim)
     df_coords.columns = [c.lower() for c in df_coords.columns]
+    chrom_order: list[str] = df_coords["chr"].unique().tolist()
+
     df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
     df_contacts = pd.read_csv(binned_contacts_path, sep="\t")
 
@@ -84,8 +86,6 @@ def aggregate(
     binsize = int(df_contacts.loc[2, "chr_bins"] - df_contacts.loc[1, "chr_bins"])
     logger.info("[Aggregate] : Contacts binned profile resolution: %d bp", binsize)
 
-    # Get unique chromosomes from coordinates
-    chr_list = df_coords["chr"].unique().tolist()
     # Ensure excluded_chr_list is a list
     if excluded_chr_list is None:
         excluded_chr_list = []
@@ -161,7 +161,9 @@ def aggregate(
         df_grouped.drop(columns=["telo_l", "telo_r", "genome_bins"], inplace=True)
 
     # Sort the grouped DataFrame by chromosome and bin position using the external helper
-    df_grouped = methods.sort_by_chr(df_grouped, chr_list, "chr", "chr_bins")
+    df_grouped['chr'] = pd.Categorical(df_grouped['chr'], categories=chrom_order, ordered=True)
+    df_grouped = df_grouped.sort_values(['chr', 'chr_bins']).reset_index(drop=True)
+
     df_grouped["chr_bins"] = df_grouped["chr_bins"].astype("int64")
 
     logger.info("[Aggregate] : Computing aggregated mean, median, and standard deviation per bin.")
@@ -178,5 +180,5 @@ def aggregate(
         col_name = col if col in fragments else col[1:]
         if df_grouped[col].sum() == 0:
             continue
-        df_pivot = df_grouped.pivot_table(index="chr_bins", columns="chr", values=col, fill_value=0)
+        df_pivot = df_grouped.pivot_table(index="chr_bins", columns="chr", values=col, fill_value=0, observed=False)
         df_pivot.to_csv(f"{output_prefix}_{col_name}_per_chr.tsv", sep="\t")

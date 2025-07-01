@@ -71,7 +71,7 @@ def rebin_live(df: pd.DataFrame, df_template: pd.DataFrame, bin_size: int):
     Rebin function for the GUI to change resolution of contacts in live mode.
     """
 
-    chr_list = df_template["chr"]
+    chrom_order = df_template["chr"].unique().tolist()
     df["end"] = df["start"] + df["sizes"]
     df["start_bin"] = df["start"] // bin_size * bin_size
     df["end_bin"] = df["end"] // bin_size * bin_size
@@ -97,7 +97,8 @@ def rebin_live(df: pd.DataFrame, df_template: pd.DataFrame, bin_size: int):
     df_binned.drop(columns=["start_bin", "end_bin"], inplace=True)
 
     df_binned = df_binned.groupby(["chr", "chr_bins"]).sum().reset_index()
-    df_binned = methods.sort_by_chr(df_binned, chr_list, 'chr_bins')
+    df_binned['chr'] = pd.Categorical(df_binned['chr'], categories=chrom_order, ordered=True)
+    df_binned = df_binned.sort_values(['chr', 'start']).reset_index(drop=True)
     df_binned = pd.merge(df_template, df_binned,  on=['chr', 'chr_bins'], how='left')
     df_binned.drop(columns=["start", "end", "sizes"], inplace=True)
     df_binned.fillna(0, inplace=True)

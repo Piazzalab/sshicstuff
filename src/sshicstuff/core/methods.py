@@ -350,6 +350,8 @@ def coverage(
     )
     df_frag["id"] = np.arange(len(df_frag))
 
+    chrom_order = list(df_frag["chr"].unique())
+
     # Read sparse contacts matrix
     df_contacts = pd.read_csv(
         sparse_mat_path, header=0, sep="\t", names=["frag_a", "frag_b", "contacts"]
@@ -428,8 +430,9 @@ def coverage(
         # Merge with the complete bins to ensure no bin is missing
         df_final = pd.concat([df_bins, df_binned], ignore_index=True)
         df_final = df_final.groupby(["chr", "start", "end"], as_index=False)["contacts"].sum()
-        # Sort bins by chromosome and start position (using external sort_by_chr if available)
-        df_final = sort_by_chr(df_final, list(chrom_sizes.keys()), "chr", "start")
+
+        df_final['chr'] = pd.Categorical(df_final['chr'], categories=chrom_order, ordered=True)
+        df_final = df_final.sort_values(['chr', 'start']).reset_index(drop=True)
         df_final["contacts"] = df_final["contacts"].fillna(0).round(4)
 
         # Update output file name to include bin size suffix
@@ -440,7 +443,8 @@ def coverage(
         result_df = df_final
     else:
         # No binning: save fragment-level coverage directly
-        df_cov = sort_by_chr(df_cov, df_frag["chr"].unique(), "chr", "start")
+        df_cov['chr'] = pd.Categorical(df_cov['chr'], categories=chrom_order, ordered=True)
+        df_cov = df_cov.sort_values(['chr', 'start']).reset_index(drop=True)
         df_cov.to_csv(output_path, sep="\t", index=False, header=False)
         logger.info("[Coverage] Contacts coverage file saved to %s", output_path)
         result_df = df_cov
@@ -790,57 +794,6 @@ def save_file_cache(name, content, cache_dir):
     data = content.encode("utf8").split(b";base64,")[1]
     with open(join(cache_dir, name), "wb") as fp:
         fp.write(base64.decodebytes(data))
-
-
-def sort_by_chr(df: pd.DataFrame, chr_list: list[str], *args: str) -> pd.DataFrame:
-    """
-    Sort a DataFrame by chromosome (natural order) and then by other columns.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame to sort. Must have a 'chr' column.
-    chr_list : list[str]
-        List of chromosome names to define order (e.g., ['chr1', ..., 'chr22', 'chrX', 'chrY']).
-    args : str
-        Other columns to sort by after chromosome.
-
-    Returns
-    -------
-    pd.DataFrame
-        Sorted DataFrame.
-    """
-
-    # Create ordering function
-    def order_key(chr_name):
-        match = re.match(r'chr(\d+)(.*)', chr_name)
-        if match:
-            number = int(match.group(1))
-            suffix = match.group(2) or ''
-            return (number, suffix)
-        return (float('inf'), chr_name)
-
-    # Sort chr_list based on numeric order + suffix
-    chr_with_number = [c for c in chr_list if re.match(r'chr\d+', c)]
-    chr_with_number.sort(key=order_key)
-    chr_without_number = [c for c in chr_list if c not in chr_with_number]
-    chr_order = chr_with_number + chr_without_number
-
-    # Map each chromosome to its order index
-    chr_rank = {c: i for i, c in enumerate(chr_order)}
-
-    # Create a temporary sorting column
-    df_sorted = df.copy()
-    df_sorted["_chr_rank"] = df_sorted["chr"].map(lambda x: chr_rank.get(x, len(chr_order)))
-
-    # Sort
-    sort_columns = ["_chr_rank"] + list(args)
-    df_sorted = df_sorted.sort_values(by=sort_columns)
-
-    # Clean up
-    df_sorted = df_sorted.drop(columns=["_chr_rank"])
-    df_sorted.index = range(len(df_sorted))
-    return df_sorted
 
 
 def sparse_with_dsdna_only(

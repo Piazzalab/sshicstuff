@@ -67,9 +67,9 @@ def profile_contacts(
         chromosomes_coord_path, sep=chr_coord_delim, index_col=None
     )
     df_coords.columns = [c.lower() for c in df_coords.columns]
+    chrom_order: list[str] = df_coords["chr"].unique().tolist()
 
     df_chr_len = df_coords[["chr", "length"]]
-    chr_list = list(df_chr_len["chr"].unique())
     df_chr_len["chr_start"] = df_chr_len["length"].shift().fillna(0).astype("int64")
     df_chr_len["cumu_start"] = df_chr_len["chr_start"].cumsum()
 
@@ -114,8 +114,10 @@ def profile_contacts(
 
     group = df_contacts.groupby(by=["chr", "start", "sizes"], as_index=False)
     df_contacts: pd.DataFrame = group.sum()
-    df_contacts = methods.sort_by_chr(df_contacts, chr_list, "chr", "start")
-    df_contacts.index = range(len(df_contacts))
+
+    # Sort the binned DataFrame
+    df_contacts['chr'] = pd.Categorical(df_contacts['chr'], categories=chrom_order, ordered=True)
+    df_contacts = df_contacts.sort_values(['chr', 'start']).reset_index(drop=True)
 
     for probe, frag in zip(probes, fragments):
         df_contacts.rename(columns={probe: frag}, inplace=True)
@@ -253,6 +255,7 @@ def rebin_profile(
     coord_delim = "," if chromosomes_coord_path.endswith(".csv") else "\t"
     df_coords = pd.read_csv(chromosomes_coord_path, sep=coord_delim)
     df_coords.columns = [c.lower() for c in df_coords.columns]
+    chrom_order: list[str] = df_coords["chr"].unique().tolist()
 
     # Create a template DataFrame with all bins per chromosome
     chr_sizes = dict(zip(df_coords.chr, df_coords.length))
@@ -302,8 +305,11 @@ def rebin_profile(
 
     # Group by chromosome and bin to sum the contact values
     df_binned = df_combined.groupby(["chr", "chr_bins"], as_index=False).sum()
-    # Sort the binned DataFrame (assumes methods.sort_by_chr is defined)
-    df_binned = methods.sort_by_chr(df_binned, list(chr_sizes.keys()), "chr_bins")
+
+    # Sort the binned DataFrame
+    df_binned['chr'] = pd.Categorical(df_binned['chr'], categories=chrom_order, ordered=True)
+    df_binned = df_binned.sort_values(['chr', 'start']).reset_index(drop=True)
+
     # Merge with the template to ensure all bins are represented; missing bins are set to 0
     df_binned = pd.merge(df_template, df_binned, on=["chr", "chr_bins"], how="left")
     df_binned.drop(columns=["start", "end", "sizes"], inplace=True)
