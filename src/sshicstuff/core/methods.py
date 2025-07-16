@@ -108,6 +108,28 @@ def associate_oligo_to_frag(
 
     logger.info("[Associate] : oligos associated to fragments successfully.")
 
+def annealing_to_capture(
+    df_annealing: pd.DataFrame,
+    n_5_prime_deletion: int = 10,
+    n_3_prime_deletion: int = 10
+):
+
+    df_capture = df_annealing.copy()
+    df_capture.drop(columns=["sequence_original", "sequence_modified", "length"], inplace=True)
+
+    capture_oligos = []
+    for _, row in df_annealing.iterrows():
+        seq = row["sequence_modified"]
+        if seq is None or pd.isna(seq):
+            new_seq = row["sequence_original"]
+        else:
+            new_seq = seq[n_5_prime_deletion: -n_3_prime_deletion]
+        capture_oligos.append(new_seq)
+    df_capture["capture_sequence"] = capture_oligos
+
+    return df_capture
+
+
 
 def check_file_extension(file_path: str | Path, extension: str | list[str]):
     """
@@ -492,8 +514,7 @@ def edit_genome_ref(
     genome_input: str,
     enzyme: str,
     fragment_size: int = 150,
-    fasta_spacer: str = "N",
-    fasta_line_length: int = 80,
+    fasta_line_length: int = 60,
     additional_fasta_path: str = None,
 ):
     """
@@ -512,15 +533,13 @@ def edit_genome_ref(
         Restriction Enzyme sequence (e.g., dpnII sequence : gatc).
     fragment_size : int, default=150
         Size of a digested fragment / read.
-    fasta_spacer : str, default="N"
-        Spacer character to insert between the enzyme and the annealing oligo.
     fasta_line_length : int, default=60
         Number of characters per line in the FASTA file.
     additional_fasta_path : str, default=None
         List of additional FASTA files to concatenate with the artificial chromosome ath
         the end of the genome reference .FASTA file.
     """
-
+    fasta_spacer = "N"
     basedir = os.path.dirname(genome_input)
     artificial_chr_path = os.path.join(basedir, "chr_artificial_ssDNA.fa")
 
@@ -539,6 +558,9 @@ def edit_genome_ref(
     s = fragment_size - len(enzyme)
     p = fasta_spacer
     oneline = p * int(s / 2) + enzyme + p * s
+
+    # artificial_starts = [int(s / 2)]
+    # artificial_ends = []
 
     for seq in ssdna_seq:
         middle = len(seq) // 2
@@ -597,6 +619,71 @@ def edit_genome_ref(
     logger.info(
         "Artificial chromosome created and inserted at the end of the genome .FASTA file"
     )
+
+    # Build the regex dynamically with the actual enzyme sequence
+    pattern = re.compile(rf"{fasta_spacer}{{5,}}{enzyme}{fasta_spacer}{{5,}}", re.IGNORECASE)
+    matches = list(pattern.finditer(oneline))
+    enzyme_positions = [m.start() + m.group().lower().find(enzyme.lower()) for m in matches]
+
+    # Now extract fragment coordinates based on the region between enzymes
+    chr_arti_starts = []
+    chr_arti_ends = []
+
+    for i in range(len(enzyme_positions) - 1):
+        start = enzyme_positions[i]
+        end = enzyme_positions[i + 1]
+        chr_arti_starts.append(start)
+        chr_arti_ends.append(end)
+
+    lengths = [end - start for start, end in zip(chr_arti_starts, chr_arti_ends)]
+
+    df2 = df[df["type"] == "ss"].copy()
+    df2.rename(columns={
+        "chr": "chr_ori",
+        "start": "start_ori",
+        "end": "end_ori",
+    }, inplace=True)
+
+    df2["chr"] = "chr_artificial_ssDNA"
+    df2["start"] = chr_arti_starts
+    df2["end"] = chr_arti_ends
+    df2["length"] = lengths
+
+    order_col = [
+        "chr",
+        "start",
+        "end",
+        "length",
+        "chr_ori",
+        "start_ori",
+        "end_ori",
+        "orientation",
+        "type",
+        "name",
+        "sequence_original",
+        "sequence_modified",
+    ]
+    df2 = df2[order_col]
+
+    # Add back ds control (not on artificial chromosome)
+    df_dsdna = df[df["type"] == "ds"].copy()
+    df2 = pd.concat([df2, df_dsdna], ignore_index=True)
+
+    annealing_outname = annealing_input.replace(".csv", "_artificial.csv")
+
+    df2.to_csv(
+        annealing_outname,
+        sep=",",
+        index=False,
+    )
+
+    logger.info(f"Artificial chromosome coordinates saved to {os.path.basename(annealing_outname)}")
+
+    df3 = annealing_to_capture(df2, 10, 10)
+    capture_outname = annealing_outname.lower().replace("annealing", "capture")
+    df3.to_csv(capture_outname, sep=",", index=False)
+
+    logger.info(f"Creation of capture oligos from annealing oligos done. ")
 
 
 def format_annealing_oligo_output(

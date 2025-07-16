@@ -290,7 +290,7 @@ class Genomaker(AbstractCommand):
     You can specify the rules for the concatenation.
 
     usage:
-        genomaker -e ENZYME -g GENOME -o OLIGO_ANNEALING [-a ADDITIONAL] [-f FRAGMENT_SIZE] [-l LINE_LENGTH]  [-s SPACER]
+        genomaker -e ENZYME -g GENOME -o OLIGO_ANNEALING [-a ADDITIONAL] [-f FRAGMENT_SIZE] [-l LINE_LENGTH]
 
     Arguments:
         -e ENZYME, --enzyme ENZYME                                  Sequence of the enzyme
@@ -305,20 +305,35 @@ class Genomaker(AbstractCommand):
         -f FRAGMENT_SIZE, --fragment-size FRAGMENT_SIZE             Size of the fragments [default: 150]
 
         -l LINE_LENGTH, --line-length LINE_LENGTH                   Length of the lines in the FASTA file [default: 80]
-
-        -s SPACER, --spacer SPACER                                  Additional FASTA files to concatenate [default: None]
     """
 
     def execute(self):
         check_exists(self.args["--oligo-annealing"], self.args["--genome"])
+        if self.args["--additional"] != 'None':
+            check_exists(self.args["--additional"])
+            additional = self.args["--additional"]
+        else:
+            additional = None
+
+
+        if self.args["--fragment-size"] != 'None':
+            fragment_size = int(self.args["--fragment-size"])
+        else:
+            fragment_size = None
+
+        if self.args["--line-length"] != 'None':
+            line_length = int(self.args["--line-length"])
+        else:
+            line_length = None
+
+
         methods.edit_genome_ref(
             self.args["--oligo-annealing"],
             self.args["--genome"],
             self.args["--enzyme"],
-            fragment_size=int(self.args["--fragment-size"]),
-            fasta_spacer=self.args["--spacer"],
-            fasta_line_length=int(self.args["--line-length"]),
-            additional_fasta_path=self.args["--additional"],
+            fragment_size=fragment_size,
+            fasta_line_length=line_length,
+            additional_fasta_path=additional,
         )
 
 
