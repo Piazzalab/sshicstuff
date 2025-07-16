@@ -386,6 +386,17 @@ class Design(AbstractCommand):
             logger.error("Oligo4sshic failed with error: %s", e)
             raise SystemExit(e.returncode)
 
+        # wrapper to change the output format
+        output_raw_path = self.args["<args>"][self.args["<args>"].index("--output-raw") + 1] if "--output-raw" in self.args["<args>"] else None
+        output_snp_path = self.args["<args>"][self.args["<args>"].index("--output-snp") + 1] if "--output-snp" in self.args["<args>"] else None
+        check_exists(output_raw_path)
+        check_exists(output_snp_path)
+
+        methods.format_annealing_oligo_output(
+            design_output_raw_path=output_raw_path,
+            design_output_snp_path=output_snp_path,
+        )
+
 
 class Pipeline(AbstractCommand):
     """

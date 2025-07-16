@@ -599,6 +599,62 @@ def edit_genome_ref(
     )
 
 
+def format_annealing_oligo_output(
+        design_output_raw_path: str,
+        design_output_snp_path: str,
+):
+
+    df_raw = pd.read_csv(design_output_raw_path, sep="\t", header=None)
+    df_snp = pd.read_csv(design_output_snp_path, sep="\t", header=None)
+
+    chroms, starts, ends, lenghts, strands, types, names, raw_seqs, snp_seqs = [], [], [], [], [], [], [], [], []
+
+    def parse_metadata(line: str):
+        # Format: >chr4:848192:848271_mt0_+_raw
+        parts = line[1:].split('_')
+        coord_part = parts[0]
+        strand = "w" if parts[2] == "+" else "c"  # Convert strand to W/C
+        oligo_type = "ss"
+        chrom, start, end = coord_part.split(':')
+
+        name = "Probe_{}_{}_{}_{}".format(chrom, strand, start, end)
+        return chrom, int(start), int(end), strand, oligo_type, name
+
+    for i in range(0, len(df_raw), 2):
+        metadata_raw = df_raw.iloc[i, 0]
+        seq_raw = df_raw.iloc[i + 1, 0]
+        metadata_snp = df_snp.iloc[i, 0]
+        seq_snp = df_snp.iloc[i + 1, 0]
+
+        chrom, start, end, strand, oligo_type, name = parse_metadata(metadata_raw)
+
+        chroms.append(chrom)
+        starts.append(start)
+        ends.append(end)
+        lenghts.append(end - start + 1)  # Length of the oligo
+        strands.append(strand)  # Convert strand to W/C
+        types.append(oligo_type)
+        names.append(name)
+        raw_seqs.append(seq_raw)
+        snp_seqs.append(seq_snp)
+
+    df_final = pd.DataFrame({
+        "chr": chroms,
+        "start": starts,
+        "end": ends,
+        "length": lenghts,
+        "orientation": strands,
+        "type": types,
+        "name": names,
+        "sequence_original": raw_seqs,
+        "sequence_modified": snp_seqs
+    })
+
+    output_dir = os.path.dirname(design_output_raw_path)
+    filename = os.path.basename(design_output_snp_path).split('.')[0] + "_table.csv"
+    output_path = os.path.join(output_dir, filename)
+    df_final.to_csv(output_path, sep=",", index=False)
+
 def frag2(x):
     """
     if x = a get b, if x = b get a
