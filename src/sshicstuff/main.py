@@ -31,9 +31,6 @@ The subcommands are:
     filter              Filter reads from a sparse matrix and keep only pairs of reads that contain at least one
                         oligo/probe (ssdna reads vs whole genome).
 
-    genomaker           Create a chromosome artificial that is the concatenation of the
-                        annealing oligos and the enzyme sequence.
-
     merge               Merge multiple sparse matrix files into a single one.
 
     pipeline            Run the entire pipeline.
@@ -49,7 +46,9 @@ The subcommands are:
                             - rebin
                             - aggregate on centromeric and telomeric regions
 
-    design              generate oligonucleotides for single-strand Hi-C experiments (RUST based sub-module).
+    design              generate oligonucleotides for single-strand Hi-C experiments and edit reference genome.
+                        It also generates a two table, one with annealing oligo positions and the other with capture oligo
+                        positions.
 
     plot4c              Plot a 4C-like profile. Similar graph as those got with the 'view' interactive command (plotly).
 

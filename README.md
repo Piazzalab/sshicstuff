@@ -269,30 +269,6 @@ Filter reads from a sparse matrix and keep only pairs of reads that contain at l
 
         -F, --force                                             Force the overwriting of the file if it exists [default: False]
 ```
-### Genomaker
-
-Create a chromosome artificial that is the concatenation of the annealing oligos and the enzyme sequence.
-
-```
-    usage:
-        genomaker -e ENZYME -g GENOME -o OLIGO_ANNEALING [-a ADDITIONAL] [-f FRAGMENT_SIZE] [-l LINE_LENGTH]  [-s SPACER]
-
-    Arguments:
-        -e ENZYME, --enzyme ENZYME                                  Sequence of the enzyme
-
-        -g GENOME, --genome GENOME                                  Path to the genome FASTA file
-
-        -o OLIGO_ANNEALING, --oligo-annealing OLIGO_ANNEALING       Path to the annealing oligo positions CSV file
-
-    options:
-        -a ADDITIONAL, --additional ADDITIONAL                      Additional FASTA files to concatenate [default: None]
-
-        -f FRAGMENT_SIZE, --fragment-size FRAGMENT_SIZE             Size of the fragments [default: 150]
-
-        -l LINE_LENGTH, --line-length LINE_LENGTH                   Length of the lines in the FASTA file [default: 80]
-
-        -s SPACER, --spacer SPACER                                  Additional FASTA files to concatenate [default: None]
-```
 
 ### Merge
 Merge two or more sparse matrices into a single sparse matrix
@@ -347,10 +323,17 @@ Options:
           number of run to try to find the highest number of oligos [default: 20]
   -v, --verbose
           work with the reverse complement of the fasta file
-  -h, --help
-          Print help
-  -V, --version
-          Print version
+
+    --fragment-size <INT>               
+        Size of artificial fragments (default: 150)
+    --fasta-line-length <INT>           
+        FASTA line wrap (default: 80)
+    --additional-fasta <FASTA>          
+        Additional sequences to append as artificial donor 
+    --n-5-prime-deletion <INT>          
+        Trimming 5' end of modified probes for capture (default: 10)
+    --n-3-prime-deletion <INT>          
+        Trimming 3' end of modified probes for capture (default: 10)
 ```
 
 
