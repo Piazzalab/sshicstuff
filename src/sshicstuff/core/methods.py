@@ -127,6 +127,8 @@ def annealing_to_capture(
         capture_oligos.append(new_seq)
     df_capture["capture_sequence"] = capture_oligos
 
+    logger.info(f"Creation of capture oligos from annealing oligos done. ")
+
     return df_capture
 
 
@@ -679,16 +681,14 @@ def edit_genome_ref(
 
     logger.info(f"Artificial chromosome coordinates saved to {os.path.basename(annealing_outname)}")
 
-    df3 = annealing_to_capture(df2, 10, 10)
-    capture_outname = annealing_outname.lower().replace("annealing", "capture")
-    df3.to_csv(capture_outname, sep=",", index=False)
+    return df2
 
-    logger.info(f"Creation of capture oligos from annealing oligos done. ")
 
 
 def format_annealing_oligo_output(
         design_output_raw_path: str,
         design_output_snp_path: str,
+        design_output_table_path: str,
 ):
 
     df_raw = pd.read_csv(design_output_raw_path, sep="\t", header=None)
@@ -737,10 +737,12 @@ def format_annealing_oligo_output(
         "sequence_modified": snp_seqs
     })
 
-    output_dir = os.path.dirname(design_output_raw_path)
-    filename = os.path.basename(design_output_snp_path).split('.')[0] + "_table.csv"
-    output_path = os.path.join(output_dir, filename)
-    df_final.to_csv(output_path, sep=",", index=False)
+    if not os.path.exists(os.path.dirname(design_output_table_path)):
+        raise FileNotFoundError(
+            f"Output directory {os.path.dirname(design_output_table_path)} does not exist."
+        )
+
+    df_final.to_csv(design_output_table_path, sep=",", index=False)
 
 def frag2(x):
     """

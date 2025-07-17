@@ -231,14 +231,29 @@ class Design(AbstractCommand):
     Run oligo4sshic (Rust binary) and post-process with genomaker (Python).
 
     usage:
-        design [--oligo-args ...] [--genome-args ...]
+        design [<oligo4sshic args>...] [<genomaker args>...]
     """
 
     def __init__(self, command_args, global_args):
+        if "--help" in command_args or "-h" in command_args:
+            self._print_help()
+            raise SystemExit(0)
+
+        if "--version" in command_args or "-V" in command_args:
+            pass
+
         self.global_args = global_args
         self.raw_args = command_args
 
-        # 1. Separate args into two groups using known flags
+        # Define which args belong to genomaker
+        self.genome_flags = {
+            "--fragment-size",
+            "--fasta-line-length",
+            "--additional-fasta",
+            "--n-5-prime-deletion",
+            "--n-3-prime-deletion"
+        }
+
         split_idx = self._find_split_index(command_args)
         oligo_args = command_args[:split_idx]
         genome_args = command_args[split_idx:]
@@ -246,11 +261,97 @@ class Design(AbstractCommand):
         self.oligo_args = self._parse_oligo_args(oligo_args)
         self.genome_args = self._parse_genome_args(genome_args)
 
+        self.oligo4sshic_flagmap = {
+            "fasta": "--fasta",
+            "forward_intervals": "--forward-intervals",
+            "reverse_intervals": "--reverse-intervals",
+            "output_snp": "--output-snp",
+            "output_raw": "--output-raw",
+            "site": "--site",
+            "secondary_sites": "--secondary-sites",
+            "size": "--size",
+            "site_start": "--site-start",
+            "no_snp_zone": "--no-snp-zone",
+            "complementary_size": "--complementary-size",
+            "snp_number": "--snp-number",
+            "tries": "--tries",
+            "verbose": "--verbose",
+        }
+
+    def _print_help(self):
+            print("""
+    Usage:
+        sshicstuff design [oligo4sshic args] [genomaker args]
+        
+    This command is composed of two main parts :
+    
+    - I - 
+        Oligo4sshic: design oligonucleotides for single-strand Hi-C experiments
+        oligo4sshic is a Rust based program. 
+    
+    - II - 
+        Edition of the genome reference with the designed oligonucleotides
+        Generation of the artificial chromosomes with the modified sequences.
+        Format Annealing oligo table into Capture oligo table.
+
+    Here are all the required and optional arguments for both parts. PLease provide them all at once.
+    They can't be run separately.
+    
+    Oligo4sshic arguments:
+          -f, --fasta <FASTA>
+                  fasta file of the genome
+              --forward-intervals <FORWARD_INTERVALS>
+                  comma separated list of chromosomic interval to work on, on the forward strand (e.g. chr_a:1-100,chr_b:200-300) [default: all]
+              --reverse-intervals <REVERSE_INTERVALS>
+                  comma separated list of chromosomic interval to work on, on the reverse strand (e.g. chr_a:1-100,chr_b:200-300) [default: ]
+              --output-snp <OUTPUT_SNP>
+                  output file with the list of oligos sequence in fasta format with snp
+              --output-raw <OUTPUT_RAW>
+                  output file with the list of oligos sequence in fasta format without snp
+              --site <SITE>
+                  sequence of the site to look for for [default: GATC]
+              --secondary-sites <SECONDARY_SITES>
+                  comma separated list of site sequences that will be disabled by SNPs [default: CAATTG,AATATT,GANTC]
+              --size <SIZE>
+                  site of the oligonucleotides [default: 75]
+              --site-start <SITE_START>
+                  site start position withing the oligonucleotide sequences [default: 65]
+              --no-snp-zone <NO_SNP_ZONE>
+                  number of nucleotides that will not be transformed in SNPs after the site and before the end of the oligonucleotide sequences [default: 5]
+              --complementary-size <COMPLEMENTARY_SIZE>
+                  maximum number of complementary bases between two oligonucleotides [default: 7]
+              --snp-number <SNP_NUMBER>
+                  number of snp to add to the oligonucleotide sequence [default: 5]
+              --tries <TRIES>
+                  number of run to try to find the highest number of oligos [default: 20]
+          -v, --verbose
+                  work with the reverse complement of the fasta file
+
+    genome edition arguments:
+        -f, --fasta <FASTA>
+                fasta file of the genome
+                same arg as oligo4sshic (can be used for both)
+        --site <STR>
+                sequence of the site to look for for (default: GATC)
+                same arg as oligo4sshic (can be used for both)
+    
+        --fragment-size <INT>               
+                Size of artificial fragments (default: 150)
+        --fasta-line-length <INT>           
+                FASTA line wrap (default: 80)
+        --additional-fasta <FASTA>          
+                Additional sequences to append as artificial donor 
+        --n-5-prime-deletion <INT>          
+                Trimming 5' end of modified probes for capture (default: 10)
+        --n-3-prime-deletion <INT>          
+                Trimming 3' end of modified probes for capture (default: 10)
+    """)
+
+
     def _find_split_index(self, args):
-        # Split at --genome-args or first genomaker-specific flag
-        genome_flags = {"--fragment-size", "--fasta-line-length", "--additional-fasta", "--n-5-prime-deletion", "--n-3-prime-deletion"}
+        """Return the index where genomaker args begin."""
         for i, arg in enumerate(args):
-            if arg in genome_flags:
+            if arg in self.genome_flags:
                 return i
         return len(args)
 
@@ -283,16 +384,16 @@ class Design(AbstractCommand):
         return parser.parse_args(args)
 
     def execute(self):
-        # 1. Run oligo4sshic binary
         binary = "oligo4sshic"
         if shutil.which(binary) is None:
             raise FileNotFoundError(f"The binary '{binary}' is not in your PATH.")
 
-        oligo_cmd = [binary] + self.raw_args[:self._find_split_index(self.raw_args)]
+        # 1. Run oligo4sshic
+        oligo_cmd = [binary] + namespace_to_args(self.oligo_args, self.oligo4sshic_flagmap)
         logger.info("Running: %s", " ".join(oligo_cmd))
         subprocess.run(oligo_cmd, check=True)
 
-        # 2. Format output into annealing table
+        # 2. Format annealing output
         annealing_table_path = self.oligo_args.output_snp.split('.')[0] + "_table.csv"
         methods.format_annealing_oligo_output(
             design_output_raw_path=self.oligo_args.output_raw,
@@ -300,31 +401,28 @@ class Design(AbstractCommand):
             design_output_table_path=annealing_table_path
         )
 
-        # 3. Run genome ref editing
+        # 3. Genome edition
         df_annealing = methods.edit_genome_ref(
             annealing_input=annealing_table_path,
             genome_input=self.oligo_args.fasta,
             enzyme=self.oligo_args.site,
             fragment_size=self.genome_args.fragment_size,
             fasta_line_length=self.genome_args.fasta_line_length,
-            additional_fasta_path=self.genome_args.additional,
+            additional_fasta_path=self.genome_args.additional_fasta,
         )
 
-        # 4. Convert Annealing to Capture oligo file
-        if "Annealing" in annealing_table_path:
-            capture_table_path = annealing_table_path.replace("Annealing", "Capture")
-        elif "annealing" in annealing_table_path:
-            capture_table_path = annealing_table_path.replace("annealing", "capture")
-        else:
-            capture_table_path = join(dirname(annealing_table_path), "Capture_table.csv")
-        
+        # 4. Capture generation
+        capture_table_path = (
+            annealing_table_path.replace("Annealing", "Capture")
+                               .replace("annealing", "capture")
+        )
         df_capture = methods.annealing_to_capture(
             df_annealing=df_annealing,
             n_5_prime_deletion=self.genome_args.n_5_prime_deletion,
             n_3_prime_deletion=self.genome_args.n_3_prime_deletion,
         )
-
         df_capture.to_csv(capture_table_path, sep=",", index=False)
+        logger.info("[Design] Capture file saved to %s", capture_table_path)
 
 
 
