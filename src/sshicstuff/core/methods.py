@@ -687,6 +687,7 @@ def edit_genome_ref(
 def format_annealing_oligo_output(
         design_output_raw_path: str,
         design_output_snp_path: str,
+        rm: bool = True
 ):
 
     df_raw = pd.read_csv(design_output_raw_path, sep="\t", header=None)
@@ -734,6 +735,10 @@ def format_annealing_oligo_output(
         "sequence_original": raw_seqs,
         "sequence_modified": snp_seqs
     })
+
+    if rm:
+        os.remove(design_output_raw_path)
+        os.remove(design_output_snp_path)
 
     return df_final
 
