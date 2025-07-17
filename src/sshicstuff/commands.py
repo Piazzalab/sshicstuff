@@ -2,9 +2,10 @@
 This module contains the commands of the program.
 """
 
-import os
+import argparse
 import shutil
 import subprocess
+from os.path import exists, dirname, join
 
 from docopt import docopt
 
@@ -24,11 +25,26 @@ logger = log.logger
 def check_exists(*args):
     """Check if a file exists."""
     for file_path in args:
-        if os.path.exists(file_path):
+        if exists(file_path):
             return
         else:
             logger.error("File %s does not exist.", file_path)
             raise FileNotFoundError(f"File {file_path} does not exist.")
+
+
+def namespace_to_args(namespace, arg_map):
+    """Convert argparse.Namespace to CLI argument list using mapping."""
+    args = []
+    for key, val in vars(namespace).items():
+        if val is None or val is False:
+            continue
+        flag = arg_map[key]
+        if isinstance(val, bool):
+            args.append(flag)
+        else:
+            args.extend([flag, str(val)])
+    return args
+
 
 
 class AbstractCommand:
@@ -210,6 +226,108 @@ class Coverage(AbstractCommand):
         )
 
 
+class Design(AbstractCommand):
+    """
+    Run oligo4sshic (Rust binary) and post-process with genomaker (Python).
+
+    usage:
+        design [--oligo-args ...] [--genome-args ...]
+    """
+
+    def __init__(self, command_args, global_args):
+        self.global_args = global_args
+        self.raw_args = command_args
+
+        # 1. Separate args into two groups using known flags
+        split_idx = self._find_split_index(command_args)
+        oligo_args = command_args[:split_idx]
+        genome_args = command_args[split_idx:]
+
+        self.oligo_args = self._parse_oligo_args(oligo_args)
+        self.genome_args = self._parse_genome_args(genome_args)
+
+    def _find_split_index(self, args):
+        # Split at --genome-args or first genomaker-specific flag
+        genome_flags = {"--fragment-size", "--fasta-line-length", "--additional-fasta", "--n-5-prime-deletion", "--n-3-prime-deletion"}
+        for i, arg in enumerate(args):
+            if arg in genome_flags:
+                return i
+        return len(args)
+
+    def _parse_oligo_args(self, args):
+        parser = argparse.ArgumentParser(prog="oligo4sshic", add_help=False)
+        parser.add_argument("-f", "--fasta", required=True)
+        parser.add_argument("--forward-intervals")
+        parser.add_argument("--reverse-intervals")
+        parser.add_argument("--output-snp", required=True)
+        parser.add_argument("--output-raw", required=True)
+        parser.add_argument("--site", default="GATC")
+        parser.add_argument("--secondary-sites", default="CAATTG,AATATT,GANTC")
+        parser.add_argument("--size", type=int, default=75)
+        parser.add_argument("--site-start", type=int, default=65)
+        parser.add_argument("--no-snp-zone", type=int, default=5)
+        parser.add_argument("--complementary-size", type=int, default=7)
+        parser.add_argument("--snp-number", type=int, default=5)
+        parser.add_argument("--tries", type=int, default=20)
+        parser.add_argument("-v", "--verbose", action="store_true")
+        parser.add_argument("-V", "--version", action="store_true")
+        return parser.parse_args(args)
+
+    def _parse_genome_args(self, args):
+        parser = argparse.ArgumentParser(prog="genomaker", add_help=False)
+        parser.add_argument("--fragment-size", type=int, default=150)
+        parser.add_argument("--fasta-line-length", type=int, default=80)
+        parser.add_argument("--additional-fasta", default=None)
+        parser.add_argument("--n-5-prime-deletion", type=int, default=10)
+        parser.add_argument("--n-3-prime-deletion", type=int, default=10)
+        return parser.parse_args(args)
+
+    def execute(self):
+        # 1. Run oligo4sshic binary
+        binary = "oligo4sshic"
+        if shutil.which(binary) is None:
+            raise FileNotFoundError(f"The binary '{binary}' is not in your PATH.")
+
+        oligo_cmd = [binary] + self.raw_args[:self._find_split_index(self.raw_args)]
+        logger.info("Running: %s", " ".join(oligo_cmd))
+        subprocess.run(oligo_cmd, check=True)
+
+        # 2. Format output into annealing table
+        annealing_table_path = self.oligo_args.output_snp.split('.')[0] + "_table.csv"
+        methods.format_annealing_oligo_output(
+            design_output_raw_path=self.oligo_args.output_raw,
+            design_output_snp_path=self.oligo_args.output_snp,
+            design_output_table_path=annealing_table_path
+        )
+
+        # 3. Run genome ref editing
+        df_annealing = methods.edit_genome_ref(
+            annealing_input=annealing_table_path,
+            genome_input=self.oligo_args.fasta,
+            enzyme=self.oligo_args.site,
+            fragment_size=self.genome_args.fragment_size,
+            fasta_line_length=self.genome_args.fasta_line_length,
+            additional_fasta_path=self.genome_args.additional,
+        )
+
+        # 4. Convert Annealing to Capture oligo file
+        if "Annealing" in annealing_table_path:
+            capture_table_path = annealing_table_path.replace("Annealing", "Capture")
+        elif "annealing" in annealing_table_path:
+            capture_table_path = annealing_table_path.replace("annealing", "capture")
+        else:
+            capture_table_path = join(dirname(annealing_table_path), "Capture_table.csv")
+        
+        df_capture = methods.annealing_to_capture(
+            df_annealing=df_annealing,
+            n_5_prime_deletion=self.genome_args.n_5_prime_deletion,
+            n_3_prime_deletion=self.genome_args.n_3_prime_deletion,
+        )
+
+        df_capture.to_csv(capture_table_path, sep=",", index=False)
+
+
+
 class Dsdnaonly(AbstractCommand):
     """
     Filter the sparse matrix by removing all the ss DNA specific contacts.
@@ -282,61 +400,6 @@ class Filter(AbstractCommand):
         )
 
 
-class Genomaker(AbstractCommand):
-    """
-    Create a chromosome artificial that is the concatenation of the annealing oligos and the enzyme sequence.
-    Place the newly created chromosome at the end of the genome file.
-    Possible to concatenate additional FASTA files to the genome file.
-    You can specify the rules for the concatenation.
-
-    usage:
-        genomaker -e ENZYME -g GENOME -o OLIGO_ANNEALING [-a ADDITIONAL] [-f FRAGMENT_SIZE] [-l LINE_LENGTH]
-
-    Arguments:
-        -e ENZYME, --enzyme ENZYME                                  Sequence of the enzyme
-
-        -g GENOME, --genome GENOME                                  Path to the genome FASTA file
-
-        -o OLIGO_ANNEALING, --oligo-annealing OLIGO_ANNEALING       Path to the annealing oligo positions CSV file
-
-    options:
-        -a ADDITIONAL, --additional ADDITIONAL                      Additional FASTA files to concatenate [default: None]
-
-        -f FRAGMENT_SIZE, --fragment-size FRAGMENT_SIZE             Size of the fragments [default: 150]
-
-        -l LINE_LENGTH, --line-length LINE_LENGTH                   Length of the lines in the FASTA file [default: 80]
-    """
-
-    def execute(self):
-        check_exists(self.args["--oligo-annealing"], self.args["--genome"])
-        if self.args["--additional"] != 'None':
-            check_exists(self.args["--additional"])
-            additional = self.args["--additional"]
-        else:
-            additional = None
-
-
-        if self.args["--fragment-size"] != 'None':
-            fragment_size = int(self.args["--fragment-size"])
-        else:
-            fragment_size = None
-
-        if self.args["--line-length"] != 'None':
-            line_length = int(self.args["--line-length"])
-        else:
-            line_length = None
-
-
-        methods.edit_genome_ref(
-            self.args["--oligo-annealing"],
-            self.args["--genome"],
-            self.args["--enzyme"],
-            fragment_size=fragment_size,
-            fasta_line_length=line_length,
-            additional_fasta_path=additional,
-        )
-
-
 class Merge(AbstractCommand):
     """
     Merge two or more sparse matrices into a single sparse matrix
@@ -363,53 +426,6 @@ class Merge(AbstractCommand):
             output_path=self.args["--output"],
             force=self.args["--force"],
             matrices=matrices,
-        )
-
-class Design(AbstractCommand):
-    """
-    Run the Rust-based oligo4sshic module (by Laurent Modolo).
-
-    usage:
-        design [<args>...]
-    """
-    def __init__(self, command_args, global_args):
-        # Bypass docopt parsing completely
-        self.args = {"<args>": command_args}
-        self.global_args = global_args
-
-    def execute(self):
-        binary = "oligo4sshic"
-
-        # Check if binary is in PATH
-        if shutil.which(binary) is None:
-            logger.error("The binary '%s' was not found in your PATH.", binary)
-            print(f"Error: The binary '{binary}' is not installed or not in your PATH.")
-            raise SystemExit(1)
-
-        # Print version
-        try:
-            version_output = subprocess.check_output([binary, "--version"], text=True)
-            print(f"{binary} version:\n{version_output.strip()}")
-        except subprocess.CalledProcessError as e:
-            logger.warning("Failed to retrieve version of %s: %s", binary, e)
-
-        # Run with provided args
-        logger.info("Running oligo4sshic with args: %s", self.args["<args>"])
-        try:
-            subprocess.run([binary] + self.args["<args>"], check=True)
-        except subprocess.CalledProcessError as e:
-            logger.error("Oligo4sshic failed with error: %s", e)
-            raise SystemExit(e.returncode)
-
-        # wrapper to change the output format
-        output_raw_path = self.args["<args>"][self.args["<args>"].index("--output-raw") + 1] if "--output-raw" in self.args["<args>"] else None
-        output_snp_path = self.args["<args>"][self.args["<args>"].index("--output-snp") + 1] if "--output-snp" in self.args["<args>"] else None
-        check_exists(output_raw_path)
-        check_exists(output_snp_path)
-
-        methods.format_annealing_oligo_output(
-            design_output_raw_path=output_raw_path,
-            design_output_snp_path=output_snp_path,
         )
 
 
