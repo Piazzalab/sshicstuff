@@ -512,7 +512,7 @@ def detect_delimiter(path: str):
 
 
 def edit_genome_ref(
-    annealing_input: str,
+    df_annealing: pd.DataFrame,
     genome_input: str,
     enzyme: str,
     fragment_size: int = 150,
@@ -527,8 +527,8 @@ def edit_genome_ref(
     Parameters
     ----------
 
-    annealing_input : str
-        Path to the annealing oligo input CSV file.
+    df_annealing : pd.DataFrame
+        DataFrame containing the annealing oligo sequences and positions.
     genome_input : str
         Path to the original genome .FASTA file.
     enzyme : str
@@ -552,8 +552,7 @@ def edit_genome_ref(
         enzyme,
     )
 
-    df = pd.read_csv(annealing_input, sep=",")
-    ssdna_seq_series = df[df["type"] == "ss"]["sequence_modified"]
+    ssdna_seq_series = df_annealing[df_annealing["type"] == "ss"]["sequence_modified"]
     ssdna_seq = [seq.lower() for seq in ssdna_seq_series.values]
 
     lg = fasta_line_length
@@ -639,7 +638,7 @@ def edit_genome_ref(
 
     lengths = [end - start for start, end in zip(chr_arti_starts, chr_arti_ends)]
 
-    df2 = df[df["type"] == "ss"].copy()
+    df2 = df_annealing[df_annealing["type"] == "ss"].copy()
     df2.rename(columns={
         "chr": "chr_ori",
         "start": "start_ori",
@@ -668,10 +667,10 @@ def edit_genome_ref(
     df2 = df2[order_col]
 
     # Add back ds control (not on artificial chromosome)
-    df_dsdna = df[df["type"] == "ds"].copy()
+    df_dsdna = df_annealing[df_annealing["type"] == "ds"].copy()
     df2 = pd.concat([df2, df_dsdna], ignore_index=True)
 
-    annealing_outname = annealing_input.replace(".csv", "_artificial.csv")
+    annealing_outname = os.path.join(basedir, "annealing_oligos_positions.csv")
 
     df2.to_csv(
         annealing_outname,
@@ -688,7 +687,6 @@ def edit_genome_ref(
 def format_annealing_oligo_output(
         design_output_raw_path: str,
         design_output_snp_path: str,
-        design_output_table_path: str,
 ):
 
     df_raw = pd.read_csv(design_output_raw_path, sep="\t", header=None)
@@ -737,12 +735,7 @@ def format_annealing_oligo_output(
         "sequence_modified": snp_seqs
     })
 
-    if not os.path.exists(os.path.dirname(design_output_table_path)):
-        raise FileNotFoundError(
-            f"Output directory {os.path.dirname(design_output_table_path)} does not exist."
-        )
-
-    df_final.to_csv(design_output_table_path, sep=",", index=False)
+    return df_final
 
 def frag2(x):
     """

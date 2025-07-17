@@ -394,16 +394,14 @@ class Design(AbstractCommand):
         subprocess.run(oligo_cmd, check=True)
 
         # 2. Format annealing output
-        annealing_table_path = self.oligo_args.output_snp.split('.')[0] + "_table.csv"
-        methods.format_annealing_oligo_output(
+        df_annealing = methods.format_annealing_oligo_output(
             design_output_raw_path=self.oligo_args.output_raw,
             design_output_snp_path=self.oligo_args.output_snp,
-            design_output_table_path=annealing_table_path
         )
 
         # 3. Genome edition
-        df_annealing = methods.edit_genome_ref(
-            annealing_input=annealing_table_path,
+        df_annealing2 = methods.edit_genome_ref(
+            df_annealing=df_annealing,
             genome_input=self.oligo_args.fasta,
             enzyme=self.oligo_args.site,
             fragment_size=self.genome_args.fragment_size,
@@ -412,17 +410,14 @@ class Design(AbstractCommand):
         )
 
         # 4. Capture generation
-        capture_table_path = (
-            annealing_table_path.replace("Annealing", "Capture")
-                               .replace("annealing", "capture")
-        )
+        capture_path = join(dirname(self.oligo_args.fasta), "capture_oligos_positions.tsv")
         df_capture = methods.annealing_to_capture(
-            df_annealing=df_annealing,
+            df_annealing=df_annealing2,
             n_5_prime_deletion=self.genome_args.n_5_prime_deletion,
             n_3_prime_deletion=self.genome_args.n_3_prime_deletion,
         )
-        df_capture.to_csv(capture_table_path, sep=",", index=False)
-        logger.info("[Design] Capture file saved to %s", capture_table_path)
+        df_capture.to_csv(capture_path, sep=",", index=False)
+        logger.info("[Design] Capture file saved to %s", capture_path)
 
 
 
