@@ -20,9 +20,9 @@ app.layout = html.Div([
     dbc.Row(
         dbc.Col(html.H1("ssDNA specific Hi-C graphical suite"), width=12, style={'textAlign': 'center', 'margin': '20px'})
     ),
-    dcc.Tabs(id="tabs", value='browser-tab', children=[
-        dcc.Tab(label='ssHiC Browser', value='browser-tab'),
+    dcc.Tabs(id="tabs", value='oligo-tab', children=[
         dcc.Tab(label='Oligo Designer', value='oligo-tab'),
+        dcc.Tab(label='ssHiC Browser', value='browser-tab'),
     ], style={'bottom': '50px', 'margin': '20px'}),
     html.Div(id='tabs-content')
 ])
@@ -33,8 +33,8 @@ app.layout = html.Div([
 )
 def render_tab_content(tab):
     return html.Div([
-        html.Div(lb.layout, style={'display': 'block' if tab == 'browser-tab' else 'none'}),
         html.Div(lo.layout, style={'display': 'block' if tab == 'oligo-tab' else 'none'}),
+        html.Div(lb.layout, style={'display': 'block' if tab == 'browser-tab' else 'none'}),
     ])
 
 

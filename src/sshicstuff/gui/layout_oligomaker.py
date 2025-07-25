@@ -42,24 +42,8 @@ layout = html.Div(id="oligo-page", children=[
             ], width=2, style={'margin-top': '50px', 'margin-bottom': '20px'}),
 
             dbc.Col([
-                html.H6('Output file name with SNPs', style={'text-align': 'center'}),
-                dcc.Input(
-                    id='output-snp-file',
-                    placeholder="Output file name",
-                    value="output_snp.fa",
-                    className="custom-input"
-                ),
-            ], width=3, style={'margin-top': '0px', 'margin-bottom': '20px'}),
-
-            dbc.Col([
-                html.H6('Output file name without SNPs', style={'text-align': 'center'}),
-                dcc.Input(
-                    id='output-no-snp-file',
-                    placeholder="Output file name",
-                    value="output_no_snp.fa",
-                    className="custom-input"
-                ),
-            ], width=3, style={'margin-top': '0px', 'margin-bottom': '20px'}),
+                html.Button("Submit", id="submit-button", className="btn btn-primary custom-submit-btn")
+            ], width=2, style={'text-align': 'center', 'margin-top': '10px', 'margin-bottom': '10px'}),
         ]),
 
         dbc.Row([
@@ -218,19 +202,15 @@ layout = html.Div(id="oligo-page", children=[
                 ], style={'margin-top': '20px'}),
             ]),
         ]),
-        # Submit Button
-        dbc.Row([
-            dbc.Col([
-                html.Button("Submit", id="submit-button", className="btn btn-primary custom-submit-btn")
-            ], width=2, style={'text-align': 'center', 'margin-top': '10px', 'margin-bottom': '10px'}),
-        ], style={'margin-top': '20px'}),
 
-        # Export
         dbc.Row([
             dbc.Col([
-                dcc.Download(id="download-snp"),
-                dcc.Download(id="download-no-snp"),
-            ], width=4, style={'margin-top': '20px'}),
-        ]),
+                html.Hr(),
+                html.H4("Output Preview"),
+                html.Div(id="output-table-container"),
+                html.Button("Download TSV", id="download-button", className="btn btn-primary custom-download-btn"),
+                dcc.Download(id="download-dataframe-tsv")
+            ], width=12)
+        ])
     ])
 ], style={'margin-top': '20px', 'margin-bottom': '20px'})

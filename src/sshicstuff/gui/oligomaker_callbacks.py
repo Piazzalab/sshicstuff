@@ -1,10 +1,14 @@
 import base64
 import os
 import subprocess
+import pandas as pd
+from dash import dash_table
 
 import dash_bootstrap_components as dbc
 from dash import callback, ctx, dcc, html
 from dash.dependencies import Input, Output, State, ALL
+
+from sshicstuff.core.methods import format_annealing_oligo_output
 
 __CACHE_DIR__ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__cache__")
 
@@ -241,12 +245,9 @@ def update_trials_value(value):
 
 @callback(
     Output("alert-submit", "children"),
-    Output("download-snp", "data"),
-    Output("download-no-snp", "data"),
+    Output("output-table-container", "children"),
     Input("submit-button", "n_clicks"),
     State("genome-fasta-dropdown", "value"),
-    State("output-snp-file", "value"),
-    State("output-no-snp-file", "value"),
     State("chromosome-region-container", "children"),
     State("site", "value"),
     State("secondary-site-container", "children"),
@@ -260,9 +261,7 @@ def update_trials_value(value):
 )
 def run_oligo4sshic(
     n_clicks, 
-    fasta, 
-    output_snp,
-    output_no_snp,
+    fasta,
     regions, 
     site, 
     secondary_sites, 
@@ -278,10 +277,6 @@ def run_oligo4sshic(
     
     if not fasta:
         missing_args.append("--fasta")
-    if not output_snp:
-        missing_args.append("--output-snp")
-    if not output_no_snp:
-        missing_args.append("--output-raw")
     if not site:
         missing_args.append("--site")
     if not size:
@@ -341,8 +336,9 @@ def run_oligo4sshic(
         secondary_sites = None
 
     fasta_path = os.path.join(__CACHE_DIR__, fasta)
-    output_snp_path = os.path.join(__CACHE_DIR__, output_snp)
-    output_raw_path = os.path.join(__CACHE_DIR__, output_no_snp)
+    output_snp_path = os.path.join(__CACHE_DIR__, "output_tmp_snp.tsv")
+    output_raw_path = os.path.join(__CACHE_DIR__, "output_tmp_raw.tsv")
+    output_df_path = os.path.join(__CACHE_DIR__, "oligo4sshic_output.tsv")
 
     arguments = {}
     arguments["--fasta"] = fasta_path
@@ -369,5 +365,38 @@ def run_oligo4sshic(
         success_alert = dbc.Alert(f"Execution successful! Output:\n{result.stdout}", color="success", dismissable=True)
     except subprocess.CalledProcessError as e:
         success_alert = dbc.Alert(f"Execution failed! Error:\n{e.stderr}", color="danger", dismissable=True)
-    
-    return success_alert, dcc.send_file(output_snp_path), dcc.send_file(output_raw_path)
+
+    dcc.send_file(output_snp_path)
+    dcc.send_file(output_raw_path)
+    if not os.path.isfile(output_snp_path) or not os.path.isfile(output_raw_path):
+        raise FileNotFoundError(f"Output file {output_snp_path} not found")
+
+    df_oligo = format_annealing_oligo_output(
+        output_raw_path,
+        output_snp_path,
+        rm=False
+    )
+
+    df_oligo.to_csv(output_df_path, sep="\t", index=False)
+
+    preview_table = dash_table.DataTable(
+        data=df_oligo.head(10).to_dict("records"),
+        columns=[{"name": i, "id": i} for i in df_oligo.columns],
+        page_size=10,
+        style_table={'overflowX': 'auto'},
+        style_cell={'textAlign': 'left'},
+    )
+
+    return success_alert, preview_table
+
+
+@callback(
+    Output("download-dataframe-tsv", "data"),
+    Input("download-button", "n_clicks"),
+    prevent_initial_call=True
+)
+def download_final_df(n_clicks):
+    output_file= os.path.join(__CACHE_DIR__, "oligo4sshic_output.tsv")
+    if os.path.isfile(output_file):
+        return dcc.send_file(output_file)
+    return None
