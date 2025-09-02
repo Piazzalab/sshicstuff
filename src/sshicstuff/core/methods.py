@@ -864,7 +864,7 @@ def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: 
 
     for row in df_groups.itertuples(index=False):
         # Split the comma-separated probes and map each probe to its fragment identifier as string.
-        group_probes = row.probes.split(",")
+        group_probes = re.findall(r"[A-Za-z0-9_-]+", row.probes)
         group_frags = np.unique([str(prob2frag.get(probe, probe)) for probe in group_probes])
         group_name = "$" + row.name.lower()
 
