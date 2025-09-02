@@ -22,15 +22,6 @@ def test_subsample():
     proc.execute()
 
 
-def test_genomaker():
-    add_chr_donor = join(TESTDIR, "chr_artificial_donor.fa")
-    args = (
-        "-e {0} -g {1} -o {2} -a {3} -s N -l 80 -f 150"
-    ).format(DPNII, GENOME, ANNEALING, add_chr_donor)
-    proc = shcmd.Genomaker(args.split(" "), {})
-    proc.execute()
-
-
 def test_associate():
     args = (
         "-f {0} -o {1} -F"

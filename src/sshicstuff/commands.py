@@ -228,7 +228,8 @@ class Coverage(AbstractCommand):
 
 class Design(AbstractCommand):
     """
-    Run oligo4sshic (Rust binary) and post-process with genomaker (Python).
+    Run oligo4sshic (Rust binary) and post-process genome fasta edition
+    with the designed oligonucleotides.
 
     usage:
         design [<oligo4sshic args>...] [<genomaker args>...]
@@ -245,7 +246,7 @@ class Design(AbstractCommand):
         self.global_args = global_args
         self.raw_args = command_args
 
-        # Define which args belong to genomaker
+        # Define which args belong to genome edition part (genomaker)
         self.genome_flags = {
             "--fragment-size",
             "--fasta-line-length",
@@ -261,6 +262,7 @@ class Design(AbstractCommand):
         self.oligo_args = self._parse_oligo_args(oligo_args)
         self.genome_args = self._parse_genome_args(genome_args)
 
+        # Mapping from argparse argument names to oligo4sshic CLI flags
         self.oligo4sshic_flagmap = {
             "fasta": "--fasta",
             "forward_intervals": "--forward-intervals",
@@ -418,7 +420,6 @@ class Design(AbstractCommand):
         )
         df_capture.to_csv(capture_path, sep=",", index=False)
         logger.info("[Design] Capture file saved to %s", capture_path)
-
 
 
 class Dsdnaonly(AbstractCommand):
@@ -581,10 +582,10 @@ class Pipeline(AbstractCommand):
                                                             [default: 50000]
 
         --binning-aggregate-cen BIN_CEN                     Binning size of the aggregated profiles to use
-                                                            for CENTROMERES
+                                                            for CENTROMERES [default: 10000]
 
         --binning-aggregate-telo BIN_TELO                   Binning size of the aggregated profiles to use
-                                                            for TELOMERES
+                                                            for TELOMERES [default: 1000]
 
         --copy-inputs                                       Copy inputs files for reproducibility [default: True]
 

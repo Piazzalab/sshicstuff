@@ -79,12 +79,13 @@ The subcommands are:
 
     dsdnaconly          Keep only Hi-C (dsdna sites) reads from a sparse matrix file (i.e., remove all ssDNA reads).
                         Generate a new sparse matrix file with only dsDNA reads.
+                        
+    design              Wrapper to call oligo4sshic program to design oligonucleotides for ssHi-C experiments 
+                        and generate the oligo capture file. Genome FASTA file edition with artificial 
+                        chromosome containing the oligos.
 
     filter              Filter reads from a sparse matrix and keep only pairs of reads that contain at least one
                         oligo/probe (ssdna reads vs whole genome).
-
-    genomaker           Create a chromosome artificial that is the concatenation of the
-                        annealing oligos and the enzyme sequence.
 
     merge               Merge multiple sparse matrix files into a single one.
 
