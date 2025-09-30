@@ -514,6 +514,7 @@ def detect_delimiter(path: str):
 def edit_genome_ref(
     df_annealing: pd.DataFrame,
     genome_input: str,
+    output_dir: str,
     enzyme: str,
     fragment_size: int = 150,
     fasta_line_length: int = 60,
@@ -531,6 +532,8 @@ def edit_genome_ref(
         DataFrame containing the annealing oligo sequences and positions.
     genome_input : str
         Path to the original genome .FASTA file.
+    output_dir: str
+        Path to the output directory.
     enzyme : str
         Restriction Enzyme sequence (e.g., dpnII sequence : gatc).
     fragment_size : int, default=150
@@ -543,7 +546,7 @@ def edit_genome_ref(
     """
     fasta_spacer = "N"
     basedir = os.path.dirname(genome_input)
-    artificial_chr_path = os.path.join(basedir, "chr_artificial_ssDNA.fa")
+    artificial_chr_path = os.path.join(output_dir, "chr_artificial_ssDNA.fa")
 
     # Creating the artificial chromosome using annealing oligo sequences
     # and the enzyme sequence
@@ -612,8 +615,7 @@ def edit_genome_ref(
 
         # Concatenate the strings
         new_genome += "\n" + add_fasta
-
-    new_genome_output = genome_input.replace(".fa", "_artificial.fa")
+    new_genome_output = join(output_dir, genome_name.replace(".fa", "_artificial.fa"))
     with open(new_genome_output, "w", encoding="utf-8") as f:
         f.write(new_genome)
 
@@ -670,7 +672,7 @@ def edit_genome_ref(
     df_dsdna = df_annealing[df_annealing["type"] == "ds"].copy()
     df2 = pd.concat([df2, df_dsdna], ignore_index=True)
 
-    annealing_outname = os.path.join(basedir, "annealing_oligos_positions.csv")
+    annealing_outname = os.path.join(output_dir, "annealing_oligos_positions.csv")
 
     df2.to_csv(
         annealing_outname,
@@ -687,7 +689,6 @@ def edit_genome_ref(
 def format_annealing_oligo_output(
         design_output_raw_path: str,
         design_output_snp_path: str,
-        rm: bool = True
 ):
 
     df_raw = pd.read_csv(design_output_raw_path, sep="\t", header=None)
@@ -735,10 +736,6 @@ def format_annealing_oligo_output(
         "sequence_original": raw_seqs,
         "sequence_modified": snp_seqs
     })
-
-    if rm:
-        os.remove(design_output_raw_path)
-        os.remove(design_output_snp_path)
 
     return df_final
 

@@ -3,6 +3,7 @@ This module contains the commands of the program.
 """
 
 import argparse
+import os
 import shutil
 import subprocess
 from os.path import exists, dirname, join
@@ -387,6 +388,8 @@ class Design(AbstractCommand):
 
     def execute(self):
         binary = "oligo4sshic"
+        output_dir = dirname(self.oligo_args.output_raw)
+        os.makedirs(output_dir, exist_ok=True)
         if shutil.which(binary) is None:
             raise FileNotFoundError(f"The binary '{binary}' is not in your PATH.")
 
@@ -405,6 +408,7 @@ class Design(AbstractCommand):
         df_annealing2 = methods.edit_genome_ref(
             df_annealing=df_annealing,
             genome_input=self.oligo_args.fasta,
+            output_dir=output_dir,
             enzyme=self.oligo_args.site,
             fragment_size=self.genome_args.fragment_size,
             fasta_line_length=self.genome_args.fasta_line_length,
@@ -412,7 +416,7 @@ class Design(AbstractCommand):
         )
 
         # 4. Capture generation
-        capture_path = join(dirname(self.oligo_args.fasta), "capture_oligos_positions.tsv")
+        capture_path = join(output_dir, "capture_oligos_positions.tsv")
         df_capture = methods.annealing_to_capture(
             df_annealing=df_annealing2,
             n_5_prime_deletion=self.genome_args.n_5_prime_deletion,
