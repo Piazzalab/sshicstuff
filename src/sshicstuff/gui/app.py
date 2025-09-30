@@ -39,4 +39,5 @@ def render_tab_content(tab):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    # Bind to all interfaces so Docker can publish it
+    app.run_server(host="0.0.0.0", port=8050, debug=True)
