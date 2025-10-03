@@ -3,20 +3,16 @@ Browser callbacks
 """
 import os
 import re
-from os.path import join
 
 import pandas as pd
 import plotly.io as pio
 from dash import callback, dcc
 from dash.dependencies import Input, Output, State
 
-from sshicstuff.core.methods import uploaded_files_cache, save_file_cache
+from sshicstuff.core.methods import uploaded_files_cache, save_file_cache, __CACHE_DIR__
 from sshicstuff.core.plot import empty_figure, figure_maker
 
-__INSTALL_DIR__ = os.path.dirname(os.path.abspath(__file__))
-__CACHE_DIR__ = join(__INSTALL_DIR__, "__cache__")
 CHR_ARTIFICIAL_EXCLUSION = ["chr_artificial_donor", "chr_artificial_ssDNA"]
-os.makedirs(__CACHE_DIR__, exist_ok=True)
 
 
 @callback(

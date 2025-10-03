@@ -1,19 +1,13 @@
 import base64
 import os
 import subprocess
-import pandas as pd
 from dash import dash_table
 
 import dash_bootstrap_components as dbc
 from dash import callback, ctx, dcc, html
 from dash.dependencies import Input, Output, State, ALL
 
-from sshicstuff.core.methods import format_annealing_oligo_output
-
-__CACHE_DIR__ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__cache__")
-
-if not os.path.exists(__CACHE_DIR__):
-    os.makedirs(__CACHE_DIR__)
+from sshicstuff.core.methods import format_annealing_oligo_output, __CACHE_DIR__
 
 
 def list_cached_files():
@@ -374,7 +368,6 @@ def run_oligo4sshic(
     df_oligo = format_annealing_oligo_output(
         output_raw_path,
         output_snp_path,
-        rm=False
     )
 
     df_oligo.to_csv(output_df_path, sep="\t", index=False)

@@ -10,7 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
-from os.path import join
+from os.path import join, dirname
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +25,11 @@ logger = log.logger
 pd.options.mode.chained_assignment = None
 
 pio.kaleido.scope.mathjax = None
+
+# global variables
+__PROJECT_DIR__ = dirname(dirname(os.path.abspath(__file__)))
+__CACHE_DIR__ = join(__PROJECT_DIR__, "__cache__")
+os.makedirs(__CACHE_DIR__, exist_ok=True)
 
 
 def associate_oligo_to_frag(
