@@ -16,11 +16,9 @@ from sshicstuff.core.plot import empty_figure, figure_maker
 __INSTALL_DIR__ = os.path.dirname(os.path.abspath(__file__))
 __CACHE_DIR__ = join(__INSTALL_DIR__, "__cache__")
 CHR_ARTIFICIAL_EXCLUSION = ["chr_artificial_donor", "chr_artificial_ssDNA"]
+os.makedirs(__CACHE_DIR__, exist_ok=True)
 
 
-if not os.path.exists(__CACHE_DIR__):
-    os.makedirs(__CACHE_DIR__)
-    
 @callback(
     Output('binning-slider-output-container', 'children'),
     [Input('binning-slider', 'value')])

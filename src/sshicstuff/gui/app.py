@@ -36,8 +36,3 @@ def render_tab_content(tab):
         html.Div(lo.layout, style={'display': 'block' if tab == 'oligo-tab' else 'none'}),
         html.Div(lb.layout, style={'display': 'block' if tab == 'browser-tab' else 'none'}),
     ])
-
-
-if __name__ == '__main__':
-    # Bind to all interfaces so Docker can publish it
-    app.run_server(host="0.0.0.0", port=8050, debug=True)

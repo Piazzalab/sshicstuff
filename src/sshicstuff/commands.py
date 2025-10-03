@@ -19,9 +19,9 @@ import sshicstuff.core.profile as prof
 import sshicstuff.core.stats as stats
 import sshicstuff.log as log
 from sshicstuff.gui.app import app
+from sshicstuff.gui.browser_callbacks import __CACHE_DIR__
 
 logger = log.logger
-
 
 def check_exists(*args):
     """Check if a file exists."""
@@ -997,4 +997,6 @@ class View(AbstractCommand):
     """
 
     def execute(self):
-        app.run_server(debug=True)
+        logger.info("Launching the graphical interface...")
+        logger.info("Cache directory: %s", __CACHE_DIR__)
+        app.run_server(host="0.0.0.0", port=8050, debug=True, use_reloader=False)
