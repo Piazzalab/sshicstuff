@@ -63,4 +63,4 @@ EXPOSE 8050
 
 # The CLI name exposed by your pyproject's [project.scripts] -> "sshicstuff = sshicstuff.__main__:main"
 ENTRYPOINT ["sshicstuff"]
-CMD ["-h"]
+CMD ["view"]
