@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 from os.path import join, dirname
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -132,7 +133,7 @@ def annealing_to_capture(
         capture_oligos.append(new_seq)
     df_capture["sequence"] = capture_oligos
 
-    logger.info(f"Creation of capture oligos from annealing oligos done. ")
+    logger.info(f"[Design] Creation of capture oligos from annealing oligos done. ")
 
     return df_capture
 
@@ -523,6 +524,7 @@ def edit_genome_ref(
     enzyme: str,
     fragment_size: int = 150,
     fasta_line_length: int = 60,
+    artificial_chr_path: str = None,
     additional_fasta_path: str = None,
 ):
     """
@@ -551,12 +553,13 @@ def edit_genome_ref(
     """
     fasta_spacer = "N"
     basedir = os.path.dirname(genome_input)
-    artificial_chr_path = os.path.join(output_dir, "chr_artificial_ssDNA.fa")
+    if not artificial_chr_path:
+        artificial_chr_path = os.path.join(output_dir, "chr_artificial_ssDNA.fa")
 
     # Creating the artificial chromosome using annealing oligo sequences
     # and the enzyme sequence
     logger.info(
-        "Creating the artificial chromosome with the annealing oligo and the enzyme %s",
+        "[Design] Creating the artificial chromosome with the annealing oligo and the enzyme %s",
         enzyme,
     )
 
@@ -587,10 +590,14 @@ def edit_genome_ref(
     with open(artificial_chr_path, "w", encoding="utf-8") as f:
         f.write(fasta)
 
+    logger.info(
+        f"[Design] Artificial chromosome coordinates saved to {os.path.basename(artificial_chr_path)}"
+    )
+
     # Inserting the artificial chromosome at the end of the genome .FASTA file
     genome_name = os.path.basename(genome_input)
     logger.info(
-        "Inserting the artificial chromosome at the end of the original genome .FASTA file"
+        "[Design] Inserting the artificial chromosome at the end of the original genome .FASTA file"
     )
     with open(genome_input, "r", encoding="utf-8") as f:
         genome = f.read()
@@ -600,11 +607,11 @@ def edit_genome_ref(
     # Concatenate with additional FASTA sequence(s), if any
     if additional_fasta_path:
         logger.info(
-            "Looking for additional FASTA sequence(s) to concatenate with %s",
+            "[Design] Looking for additional FASTA sequence(s) to concatenate with %s",
             genome_name,
         )
         add_fasta_name = os.path.basename(additional_fasta_path)
-        logger.info("Concatenating %s with the genome .FASTA file", add_fasta_name)
+        logger.info("[Design] Concatenating %s with the genome .FASTA file", add_fasta_name)
         with open(additional_fasta_path, "r", encoding="utf-8") as f:
             add_fasta = f.read()
 
@@ -623,10 +630,6 @@ def edit_genome_ref(
     new_genome_output = join(output_dir, genome_name.replace(".fa", "_artificial.fa"))
     with open(new_genome_output, "w", encoding="utf-8") as f:
         f.write(new_genome)
-
-    logger.info(
-        "Artificial chromosome created and inserted at the end of the genome .FASTA file"
-    )
 
     # Build the regex dynamically with the actual enzyme sequence
     pattern = re.compile(rf"{fasta_spacer}{{5,}}{enzyme}{fasta_spacer}{{5,}}", re.IGNORECASE)
@@ -652,10 +655,10 @@ def edit_genome_ref(
         "end": "end_ori",
     }, inplace=True)
 
-    df2["chr"] = "chr_artificial_ssDNA"
-    df2["start"] = chr_arti_starts
-    df2["end"] = chr_arti_ends
-    df2["length"] = lengths
+    df2["chr"]      = "chr_artificial_ssDNA"
+    df2["start"]    = chr_arti_starts
+    df2["end"]      = chr_arti_ends
+    df2["length"]   = lengths
 
     order_col = [
         "chr",
@@ -677,15 +680,6 @@ def edit_genome_ref(
     df_dsdna = df_annealing[df_annealing["type"] == "ds"].copy()
     df2 = pd.concat([df2, df_dsdna], ignore_index=True)
 
-    annealing_outname = os.path.join(output_dir, "annealing_oligos_positions.csv")
-
-    df2.to_csv(
-        annealing_outname,
-        sep=",",
-        index=False,
-    )
-
-    logger.info(f"Artificial chromosome coordinates saved to {os.path.basename(annealing_outname)}")
 
     return df2
 
@@ -932,6 +926,36 @@ def merge_sparse_mat(
     df_merged.columns = [n_frags, n_frags, len(df_merged) + 1]
     df_merged.to_csv(output_path, sep="\t", index=False, header=True)
     logger.info("Merged sparse matrix saved to %s", output_path)
+
+def namespace_to_args(ns: argparse.Namespace, flag_map: dict[str, str]) -> list[str]:
+    """
+    Convert an argparse namespace to a flat CLI list according to flag_map.
+    Skips None; booleans become flags (present -> include flag).
+    """
+    args = []
+    for field, flag in flag_map.items():
+        val = getattr(ns, field, None)
+        if isinstance(val, bool):
+            if val:
+                args.append(flag)
+        elif val is None:
+            continue
+        else:
+            args.extend([flag, str(val)])
+    return args
+
+
+def resolve_outpath(outdir: Path, name_or_path: str | None, default_name: str) -> Path:
+    """
+    If name_or_path is:
+      - None           -> outdir/default_name
+      - absolute path  -> as is
+      - relative name  -> outdir/name_or_path
+    """
+    if name_or_path is None:
+        return outdir / default_name
+    p = Path(name_or_path)
+    return p if p.is_absolute() else (outdir / p)
 
 
 def save_file_cache(name, content, cache_dir):

@@ -3,10 +3,10 @@ This module contains the commands of the program.
 """
 
 import argparse
-import os
 import shutil
 import subprocess
-from os.path import exists, dirname, join
+from os.path import exists
+from pathlib import Path
 
 from docopt import docopt
 
@@ -226,49 +226,85 @@ class Coverage(AbstractCommand):
         )
 
 
-class Design(AbstractCommand):
+class Design:
     """
-    Run oligo4sshic (Rust binary) and post-process genome fasta edition
-    with the designed oligonucleotides.
+    sshicstuff design
+        --genome /path/genome.fasta
+        [--forward-intervals chrI:1-100,chrII:50-200]
+        [--reverse-intervals chrI:1-100]
+        [--site GATC]
+        [--secondary-sites CAATTG,AATATT,GANTC]
+        [--size 75]
+        [--site-start 65]
+        [--no-snp-zone 5]
+        [--complementary-size 7]
+        [--snp-number 5]
+        [--tries 20]
+        [-v]
 
-    usage:
-        design [<oligo4sshic args>...] [<genomaker args>...]
+        # OUTPUTS OF OLIGO4SSHIC RUST BINARY :
+        [--o4s-output-raw  mydesign.raw.fa]
+        [--o4s-output-snp  mydesign.snp.fa]
+
+        # OUTPUTS OF THE WRAPPER (CSV + FASTA) :
+        [--annealing-csv   mydesign.annealing.csv]
+        [--capture-csv     mydesign.capture.csv]
+        [--chr-artificial  mydesign.chr_artificial.fasta]
+
+        # GENOME EDITION OPTIONS :
+        [--fragment-size 150]
+        [--fasta-line-length 80]
+        [--additional-fasta extra_sequences.fasta]
+        [--n-5-prime-deletion 10]
+        [--n-3-prime-deletion 10]
     """
 
-    def __init__(self, command_args, global_args):
-        if "--help" in command_args or "-h" in command_args:
-            self._print_help()
-            raise SystemExit(0)
-
-        if "--version" in command_args or "-V" in command_args:
-            pass
-
+    def __init__(self, command_args, global_args=None):
         self.global_args = global_args
-        self.raw_args = command_args
+        self.args = self._build_parser().parse_args(command_args)
 
-        # Define which args belong to genome edition part (genomaker)
-        self.genome_flags = {
-            "--fragment-size",
-            "--fasta-line-length",
-            "--additional-fasta",
-            "--n-5-prime-deletion",
-            "--n-3-prime-deletion"
-        }
+        # Resolve and prepare paths
+        self.outdir = Path(self.args.outdir).resolve()
+        self.outdir.mkdir(parents=True, exist_ok=True)
 
-        split_idx = self._find_split_index(command_args)
-        oligo_args = command_args[:split_idx]
-        genome_args = command_args[split_idx:]
+        # --- Sorties DU BINAIRE (FASTA) ---
+        self.o4s_output_raw = methods.resolve_outpath(
+            self.outdir, self.args.o4s_output_raw, f"output_o4s_raw.fa"
+        )
+        self.o4s_output_snp = methods.resolve_outpath(
+            self.outdir, self.args.o4s_output_snp, f"outputs_o4s_snp.fa"
+        )
 
-        self.oligo_args = self._parse_oligo_args(oligo_args)
-        self.genome_args = self._parse_genome_args(genome_args)
+        # --- Sorties DU WRAPPER (CSV + FASTA artificiel) ---
+        if getattr(self.args, "annealing_raw_deprecated", None) or getattr(self.args, "annealing_snp_deprecated", None):
+            logger.warning(
+                "[Design] --annealing-raw / --annealing-snp are deprecated and were misnamed. "
+                "Use --annealing-csv for the processed annealing table (CSV)."
+            )
 
-        # Mapping from argparse argument names to oligo4sshic CLI flags
+        self.annealing_csv = methods.resolve_outpath(
+            self.outdir, self.args.annealing_csv, "annealing_oligo_positions.csv"
+        )
+        self.capture_csv = methods.resolve_outpath(
+            self.outdir, self.args.capture_csv, "capture_oligo_positions.csv"
+        )
+        self.chr_artificial = methods.resolve_outpath(
+            self.outdir, self.args.chr_artificial, "chr_artificial_ssdna.fasta"
+        )
+
+        # Oligo4sshic binary
+        self.binary = "oligo4sshic"
+        if shutil.which(self.binary) is None:
+            raise FileNotFoundError(
+                f"The binary '{self.binary}' was not found in PATH."
+                f"Please install oligo4sshic in this conda env and make sure it is accessible."
+            )
+
+        # Backend flag map (fields that go to oligo4sshic)
         self.oligo4sshic_flagmap = {
-            "fasta": "--fasta",
+            "genome": "--fasta",
             "forward_intervals": "--forward-intervals",
             "reverse_intervals": "--reverse-intervals",
-            "output_snp": "--output-snp",
-            "output_raw": "--output-raw",
             "site": "--site",
             "secondary_sites": "--secondary-sites",
             "size": "--size",
@@ -280,149 +316,105 @@ class Design(AbstractCommand):
             "verbose": "--verbose",
         }
 
-    def _print_help(self):
-            print("""
-    Usage:
-        sshicstuff design [oligo4sshic args] [genomaker args]
-        
-    This command is composed of two main parts :
-    
-    - I - 
-        Oligo4sshic: design oligonucleotides for single-strand Hi-C experiments
-        oligo4sshic is a Rust based program. 
-    
-    - II - 
-        Edition of the genome reference with the designed oligonucleotides
-        Generation of the artificial chromosomes with the modified sequences.
-        Format Annealing oligo table into Capture oligo table.
+    def _build_parser(self) -> argparse.ArgumentParser:
+        p = argparse.ArgumentParser(prog="sshicstuff design", add_help=True)
 
-    Here are all the required and optional arguments for both parts. PLease provide them all at once.
-    They can't be run separately.
-    
-    Oligo4sshic arguments:
-          -f, --fasta <FASTA>
-                  fasta file of the genome
-              --forward-intervals <FORWARD_INTERVALS>
-                  comma separated list of chromosomic interval to work on, on the forward strand (e.g. chr_a:1-100,chr_b:200-300) [default: all]
-              --reverse-intervals <REVERSE_INTERVALS>
-                  comma separated list of chromosomic interval to work on, on the reverse strand (e.g. chr_a:1-100,chr_b:200-300) [default: ]
-              --output-snp <OUTPUT_SNP>
-                  output file with the list of oligos sequence in fasta format with snp
-              --output-raw <OUTPUT_RAW>
-                  output file with the list of oligos sequence in fasta format without snp
-              --site <SITE>
-                  sequence of the site to look for for [default: GATC]
-              --secondary-sites <SECONDARY_SITES>
-                  comma separated list of site sequences that will be disabled by SNPs [default: CAATTG,AATATT,GANTC]
-              --size <SIZE>
-                  site of the oligonucleotides [default: 75]
-              --site-start <SITE_START>
-                  site start position withing the oligonucleotide sequences [default: 65]
-              --no-snp-zone <NO_SNP_ZONE>
-                  number of nucleotides that will not be transformed in SNPs after the site and before the end of the oligonucleotide sequences [default: 5]
-              --complementary-size <COMPLEMENTARY_SIZE>
-                  maximum number of complementary bases between two oligonucleotides [default: 7]
-              --snp-number <SNP_NUMBER>
-                  number of snp to add to the oligonucleotide sequence [default: 5]
-              --tries <TRIES>
-                  number of run to try to find the highest number of oligos [default: 20]
-          -v, --verbose
-                  work with the reverse complement of the fasta file
+        # ----- core (user-facing) -----
+        p.add_argument("-f", "--genome", required=True, help="Genome FASTA")
+        p.add_argument("--forward-intervals", default=None, help="e.g. chrI:1-100,chrII:50-200")
+        p.add_argument("--reverse-intervals", default=None)
+        p.add_argument("--site", default="GATC")
+        p.add_argument("--secondary-sites", default="CAATTG,AATATT,GANTC")
+        p.add_argument("--size", type=int, default=75)
+        p.add_argument("--site-start", type=int, default=65)
+        p.add_argument("--no-snp-zone", type=int, default=5)
+        p.add_argument("--complementary-size", type=int, default=7)
+        p.add_argument("--snp-number", type=int, default=5)
+        p.add_argument("--tries", type=int, default=20)
+        p.add_argument("-v", "--verbose", action="store_true")
 
-    genome edition arguments:
-        -f, --fasta <FASTA>
-                fasta file of the genome
-                same arg as oligo4sshic (can be used for both)
-        --site <STR>
-                sequence of the site to look for for (default: GATC)
-                same arg as oligo4sshic (can be used for both)
-    
-        --fragment-size <INT>               
-                Size of artificial fragments (default: 150)
-        --fasta-line-length <INT>           
-                FASTA line wrap (default: 80)
-        --additional-fasta <FASTA>          
-                Additional sequences to append as artificial donor 
-        --n-5-prime-deletion <INT>          
-                Trimming 5' end of modified probes for capture (default: 10)
-        --n-3-prime-deletion <INT>          
-                Trimming 3' end of modified probes for capture (default: 10)
-    """)
+        # ----- outputs (resolved under outdir unless absolute) -----
+        p.add_argument("--outdir", required=True, help="Directory for all outputs")
 
+        # BINARY O4S OUTPUTS
+        p.add_argument("--o4s-output-raw", default=None, help="Raw oligos (FASTA) generated by oligo4sshic")
+        p.add_argument("--o4s-output-snp", default=None, help="SNP oligos (FASTA) generated by oligo4sshic")
 
-    def _find_split_index(self, args):
-        """Return the index where genomaker args begin."""
-        for i, arg in enumerate(args):
-            if arg in self.genome_flags:
-                return i
-        return len(args)
+        # WRAPPER OUTPUTS
+        p.add_argument("--annealing-csv", default=None, help="Processed annealing table (CSV)")
+        p.add_argument("--capture-csv", default=None, help="Capture oligos positions (CSV)")
+        p.add_argument("--chr-artificial", default=None, help="Artificial chromosomes FASTA")
 
-    def _parse_oligo_args(self, args):
-        parser = argparse.ArgumentParser(prog="oligo4sshic", add_help=False)
-        parser.add_argument("-f", "--fasta", required=True)
-        parser.add_argument("--forward-intervals")
-        parser.add_argument("--reverse-intervals")
-        parser.add_argument("--output-snp", required=True)
-        parser.add_argument("--output-raw", required=True)
-        parser.add_argument("--site", default="GATC")
-        parser.add_argument("--secondary-sites", default="CAATTG,AATATT,GANTC")
-        parser.add_argument("--size", type=int, default=75)
-        parser.add_argument("--site-start", type=int, default=65)
-        parser.add_argument("--no-snp-zone", type=int, default=5)
-        parser.add_argument("--complementary-size", type=int, default=7)
-        parser.add_argument("--snp-number", type=int, default=5)
-        parser.add_argument("--tries", type=int, default=20)
-        parser.add_argument("-v", "--verbose", action="store_true")
-        parser.add_argument("-V", "--version", action="store_true")
-        return parser.parse_args(args)
+        # ----- genome edition (wrapper) -----
+        p.add_argument("--fragment-size", type=int, default=150)
+        p.add_argument("--fasta-line-length", type=int, default=80)
+        p.add_argument("--additional-fasta", default=None)
+        p.add_argument("--n-5-prime-deletion", type=int, default=10)
+        p.add_argument("--n-3-prime-deletion", type=int, default=10)
 
-    def _parse_genome_args(self, args):
-        parser = argparse.ArgumentParser(prog="genomaker", add_help=False)
-        parser.add_argument("--fragment-size", type=int, default=150)
-        parser.add_argument("--fasta-line-length", type=int, default=80)
-        parser.add_argument("--additional-fasta", default=None)
-        parser.add_argument("--n-5-prime-deletion", type=int, default=10)
-        parser.add_argument("--n-3-prime-deletion", type=int, default=10)
-        return parser.parse_args(args)
+        return p
 
+    # -------------- main pipeline --------------
     def execute(self):
-        binary = "oligo4sshic"
-        output_dir = dirname(self.oligo_args.output_raw)
-        os.makedirs(output_dir, exist_ok=True)
-        if shutil.which(binary) is None:
-            raise FileNotFoundError(f"The binary '{binary}' is not in your PATH.")
-
-        # 1. Run oligo4sshic
-        oligo_cmd = [binary] + namespace_to_args(self.oligo_args, self.oligo4sshic_flagmap)
-        logger.info("Running backend : %s", " ".join(oligo_cmd))
+        # 1) Run oligo4sshic
+        oligo_cmd = self._build_oligo4sshic_cmd()
+        logger.info("[Design] Running backend: %s", " ".join(map(str, oligo_cmd)))
         subprocess.run(oligo_cmd, check=True)
 
-        # 2. Format annealing output
+        # 2) Format annealing output (produit une table -> CSV)
         df_annealing = methods.format_annealing_oligo_output(
-            design_output_raw_path=self.oligo_args.output_raw,
-            design_output_snp_path=self.oligo_args.output_snp,
+            design_output_raw_path=str(self.o4s_output_raw),
+            design_output_snp_path=str(self.o4s_output_snp),
         )
 
-        # 3. Genome edition
+        # 3) Genome edition (produces artificial chromosomes)
         df_annealing2 = methods.edit_genome_ref(
             df_annealing=df_annealing,
-            genome_input=self.oligo_args.fasta,
-            output_dir=output_dir,
-            enzyme=self.oligo_args.site,
-            fragment_size=self.genome_args.fragment_size,
-            fasta_line_length=self.genome_args.fasta_line_length,
-            additional_fasta_path=self.genome_args.additional_fasta,
+            genome_input=str(self.args.genome),
+            output_dir=str(self.outdir),
+            enzyme=self.args.site,
+            fragment_size=self.args.fragment_size,
+            fasta_line_length=self.args.fasta_line_length,
+            artificial_chr_path=self.chr_artificial,
+            additional_fasta_path=self.args.additional_fasta,
         )
+        df_annealing2.to_csv(self.annealing_csv, sep=",", index=False)
 
-        # 4. Capture generation
-        capture_path = join(output_dir, "capture_oligos_positions.csv")
+        # 4) Capture generation (CSV)
         df_capture = methods.annealing_to_capture(
             df_annealing=df_annealing2,
-            n_5_prime_deletion=self.genome_args.n_5_prime_deletion,
-            n_3_prime_deletion=self.genome_args.n_3_prime_deletion,
+            n_5_prime_deletion=self.args.n_5_prime_deletion,
+            n_3_prime_deletion=self.args.n_3_prime_deletion,
         )
-        df_capture.to_csv(capture_path, sep=",", index=False)
-        logger.info("[Design] Capture file saved to %s", capture_path)
+        df_capture.to_csv(self.capture_csv, sep=",", index=False)
+        logger.info("[Design] Capture file saved to %s", self.capture_csv)
+
+    # -------------- helpers --------------
+    def _build_oligo4sshic_cmd(self) -> list[str]:
+        class _O4S:  # minimal namespace
+            pass
+
+        o4s = _O4S()
+        o4s.genome = self.args.genome
+        o4s.forward_intervals = self.args.forward_intervals
+        o4s.reverse_intervals = self.args.reverse_intervals
+        o4s.site = self.args.site
+        o4s.secondary_sites = self.args.secondary_sites
+        o4s.size = self.args.size
+        o4s.site_start = self.args.site_start
+        o4s.no_snp_zone = self.args.no_snp_zone
+        o4s.complementary_size = self.args.complementary_size
+        o4s.snp_number = self.args.snp_number
+        o4s.tries = self.args.tries
+        o4s.verbose = self.args.verbose
+
+        cmd = [self.binary]
+        cmd += methods.namespace_to_args(o4s, self.oligo4sshic_flagmap)
+
+        # Mandatory outputs for the binary o4s
+        cmd += ["--output-raw", str(self.o4s_output_raw)]
+        cmd += ["--output-snp", str(self.o4s_output_snp)]
+        return cmd
 
 
 class Dsdnaonly(AbstractCommand):
