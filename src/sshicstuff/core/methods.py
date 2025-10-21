@@ -130,7 +130,7 @@ def annealing_to_capture(
         else:
             new_seq = seq[n_5_prime_deletion: -n_3_prime_deletion]
         capture_oligos.append(new_seq)
-    df_capture["capture_sequence"] = capture_oligos
+    df_capture["sequence"] = capture_oligos
 
     logger.info(f"Creation of capture oligos from annealing oligos done. ")
 

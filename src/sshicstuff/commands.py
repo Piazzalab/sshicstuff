@@ -394,7 +394,7 @@ class Design(AbstractCommand):
 
         # 1. Run oligo4sshic
         oligo_cmd = [binary] + namespace_to_args(self.oligo_args, self.oligo4sshic_flagmap)
-        logger.info("Running: %s", " ".join(oligo_cmd))
+        logger.info("Running backend : %s", " ".join(oligo_cmd))
         subprocess.run(oligo_cmd, check=True)
 
         # 2. Format annealing output
@@ -415,7 +415,7 @@ class Design(AbstractCommand):
         )
 
         # 4. Capture generation
-        capture_path = join(output_dir, "capture_oligos_positions.tsv")
+        capture_path = join(output_dir, "capture_oligos_positions.csv")
         df_capture = methods.annealing_to_capture(
             df_annealing=df_annealing2,
             n_5_prime_deletion=self.genome_args.n_5_prime_deletion,
