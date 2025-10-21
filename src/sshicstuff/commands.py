@@ -998,4 +998,4 @@ class View(AbstractCommand):
     def execute(self):
         logger.info("Launching the graphical interface...")
         logger.info("Cache directory: %s", methods.__CACHE_DIR__)
-        app.run_server(host="0.0.0.0", port=8050, debug=True, use_reloader=False)
+        app.run_server(host="0.0.0.0", port=3838, debug=True, use_reloader=False)

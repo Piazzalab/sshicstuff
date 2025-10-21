@@ -59,7 +59,7 @@ USER appuser
 ENV PATH=/opt/conda/envs/sshicstuff_env/bin:$PATH
 
 # If you run the Dash/Flask UI (e.g., `sshicstuff view`), 8050 is common.
-EXPOSE 3838 8050
+EXPOSE 3838
 
 # The CLI name exposed by your pyproject's [project.scripts] -> "sshicstuff = sshicstuff.__main__:main"
 ENTRYPOINT ["sshicstuff"]
