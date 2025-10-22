@@ -349,7 +349,7 @@ class Design:
     def execute(self):
         # 1) Run oligo4sshic
         oligo_cmd = self._build_oligo4sshic_cmd()
-        logger.info("[Design] Running backend: %s", " ".join(map(str, oligo_cmd)))
+        logger.info("[Design/Oligo4sshic] Running backend: %s", " ".join(map(str, oligo_cmd)))
         subprocess.run(oligo_cmd, check=True)
 
         # 2) Format annealing output (produit une table -> CSV)
@@ -375,7 +375,6 @@ class Design:
             n_3_prime_deletion=self.args.n_3_prime_deletion,
         )
         df_capture.to_csv(self.capture_csv, sep=",", index=False)
-        logger.info("[Design] Capture file saved to %s", self.capture_csv)
 
     # -------------- helpers --------------
     def _build_oligo4sshic_cmd(self) -> list[str]:

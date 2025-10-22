@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import plotly.io as pio
 from Bio import SeqIO
+from Bio.Seq import Seq
 
 import sshicstuff.log as log
 
@@ -134,7 +135,7 @@ def annealing_to_capture(
         capture_oligos.append(new_seq)
     df_capture["sequence"] = capture_oligos
 
-    logger.info(f"[Design] Creation of capture oligos from annealing oligos done. ")
+    logger.info(f"[Design/Capture] Creation of capture oligos from annealing oligos done and saved.")
 
     return df_capture
 
@@ -540,13 +541,6 @@ def edit_genome_ref(
     chr_arti_dsdna_path = os.path.join(output_dir, "chr_artificial_dsDNA.fa")
     chr_arti_ssdna_path = os.path.join(output_dir, "chr_artificial_ssDNA.fa")
 
-    # Creating the artificial chromosome using annealing oligo sequences
-    # and the enzyme sequence
-    logger.info(
-        "[Design] Creating the artificial chromosome with the annealing oligo and the enzyme %s",
-        enzyme,
-    )
-
     enzyme = enzyme.upper()
     dsdna_seq_series = df_annealing[df_annealing["type"] == "ss"]["sequence_original"]
     dsdna_seq = [seq.upper() for seq in dsdna_seq_series.values]
@@ -571,11 +565,10 @@ def edit_genome_ref(
         oneline_ssdna += ss2 + "N" * s + enzyme + "N" * s
         oneline_dsdna += ds2 + "N" * s + enzyme + "N" * s
 
-    logger.info("[Design/EditGenome] Built ssDNA artificial length = %d bp", len(oneline_ssdna))
-    logger.info("[Design/EditGenome] Built dsDNA artificial length = %d bp", len(oneline_dsdna))
+    logger.info("[Design/EditGenome] Built ssDNA (snp) and dsDNA (no snp) artificial, lengths = %d bp", len(oneline_ssdna))
 
-    record_ssdna = SeqIO.SeqRecord(seq=oneline_ssdna, id="chr_artificial_ssDNA", description=f"({len(oneline_ssdna)} bp)")
-    record_dsdna = SeqIO.SeqRecord(seq=oneline_dsdna, id="chr_artificial_dsDNA", description=f"({len(oneline_dsdna)} bp)")
+    record_ssdna = SeqIO.SeqRecord(seq=Seq(oneline_ssdna), id="chr_artificial_ssDNA", description=f"({len(oneline_ssdna)} bp)")
+    record_dsdna = SeqIO.SeqRecord(seq=Seq(oneline_dsdna), id="chr_artificial_dsDNA", description=f"({len(oneline_dsdna)} bp)")
     SeqIO.write(record_ssdna, chr_arti_ssdna_path, "fasta")
     SeqIO.write(record_dsdna, chr_arti_dsdna_path, "fasta")
 
