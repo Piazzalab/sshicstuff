@@ -16,7 +16,7 @@ app = dash.Dash(
     __name__,
     server=server,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
-    routes_pathname_prefix='/11_sshicstuff/'
+    routes_pathname_prefix='app/11_sshicstuff'
 )
 
 app.config.suppress_callback_exceptions = True
