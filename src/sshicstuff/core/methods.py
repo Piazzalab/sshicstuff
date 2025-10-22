@@ -2,6 +2,7 @@
 Module containing functions to analyze the contacts and the capture efficiency of the oligos.
 """
 
+import argparse
 import base64
 import datetime
 import os
@@ -11,12 +12,12 @@ import shutil
 import subprocess
 import sys
 from os.path import join, dirname
-import argparse
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import plotly.io as pio
+from Bio import SeqIO
 
 import sshicstuff.log as log
 
@@ -522,39 +523,22 @@ def edit_genome_ref(
     genome_input: str,
     output_dir: str,
     enzyme: str,
-    fragment_size: int = 150,
-    fasta_line_length: int = 60,
-    artificial_chr_path: str = None,
-    additional_fasta_path: str = None,
+    n_artificial_spacer: int = 150,
 ):
-    """
-    Create an artificial chromosome that is the concatenation of the annealing oligo and the enzyme sequence.
+    # ── Stage 0: Inputs / setup
+    logger.info("[Design/EditGenome] Start. Enzyme=%s | spacer N=%d | outdir=%s",
+                enzyme, n_artificial_spacer, output_dir)
 
-    Insert it at the end of the original genome .FASTA file.
+    # ── Stage 1: Collect sequences
+    n_ss = df_annealing.query("type == 'ss'").shape[0]
+    n_ds = df_annealing.query("type == 'ds'").shape[0]
+    logger.info("[Design/EditGenome] Loaded oligos: ss=%d | ds=%d", n_ss, n_ds)
 
-    Parameters
-    ----------
+    # ── Stage 2: Build artificial chromosomes (strings)
+    logger.info("[Design/EditGenome] Building artificial chromosomes (ssDNA & dsDNA) ...")
 
-    df_annealing : pd.DataFrame
-        DataFrame containing the annealing oligo sequences and positions.
-    genome_input : str
-        Path to the original genome .FASTA file.
-    output_dir: str
-        Path to the output directory.
-    enzyme : str
-        Restriction Enzyme sequence (e.g., dpnII sequence : gatc).
-    fragment_size : int, default=150
-        Size of a digested fragment / read.
-    fasta_line_length : int, default=60
-        Number of characters per line in the FASTA file.
-    additional_fasta_path : str, default=None
-        List of additional FASTA files to concatenate with the artificial chromosome ath
-        the end of the genome reference .FASTA file.
-    """
-    fasta_spacer = "N"
-    basedir = os.path.dirname(genome_input)
-    if not artificial_chr_path:
-        artificial_chr_path = os.path.join(output_dir, "chr_artificial_ssDNA.fa")
+    chr_arti_dsdna_path = os.path.join(output_dir, "chr_artificial_dsDNA.fa")
+    chr_arti_ssdna_path = os.path.join(output_dir, "chr_artificial_ssDNA.fa")
 
     # Creating the artificial chromosome using annealing oligo sequences
     # and the enzyme sequence
@@ -563,78 +547,77 @@ def edit_genome_ref(
         enzyme,
     )
 
+    enzyme = enzyme.upper()
+    dsdna_seq_series = df_annealing[df_annealing["type"] == "ss"]["sequence_original"]
+    dsdna_seq = [seq.upper() for seq in dsdna_seq_series.values]
+
     ssdna_seq_series = df_annealing[df_annealing["type"] == "ss"]["sequence_modified"]
-    ssdna_seq = [seq.lower() for seq in ssdna_seq_series.values]
+    ssdna_seq = [seq.upper() for seq in ssdna_seq_series.values]
 
-    lg = fasta_line_length
-    s = fragment_size - len(enzyme)
-    p = fasta_spacer
-    oneline = p * int(s / 2) + enzyme + p * s
+    s = n_artificial_spacer
+    oneline_ssdna = "N" * s + enzyme + "N" * s
+    oneline_dsdna = "N" * s + enzyme + "N" * s
 
-    # artificial_starts = [int(s / 2)]
-    # artificial_ends = []
-
-    for seq in ssdna_seq:
-        middle = len(seq) // 2
-        enzyme_pos = seq.find(enzyme)
+    for ss, ds in zip(ssdna_seq, dsdna_seq):
+        middle = len(ss) // 2
+        enzyme_pos = ss.find(enzyme)
         if enzyme_pos < middle:
-            seq2 = seq[enzyme_pos + len(enzyme) :].upper()
+            ss2 = ss[enzyme_pos + len(enzyme) :].upper()
+            ds2 = ds[enzyme_pos + len(enzyme) :].upper()
         else:
-            seq2 = seq[:enzyme_pos].upper()
+            ss2 = ss[:enzyme_pos].upper()
+            ds2 = ds[:enzyme_pos].upper()
 
-        oneline += seq2 + p * s + enzyme + p * s
+        oneline_ssdna += ss2 + "N" * s + enzyme + "N" * s
+        oneline_dsdna += ds2 + "N" * s + enzyme + "N" * s
 
-    lines = "\n".join([oneline[i : i + lg] for i in range(0, len(oneline), lg)])
-    fasta = f">chr_artificial_ssDNA\t ({len(oneline)} bp)\n{lines}"
+    logger.info("[Design/EditGenome] Built ssDNA artificial length = %d bp", len(oneline_ssdna))
+    logger.info("[Design/EditGenome] Built dsDNA artificial length = %d bp", len(oneline_dsdna))
 
-    with open(artificial_chr_path, "w", encoding="utf-8") as f:
-        f.write(fasta)
+    record_ssdna = SeqIO.SeqRecord(seq=oneline_ssdna, id="chr_artificial_ssDNA", description=f"({len(oneline_ssdna)} bp)")
+    record_dsdna = SeqIO.SeqRecord(seq=oneline_dsdna, id="chr_artificial_dsDNA", description=f"({len(oneline_dsdna)} bp)")
+    SeqIO.write(record_ssdna, chr_arti_ssdna_path, "fasta")
+    SeqIO.write(record_dsdna, chr_arti_dsdna_path, "fasta")
 
-    logger.info(
-        f"[Design] Artificial chromosome coordinates saved to {os.path.basename(artificial_chr_path)}"
-    )
+    # ── Stage 3: Write the two artificial FASTA files
+    logger.info("[Design/EditGenome] Writing artificial chromosomes to: %s, %s",
+                chr_arti_ssdna_path, chr_arti_dsdna_path)
 
-    # Inserting the artificial chromosome at the end of the genome .FASTA file
-    genome_name = os.path.basename(genome_input)
-    logger.info(
-        "[Design] Inserting the artificial chromosome at the end of the original genome .FASTA file"
-    )
-    with open(genome_input, "r", encoding="utf-8") as f:
-        genome = f.read()
+    # ── Stage 4: Mask native genome
+    logger.info("[Design/EditGenome] Masking original oligo regions with N in %s ...", os.path.basename(genome_input))
 
-    new_genome = genome + "\n" + fasta + "\n"
+    records = list(SeqIO.parse(genome_input, "fasta"))
+    genome_name = os.path.basename(genome_input).split(".")[0]
 
-    # Concatenate with additional FASTA sequence(s), if any
-    if additional_fasta_path:
-        logger.info(
-            "[Design] Looking for additional FASTA sequence(s) to concatenate with %s",
-            genome_name,
-        )
-        add_fasta_name = os.path.basename(additional_fasta_path)
-        logger.info("[Design] Concatenating %s with the genome .FASTA file", add_fasta_name)
-        with open(additional_fasta_path, "r", encoding="utf-8") as f:
-            add_fasta = f.read()
+    for _, row in df_annealing.iterrows():
+        chr_    = row["chr"]
+        seq_original = row["sequence_original"]
+        start_ = row["start"]
+        end_   = row["end"]
 
-        # Check line length
-        if len(add_fasta.split("\n")[1]) != lg:
-            logger.warning("Line length of %s is not equal to %d", add_fasta_name, lg)
+        for record in records:
+            if record.id == chr_:
+                seq = record.seq
+                new_seq = seq[:start_] + "N" * len(seq_original) + seq[end_:]
+                record.seq = new_seq
 
-            # remove existing line breaks and add new ones
-            add_fasta = add_fasta.replace("\n", "")
-            add_fasta = "\n".join(
-                [add_fasta[i : i + lg] for i in range(0, len(add_fasta), lg)]
-            )
+    # ── Stage 5: Append artificial chromosomes and write the edited genome
+    genome_output_path = os.path.join(output_dir, f"{genome_name}_edited.fa")
+    logger.info("[Design/EditGenome] Appending artificial chromosomes and writing %s", genome_output_path)
 
-        # Concatenate the strings
-        new_genome += "\n" + add_fasta
-    new_genome_output = join(output_dir, genome_name.replace(".fa", "_artificial.fa"))
-    with open(new_genome_output, "w", encoding="utf-8") as f:
-        f.write(new_genome)
+    records.append(record_dsdna)
+    records.append(record_ssdna)
+    SeqIO.write(records, genome_output_path, "fasta")
 
-    # Build the regex dynamically with the actual enzyme sequence
-    pattern = re.compile(rf"{fasta_spacer}{{5,}}{enzyme}{fasta_spacer}{{5,}}", re.IGNORECASE)
-    matches = list(pattern.finditer(oneline))
+
+    pattern = re.compile(rf"N{{5,}}{enzyme}N{{5,}}", re.IGNORECASE)
+    matches = list(pattern.finditer(oneline_ssdna))
     enzyme_positions = [m.start() + m.group().lower().find(enzyme.lower()) for m in matches]
+
+    # ── Stage 6: Fragment map on chr_artificial_ssDNA
+    logger.info("[Design/EditGenome] Computing fragment coordinates on chr_artificial_ssDNA (by enzyme sites)")
+    logger.info("[Design/EditGenome] Found %d enzyme landmarks → %d fragments",
+                len(enzyme_positions), max(0, len(enzyme_positions) - 1))
 
     # Now extract fragment coordinates based on the region between enzymes
     chr_arti_starts = []
@@ -678,10 +661,13 @@ def edit_genome_ref(
 
     # Add back ds control (not on artificial chromosome)
     df_dsdna = df_annealing[df_annealing["type"] == "ds"].copy()
-    df2 = pd.concat([df2, df_dsdna], ignore_index=True)
+    df_annealing_final = pd.concat([df2, df_dsdna], ignore_index=True)
 
+    # ── Stage 7: Return dataframe
+    logger.info("[Design/EditGenome] Final table: %d rows (ss artificial + ds controls)", len(df_annealing_final))
+    logger.info("[Design/EditGenome] Done.")
 
-    return df2
+    return df_annealing_final
 
 
 

@@ -249,12 +249,9 @@ class Design:
         # OUTPUTS OF THE WRAPPER (CSV + FASTA) :
         [--annealing-csv   mydesign.annealing.csv]
         [--capture-csv     mydesign.capture.csv]
-        [--chr-artificial  mydesign.chr_artificial.fasta]
 
         # GENOME EDITION OPTIONS :
-        [--fragment-size 150]
-        [--fasta-line-length 80]
-        [--additional-fasta extra_sequences.fasta]
+        [--n-artificial-spacer 150]
         [--n-5-prime-deletion 10]
         [--n-3-prime-deletion 10]
     """
@@ -287,9 +284,6 @@ class Design:
         )
         self.capture_csv = methods.resolve_outpath(
             self.outdir, self.args.capture_csv, "capture_oligo_positions.csv"
-        )
-        self.chr_artificial = methods.resolve_outpath(
-            self.outdir, self.args.chr_artificial, "chr_artificial_ssdna.fasta"
         )
 
         # Oligo4sshic binary
@@ -343,12 +337,9 @@ class Design:
         # WRAPPER OUTPUTS
         p.add_argument("--annealing-csv", default=None, help="Processed annealing table (CSV)")
         p.add_argument("--capture-csv", default=None, help="Capture oligos positions (CSV)")
-        p.add_argument("--chr-artificial", default=None, help="Artificial chromosomes FASTA")
 
         # ----- genome edition (wrapper) -----
-        p.add_argument("--fragment-size", type=int, default=150)
-        p.add_argument("--fasta-line-length", type=int, default=80)
-        p.add_argument("--additional-fasta", default=None)
+        p.add_argument("--n-artificial-spacer", type=int, default=150)
         p.add_argument("--n-5-prime-deletion", type=int, default=10)
         p.add_argument("--n-3-prime-deletion", type=int, default=10)
 
@@ -373,10 +364,7 @@ class Design:
             genome_input=str(self.args.genome),
             output_dir=str(self.outdir),
             enzyme=self.args.site,
-            fragment_size=self.args.fragment_size,
-            fasta_line_length=self.args.fasta_line_length,
-            artificial_chr_path=self.chr_artificial,
-            additional_fasta_path=self.args.additional_fasta,
+            n_artificial_spacer=self.args.n_artificial_spacer,
         )
         df_annealing2.to_csv(self.annealing_csv, sep=",", index=False)
 
