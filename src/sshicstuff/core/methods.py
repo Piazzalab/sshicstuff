@@ -675,7 +675,7 @@ def format_annealing_oligo_output(
         design_output_raw_path: str,
         design_output_snp_path: str,
 ):
-
+    logger.info("[Design/Annealing] Formatting annealing oligo output from FASTA to CSV ...")
     df_raw = pd.read_csv(design_output_raw_path, sep="\t", header=None)
     df_snp = pd.read_csv(design_output_snp_path, sep="\t", header=None)
 
