@@ -12,7 +12,13 @@ import sshicstuff.gui.layout_oligomaker as lo
 
 
 server = Flask(__name__)
-app = dash.Dash(__name__, server=server, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(
+    __name__,
+    server=server,
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    routes_pathname_prefix='/11_sshicstuff/'
+)
+
 app.config.suppress_callback_exceptions = True
 
 # Layout avec Tabs
