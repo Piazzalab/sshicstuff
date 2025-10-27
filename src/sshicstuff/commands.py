@@ -192,7 +192,7 @@ class Coverage(AbstractCommand):
     Calculate the coverage per fragment and save the result to a bedgraph.
 
     usage:
-        coverage -f FRAGMENTS -m SPARSE_MAT [-o OUTPUT] [-F] [-N] [-b BIN_SIZE] [-c CHR_COORD]
+        coverage -f FRAGMENTS -m SPARSE_MAT [-o OUTDIR] [-F] [-N] [-b BIN_SIZE] [-c CHR_COORD]
 
     Arguments:
         -f FRAGMENTS, --fragments FRAGMENTS                 Path to the digested fragments list file (hicstuff output)
@@ -205,7 +205,7 @@ class Coverage(AbstractCommand):
 
         -c chr_coord, --chr-coord CHR_COORD                 Path to the chromosome coordinates file. Needed for the binning. [default: None]
 
-        -o OUTPUT, --output OUTPUT                          Desired output directory file path. [default: None]
+        -o OUTDIR, --outdir OUTDIR                          Desired output directory file path. [default: None]
 
         -F, --force                                         Force the overwriting of the output file if it exists [default: False]
 
@@ -214,11 +214,13 @@ class Coverage(AbstractCommand):
 
     def execute(self):
         check_exists(self.args["--fragments"], self.args["--sparse-mat"])
-        check_exists(self.args["--chr-coord"])
+        if self.args["--bin-size"] != "0":
+            check_exists(self.args["--chr-coord"])
+
         methods.coverage(
             sparse_mat_path=self.args["--sparse-mat"],
             fragments_list_path=self.args["--fragments"],
-            output_dir=self.args["--output"],
+            output_dir=self.args["--outdir"],
             normalize=self.args["--normalize"],
             force=self.args["--force"],
             bin_size=int(self.args["--bin-size"]),
@@ -613,7 +615,7 @@ class Pipeline(AbstractCommand):
         )
 
 
-class Plot4C(AbstractCommand):
+class Plot4c(AbstractCommand):
     """
     Plot a 4-C like profile.
 
