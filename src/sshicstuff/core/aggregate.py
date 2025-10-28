@@ -9,7 +9,7 @@ import pandas as pd
 from sshicstuff.log import logger
 import sshicstuff.core.methods as methods
 
-def aggregate(
+def run(
     binned_contacts_path: str,
     chr_coord_path: str,
     oligo_capture_with_frag_path: str,
@@ -182,3 +182,7 @@ def aggregate(
             continue
         df_pivot = df_grouped.pivot_table(index="chr_bins", columns="chr", values=col, fill_value=0, observed=False)
         df_pivot.to_csv(f"{output_prefix}_{col_name}_per_chr.tsv", sep="\t")
+
+    logger.info(
+        f"[Aggregate] : Aggregation on {'centromere' if centromeres else 'telomeres'} completed. Results saved in %s", output_dir
+    )

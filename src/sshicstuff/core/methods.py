@@ -257,10 +257,11 @@ def compare_with_wt(
     """
 
     logger.info(
-        "Comparing the capture efficiency of a sample with a wild-type reference."
+        "[Compare] : Comparing the capture efficiency of a sample with a wild-type reference."
     )
+
     logger.info(
-        "Be sure to have same number of reads for both samples. Otherwise use subsample function."
+        "[Compare] : Be sure to have same number of reads for both samples. Otherwise use subsample sub-module."
     )
 
     df_sample: pd.DataFrame = pd.read_csv(stats1_path, header=0, sep="\t")
@@ -271,7 +272,7 @@ def compare_with_wt(
             "probe",
             "capture_efficiency",
             f"capture_efficiency_{ref_name}",
-            "ratio_sample_vs_wt",
+            f"ratio_sample_vs_{ref_name}",
         ]
     )
 
@@ -298,9 +299,13 @@ def compare_with_wt(
         output_dir = os.path.dirname(stats1_path)
 
     output_path = os.path.join(
-        output_dir, f"{os.path.basename(stats1_path).split('.')[0]}_vs_{ref_name}.csv"
+        output_dir, f"{os.path.basename(stats1_path).split('.')[0]}_vs_{ref_name}.tsv"
     )
     df_cap_eff.to_csv(output_path, sep="\t", index=False)
+
+    logger.info(
+        "[Compare] : Capture efficiency comparison file saved to %s", output_path
+    )
 
 
 def copy(source_path, destination_path):

@@ -70,19 +70,20 @@ class Aggregate(AbstractCommand):
     Aggregate contacts around specific regions of centromeres or telomeres.
 
     usage:
-        aggregate -c OLIGO_CAPTURE -h CHR_COORD -p PROFILE [-o OUTPUT] [-C] [-E CHRS...] [-I] [-L] [-N] [-T] [-w WINDOW]
+        aggregate -c OLIGO_CAPTURE -C CHR_COORD -p PROFILE [-o OUTPUT] [--cen] [-E CHRS...] [-I] [-L] [-N] [--tel] [-w WINDOW]
 
     Arguments:
         -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligo capture CSV file
                                                             Must be the file with the fragments associated
                                                             Made with the 'associate' command
 
-        -h CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file
+        -C CHR_COORD, --chr-coord CHR_COORD                 Path to the chromosome coordinates file
 
         -p PROFILE, --profile PROFILE                       Path to the profile .tsv file with the binning of your choice
                                                             (recommended 1kb for telomeres and 10kb for centromes)
     Options:
-        -C, --cen                                           Aggregate only centromeric regions [default: False]
+        --cen                                               Aggregate on centromeric regions [default: False]
+                                                            Not compatible with --tel.
 
         -E CHRS, --exclude=CHRS                             Exclude the chromosome(s) from the analysis
 
@@ -92,9 +93,10 @@ class Aggregate(AbstractCommand):
         -N, --normalize                                     Normalize the contacts by the total number of contacts
                                                             [default: False]
 
-        -o OUTPUT, --output OUTPUT                          Desired output directory
+        -o OUTDIR, --outdir OUTDIR                          Desired output directory
 
-        -T, --tel                                           Aggregate only telomeric regions [default: False]
+        --tel                                               Aggregate on telomeric regions [default: False]
+                                                            Not compatible with --cen.
 
         -w WINDOW, --window WINDOW                          Window size around the centromere or telomere to aggregate contacts
                                                             [default: 150000]
@@ -115,14 +117,14 @@ class Aggregate(AbstractCommand):
                 "You must specify either telomeres or centromeres. Not both"
             )
 
-        agg.aggregate(
+        agg.run(
             binned_contacts_path=self.args["--profile"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_with_frag_path=self.args["--oligo-capture"],
             window_size=int(self.args["--window"]),
             telomeres=self.args["--tel"],
             centromeres=self.args["--cen"],
-            output_dir=self.args["--output"],
+            output_dir=self.args["--outdir"],
             excluded_chr_list=self.args["--exclude"],
             inter_only=self.args["--inter"],
             normalize=self.args["--normalize"]
@@ -161,7 +163,7 @@ class Compare(AbstractCommand):
     Compare capture efficiency of a sample with a wild-type reference.
 
     usage:
-        compare -s SAMPLE -r REFERENCE -n NAME [-o OUTPUT]
+        compare -s SAMPLE -r REFERENCE -n NAME [-o OUTDIR]
 
     Arguments:
         -s SAMPLE, --sample-stats SAMPLE            Path to the sample statistics file
@@ -173,7 +175,7 @@ class Compare(AbstractCommand):
         -n NAME, --name NAME                        Name of the wt type reference
 
     Options:
-        -o OUTPUT, --output OUTPUT          Desired output directory
+        -o OUTDIR, --outdir OUTDIR                  Desired output directory
 
     """
 
@@ -183,7 +185,7 @@ class Compare(AbstractCommand):
             stats1_path=self.args["--sample-stats"],
             stats2_path=self.args["--reference-stats"],
             ref_name=self.args["--name"],
-            output_dir=self.args["--output"],
+            output_dir=self.args["--outdir"],
         )
 
 
@@ -829,12 +831,12 @@ class Rebin(AbstractCommand):
     Change the binning resolution of a 4C-like profile.
 
     usage:
-        rebin -b BINSIZE -c CHR_COORD -p PROFILE [-o OUTPUT] [-F]
+        rebin -b BINSIZE -C CHR_COORD -p PROFILE [-o OUTPUT] [-F]
 
     Arguments:
         -b BINSIZE, --binsize BINSIZE                     New resolution to rebin the profile (in bp) [default: 1000]
 
-        -c CHR_COORD, --chr-coord CHR_COORD               Path to the chromosome coordinates file
+        -C CHR_COORD, --chr-coord CHR_COORD               Path to the chromosome coordinates file
 
         -p PROFILE, --profile PROFILE                     Path to the profile file (un-binned, 0 kb)
 
@@ -897,7 +899,7 @@ class Stats(AbstractCommand):
     - norm_inter_chr_freq.tsv: contains the normalized contacts for each probe on each chromosome except its own.
 
     usage:
-        stats -c OLIGO_CAPTURE -C CHR_COORD -m SPARSE_MAT -p PROFILE [-o OUTPUT] [-r CIS_RANGE] [-F]
+        stats -c OLIGO_CAPTURE -C CHR_COORD -m SPARSE_MAT -p PROFILE [-o OUTDIR] [-r CIS_RANGE] [-F]
 
     Arguments:
         -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE     Path to the oligos capture file
@@ -914,7 +916,7 @@ class Stats(AbstractCommand):
     Options:
         -F, --force                                         Force the overwriting of the output file if the file exists [default: False]
 
-        -o OUTPUT, --output OUTPUT                          Desired output directory
+        -o OUTDIR, --outdir OUTDIR                          Desired output directory
 
         -r CIS_RANGE, --cis-range CIS_RANGE                 Cis range to be considered around the probe [default: 50000]
     """
@@ -931,7 +933,7 @@ class Stats(AbstractCommand):
             sparse_mat_path=self.args["--sparse-mat"],
             chr_coord_path=self.args["--chr-coord"],
             oligo_capture_with_frag_path=self.args["--oligo-capture"],
-            output_dir=self.args["--output"],
+            output_dir=self.args["--outdir"],
             cis_range=int(self.args["--cis-range"]),
             force=self.args["--force"],
         )
