@@ -36,7 +36,11 @@ os.makedirs(__CACHE_DIR__, exist_ok=True)
 
 
 def associate_oligo_to_frag(
-    oligo_capture_path: str, fragments_path: str, force: bool = True
+        oligo_capture_path: str,
+        fragments_path: str,
+        force: bool = True,
+        output_path: str = None,
+
 ):
     """
     Associate oligo to fragments based on the fragment name.
@@ -53,6 +57,8 @@ def associate_oligo_to_frag(
         Path to the .csv file containing the fragments.
     force : bool
         If True, the function will overwrite the oligo file.
+    output_path : str
+        Path to the output file. If None, it will be created in the same directory as oligo_capture_path.
     Returns
     -------
     None
@@ -65,18 +71,15 @@ def associate_oligo_to_frag(
     check_file_extension(fragments_path, ".txt")
     check_file_extension(oligo_capture_path, [".csv", ".tsv", ".txt"])
 
-    output_path: str = oligo_capture_path.replace(".csv", "_fragments_associated.csv")
+    if not output_path:
+        output_path: str = oligo_capture_path.replace(".csv", "_fragments_associated.csv")
+
+    os.makedirs(dirname(output_path), exist_ok=True)
+
     logger.info(
         "[Associate] : Creating a new oligo_capture table : %s",
         output_path.split("/")[-1],
     )
-
-    if os.path.exists(output_path) and not force:
-        logger.info("[Associate] : Output file already exists: %s", output_path)
-        logger.info(
-            "[Associate] : Use the --force / -F flag to overwrite the existing file."
-        )
-        return
 
     # Read the oligo and fragments files
     oligo_delim = "," if oligo_capture_path.endswith(".csv") else "\t"
