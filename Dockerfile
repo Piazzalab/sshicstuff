@@ -54,9 +54,15 @@ RUN micromamba run -n sshicstuff_env python -m pip install -e .
 COPY --from=o4s-builder /src/oligo4sshic/target/release/oligo4sshic /usr/local/bin/oligo4sshic
 
 # ---- Non-root user & PATH ----
+# Create the cache dir
 RUN useradd -ms /bin/bash appuser && chown -R appuser:appuser /app
+RUN mkdir -p /cache && chown -R appuser:appuser /cache
+
+
 USER appuser
 ENV PATH=/opt/conda/envs/sshicstuff_env/bin:$PATH
+
+ENV SSHIC_CACHE_DIR=/cache
 
 # If you run the Dash/Flask UI (e.g., `sshicstuff view`), 8050 is common.
 EXPOSE 8050
