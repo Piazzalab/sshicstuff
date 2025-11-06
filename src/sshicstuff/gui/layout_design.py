@@ -5,18 +5,20 @@ from dash import html, dcc
 layout = html.Div(id="oligo-page", children=[
     dbc.Container([
         dcc.Location(id="url", refresh=False),
+
+        # Alerts
         dbc.Row([
-            html.Div(id="alert-version"),
-            html.Div(id="alert-upload"),
-            html.Div(id="alert-clean-cache"),
-            html.Div(id="alert-submit"),
+            html.Div(id="alert-version-o4s"),
+            html.Div(id="alert-upload-o4s"),
+            html.Div(id="alert-clean-cache-o4s"),
+            html.Div(id="alert-submit-o4s"),
         ]),
 
         dbc.Row([
             dbc.Col([
                 html.H6('Upload files'),
                 dcc.Upload(
-                    id="upload-files-oligo",
+                    id="upload-files-o4s",
                     children=html.Div(
                         ["Drag and drop your genome fasta files."]
                     ),
@@ -35,7 +37,7 @@ layout = html.Div(id="oligo-page", children=[
 
             dbc.Col([
                 html.Button(
-                    id="clear-list-oligo",
+                    id="clear-list-o4s",
                     className="btn btn-danger",
                     children="Clear list",
                 )

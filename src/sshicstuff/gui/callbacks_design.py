@@ -15,7 +15,7 @@ def list_cached_files():
 
 
 @callback(
-    Output("alert-version", "children"),
+    Output("alert-version-o4s", "children"),
     Input("url", "pathname")
 )
 def show_oligo4sshic_version_alert(_):
@@ -30,8 +30,8 @@ def show_oligo4sshic_version_alert(_):
     return dbc.Alert(f"oligo4sshic v{v} found", color="info", dismissable=True)
 
 @callback(
-    Output("alert-upload", "children"),
-    Input("upload-files-oligo", "filename"),
+    Output("alert-upload-o4s", "children"),
+    Input("upload-files-o4s", "filename"),
     prevent_initial_call=True
 )
 def show_upload_alert(filenames):
@@ -40,8 +40,8 @@ def show_upload_alert(filenames):
     return None
 
 @callback(
-    Output("alert-clean-cache", "children"),
-    Input("clear-list-oligo", "n_clicks"),
+    Output("alert-clean-cache-o4s", "children"),
+    Input("clear-list-o4s", "n_clicks"),
     prevent_initial_call=True
 )
 def show_clean_cache_alert(n_clicks):
@@ -52,14 +52,14 @@ def show_clean_cache_alert(n_clicks):
 
 @callback(
     Output("genome-fasta-dropdown", "options"),
-    [Input("upload-files-oligo", "filename"),
-     Input("upload-files-oligo", "contents"),
-     Input("clear-list-oligo", "n_clicks")],
+    [Input("upload-files-o4s", "filename"),
+     Input("upload-files-o4s", "contents"),
+     Input("clear-list-o4s", "n_clicks")],
 )
 def update_dropdown(filenames, file_contents, clear_clicks):
     ctx_trigger = ctx.triggered_id
 
-    if ctx_trigger == "clear-list": 
+    if ctx_trigger == "clear-list-o4s":
         if os.path.exists(__CACHE_DIR__):
             for file in os.listdir(__CACHE_DIR__):
                 file_path = os.path.join(__CACHE_DIR__, file)
@@ -163,7 +163,7 @@ def update_chromosome_regions(add_clicks, remove_clicks, children):
         index_to_remove = ctx_trigger["index"]
         return [row for row in children if row["props"]["id"] != f"chr-region-{index_to_remove}"]
 
-    return children  # Retourner inchangé si rien n'a été cliqué
+    return children
 
 
 
@@ -238,7 +238,7 @@ def update_trials_value(value):
 
 
 @callback(
-    Output("alert-submit", "children"),
+    Output("alert-submit-o4s", "children"),
     Output("output-table-container", "children"),
     Input("submit-button", "n_clicks"),
     State("genome-fasta-dropdown", "value"),

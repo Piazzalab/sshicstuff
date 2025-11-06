@@ -6,6 +6,8 @@ import re
 
 import pandas as pd
 import plotly.io as pio
+import dash_bootstrap_components as dbc
+
 from dash import callback, dcc
 from dash.dependencies import Input, Output, State
 
@@ -30,13 +32,26 @@ def update_smoothing_output(value):
 
 
 @callback(
+    Output("alert-upload-4c", "children"),
+    Input("upload-files-4c", "filename"),
+    prevent_initial_call=True
+)
+def show_upload_alert(filenames):
+    if filenames:
+        return dbc.Alert(f"Uploaded {len(filenames)} files : {', '.join(filenames)}", color="success", dismissable=True)
+    return None
+
+
+
+@callback(
     [Output("oligo-dropdown", "options"),
      Output("coord-dropdown", "options"),
-     Output("clear-list-browser", "n_clicks"),
+     Output("clear-list-4c", "n_clicks"),
+     Output("alert-clean-cache-4c", "children"),
      Output("samples-dropdown", "options"),],
-    [Input("upload-files-browser", "filename"),
-     Input("upload-files-browser", "contents"),
-     Input("clear-list-browser", "n_clicks")],
+    [Input("upload-files-4c", "filename"),
+     Input("upload-files-4c", "contents"),
+     Input("clear-list-4c", "n_clicks")],
 )
 def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
     if uploaded_filenames is not None and uploaded_file_contents is not None:
@@ -44,15 +59,18 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
             save_file_cache(name, data, __CACHE_DIR__)
 
     files = uploaded_files_cache(__CACHE_DIR__)
+    clear_alert = None
     if n_clicks is not None:
         if n_clicks > 0:
             for filename in files:
                 os.remove(os.path.join(__CACHE_DIR__, filename))
             files = []
+            clear_alert = dbc.Alert("Cache cleared", color="info", dismissable=True)
+
 
     n_clicks = 0
     if len(files) == 0:
-        return files, files, n_clicks, files
+        return files, files, n_clicks, clear_alert, files
 
     else:
         inputs = []
@@ -62,7 +80,7 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
                 samples.append({'label': f, 'value': os.path.join(__CACHE_DIR__, f)})
             else:
                 inputs.append({'label': f, 'value': os.path.join(__CACHE_DIR__, f)})
-        return inputs, inputs, n_clicks, samples
+        return inputs, inputs, n_clicks, clear_alert, samples
 
 
 @callback(

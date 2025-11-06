@@ -5,17 +5,24 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 from flask import Flask
 
-# Import your page layouts here
-import sshicstuff.gui.layout_browser as lb
-import sshicstuff.gui.layout_oligomaker as lo
+import sshicstuff.gui.layout_4c_profile as lb
+import sshicstuff.gui.layout_design as lo
+
+# DO NOT REMOVE EVEN IF NOT USED.
+import sshicstuff.gui.callbacks_4c_profile
+import sshicstuff.gui.callbacks_design
 
 server = Flask(__name__)
+server.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1 Go
+
+prefix = os.environ.get("SHINYPROXY_PUBLIC_PATH", "/")  # fallback local
+
 app = dash.Dash(
     __name__,
     server=server,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
-    requests_pathname_prefix=os.environ['SHINYPROXY_PUBLIC_PATH'],
-    routes_pathname_prefix=os.environ['SHINYPROXY_PUBLIC_PATH']
+    requests_pathname_prefix=None if prefix in ("", "/") else prefix,
+    routes_pathname_prefix=None if prefix in ("", "/") else prefix
 )
 
 app.config.suppress_callback_exceptions = True

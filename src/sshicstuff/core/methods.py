@@ -29,18 +29,14 @@ pd.options.mode.chained_assignment = None
 
 pio.kaleido.scope.mathjax = None
 
-# global variables
-__PROJECT_DIR__ = dirname(dirname(os.path.abspath(__file__)))
-__CACHE_DIR__ = join(__PROJECT_DIR__, "__cache__")
+# cache dir
+__CACHE_DIR__ = os.environ.get("SSHIC_CACHE_DIR", "/tmp/sshic_cache")
 os.makedirs(__CACHE_DIR__, exist_ok=True)
-
 
 def associate_oligo_to_frag(
         oligo_capture_path: str,
         fragments_path: str,
-        force: bool = True,
         output_path: str = None,
-
 ):
     """
     Associate oligo to fragments based on the fragment name.

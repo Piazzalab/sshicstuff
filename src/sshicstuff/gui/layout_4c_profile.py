@@ -9,11 +9,18 @@ empty_figure = plot.empty_figure
 
 layout = html.Div(id="browser-page", children=[
     dbc.Container([
+
+        # Alerts
+        dbc.Row([
+            html.Div(id="alert-upload-4c"),
+            html.Div(id="alert-clean-cache-4c")
+        ]),
+
         dbc.Row([
             dbc.Col([
                 html.H6('Upload files'),
                 dcc.Upload(
-                    id="upload-files-browser",
+                    id="upload-files-4c",
                     children=html.Div(
                         ["Drag and drop or click to select a file to upload."]
                     ),
@@ -32,7 +39,7 @@ layout = html.Div(id="browser-page", children=[
 
             dbc.Col([
                 html.Button(
-                    id="clear-list-browser",
+                    id="clear-list-4c",
                     className="btn btn-danger",
                     children="Clear list",
                 )
