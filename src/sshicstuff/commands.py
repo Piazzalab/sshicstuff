@@ -260,8 +260,8 @@ class Design:
 
         # GENOME EDITION OPTIONS :
         [--n-artificial-spacer 150]
-        [--n-5-prime-deletion 10]
-        [--n-3-prime-deletion 10]
+        [--capture-size 60]
+
     """
 
     def __init__(self, command_args, global_args=None):
@@ -348,8 +348,7 @@ class Design:
 
         # ----- genome edition (wrapper) -----
         p.add_argument("--n-artificial-spacer", type=int, default=150)
-        p.add_argument("--n-5-prime-deletion", type=int, default=10)
-        p.add_argument("--n-3-prime-deletion", type=int, default=10)
+        p.add_argument("--capture-size", type=int, default=60)
 
         return p
 
@@ -379,8 +378,8 @@ class Design:
         # 4) Capture generation (CSV)
         df_capture = methods.annealing_to_capture(
             df_annealing=df_annealing2,
-            n_5_prime_deletion=self.args.n_5_prime_deletion,
-            n_3_prime_deletion=self.args.n_3_prime_deletion,
+            enzyme=self.args.site,
+            target_length=self.args.capture_size,
         )
         df_capture.to_csv(self.capture_csv, sep=",", index=False)
 

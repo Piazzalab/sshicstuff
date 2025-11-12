@@ -117,8 +117,8 @@ def associate_oligo_to_frag(
 
 def annealing_to_capture(
     df_annealing: pd.DataFrame,
-    n_5_prime_deletion: int = 10,
-    n_3_prime_deletion: int = 10
+    enzyme: str,
+    target_length: float,
 ):
 
     df_capture = df_annealing.copy()
@@ -127,6 +127,17 @@ def annealing_to_capture(
     capture_oligos = []
     for _, row in df_annealing.iterrows():
         seq = row["sequence_modified"]
+        pos = seq.lower().find(enzyme.lower())
+        middle = len(seq) // 2
+        if pos < middle:
+            # cut from 5' end
+            n_5_prime_deletion = pos + len(enzyme)
+            n_3_prime_deletion = max(0, len(seq) - (n_5_prime_deletion + target_length))
+        else:
+            # cut from 3' end
+            n_3_prime_deletion = len(seq) - pos
+            n_5_prime_deletion = max(0, len(seq) - (n_3_prime_deletion + target_length))
+
         if seq is None or pd.isna(seq):
             new_seq = row["sequence_original"]
         else:
