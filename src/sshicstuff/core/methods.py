@@ -700,11 +700,20 @@ def format_annealing_oligo_output(
         name = "Probe_{}_{}_{}_{}".format(chrom, strand, start, end)
         return chrom, int(start), int(end), strand, oligo_type, name
 
+    def search_snps(raw, mutated):
+        res = list(mutated.upper())
+        for p in range(len(raw)):
+            if raw[p].upper() != mutated[p].upper():
+                res[p] = mutated[p].lower()
+        return "".join(res)
+
+
     for i in range(0, len(df_raw), 2):
         metadata_raw = df_raw.iloc[i, 0]
         seq_raw = df_raw.iloc[i + 1, 0]
-        metadata_snp = df_snp.iloc[i, 0]
         seq_snp = df_snp.iloc[i + 1, 0]
+
+        seq_snp = search_snps(seq_raw, seq_snp)
 
         chrom, start, end, strand, oligo_type, name = parse_metadata(metadata_raw)
 
