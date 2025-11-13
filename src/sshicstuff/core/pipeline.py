@@ -86,8 +86,7 @@ def full_pipeline(
 
     methods.associate_oligo_to_frag(
         oligo_capture_path=oligo_capture,
-        fragments_path=fragments_list,
-        force=force,
+        fragments_path=fragments_list
     )
     if copy_inputs:
         methods.copy(oligo_capture_with_frag, copy_dir)
@@ -224,7 +223,7 @@ def full_pipeline(
         "_0kb_profile_", f"_{binsize_for_cen // 1000}kb_profile_"
     )
 
-    agg.aggregate(
+    agg.run(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
@@ -242,7 +241,7 @@ def full_pipeline(
         "_0kb_profile_", f"_{binsize_for_telo // 1000}kb_profile_"
     )
 
-    agg.aggregate(
+    agg.run(
         binned_contacts_path=join(output_dir, correct_profile),
         chr_coord_path=chr_coordinates,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
