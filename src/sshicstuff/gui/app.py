@@ -3,7 +3,9 @@ import os
 import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, html
+from os.path import dirname, join
 from flask import Flask
+from pathlib import Path
 
 import sshicstuff.gui.layout_4c_profile as lb
 import sshicstuff.gui.layout_design as lo
@@ -20,6 +22,22 @@ server.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-sshicstuff-secret")
 
 prefix = os.environ.get("SHINYPROXY_PUBLIC_PATH", "/")  # fallback local
 
+def get_app_version():
+    """
+    Try to read version from pyproject.toml *if it exists*
+    """
+    # Get the dir where THIS file is located → pas le cwd !
+    base_dir = Path(__file__).resolve().parent.parent.parent.parent  # hop back to /gui/..
+    pyproject = base_dir / "pyproject.toml"
+
+    if pyproject.exists():
+        with pyproject.open("r") as f:
+            for line in f:
+                if line.strip().startswith("version"):
+                    return line.split("=")[1].strip().strip('"\'')
+    else:
+        return "unknown"
+
 app = dash.Dash(
     __name__,
     server=server,
@@ -30,10 +48,12 @@ app = dash.Dash(
 
 app.config.suppress_callback_exceptions = True
 
+version = get_app_version()
+
 # Layout avec Tabs
 app.layout = html.Div([
     dbc.Row(
-        dbc.Col(html.H1("ssDNA specific Hi-C graphical suite"), width=12, style={'textAlign': 'center', 'margin': '20px'})
+        dbc.Col(html.H1(f"ssDNA specific Hi-C graphical suite V{version}"), width=12, style={'textAlign': 'center', 'margin': '20px'})
     ),
     dcc.Tabs(id="tabs", value='oligo-tab', children=[
         dcc.Tab(label='Oligo Designer', value='oligo-tab'),
