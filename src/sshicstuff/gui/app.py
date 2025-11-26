@@ -15,6 +15,9 @@ import sshicstuff.gui.callbacks_design
 server = Flask(__name__)
 server.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1 Go
 
+# NEW: secret key so Flask session works (for per-user cache)
+server.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-sshicstuff-secret")
+
 prefix = os.environ.get("SHINYPROXY_PUBLIC_PATH", "/")  # fallback local
 
 app = dash.Dash(

@@ -13,6 +13,7 @@ import subprocess
 import sys
 from os.path import join, dirname
 from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd
@@ -30,7 +31,8 @@ pd.options.mode.chained_assignment = None
 pio.kaleido.scope.mathjax = None
 
 # cache dir
-__CACHE_DIR__ = os.environ.get("SSHIC_CACHE_DIR", "/tmp/sshic_cache")
+__CACHE_DIR__ = os.environ.get("SSHICSTUFF_CACHE_DIR", "/tmp/sshicstuff_cache")
+APP_INSTANCE_ID = os.environ.get("SSHICSTUFF_APP_INSTANCE_ID", str(uuid4()))
 os.makedirs(__CACHE_DIR__, exist_ok=True)
 
 def associate_oligo_to_frag(

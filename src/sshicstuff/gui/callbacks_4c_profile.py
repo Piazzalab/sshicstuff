@@ -3,6 +3,7 @@ Browser callbacks
 """
 import os
 import re
+from uuid import uuid4
 
 import pandas as pd
 import plotly.io as pio
@@ -10,12 +11,36 @@ import dash_bootstrap_components as dbc
 
 from dash import callback, dcc
 from dash.dependencies import Input, Output, State
+from flask import session
 
-from sshicstuff.core.methods import uploaded_files_cache, save_file_cache, __CACHE_DIR__
+# Interpret __CACHE_DIR__ as *base* directory for all sessions
+from sshicstuff.core.methods import (
+    uploaded_files_cache,
+    save_file_cache,
+    __CACHE_DIR__ as BASE_CACHE_DIR,
+    APP_INSTANCE_ID,
+)
 from sshicstuff.core.plot import empty_figure, figure_maker
 
 CHR_ARTIFICIAL_EXCLUSION = ["chr_artificial_donor", "chr_artificial_ssDNA"]
 
+SESSION_KEY = "sshicstuff_session_id"
+
+def get_user_cache_dir() -> str:
+    """
+    Return a per-session cache directory, namespaced by the app instance.
+
+    Directory structure:
+        BASE_CACHE_DIR / APP_INSTANCE_ID / SESSION_ID
+    """
+    sid = session.get(SESSION_KEY)
+    if sid is None:
+        sid = str(uuid4())
+        session[SESSION_KEY] = sid
+
+    cache_dir = os.path.join(str(BASE_CACHE_DIR), APP_INSTANCE_ID, sid)
+    os.makedirs(cache_dir, exist_ok=True)
+    return cache_dir
 
 @callback(
     Output('binning-slider-output-container', 'children'),
@@ -54,19 +79,20 @@ def show_upload_alert(filenames):
      Input("clear-list-4c", "n_clicks")],
 )
 def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
+    cache_dir = get_user_cache_dir()
+
     if uploaded_filenames is not None and uploaded_file_contents is not None:
         for name, data in zip(uploaded_filenames, uploaded_file_contents):
-            save_file_cache(name, data, __CACHE_DIR__)
+            save_file_cache(name, data, cache_dir)
 
-    files = uploaded_files_cache(__CACHE_DIR__)
+    files = uploaded_files_cache(cache_dir)
     clear_alert = None
     if n_clicks is not None:
         if n_clicks > 0:
             for filename in files:
-                os.remove(os.path.join(__CACHE_DIR__, filename))
+                os.remove(os.path.join(cache_dir, filename))
             files = []
             clear_alert = dbc.Alert("Cache cleared", color="info", dismissable=True)
-
 
     n_clicks = 0
     if len(files) == 0:
@@ -76,10 +102,11 @@ def update_file_list(uploaded_filenames, uploaded_file_contents, n_clicks):
         inputs = []
         samples = []
         for f in files:
+            full_path = os.path.join(cache_dir, f)
             if "profile" in f:
-                samples.append({'label': f, 'value': os.path.join(__CACHE_DIR__, f)})
+                samples.append({'label': f, 'value': full_path})
             else:
-                inputs.append({'label': f, 'value': os.path.join(__CACHE_DIR__, f)})
+                inputs.append({'label': f, 'value': full_path})
         return inputs, inputs, n_clicks, clear_alert, samples
 
 

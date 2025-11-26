@@ -1,18 +1,48 @@
 import base64
 import os
 import subprocess
+from uuid import uuid4
+
 from dash import dash_table
 
 import dash_bootstrap_components as dbc
 from dash import callback, ctx, dcc, html
 from dash.dependencies import Input, Output, State, ALL
+from flask import session
 
-from sshicstuff.core.methods import format_annealing_oligo_output, __CACHE_DIR__
 
+from sshicstuff.core.methods import (
+    format_annealing_oligo_output,
+    __CACHE_DIR__ as BASE_CACHE_DIR,
+    APP_INSTANCE_ID,                  # <-- ADD THIS
+)
+
+SESSION_KEY = "sshicstuff_session_id"
+
+def get_user_cache_dir() -> str:
+    """
+    Return a per-session cache directory for the Oligo Designer,
+    namespaced by the app instance.
+
+    Directory structure:
+        BASE_CACHE_DIR / APP_INSTANCE_ID / SESSION_ID
+    """
+    sid = session.get(SESSION_KEY)
+    if sid is None:
+        sid = str(uuid4())
+        session[SESSION_KEY] = sid
+
+    cache_dir = os.path.join(str(BASE_CACHE_DIR), APP_INSTANCE_ID, sid)
+    os.makedirs(cache_dir, exist_ok=True)
+    return cache_dir
 
 def list_cached_files():
-    return [{'label': f, 'value': f} for f in os.listdir(__CACHE_DIR__) if os.path.isfile(os.path.join(__CACHE_DIR__, f))]
-
+    cache_dir = get_user_cache_dir()
+    return [
+        {'label': f, 'value': f}
+        for f in os.listdir(cache_dir)
+        if os.path.isfile(os.path.join(cache_dir, f))
+    ]
 
 @callback(
     Output("alert-version-o4s", "children"),
@@ -58,17 +88,18 @@ def show_clean_cache_alert(n_clicks):
 )
 def update_dropdown(filenames, file_contents, clear_clicks):
     ctx_trigger = ctx.triggered_id
+    cache_dir = get_user_cache_dir()
 
     if ctx_trigger == "clear-list-o4s":
-        if os.path.exists(__CACHE_DIR__):
-            for file in os.listdir(__CACHE_DIR__):
-                file_path = os.path.join(__CACHE_DIR__, file)
+        if os.path.exists(cache_dir):
+            for file in os.listdir(cache_dir):
+                file_path = os.path.join(cache_dir, file)
                 if os.path.isfile(file_path):
-                    os.remove(file_path) 
+                    os.remove(file_path)
 
-    elif filenames and file_contents: 
+    elif filenames and file_contents:
         for filename, content in zip(filenames, file_contents):
-            file_path = os.path.join(__CACHE_DIR__, filename)
+            file_path = os.path.join(cache_dir, filename)
 
             if os.path.exists(file_path):
                 os.remove(file_path)
@@ -329,10 +360,12 @@ def run_oligo4sshic(
     else:
         secondary_sites = None
 
-    fasta_path = os.path.join(__CACHE_DIR__, fasta)
-    output_snp_path = os.path.join(__CACHE_DIR__, "output_tmp_snp.tsv")
-    output_raw_path = os.path.join(__CACHE_DIR__, "output_tmp_raw.tsv")
-    output_df_path = os.path.join(__CACHE_DIR__, "oligo4sshic_output.tsv")
+    cache_dir = get_user_cache_dir()
+
+    fasta_path = os.path.join(cache_dir, fasta)
+    output_snp_path = os.path.join(cache_dir, "output_tmp_snp.tsv")
+    output_raw_path = os.path.join(cache_dir, "output_tmp_raw.tsv")
+    output_df_path = os.path.join(cache_dir, "oligo4sshic_output.tsv")
 
     arguments = {}
     arguments["--fasta"] = fasta_path
@@ -389,7 +422,8 @@ def run_oligo4sshic(
     prevent_initial_call=True
 )
 def download_final_df(n_clicks):
-    output_file= os.path.join(__CACHE_DIR__, "oligo4sshic_output.tsv")
+    cache_dir = get_user_cache_dir()
+    output_file = os.path.join(cache_dir, "oligo4sshic_output.tsv")
     if os.path.isfile(output_file):
         return dcc.send_file(output_file)
     return None

@@ -62,7 +62,8 @@ RUN mkdir -p /cache && chown -R appuser:appuser /cache
 USER appuser
 ENV PATH=/opt/conda/envs/sshicstuff_env/bin:$PATH
 
-ENV SSHIC_CACHE_DIR=/cache
+ENV SSHICSTUFF_CACHE_DIR=/cache
+ENV FLASK_SECRET_KEY="xOt9KYbBDN4Fm84bzq2tUhs9PXjN6tGH8j7s3R9zNaPpQWqs"
 
 # If you run the Dash/Flask UI (e.g., `sshicstuff view`), 8050 is common.
 EXPOSE 8050
