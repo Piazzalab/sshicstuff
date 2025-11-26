@@ -21,53 +21,40 @@ RUN git clone --depth=1 "$O4S_GIT_URL" oligo4sshic \
 # =========================
 FROM mambaorg/micromamba:1.5.10
 
-# ---- System packages (lean) ----
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential git ca-certificates curl \
       zlib1g-dev libbz2-dev liblzma-dev libssl-dev libffi-dev \
   && rm -rf /var/lib/apt/lists/*
 
-# ---- Workdir & copy metadata first (cache-friendly) ----
 WORKDIR /app
-COPY environment.yml .
-COPY requirements.txt .
-COPY pyproject.toml .
-COPY README.md .
 
-# ---- Create the conda env from environment.yml ----
-# This typically brings in CLI tools (bowtie2, minimap2, samtools, seqtk, pairtools, etc.).
+# ---- Copy only dependency files (for caching) ----
+COPY environment.yml requirements.txt pyproject.toml README.md /app/
+
+# ---- Build frozen env (atomic, cachable) ----
 ENV MAMBA_DOCKERFILE_ACTIVATE=1
 SHELL ["/bin/bash", "-lc"]
 RUN micromamba create -y -n sshicstuff_env -f environment.yml \
- && micromamba clean -a -y
+    && micromamba run -n sshicstuff_env pip install --upgrade pip \
+    && micromamba run -n sshicstuff_env pip install -r requirements.txt \
+    && micromamba clean -a -y
 
-# ---- Python deps (pin/upgrade as needed) ----
-RUN micromamba run -n sshicstuff_env python -m pip install --upgrade pip \
- && micromamba run -n sshicstuff_env python -m pip install -r requirements.txt
-
-# ---- App source & install (editable for dev; switch to non-editable for release) ----
+# ---- Copy the full app only AFTER ----
 COPY . /app
-RUN micromamba run -n sshicstuff_env python -m pip install -e .
+RUN micromamba run -n sshicstuff_env pip install -e .
 
-# ---- Bring in the oligo4sshic binary from the builder stage ----
+# === Reste inchangé ===
 COPY --from=o4s-builder /src/oligo4sshic/target/release/oligo4sshic /usr/local/bin/oligo4sshic
 
-# ---- Non-root user & PATH ----
-# Create the cache dir
 RUN useradd -ms /bin/bash appuser && chown -R appuser:appuser /app
 RUN mkdir -p /cache && chown -R appuser:appuser /cache
 
-
 USER appuser
 ENV PATH=/opt/conda/envs/sshicstuff_env/bin:$PATH
-
 ENV SSHICSTUFF_CACHE_DIR=/cache
 ENV FLASK_SECRET_KEY="xOt9KYbBDN4Fm84bzq2tUhs9PXjN6tGH8j7s3R9zNaPpQWqs"
 
-# If you run the Dash/Flask UI (e.g., `sshicstuff view`), 8050 is common.
 EXPOSE 8050
-
-# The CLI name exposed by your pyproject's [project.scripts] -> "sshicstuff = sshicstuff.__main__:main"
 ENTRYPOINT ["sshicstuff"]
 CMD ["view"]
