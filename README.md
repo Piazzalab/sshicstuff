@@ -1,47 +1,168 @@
-# sshicstuff: a pipeline for analyzing ssDNA-specific Hi-C data
-
-## Dependencies  
-
-It is recommended to use a virtual environment to install the dependencies. 
-
-We suggest you to use the Makefile file one command to install all the dependencies at once:
-
+# Installation
+ 
+# Installation
+ 
+## Requirements
+ 
+- Linux (x86\_64) or macOS (Apple Silicon)
+- [mamba](https://mamba.readthedocs.io/) or [conda](https://docs.conda.io/en/latest/) — mamba is strongly recommended for speed
+- **git** — required to clone the `oligo4sshic` submodule
+- **Rust / cargo** — required to build the `oligo4sshic` binary ([install via rustup](https://rustup.rs))
+ 
+> **Note:** If you only need the core Python package and do not intend to use the `oligo4sshic` submodule, Rust is not required.
+ 
+---
+ 
+## Quick install
+ 
+Run the following from the root of the repository:
+ 
 ```bash
-make
+make all
 ```
-
-Alternatively, for any reason, you can install the dependencies step by step using conda / mamba and pip :
-
+ 
+This single command runs two steps in order:
+ 
+1. Creates the `sshicstuff_env` conda environment from `environment.yml`, including a `pip install -e .` of the Python package.
+2. Clones and builds the `oligo4sshic` Rust binary via `cargo install`.
+ 
+> **If `mamba` is not in your PATH**, you can override the default: `make MAMBA=conda`
+ 
+---
+ 
+## Step-by-step install
+ 
+### 1. Create the conda environment
+ 
 ```bash
 mamba env create -f environment.yml
 ```
-
+ 
+This creates the `sshicstuff_env` environment and automatically installs the Python package in editable mode (`pip install -e .`), as specified by the `pip` block at the bottom of `environment.yml`. No separate `pip install` step is needed.
+ 
+> If the environment already exists, you will get an error. Either remove it first (`make clean`) or update it (`make env-update`).
+ 
 Activate the environment:
-    
+ 
 ```bash
-mamba activate sshicstuff
+mamba activate sshicstuff_env
 ```
-
-Inside the sshicstuff directory, install the package with the following command:
-
-```bash
-pip install -e .
-```
-
-Install the oligo4sshic rust sub-module :
-
-Install rustup if not already installed:
+ 
+### 2. Install the `oligo4sshic` submodule
+ 
+First, make sure Rust is available. If not, install it:
+ 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source $HOME/.cargo/env
 ```
-
-Clone the git repository and install it :
+ 
+Then clone and build the binary:
+ 
 ```bash
-git clone git@gitbio.ens-lyon.fr:LBMC/GM/oligo4sshic.git 
-```
-```bash
+git clone git@gitbio.ens-lyon.fr:LBMC/GM/oligo4sshic.git
 cargo install --path oligo4sshic
 ```
+ 
+Or equivalently, via Make (can be run standalone after `make env`):
+ 
+```bash
+make install-oligo4sshic
+```
+ 
+---
+ 
+## Reproducible install (conda-lock)
+ 
+`conda-lock` generates a fully pinned lock file that records the exact version and hash of every dependency, including transitive ones. This guarantees identical environments across machines and over time.
+ 
+**Supported platforms:** `linux-64`, `osx-arm64`
+ 
+**One-time setup** — install `conda-lock` in your base environment:
+ 
+```bash
+pip install conda-lock
+```
+ 
+**Generate the lock file** (maintainers only, commit the result):
+ 
+```bash
+make lock
+git add conda-lock.yml
+git commit -m "Update conda-lock.yml"
+git push
+```
+ 
+**Recreate the exact environment from the lock file:**
+ 
+```bash
+make env-lock
+```
+ 
+> This will fail if the environment already exists. Run `make clean` first if needed.
+ 
+After creating the environment from the lock file, the editable install of the package is **not** applied automatically. Run the following to apply it:
+ 
+```bash
+make reinstall
+```
+ 
+Then proceed with the `oligo4sshic` step as described above.
+ 
+---
+ 
+## Updating the environment
+ 
+To update an existing `sshicstuff_env` after changes to `environment.yml`:
+ 
+```bash
+make env-update
+```
+ 
+This runs `mamba env update --prune`, which adds new dependencies and removes ones that were removed from the spec.
+ 
+---
+ 
+## Docker
+ 
+A Docker image is available for containerized setups or cluster use without managing conda environments. The image uses a two-stage build: the `oligo4sshic` binary is compiled from source in a Rust builder stage, then combined with the conda environment in the final image.
+ 
+**Build the image:**
+ 
+```bash
+docker build -t sshicstuff:latest .
+```
+ 
+> By default, `oligo4sshic` is cloned from the internal ENS-Lyon GitBio server. If the repository becomes public, override the URL at build time:
+> ```bash
+> docker build --build-arg O4S_GIT_URL=https://github.com/... -t sshicstuff:latest .
+> ```
+ 
+**Run a command:**
+ 
+```bash
+docker run --rm -v $(pwd):/data sshicstuff:latest pipeline --help
+```
+ 
+The container runs as an unprivileged user (`appuser`). Mount your data directory to `/data` and your output directory accordingly.
+ 
+---
+ 
+## Makefile reference
+ 
+| Target | Description |
+|---|---|
+| `make` / `make all` | Create the conda env + build `oligo4sshic` |
+| `make env` | Create the conda environment from `environment.yml` |
+| `make env-update` | Update an existing environment from `environment.yml` |
+| `make lock` | Generate `conda-lock.yml` for `linux-64` and `osx-arm64` |
+| `make env-lock` | Create the environment from `conda-lock.yml` |
+| `make reinstall` | Re-run `pip install -e .` inside the existing environment |
+| `make install-oligo4sshic` | Clone and build the `oligo4sshic` Rust binary |
+| `make clean` | Remove the `sshicstuff_env` conda environment |
+| `make clean-oligo` | Remove the cloned `oligo4sshic` directory |
+| `make clean-lock` | Remove `conda-lock.yml` |
+ 
 
 ## Description  
 sshicstuff enables the analysis of ssDNA-specific Hi-C contact generated from paired-end Illumina reads. This project has not yet been packaged (coming soon). 
