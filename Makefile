@@ -29,7 +29,6 @@ help:
 all: env install-oligo4sshic
 
 # Create the conda environment from environment.yml.
-# The editable install is triggered by the pip block in environment.yml.
 env:
 	@command -v $(MAMBA) >/dev/null 2>&1 || { echo "$(MAMBA) not found. Please install mamba first."; exit 1; }
 	@if $(MAMBA) env list | awk '{print $$1}' | grep -qx "$(ENV_NAME)"; then \
@@ -37,11 +36,14 @@ env:
 		exit 1; \
 	fi
 	$(MAMBA) env create -f $(YAML)
+	$(MAMBA) run -n $(ENV_NAME) pip install -e .   # editable install
+
 
 # Update an existing environment from environment.yml.
 env-update:
 	@command -v $(MAMBA) >/dev/null 2>&1 || { echo "$(MAMBA) not found. Please install mamba first."; exit 1; }
 	$(MAMBA) env update -n $(ENV_NAME) -f $(YAML) --prune
+	$(MAMBA) run -n $(ENV_NAME) pip install -e .
 
 # Generate a fully pinned lock file for supported platforms.
 lock:
@@ -61,6 +63,7 @@ env-lock:
 		exit 1; \
 	fi
 	$(CONDA_LOCK) install -n $(ENV_NAME) $(LOCK_FILE)
+	$(MAMBA) run -n $(ENV_NAME) pip install -e .
 
 # Optional: force a local editable reinstall inside the environment.
 # Useful during development, but not required for locked installs.

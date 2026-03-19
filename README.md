@@ -132,16 +132,11 @@ A Docker image is available for containerized setups or cluster use without mana
 ```bash
 docker build -t sshicstuff:latest .
 ```
- 
-> By default, `oligo4sshic` is cloned from the internal ENS-Lyon GitBio server. If the repository becomes public, override the URL at build time:
-> ```bash
-> docker build --build-arg O4S_GIT_URL=https://github.com/... -t sshicstuff:latest .
-> ```
- 
+
 **Run a command:**
  
 ```bash
-docker run --rm -v $(pwd):/data sshicstuff:latest pipeline --help
+docker run -it -p 8050:8050 sshicstuff  
 ```
  
 The container runs as an unprivileged user (`appuser`). Mount your data directory to `/data` and your output directory accordingly.

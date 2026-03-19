@@ -18,7 +18,3 @@ dependencies:
 
   # Build tools
   - python-build=1.2.2.post1
-
-  # Python dependencies (pip)
-  - pip:
-      - -e .
