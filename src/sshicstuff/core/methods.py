@@ -5,21 +5,20 @@ Module containing functions to analyze the contacts and the capture efficiency o
 import argparse
 import base64
 import datetime
+import numpy as np
 import os
+import pandas as pd
+import plotly.io as pio
 import random as rd
 import re
 import shutil
 import subprocess
 import sys
+from Bio import SeqIO
+from Bio.Seq import Seq
 from os.path import join, dirname
 from pathlib import Path
 from uuid import uuid4
-
-import numpy as np
-import pandas as pd
-import plotly.io as pio
-from Bio import SeqIO
-from Bio.Seq import Seq
 
 import sshicstuff.log as log
 
@@ -53,8 +52,6 @@ def associate_oligo_to_frag(
         Path to the .csv file containing the oligo.
     fragments_path : str
         Path to the .csv file containing the fragments.
-    force : bool
-        If True, the function will overwrite the oligo file.
     output_path : str
         Path to the output file. If None, it will be created in the same directory as oligo_capture_path.
     Returns

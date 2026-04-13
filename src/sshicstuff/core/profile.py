@@ -163,7 +163,7 @@ def profile_probes_only(
 
     if not output_path:
         output_path = filtered_table_path.replace(
-            "filtered.tsv", "probes_matrix.tsv"
+            "filtered.tsv", "probe_to_probe_matrix.tsv"
         )
 
     basedir = os.path.dirname(output_path)
