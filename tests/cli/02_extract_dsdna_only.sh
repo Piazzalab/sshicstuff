@@ -8,7 +8,7 @@ echo "[2/11] Extracting dsDNA-only sparse matrix..."
 sshicstuff dsdnaonly \
   -m "${GRAAL_MATRIX}" \
   -c "${CAPTURE_ASSOCIATED}" \
-  -o "${OUTPUTS_DIR}/Graal_sample_for_pipeline_dsdna_only.tsv" \
+  -o "${OUTPUTS_DIR}" \
   -F
 
 echo "Output:"

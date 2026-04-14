@@ -414,7 +414,7 @@ class Dsdnaonly(AbstractCommand):
     Retain only the contacts between non-ss DNA fragments.
 
     usage:
-        dsdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-n FLANKING_NUMBER] [-F]
+        dsdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX -o OUTPUT [-n FLANKING_NUMBER] [-F]
 
     Arguments:
         -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
@@ -423,8 +423,9 @@ class Dsdnaonly(AbstractCommand):
 
         -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
 
+        -o OUTPUT, --output-dir OUTPUT                          Desired output directory
+
     Options:
-        -o OUTPUT, --output OUTPUT                              Path to the output file
 
         -n FLANKING_NUMBER, --flanking-number NUMBER            Number of flanking fragments to remove
                                                                 around a ssdna probe/fragment
@@ -439,7 +440,7 @@ class Dsdnaonly(AbstractCommand):
         methods.sparse_with_dsdna_only(
             sample_sparse_mat=self.args["--sparse-matrix"],
             oligo_capture_with_frag_path=self.args["--oligos-capture"],
-            output_path=self.args["--output"],
+            output_dir=self.args["--output-dir"],
             n_flanking_dsdna=int(self.args["--flanking-number"]),
             force=self.args["--force"],
         )
@@ -905,7 +906,7 @@ class Ssdnaonly(AbstractCommand):
     Retain only the contacts between ss DNA fragments.
 
     usage:
-        ssdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-F]
+        ssdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-F] [-N]
 
     Arguments:
         -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
@@ -915,7 +916,7 @@ class Ssdnaonly(AbstractCommand):
         -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
 
     Options:
-        -o OUTPUT, --output OUTPUT                              Path to the output file
+        -o OUTPUT, --output-dir OUTPUT                          Path to the output directory
 
         -F, --force                                             Force the overwriting of the file if it exists [default: False]
     """
@@ -925,7 +926,7 @@ class Ssdnaonly(AbstractCommand):
         methods.sparse_with_ssdna_only(
             sample_sparse_mat=self.args["--sparse-matrix"],
             oligo_capture_with_frag_path=self.args["--oligos-capture"],
-            output_path=self.args["--output"],
+            output_dir=self.args["--output-dir"],
             force=self.args["--force"],
         )
 
