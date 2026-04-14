@@ -176,7 +176,7 @@ def full_pipeline(
     logger.info(
         "[Profile] : Generate a profile conaining only contacts frequencie between oligos"
     )
-    prof.profile_probes_only(
+    prof.probe_to_probe_only(
         filtered_table_path=join(output_dir, filtered_name),
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         force=force,

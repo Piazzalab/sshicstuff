@@ -662,11 +662,6 @@ class Plot4c(AbstractCommand):
             self.args["--oligo-capture"],
         )
 
-        if not self.args["--rolling-window"]:
-            rolling_window = 1
-        else:
-            rolling_window = int(self.args["--rolling-window"])
-
         if not self.args["--log"]:
             log_scale = False
         else:
@@ -797,9 +792,6 @@ class Profile(AbstractCommand):
 
         -N, --normalize                                        Normalize the coverage by the total number of contacts [default: False]
 
-        --p2p-matrix                                           Make a second dataframe that only contains the contacts (in frequencies) between probes (oligos)
-                                                               This should have a squared-like shape [default: False]
-
     """
 
     def execute(self):
@@ -818,13 +810,62 @@ class Profile(AbstractCommand):
             force=self.args["--force"],
         )
 
-        if self.args["--p2p-matrix"]:
-            prof.profile_probes_only(
-                filtered_table_path=self.args["--filtered-table"],
-                oligo_capture_with_frag_path=self.args["--oligo-capture"],
-                output_path=self.args["--output"],
-                force=self.args["--force"],
-            )
+
+class Probe2probe(AbstractCommand):
+    """
+    Generate a probe-to-probe contact matrix in frequencies from the filtered table.
+
+    usage:
+        probe2probe -c OLIGO_CAPTURE -f FILTERED_TAB
+                    [-o OUTPATH] [-P] [--plot-format PLOT_FORMAT]
+                    [--colormap COLORMAP] [-L]
+                    [--vmin VMIN] [--vmax VMAX]
+                    [--normalize] [--export-to-cooler] [-F]
+
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGO_CAPTURE         Path to the oligo capture file with associated fragments.
+
+        -f FILTERED_TAB, --filtered-table FILTERED_TAB          Path to the filtered contact table.
+
+        -o OUTPATH, --outpath OUTPATH                           Output TSV path for the probe-to-probe matrix.
+
+        -P, --plot                                              Plot the matrix as a heatmap.
+
+        --plot-format PLOT_FORMAT                               Output format for the heatmap [default: pdf].
+
+        --colormap COLORMAP                                     Colormap used for the heatmap [default: YlOrBr].
+
+        -L, --log                                               Apply log10(x + 1) scaling to the heatmap.
+
+        --vmin VMIN                                             Minimum value for the heatmap color scale.
+
+        --vmax VMAX                                             Maximum value for the heatmap color scale.
+
+        --normalize                                             Normalize the matrix by its total sum.
+
+        --export-to-cooler                                      Also export the matrix to a .cool file.
+
+        -F, --force                                             Overwrite existing output files.
+    """
+
+    def execute(self):
+        methods.check_if_exists(self.args["--filtered-table"])
+        methods.check_if_exists(self.args["--oligo-capture"])
+
+        prof.probe_to_probe_only(
+            filtered_table_path=self.args["--filtered-table"],
+            oligo_capture_with_frag_path=self.args["--oligo-capture"],
+            output_path=self.args["--outpath"],
+            plot_matrix=self.args["--plot"],
+            plot_format=self.args["--plot-format"],
+            log_scale=self.args["--log"],
+            normalize=self.args["--normalize"],
+            export_to_cooler=self.args["--export-to-cooler"],
+            color_map=self.args["--colormap"],
+            vmin=float(self.args["--vmin"]) if self.args["--vmin"] else None,
+            vmax=float(self.args["--vmax"]) if self.args["--vmax"] else None,
+            force=self.args["--force"],
+        )
 
 
 class Rebin(AbstractCommand):

@@ -4,21 +4,23 @@ Module containing functions to analyze the contacts and the capture efficiency o
 
 import argparse
 import base64
+import cooler
 import datetime
-import numpy as np
 import os
-import pandas as pd
-import plotly.io as pio
 import random as rd
 import re
 import shutil
 import subprocess
 import sys
-from Bio import SeqIO
-from Bio.Seq import Seq
 from os.path import join, dirname
 from pathlib import Path
 from uuid import uuid4
+
+import numpy as np
+import pandas as pd
+import plotly.io as pio
+from Bio import SeqIO
+from Bio.Seq import Seq
 
 import sshicstuff.log as log
 
@@ -677,6 +679,100 @@ def edit_genome_ref(
     return df_annealing_final
 
 
+def export_probe_matrix_to_cooler(
+    matrix: pd.DataFrame,
+    oligo_capture_with_frag_path: str,
+    output_path: str,
+    force: bool = False,
+) -> None:
+    """
+    Export a probe-by-probe matrix to a .cool file.
+
+    The matrix is defined in probe space rather than genomic-bin space, so a
+    synthetic set of bins is created with one artificial bin per probe.
+    A sidecar TSV file is also written to preserve the mapping between cooler
+    bin IDs, probe names, and original fragment IDs.
+
+    Parameters
+    ----------
+    matrix : pd.DataFrame
+        Square probe-by-probe matrix with identical index and columns.
+    oligo_capture_with_frag_path : str
+        Path to the oligo capture table containing probe names and associated
+        fragment IDs.
+    output_path : str
+        Path to the output .cool file.
+    force : bool
+        If True, overwrite the existing .cool file and mapping file.
+    """
+    try:
+        import cooler
+    except ImportError as exc:
+        raise ImportError(
+            "cooler is required for --export-to-cooler. "
+            "Please install it with `pip install cooler` or via conda."
+        ) from exc
+
+    check_if_exists(oligo_capture_with_frag_path)
+
+    if os.path.exists(output_path):
+        if force:
+            os.remove(output_path)
+        else:
+            logger.warning("[Probe2Probe] : Cooler file already exists: %s", output_path)
+            logger.warning("[Probe2Probe] : Use force=True to overwrite it.")
+            return
+
+    oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
+
+    # Keep only probes present in the matrix, in matrix order
+    probe_order = matrix.index.tolist()
+    df_oligo = df_oligo.set_index("name").loc[probe_order].reset_index()
+
+    # Minimal bins table required by cooler
+    bins = pd.DataFrame({
+        "chrom": ["probes"] * len(probe_order),
+        "start": np.arange(len(probe_order), dtype=np.int64),
+        "end": np.arange(1, len(probe_order) + 1, dtype=np.int64),
+    })
+
+    # Build upper-triangular pixel table
+    values = matrix.to_numpy()
+    pixels_records = []
+
+    for i in range(values.shape[0]):
+        for j in range(i, values.shape[1]):
+            count = values[i, j]
+            if count == 0:
+                continue
+            pixels_records.append((i, j, float(count)))
+
+    pixels = pd.DataFrame(
+        pixels_records,
+        columns=["bin1_id", "bin2_id", "count"]
+    )
+
+    cooler.create_cooler(
+        cool_uri=output_path,
+        bins=bins,
+        pixels=pixels,
+        ordered=True,
+        symmetric_upper=True,
+        dtypes={"count": "float64"},
+    )
+
+    # Write a sidecar mapping file
+    mapping_path = output_path.replace(".cool", "_bins.tsv")
+    df_bins_map = pd.DataFrame({
+        "bin_id": np.arange(len(probe_order), dtype=int),
+        "probe": probe_order,
+        "fragment": df_oligo["fragment"].to_list(),
+    })
+    df_bins_map.to_csv(mapping_path, sep="\t", index=False)
+
+    logger.info("[Probe2Probe] : Cooler file exported to %s", output_path)
+    logger.info("[Probe2Probe] : Probe/bin mapping saved to %s", mapping_path)
 
 def format_annealing_oligo_output(
         design_output_raw_path: str,
@@ -951,7 +1047,7 @@ def resolve_outpath(outdir: Path, name_or_path: str | None, default_name: str) -
     """
     If name_or_path is:
       - None           -> outdir/default_name
-      - absolute path  -> as is
+      - absolute path  -> name_or_path
       - relative name  -> outdir/name_or_path
     """
     if name_or_path is None:

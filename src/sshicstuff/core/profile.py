@@ -8,6 +8,7 @@ import pandas as pd
 
 import sshicstuff.core.methods as methods
 import sshicstuff.log as log
+import sshicstuff.core.plot as plot
 
 logger = log.logger
 
@@ -151,24 +152,66 @@ def profile_contacts(
         )
 
 
-def profile_probes_only(
+def probe_to_probe_only(
     filtered_table_path: str,
     oligo_capture_with_frag_path: str,
-    output_path: str = None,
+    output_path: str | None = None,
+    plot_matrix: bool = False,
+    plot_format: str = "pdf",
+    log_scale: bool = False,
+    normalize: bool = False,
+    export_to_cooler: bool = False,
+    color_map: str = "YlOrBr",
+    vmin: float | None = None,
+    vmax: float | None = None,
     force: bool = False,
-):
+) -> None:
+    """
+    Generate a probe-to-probe contact matrix from a filtered contact table.
+
+    The matrix is written as a TSV file. Optionally, it can also be plotted as
+    a heatmap and/or exported to a .cool file.
+
+    Parameters
+    ----------
+    filtered_table_path : str
+        Path to the filtered contact table.
+    oligo_capture_with_frag_path : str
+        Path to the oligo capture table with associated fragment IDs.
+    output_path : str, optional
+        Output path for the TSV matrix. If None, a default path is inferred from
+        the filtered table path.
+    plot_matrix : bool
+        If True, generate a heatmap next to the TSV output.
+    plot_format : str
+        Figure format for the heatmap (e.g. pdf, png, svg).
+    log_scale : bool
+        If True, use log10(x + 1) scaling for the heatmap.
+    normalize : bool
+        If True, normalize the matrix by its total sum.
+    export_to_cooler : bool
+        If True, export the resulting matrix to a .cool file.
+    color_map : str
+        Colormap used for the heatmap.
+    vmin : float, optional
+        Minimum heatmap value.
+    vmax : float, optional
+        Maximum heatmap value.
+    force : bool
+        Overwrite existing outputs if True.
+    """
 
     methods.check_if_exists(filtered_table_path)
     methods.check_if_exists(oligo_capture_with_frag_path)
 
-    if not output_path:
+    if output_path is None:
         output_path = filtered_table_path.replace(
             "filtered.tsv", "probe_to_probe_matrix.tsv"
         )
 
-    basedir = os.path.dirname(output_path)
-    if not os.path.exists(basedir):
-        os.makedirs(basedir)
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     if os.path.exists(output_path) and not force:
         logger.warning("Output file already exists: %s", output_path)
@@ -176,33 +219,66 @@ def profile_probes_only(
         return
 
     oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
-    df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
+    df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
+
     probes = df_oligo["name"].to_list()
     fragments = df_oligo["fragment"].astype(int).to_list()
+    probe_to_fragment = dict(zip(probes, fragments))
+    fragment_to_probe = {frag: probe for probe, frag in probe_to_fragment.items()}
 
-    df: pd.DataFrame = pd.read_csv(filtered_table_path, sep="\t")
-    df2 = df[df["frag_a"].isin(fragments) & df["frag_b"].isin(fragments)]
+    df = pd.read_csv(filtered_table_path, sep="\t")
+    df = df[df["frag_a"].isin(fragments) & df["frag_b"].isin(fragments)].copy()
 
-    square_matrix = np.zeros((len(probes), len(probes)))
-    for i, probe_a in enumerate(probes):
-        frag_a = df_oligo.loc[df_oligo["name"] == probe_a, "fragment"].values[0]
-        for j, probe_b in enumerate(probes):
-            frag_b = df_oligo.loc[df_oligo["name"] == probe_b, "fragment"].values[0]
-            contacts = df2[(df2["frag_a"] == frag_a) & (df2["frag_b"] == frag_b)][
-                "contacts"
-            ].sum()
-            square_matrix[i, j] = contacts
+    # Aggregate directly instead of double nested filtering.
+    df["probe_a"] = df["frag_a"].map(fragment_to_probe)
+    df["probe_b"] = df["frag_b"].map(fragment_to_probe)
 
-    # normalize the matrix
-    total_contacts = square_matrix.sum()
-    if total_contacts > 0:
-        square_matrix /= total_contacts
+    grouped = (
+        df.groupby(["probe_a", "probe_b"], as_index=False)["contacts"]
+        .sum()
+    )
 
-    # make the matrix symmetric
-    square_matrix = np.maximum(square_matrix, square_matrix.T)
-    df_contacts = pd.DataFrame(square_matrix, columns=probes, index=probes)
-    df_contacts.to_csv(output_path, sep="\t", index=True)
+    matrix = pd.DataFrame(
+        data=0.0,
+        index=probes,
+        columns=probes,
+    )
 
+    for _, row in grouped.iterrows():
+        matrix.loc[row["probe_a"], row["probe_b"]] = row["contacts"]
+
+    # Make the matrix symmetric.
+    matrix = np.maximum(matrix, matrix.T)
+    matrix = pd.DataFrame(matrix, index=probes, columns=probes)
+
+    if normalize:
+        total_contacts = matrix.to_numpy().sum()
+        if total_contacts > 0:
+            matrix = matrix / total_contacts
+
+    matrix.to_csv(output_path, sep="\t", index=True)
+    logger.info("[Probe2Probe] : Matrix saved to %s", output_path)
+
+    if plot_matrix:
+        plot_output_path = os.path.splitext(output_path)[0] + f".{plot_format}"
+        plot.plot_probes_matrix(
+            probes_matrix_path=output_path,
+            output_path=plot_output_path,
+            logscale=log_scale,
+            cmap=color_map,
+            vmin=vmin,
+            vmax=vmax,
+        )
+        logger.info("[Probe2Probe] : Heatmap saved to %s", plot_output_path)
+
+    if export_to_cooler:
+        cool_output_path = os.path.splitext(output_path)[0] + ".cool"
+        methods.export_probe_matrix_to_cooler(
+            matrix=matrix,
+            oligo_capture_with_frag_path=oligo_capture_with_frag_path,
+            output_path=cool_output_path,
+            force=force,
+        )
 
 def rebin_profile(
     contacts_unbinned_path: str,
@@ -212,7 +288,7 @@ def rebin_profile(
     force: bool = False,
 ) -> None:
     """
-    Rebin the contacts profile from an unbinned contacts file into fixed-size bins.
+    Rebin the contacts profile from an reads contacts file into fixed-size bins.
 
     This function creates a template of bins based on chromosome lengths from the provided
     coordinates file and assigns contact values from the unbinned file into these bins.

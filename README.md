@@ -590,6 +590,42 @@ Plot a heatmap of the probes contacts matrix.
         -V VMAX, --vmax VMAX                                        Maximum value of the y-axis (unit of the Y axis) [default: None]
 ```
 
+### Probe2probe
+Generate a probe to probe contact matrix from the sparse matrix file.
+
+```    usage:
+        probe2probe -c OLIGO_CAPTURE -f FILTERED_TAB [-o OUTPUT] [-F]
+    Arguments:
+        -c OLIGO_CAPTURE, --oligo-capture OLIGOS_CAPTURE        Path to the oligos capture file
+                                                                Must be the file with the fragments associated
+                                                                Made with the 'associate' command
+
+        -F FRAGMENTS, --fragments FRAGMENTS                     Path to the digested fragments list file (hicstuff output)
+
+        -f FILTERED_TAB, --filtered-table FILTERED_TAB          Path to the filtered table file
+
+        -o OUTPATH, --outpath OUTPATH                           Desired output file path (with extension) [default: None]
+
+        -P, --plot                                              Plot the probe-to-probe matrix as a heatmap with the
+                                                                same output path but with the extension of the plot
+                                                                (png, pdf, svg, etc.)  [default: False]
+
+        --export-to-cooler                                      Export the probe-to-probe matrix to a cooler file with
+                                                                 the same output path but with the extension .cool [default: False]
+
+
+    Options:
+        --colormap COLORMAP                  Colormap to use for the plot [default: viridis]
+
+        -L, --log                            Rescale the y-axis of the plot with np.log [default: False]
+
+        --plot-format PLOT_FORMAT            Format of the plot to output (png, pdf, svg, etc.) [default: pdf]
+
+        --vmin VMIN                          Minimum value of the y-axis (unit of the Y axis) [default: None]
+
+        --vmax VMAX                          Maximum value of the y-axis (unit of the Y axis) [default: None]
+```
+
 ### Profile
 Generate a 4C-like profile for each ssDNA oligo.
 
@@ -614,9 +650,6 @@ Generate a 4C-like profile for each ssDNA oligo.
         -F, --force                                            Force the overwriting of the output file if it exists [default: False]
 
         -N, --normalize                                        Normalize the coverage by the total number of contacts [default: False]
-
-        --p2p-matrix                                           Make a second dataframe that only contains the contacts (in frequencies) between probes (oligos)
-                                                               This should have a squared-like shape [default: False]
 ```
 
 ### Rebin

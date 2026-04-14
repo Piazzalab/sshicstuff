@@ -30,8 +30,8 @@ def get_stats(
 
     Parameters
     ----------
-    contacts_unbinned_path : str
-        Path to unbinned_contacts.tsv (from fragments).
+    contacts_reads_path : str
+        Path to reads_contacts.tsv (from fragments).
     sparse_mat_path : str
         Path to sparse_contacts_input.txt (from hicstuff).
     chr_coord_path : str

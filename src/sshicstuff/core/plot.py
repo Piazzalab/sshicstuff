@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 import plotly.io as pio
+from dask.array import absolute
 from plotly.subplots import make_subplots
 from matplotlib import pyplot as plt
 
@@ -342,6 +343,7 @@ def plot_profiles(
         profile_type = "frequencies"
 
     df: pd.DataFrame = pd.read_csv(profile_contacts_path, sep="\t")
+
     frags_col = df.filter(regex=r"^\d+$|^\$").columns.to_list()
     df_oligo: pd.DataFrame = pd.read_csv(oligo_capture_path, sep=",")
     probes_to_frag = dict(
@@ -372,7 +374,7 @@ def plot_profiles(
     if log_scale:
         output_dir = os.path.join(output_dir, "log")
     else:
-        output_dir = os.path.join(output_dir, "raw")
+        output_dir = os.path.join(output_dir, "absolute")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -574,8 +576,8 @@ def plot_probes_matrix(
         title: str = None,
         logscale: bool = False,
         cmap: str = 'Reds',
-        vmin: int = 0,
-        vmax: int = None,
+        vmin: float = 0,
+        vmax: float = None,
         dpi: int = 300,
         fsize: int = 14
 ) -> None:
