@@ -1055,6 +1055,238 @@ def save_file_cache(name, content, cache_dir):
         fp.write(base64.decodebytes(data))
 
 
+
+def sparse_graal_to_cooler(
+    sparse_mat_path: str,
+    fragments_list_path: str,
+    output_path: str,
+    force: bool = False,
+    symmetric_upper: bool = True,
+) -> None:
+    """
+    Convert a hicstuff/graal sparse contact matrix to Cooler format.
+
+    This function supports:
+    - original hicstuff/graal sparse matrices
+    - sparse matrices produced by sparse_with_dsdna_only()
+    - sparse matrices produced by sparse_with_ssdna_only()
+
+    Notes
+    -----
+    - The sparse matrix is expected to contain 3 columns:
+        frag_a, frag_b, contacts
+    - The first line may be a graal-style metadata/header row:
+        n_fragments    n_fragments    n_lines
+      In that case, it is automatically removed.
+    - Fragment IDs are assumed to match the row order of fragments_list_path.
+    - Pixels are converted to upper-triangular form before Cooler export.
+
+    Parameters
+    ----------
+    sparse_mat_path : str
+        Path to the sparse matrix (.txt / .tsv).
+    fragments_list_path : str
+        Path to the hicstuff fragments list file.
+    output_path : str
+        Output .cool file path.
+    force : bool
+        If True, overwrite an existing Cooler file.
+    symmetric_upper : bool
+        If True, create a symmetric-upper Cooler.
+
+    Returns
+    -------
+    None
+    """
+    check_if_exists(sparse_mat_path)
+    check_if_exists(fragments_list_path)
+    check_file_extension(fragments_list_path, ".txt")
+    check_file_extension(output_path, ".cool")
+
+    if os.path.exists(output_path):
+        if force:
+            os.remove(output_path)
+        else:
+            logger.warning("[Sparse2Cooler] Output file already exists: %s", output_path)
+            logger.warning("[Sparse2Cooler] Use force=True to overwrite it.")
+            return
+
+    # ------------------------------------------------------------------
+    # 1) Load fragments list and build Cooler bins table
+    # ------------------------------------------------------------------
+    df_frag = pd.read_csv(fragments_list_path, sep="\t")
+
+    required_cols = {"chrom", "start_pos", "end_pos"}
+    missing_cols = required_cols.difference(df_frag.columns)
+    if missing_cols:
+        raise ValueError(
+            f"[Sparse2Cooler] fragments_list is missing required columns: {sorted(missing_cols)}"
+        )
+
+    bins = df_frag.loc[:, ["chrom", "start_pos", "end_pos"]].copy()
+    bins.columns = ["chrom", "start", "end"]
+
+    bins["chrom"] = bins["chrom"].astype(str)
+    bins["start"] = bins["start"].astype(np.int64)
+    bins["end"] = bins["end"].astype(np.int64)
+
+    n_bins = len(bins)
+
+    # ------------------------------------------------------------------
+    # 2) Load sparse matrix as raw table
+    #    We always read with header=None first because some files store
+    #    the graal metadata row as the first data line, while others store
+    #    the same values as TSV column names.
+    # ------------------------------------------------------------------
+    df_raw = pd.read_csv(sparse_mat_path, sep="\t", header=None, dtype=str)
+
+    if df_raw.shape[1] < 3:
+        raise ValueError(
+            f"[Sparse2Cooler] Sparse matrix must have at least 3 columns, got {df_raw.shape[1]}"
+        )
+
+    df_raw = df_raw.iloc[:, :3].copy()
+    df_raw.columns = ["frag_a", "frag_b", "contacts"]
+
+    # ------------------------------------------------------------------
+    # 3) Detect and remove a graal-style metadata/header row
+    #
+    # Typical first row:
+    #   n_fragments   n_fragments   n_lines
+    #
+    # We use a few robust rules:
+    # - if first row is non-numeric -> it is a textual header, drop it
+    # - if first row is numeric and third value equals total number of rows
+    #   in the file, it is the graal metadata row, drop it
+    # ------------------------------------------------------------------
+    first_row = df_raw.iloc[0]
+
+    first_numeric = pd.to_numeric(first_row, errors="coerce")
+    has_text_header = first_numeric.isna().any()
+
+    if has_text_header:
+        df_contacts = df_raw.iloc[1:].copy()
+    else:
+        first_a = int(first_numeric["frag_a"])
+        first_b = int(first_numeric["frag_b"])
+        first_c = int(first_numeric["contacts"])
+
+        # graal metadata row usually stores total number of lines in col3
+        # after reading with header=None, that total should match len(df_raw)
+        is_graal_metadata = (first_a == first_b) and (first_c == len(df_raw))
+
+        if is_graal_metadata:
+            df_contacts = df_raw.iloc[1:].copy()
+        else:
+            df_contacts = df_raw.copy()
+
+    # ------------------------------------------------------------------
+    # 4) Convert to numeric and clean invalid rows
+    # ------------------------------------------------------------------
+    df_contacts["frag_a"] = pd.to_numeric(df_contacts["frag_a"], errors="coerce")
+    df_contacts["frag_b"] = pd.to_numeric(df_contacts["frag_b"], errors="coerce")
+    df_contacts["contacts"] = pd.to_numeric(df_contacts["contacts"], errors="coerce")
+
+    n_before = len(df_contacts)
+
+    df_contacts.dropna(subset=["frag_a", "frag_b", "contacts"], inplace=True)
+
+    df_contacts["frag_a"] = df_contacts["frag_a"].astype(np.int64)
+    df_contacts["frag_b"] = df_contacts["frag_b"].astype(np.int64)
+
+    # Keep contacts as int if possible, otherwise float
+    contacts_are_integer = np.allclose(
+        df_contacts["contacts"].to_numpy(),
+        np.round(df_contacts["contacts"].to_numpy()),
+        equal_nan=True,
+    )
+
+    if contacts_are_integer:
+        df_contacts["contacts"] = np.round(df_contacts["contacts"]).astype(np.int64)
+        count_dtype = "int64"
+    else:
+        df_contacts["contacts"] = df_contacts["contacts"].astype(np.float64)
+        count_dtype = "float64"
+
+    # Remove out-of-bound fragment IDs
+    in_bounds = (
+        (df_contacts["frag_a"] >= 0)
+        & (df_contacts["frag_a"] < n_bins)
+        & (df_contacts["frag_b"] >= 0)
+        & (df_contacts["frag_b"] < n_bins)
+    )
+    n_oob = (~in_bounds).sum()
+    if n_oob > 0:
+        logger.warning(
+            "[Sparse2Cooler] Dropping %d rows with fragment IDs outside [0, %d].",
+            int(n_oob),
+            n_bins - 1,
+        )
+    df_contacts = df_contacts.loc[in_bounds].copy()
+
+    # Remove zero or negative contacts
+    positive_mask = df_contacts["contacts"] > 0
+    n_nonpositive = (~positive_mask).sum()
+    if n_nonpositive > 0:
+        logger.warning(
+            "[Sparse2Cooler] Dropping %d rows with non-positive contact counts.",
+            int(n_nonpositive),
+        )
+    df_contacts = df_contacts.loc[positive_mask].copy()
+
+    if df_contacts.empty:
+        raise ValueError("[Sparse2Cooler] No valid contacts left after cleaning.")
+
+    # ------------------------------------------------------------------
+    # 5) Convert to upper-triangular pixel table
+    # ------------------------------------------------------------------
+    a = df_contacts["frag_a"].to_numpy()
+    b = df_contacts["frag_b"].to_numpy()
+
+    swap_mask = a > b
+    if np.any(swap_mask):
+        df_contacts.loc[swap_mask, ["frag_a", "frag_b"]] = df_contacts.loc[
+            swap_mask, ["frag_b", "frag_a"]
+        ].to_numpy()
+
+    pixels = (
+        df_contacts
+        .groupby(["frag_a", "frag_b"], as_index=False)["contacts"]
+        .sum()
+        .rename(columns={
+            "frag_a": "bin1_id",
+            "frag_b": "bin2_id",
+            "contacts": "count",
+        })
+        .sort_values(["bin1_id", "bin2_id"], kind="stable")
+        .reset_index(drop=True)
+    )
+
+    if count_dtype == "int64":
+        pixels["count"] = pixels["count"].astype(np.int64)
+    else:
+        pixels["count"] = pixels["count"].astype(np.float64)
+
+    # ------------------------------------------------------------------
+    # 6) Export Cooler
+    # ------------------------------------------------------------------
+    cooler.create_cooler(
+        cool_uri=output_path,
+        bins=bins,
+        pixels=pixels,
+        ordered=True,
+        symmetric_upper=symmetric_upper,
+        dtypes={"count": count_dtype},
+    )
+
+    logger.info("[Sparse2Cooler] Sparse matrix converted to Cooler: %s", output_path)
+    logger.info(
+        "[Sparse2Cooler] Exported %d bins and %d pixels (from %d raw rows).",
+        n_bins,
+        len(pixels),
+        n_before,
+    )
+
 def sparse_with_dsdna_only(
     sample_sparse_mat: str,
     oligo_capture_with_frag_path: str,
