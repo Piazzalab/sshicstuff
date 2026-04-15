@@ -6,6 +6,16 @@
 
 # data directories
 data/outputs
+outputs/
+
+# Large raw data
+*.fastq.gz
+*_weighted.txt
+*_contacts.txt
+*_fragments_list.txt
+*_contigs.txt
+*.bam
+*.cool
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
