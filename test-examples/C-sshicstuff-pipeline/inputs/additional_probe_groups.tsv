@@ -1,0 +1,13 @@
+name	probes	action
+Avg_left_all_noLY_pool3	"Probe_URA-L-15683-SspI-RC,Probe_URA-L-6065-SspI-RC,Probe_URA-L-3728-SspI-RC,Probe_URA-L-3081-MfeI-RC,Probe_URA-L-2599-MfeI-RC"	average
+Avg_left_all_noLY_pool6	"Probe_URA-L-15683-SspI-RC,Probe_URA-L-6532-MfeI-RC,Probe_URA-L-6065-SspI-RC,Probe_URA-L-4543-SspI-RC,Probe_URA-L-3728-SspI-RC,Probe_URA-L-3081-MfeI-RC,Probe_URA-L-2599-MfeI-RC"	average
+Avg_left_0-4kb_noLY	"Probe_URA-L-3728-SspI-RC,Probe_URA-L-3081-MfeI-RC,Probe_URA-L-2599-MfeI-RC"	average
+Avg_left_0-4kb_LY	"Probe_URA-L-3728-SspI-RC,Probe_URA-L-3081-MfeI-RC,Probe_URA-L-2599-MfeI-RC,Probe_URA-L-1560-SspI-RC,Probe_URA-L-774-MfeI-RC"	average
+Avg_left_0-7kb_noLY_pool3	"Probe_URA-L-3728-SspI-RC,Probe_URA-L-3081-MfeI-RC,Probe_URA-L-2599-MfeI-RC,Probe_URA-L-6065-SspI-RC"	average
+Avg_left_0-7kb_noLY_pool6	"Probe_URA-L-6532-MfeI-RC,Probe_URA-L-6065-SspI-RC,Probe_URA-L-4543-SspI-RC,Probe_URA-L-3728-SspI-RC,Probe_URA-L-3081-MfeI-RC,Probe_URA-L-2599-MfeI-RC"	average
+Avg_LY	"Probe_URA-L-1560-SspI-RC,Probe_URA-L-774-MfeI-RC"	average
+Avg_left_0-7kb_LY_pool6	"Probe_URA-L-6532-MfeI-RC,Probe_URA-L-6065-SspI-RC,Probe_URA-L-4543-SspI-RC,Probe_URA-L-3728-SspI-RC,Probe_URA-L-3081-MfeI-RC,Probe_URA-L-2599-MfeI-RC,Probe_URA-L-1560-SspI-RC,Probe_URA-L-774-MfeI-RC"	average
+Avg_left_DSB-dist	"Probe_URA-L-17213-MfeI-RC,Probe_URA-L-15683-SspI-RC"	average
+Avg_right_0-3kb	"Probe_URA-R-1439-SspI,Probe_URA-R-2715-93-SspI,Probe_URA-R-2954-SspI"	average
+Avg_right_0-8kb	"Probe_URA-R-1439-SspI,Probe_URA-R-2715-93-SspI,Probe_URA-R-2954-SspI,Probe_URA-R-8073-SspI"	average
+Avg_right_all	"Probe_URA-R-1439-SspI,Probe_URA-R-2715-93-SspI,Probe_URA-R-2954-SspI,Probe_URA-R-8073-SspI,Probe_URA-R-12116-SspI"	average
