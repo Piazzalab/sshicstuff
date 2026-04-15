@@ -599,10 +599,10 @@ def edit_genome_ref(
     genome_name = os.path.basename(genome_input).split(".")[0]
 
     for _, row in df_annealing.iterrows():
-        chr_    = row["chr"]
-        seq_original = row["sequence_original"]
-        start_ = row["start"]
-        end_   = row["end"]
+        chr_            = row["chr"]
+        seq_original    = row["sequence_original"]
+        start_          = row["start"]
+        end_            = row["end"]
 
         for record in records:
             if record.id == chr_:

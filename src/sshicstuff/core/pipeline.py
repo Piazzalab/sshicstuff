@@ -100,7 +100,7 @@ def full_pipeline(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
         n_flanking_dsdna=n_flanking_dsdna,
-        output_path=dsdna_sparse_mat,
+        output_dir=output_dir,
         force=force,
     )
 
@@ -121,7 +121,7 @@ def full_pipeline(
     methods.sparse_with_ssdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
-        output_path=ssdna_sparse_mat,
+        output_dir=output_dir,
         force=force,
     )
 
