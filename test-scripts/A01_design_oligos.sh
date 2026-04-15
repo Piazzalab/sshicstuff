@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Directory containing this example
+# Directory containing this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Inputs
-GENOME_NAME="S288c_DSB_chr3_rDNA"
-FASTA="${SCRIPT_DIR}/${GENOME_NAME}.fa"
+# Project test layout
+TEST_ROOT="$(cd "${SCRIPT_DIR}/../tests-data" && pwd)"
+INPUTS_DIR="${TEST_ROOT}/inputs"
+OUTDIR="${TEST_ROOT}/A-output-design"
 
-# Outputs
-OUTDIR="${SCRIPT_DIR}/outputs"
 mkdir -p "${OUTDIR}"
+
+# Inputs
+GENOME_NAME="S288c_DSB_for_sshicstuff_design"
+FASTA="${INPUTS_DIR}/${GENOME_NAME}.fa"
 
 # Output filenames
 O4S_OUTPUT_RAW="output_o4s_raw.fa"
@@ -19,6 +22,8 @@ ANNEALING_CSV="annealing_oligo_positions.csv"
 CAPTURE_CSV="capture_oligo_positions.csv"
 
 echo "SCRIPT_DIR=${SCRIPT_DIR}"
+echo "TEST_ROOT=${TEST_ROOT}"
+echo "INPUTS_DIR=${INPUTS_DIR}"
 echo "FASTA=${FASTA}"
 echo "OUTDIR=${OUTDIR}"
 

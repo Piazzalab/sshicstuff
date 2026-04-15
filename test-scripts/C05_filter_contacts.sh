@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(dirname "$0")/00_set_variables.sh"
+source "$(dirname "$0")/C00_set_variables.sh"
 
 echo "[5/11] Filtering contacts to retain pairs involving at least one probe-associated fragment..."
 

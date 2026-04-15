@@ -14,6 +14,11 @@ set -Eeuo pipefail
 #   6. zoomify to mcool
 # ------------------------------------------------------------------------------
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_ROOT="$(cd "${SCRIPT_DIR}/../tests-data" && pwd)"
+INPUTS_DIR="${TEST_ROOT}/inputs"
+OUTPUT_ROOT="${TEST_ROOT}/B-output-hicstuff"
+
 # ------------------------------------------------------------------------------
 # User parameters
 # ------------------------------------------------------------------------------
@@ -23,18 +28,17 @@ mode="normal"                  # parasplit | cutsite | normal
 enzymes="DpnII,HinfI"
 quality=20
 
-fastqdir="./fastq"
-genome_fasta="./S288c_DSB_LY_Capture_artificial.fa"   # <-- your genome FASTA
-bt2_index_dir="./bt2_index"            # where Bowtie2 index will be stored
-outputdir="./localtmp"
-outdir_digest="${fastqdir}"
+fastqdir="${INPUTS_DIR}"
+genome_fasta="${INPUTS_DIR}/S288c_DSB_LY_Capture_artificial.fa"
+bt2_index_dir="${OUTPUT_ROOT}/bt2_index"
+outputdir="${OUTPUT_ROOT}"
+outdir_digest="${OUTPUT_ROOT}/digested_fastq"
 
 SAMP=("AD433_sub4M")
 
 r1ext=".end1"
 r2ext=".end2"
 fqext=".fastq.gz"
-
 # ------------------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------------------

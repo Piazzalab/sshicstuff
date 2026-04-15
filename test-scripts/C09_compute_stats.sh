@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(dirname "$0")/00_set_variables.sh"
+source "$(dirname "$0")/C00_set_variables.sh"
 
 echo "[9/11] Computing probe-level contact statistics..."
 
