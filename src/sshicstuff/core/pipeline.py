@@ -13,14 +13,15 @@ The pipeline is composed of the following steps:
 """
 
 import os
-from os.path import join
+import shutil
 from datetime import datetime
+from os.path import join
 
-import sshicstuff.core.methods as methods
+import sshicstuff.core.aggregate as agg
 import sshicstuff.core.filter as filt
+import sshicstuff.core.methods as methods
 import sshicstuff.core.profile as prof
 import sshicstuff.core.stats as stats
-import sshicstuff.core.aggregate as agg
 import sshicstuff.log as log
 
 logger = log.logger
@@ -77,12 +78,16 @@ def full_pipeline(
 
     if copy_inputs:
         os.makedirs(copy_dir, exist_ok=True)
-        methods.copy(sample_sparse_mat, copy_dir)
-        methods.copy(oligo_capture, copy_dir)
-        methods.copy(fragments_list, copy_dir)
-        methods.copy(chr_coordinates, copy_dir)
+        to_copy: list[str] = [sample_sparse_mat, oligo_capture, ssdnaonly_name, filtered_name]
         if additional_groups:
-            methods.copy(additional_groups, copy_dir)
+            to_copy.append(additional_groups)
+
+        for f in to_copy:
+            shutil.copy(f, copy_dir)
+            src_basename = f.split('/')[-1]
+            logger.info("[Copy] : %s copied.", src_basename)
+
+
 
     methods.associate_oligo_to_frag(
         oligo_capture_path=oligo_capture,
@@ -99,6 +104,7 @@ def full_pipeline(
     methods.sparse_with_dsdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
+        fragments_list_path=fragments_list,
         n_flanking_dsdna=n_flanking_dsdna,
         output_dir=output_dir,
         force=force,
@@ -121,6 +127,7 @@ def full_pipeline(
     methods.sparse_with_ssdna_only(
         sample_sparse_mat=sample_sparse_mat,
         oligo_capture_with_frag_path=oligo_capture_with_frag,
+        fragments_list_path=fragments_list,
         output_dir=output_dir,
         force=force,
     )
