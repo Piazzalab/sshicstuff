@@ -1,178 +1,300 @@
 """
-This module contains the functions to generate statistics for contacts made by each probe.
-"""
-import pandas as pd
-from pathlib import Path
-import logging
+Per-probe contact statistics.
 
-import sshicstuff.core.methods as methods
+Produces three output TSV files:
+
+* ``*_statistics.tsv``          – contact counts, cis/trans, capture efficiency.
+* ``*_norm_chr_freq.tsv``       – normalized contact frequency per chromosome.
+* ``*_norm_inter_chr_freq.tsv`` – same, restricted to inter-chromosomal contacts.
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+import pandas as pd
+
+from sshicstuff.core import schemas
+from sshicstuff.core.io import (
+    detect_delimiter,
+    guard_overwrite,
+    read_oligo_capture,
+    read_sparse_contacts,
+    require_exists,
+    write_tsv,
+)
 
 logger = logging.getLogger(__name__)
 
 
-
-def get_stats(
-    contacts_unbinned_path: str,
-    sparse_mat_path: str,
-    chr_coord_path: str,
-    oligo_capture_with_frag_path: str,
-    output_dir: str = None,
-    cis_range: int = 50000,
+def compute_stats(
+    contacts_unbinned_path: str | Path,
+    sparse_mat_path: str | Path,
+    chr_coord_path: str | Path,
+    oligo_capture_with_frag_path: str | Path,
+    output_dir: str | Path | None = None,
+    cis_range: int = 50_000,
     force: bool = False,
-):
-    """
-    Generate statistics for contacts made by each probe.
-
-    It generates three output files (.tsv):
-    - *_statistics.tsv: contact statistics per probe.
-    - *_norm_chr_freq.tsv: normalized contact frequencies per chromosome.
-    - *_norm_inter_chr_freq.tsv: normalized inter-chromosomal contact frequencies.
+) -> tuple[Path, Path, Path] | None:
+    """Compute per-probe contact statistics.
 
     Parameters
     ----------
-    contacts_reads_path : str
-        Path to reads_contacts.tsv (from fragments).
-    sparse_mat_path : str
-        Path to sparse_contacts_input.txt (from hicstuff).
-    chr_coord_path : str
-        Path to chr_centros_coordinates.tsv.
-    oligo_capture_with_frag_path : str
-        Path to oligo input file (CSV/TSV) with fragment associations.
-    cis_range : int, optional
-        Range (bp) to consider for cis contacts, by default 50000.
-    output_dir : str, optional
-        Output directory. Defaults to the input contacts path.
-    force : bool, optional
-        Overwrite existing output files, by default False.
+    contacts_unbinned_path:
+        Fragment-level contacts profile (output of
+        :func:`profiles.build_profile`).
+    sparse_mat_path:
+        Raw hicstuff sparse matrix (used for total contact count).
+    chr_coord_path:
+        Chromosome coordinate file.
+    oligo_capture_with_frag_path:
+        Oligo capture table with fragment IDs.
+    output_dir:
+        Destination directory.  Defaults to *contacts_unbinned_path*'s
+        parent.
+    cis_range:
+        Window in bp around each probe used to define *cis* contacts.
+    force:
+        Overwrite existing output files.
 
     Returns
     -------
-    None
+    (stats_path, chr_freq_path, inter_chr_freq_path) | None
     """
+    contacts_unbinned_path = Path(contacts_unbinned_path)
+    sparse_mat_path = Path(sparse_mat_path)
+    chr_coord_path = Path(chr_coord_path)
+    oligo_capture_with_frag_path = Path(oligo_capture_with_frag_path)
 
-    logger.info("[Stats] : Generating statistics for contacts made by each probe.")
+    require_exists(contacts_unbinned_path)
+    require_exists(sparse_mat_path)
+    require_exists(chr_coord_path)
+    require_exists(oligo_capture_with_frag_path)
 
-    methods.check_if_exists(contacts_unbinned_path)
-    methods.check_if_exists(sparse_mat_path)
-    methods.check_if_exists(chr_coord_path)
-    methods.check_if_exists(oligo_capture_with_frag_path)
+    if output_dir is None:
+        output_dir = contacts_unbinned_path.parent
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    contacts_path = Path(contacts_unbinned_path)
-    output_dir = Path(output_dir) if output_dir else contacts_path.parent
-    sample_name = Path(sparse_mat_path).stem
+    sample = sparse_mat_path.stem
+    stats_path = output_dir / f"{sample}_statistics.tsv"
+    chr_freq_path = output_dir / f"{sample}_norm_chr_freq.tsv"
+    inter_chr_freq_path = output_dir / f"{sample}_norm_inter_chr_freq.tsv"
 
-    out_stats_path = output_dir / f"{sample_name}_statistics.tsv"
-    out_chr_freq_path = output_dir / f"{sample_name}_norm_chr_freq.tsv"
-    out_inter_chr_freq_path = output_dir / f"{sample_name}_norm_inter_chr_freq.tsv"
+    if not guard_overwrite(stats_path, force, "Stats"):
+        return None
 
-    if out_stats_path.exists() and not force:
-        logger.warning("[Stats] : Output file already exists: %s", out_stats_path)
-        logger.warning("[Stats] : Use the --force / -F flag to overwrite the existing file.")
-        return
+    logger.info("[Stats] Computing per-probe contact statistics.")
 
-    oligo_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
-    df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_delim)
+    # ------------------------------------------------------------------ #
+    # 1. Load tables
+    # ------------------------------------------------------------------ #
+    df_oligo = read_oligo_capture(oligo_capture_with_frag_path)
 
-    coords_delim = "\t" if chr_coord_path.endswith(".tsv") else ","
-    df_chr_coords = pd.read_csv(chr_coord_path, sep=coords_delim)
+    sep_coords = detect_delimiter(chr_coord_path)
+    df_chr_coords = pd.read_csv(str(chr_coord_path), sep=sep_coords)
     df_chr_coords.columns = [c.lower() for c in df_chr_coords.columns]
 
-    chr_sizes = dict(zip(df_chr_coords["chr"], df_chr_coords["length"]))
+    chr_sizes = dict(zip(df_chr_coords[schemas.COL_CHR], df_chr_coords[schemas.COL_LENGTH]))
     chromosomes = list(chr_sizes.keys())
 
-    df_contacts = pd.read_csv(contacts_unbinned_path, sep="\t").astype({"chr": str, "start": int, "sizes": int})
-    df_contacts_no_artificial = df_contacts[~df_contacts["chr"].isin(["chr_artificial_ssDNA", "chr_artificial_dsDNA"])]
-    df_contacts_artificial = df_contacts[df_contacts["chr"].isin(["chr_artificial_ssDNA", "chr_artificial_dsDNA"])]
+    df_contacts = pd.read_csv(
+        str(contacts_unbinned_path), sep="\t"
+    ).astype({schemas.COL_CHR: str, schemas.COL_START: int, schemas.COL_SIZES: int})
 
-    df_total_contacts = pd.read_csv(sparse_mat_path, sep="\t", header=0, names=["frag_a", "frag_b", "contacts"])
-    total_contacts_count = df_total_contacts["contacts"].sum()
+    artificial_mask = df_contacts[schemas.COL_CHR].isin(schemas.ARTIFICIAL_CHROMOSOMES)
+    df_no_art = df_contacts[~artificial_mask].copy()
+    df_art = df_contacts[artificial_mask].copy()
 
-    normalized_contacts_per_chr = {chrom: [] for chrom in chromosomes}
-    normalized_inter_contacts_per_chr = {chrom: [] for chrom in chromosomes}
+    df_sparse = read_sparse_contacts(sparse_mat_path)
+    total_contacts = df_sparse[schemas.COL_COUNT].sum()
 
+    # ------------------------------------------------------------------ #
+    # 2. Per-probe statistics
+    # ------------------------------------------------------------------ #
+    probes = df_oligo[schemas.COL_NAME].tolist()
+    frag_ids = df_oligo[schemas.COL_FRAGMENT].astype(str).tolist()
+
+    norm_per_chr: dict[str, list] = {c: [] for c in chromosomes}
+    norm_inter_per_chr: dict[str, list] = {c: [] for c in chromosomes}
     stats_records = []
-    probes = df_oligo["name"].tolist()
-    fragment_ids = df_oligo["fragment"].astype(str).tolist()
 
-    for idx, (probe, fragment_id) in enumerate(zip(probes, fragment_ids)):
-        probe_type = df_oligo.loc[idx, "type"]
-        probe_chr = df_oligo.loc[idx, "chr"]
-        probe_chr_ori = df_oligo.loc[idx, "chr_ori"]
-        probe_start = df_oligo.loc[idx, "start_ori"]
-        probe_end = df_oligo.loc[idx, "stop_ori"]
+    for idx, (probe, frag_id) in enumerate(zip(probes, frag_ids)):
+        probe_type = df_oligo.loc[idx, schemas.COL_TYPE]
+        probe_chr = df_oligo.loc[idx, schemas.COL_CHR]
+        probe_chr_ori = df_oligo.loc[idx, schemas.COL_CHR_ORI]
+        probe_start = df_oligo.loc[idx, schemas.COL_START_ORI]
+        probe_end = df_oligo.loc[idx, schemas.COL_STOP_ORI]
 
-        record = {
-            "probe": probe,
-            "fragment": fragment_id,
-            "type": probe_type,
-            "chr": probe_chr_ori
+        record: dict = {
+            schemas.COL_PROBE: probe,
+            schemas.COL_FRAGMENT: frag_id,
+            schemas.COL_TYPE: probe_type,
+            schemas.COL_CHR: probe_chr_ori,
         }
 
-        df_probe = df_contacts[["chr", "start", "sizes", fragment_id]]
-        probe_contact_sum = df_probe[fragment_id].sum()
+        col_data = df_contacts[[schemas.COL_CHR, schemas.COL_START, schemas.COL_SIZES, frag_id]]
+        probe_total = col_data[frag_id].sum()
 
-        if probe_contact_sum > 0:
-            record["contacts"] = probe_contact_sum
-            record["coverage_over_hic_contacts"] = probe_contact_sum / total_contacts_count
+        if probe_total > 0:
+            record[schemas.COL_CONTACTS] = probe_total
+            record[schemas.COL_COVERAGE_OVER_HIC] = probe_total / total_contacts
 
-            inter_contact_sum = df_probe.query("chr != @probe_chr_ori and chr != @probe_chr")[fragment_id].sum()
-            record["inter_chr"] = inter_contact_sum / probe_contact_sum
-            record["intra_chr"] = 1 - record["inter_chr"]
+            inter_sum = col_data.query(
+                "chr != @probe_chr_ori and chr != @probe_chr"
+            )[frag_id].sum()
+            record[schemas.COL_INTER_CHR] = inter_sum / probe_total
+            record[schemas.COL_INTRA_CHR] = 1.0 - record[schemas.COL_INTER_CHR]
 
-            # cis without artificial chromosomes
-            df_probe_no_art = df_contacts_no_artificial[["chr", "start", "sizes", fragment_id]].copy()
-            df_probe_no_art["end"] = df_probe_no_art["start"] + df_probe_no_art["sizes"]
+            # Cis contacts: within cis_range of the probe, excluding artificial chrs
+            df_no_art_col = df_no_art[[
+                schemas.COL_CHR, schemas.COL_START, schemas.COL_SIZES, frag_id
+            ]].copy()
+            df_no_art_col["_end"] = df_no_art_col[schemas.COL_START] + df_no_art_col[schemas.COL_SIZES]
 
             cis_start = probe_start - cis_range
             cis_end = probe_end + cis_range
+            cis_local = df_no_art_col.query(
+                "chr == @probe_chr_ori and start >= @cis_start and _end <= @cis_end"
+            )[frag_id].sum()
+            cis_art = df_art[frag_id].sum()
 
-            cis_contacts = df_probe_no_art.query(
-                "chr == @probe_chr_ori and start >= @cis_start and end <= @cis_end"
-            )[fragment_id].sum()
-
-            cis_artificial_contacts = df_contacts_artificial[fragment_id].sum()
-            total_cis = cis_contacts + cis_artificial_contacts
-
-            record["cis"] = cis_contacts / probe_contact_sum
-            record["trans"] = 1 - record["cis"]
-            record["cis_with_artificial"] = total_cis / probe_contact_sum
-            record["trans_with_artificial"] = 1 - record["cis_with_artificial"]
-
+            record[schemas.COL_CIS] = cis_local / probe_total
+            record[schemas.COL_TRANS] = 1.0 - record[schemas.COL_CIS]
+            record[schemas.COL_CIS_WITH_ARTIFICIAL] = (cis_local + cis_art) / probe_total
+            record[schemas.COL_TRANS_WITH_ARTIFICIAL] = (
+                1.0 - record[schemas.COL_CIS_WITH_ARTIFICIAL]
+            )
         else:
-            for key in ["contacts", "coverage_over_hic_contacts", "cis", "trans",
-                        "cis_with_artificial", "trans_with_artificial", "intra_chr", "inter_chr"]:
+            for key in [
+                schemas.COL_CONTACTS, schemas.COL_COVERAGE_OVER_HIC,
+                schemas.COL_CIS, schemas.COL_TRANS,
+                schemas.COL_CIS_WITH_ARTIFICIAL, schemas.COL_TRANS_WITH_ARTIFICIAL,
+                schemas.COL_INTRA_CHR, schemas.COL_INTER_CHR,
+            ]:
                 record[key] = 0
+            inter_sum = 0.0
 
+        # Per-chromosome normalized frequencies
+        genome_size_ex_probe_chr = sum(
+            s for c, s in chr_sizes.items() if c != probe_chr_ori
+        )
         for chrom in chromosomes:
             chrom_size = chr_sizes[chrom]
-            genome_size = sum(size for chr_, size in chr_sizes.items() if chr_ != probe_chr_ori)
+            contacts_on_chrom = col_data.loc[
+                col_data[schemas.COL_CHR] == chrom, frag_id
+            ].sum()
+            inter_on_chrom = col_data.loc[
+                (col_data[schemas.COL_CHR] == chrom)
+                & (col_data[schemas.COL_CHR] != probe_chr_ori),
+                frag_id,
+            ].sum()
 
-            contacts_on_chrom = df_probe.loc[df_probe["chr"] == chrom, fragment_id].sum()
-            inter_contacts = df_probe.loc[(df_probe["chr"] == chrom) & (df_probe["chr"] != probe_chr_ori), fragment_id].sum()
-
-            norm_contact = (contacts_on_chrom / probe_contact_sum) / (chrom_size / genome_size) if contacts_on_chrom else 0
-            norm_inter_contact = (inter_contacts / inter_contact_sum) / (chrom_size / genome_size) if inter_contacts else 0
-
-            normalized_contacts_per_chr[chrom].append(norm_contact)
-            normalized_inter_contacts_per_chr[chrom].append(norm_inter_contact)
+            chrom_weight = chrom_size / genome_size_ex_probe_chr if genome_size_ex_probe_chr else 0
+            norm_per_chr[chrom].append(
+                (contacts_on_chrom / probe_total / chrom_weight)
+                if (probe_total and chrom_weight) else 0
+            )
+            norm_inter_per_chr[chrom].append(
+                (inter_on_chrom / inter_sum / chrom_weight)
+                if (inter_sum and chrom_weight) else 0
+            )
 
         stats_records.append(record)
 
+    # ------------------------------------------------------------------ #
+    # 3. Assemble output tables
+    # ------------------------------------------------------------------ #
     df_stats = pd.DataFrame(stats_records)
-    mean_ds_contacts = df_stats.loc[df_stats["type"] == "ds", "contacts"].mean()
-    df_stats["dsdna_norm_capture_efficiency"] = df_stats["contacts"] / mean_ds_contacts
+    mean_ds = df_stats.loc[
+        df_stats[schemas.COL_TYPE] == schemas.PROBE_TYPE_DSDNA, schemas.COL_CONTACTS
+    ].mean()
+    df_stats[schemas.COL_DSDNA_NORM_CAPTURE_EFF] = df_stats[schemas.COL_CONTACTS] / mean_ds
 
-    df_chr_norm = pd.DataFrame({"probe": probes, "fragment": fragment_ids, "type": df_oligo["type"]})
-    df_chr_norm_inter = df_chr_norm.copy()
-
+    base = pd.DataFrame({
+        schemas.COL_PROBE: probes,
+        schemas.COL_FRAGMENT: frag_ids,
+        schemas.COL_TYPE: df_oligo[schemas.COL_TYPE].tolist(),
+    })
+    df_chr_norm = base.copy()
+    df_chr_norm_inter = base.copy()
     for chrom in chromosomes:
-        df_chr_norm[chrom] = normalized_contacts_per_chr[chrom]
-        df_chr_norm_inter[chrom] = normalized_inter_contacts_per_chr[chrom]
+        df_chr_norm[chrom] = norm_per_chr[chrom]
+        df_chr_norm_inter[chrom] = norm_inter_per_chr[chrom]
 
-    df_stats.to_csv(out_stats_path, sep="\t", index=False)
-    df_chr_norm.to_csv(out_chr_freq_path, sep="\t", index=False)
-    df_chr_norm_inter.to_csv(out_inter_chr_freq_path, sep="\t", index=False)
+    write_tsv(df_stats, stats_path)
+    write_tsv(df_chr_norm, chr_freq_path)
+    write_tsv(df_chr_norm_inter, inter_chr_freq_path)
 
-    logger.info("[Stats] : Statistics saved to %s", out_stats_path)
-    logger.info("[Stats] : Normalized chr contacts saved to %s", out_chr_freq_path)
-    logger.info("[Stats] : Normalized inter-only chr contacts saved to %s", out_inter_chr_freq_path)
+    logger.info("[Stats] Statistics → %s", stats_path.name)
+    logger.info("[Stats] Chr frequencies → %s", chr_freq_path.name)
+    logger.info("[Stats] Inter-chr frequencies → %s", inter_chr_freq_path.name)
+    return stats_path, chr_freq_path, inter_chr_freq_path
+
+
+# ---------------------------------------------------------------------------
+# Capture-efficiency comparison
+# ---------------------------------------------------------------------------
+
+def compare_capture_efficiency(
+    stats_path: str | Path,
+    reference_stats_path: str | Path,
+    reference_name: str,
+    output_dir: str | Path | None = None,
+) -> Path:
+    """Compare dsDNA-normalised capture efficiency between a sample and a reference.
+
+    Parameters
+    ----------
+    stats_path:
+        Statistics TSV for the sample of interest.
+    reference_stats_path:
+        Statistics TSV for the reference condition.
+    reference_name:
+        Short label for the reference (used in column names).
+    output_dir:
+        Destination directory.
+
+    Returns
+    -------
+    Path
+        Path to the written comparison TSV.
+    """
+    stats_path = Path(stats_path)
+    reference_stats_path = Path(reference_stats_path)
+
+    require_exists(stats_path)
+    require_exists(reference_stats_path)
+
+    df_sample = pd.read_csv(str(stats_path), sep="\t")
+    df_ref = pd.read_csv(str(reference_stats_path), sep="\t")
+
+    ref_map = dict(
+        zip(df_ref[schemas.COL_PROBE], df_ref[schemas.COL_DSDNA_NORM_CAPTURE_EFF])
+    )
+
+    records = []
+    for _, row in df_sample.iterrows():
+        probe = row[schemas.COL_PROBE]
+        eff = row[schemas.COL_DSDNA_NORM_CAPTURE_EFF]
+        eff_ref = ref_map.get(probe, float("nan"))
+        ratio = eff / eff_ref if (eff_ref and eff_ref != 0) else float("nan")
+        records.append({
+            schemas.COL_PROBE: probe,
+            "capture_efficiency": eff,
+            f"capture_efficiency_{reference_name}": eff_ref,
+            f"ratio_vs_{reference_name}": ratio,
+        })
+
+    df_out = pd.DataFrame(records)
+
+    if output_dir is None:
+        output_dir = stats_path.parent
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    out_path = output_dir / f"{stats_path.stem}_vs_{reference_name}.tsv"
+    write_tsv(df_out, out_path)
+    logger.info("[Stats/Compare] Efficiency comparison → %s", out_path.name)
+    return out_path

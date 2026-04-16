@@ -1,266 +1,340 @@
 """
-This module contains the full pipeline for the analysis of a single sample.
-The pipeline is composed of the following steps:
-- Create a new sparse matrix with only dsDNA reads
-- Create a new sparse matrix with only ssDNA reads
-- Filter the contacts to keep only the ones with at least one oligo/probe
-- Generate a 4C-like profile for each ssDNA oligo
-- Generate a profile containing only contacts frequencies between oligos
-- Make basic statistics on the contacts (inter/intra chr, cis)
-- Change bin resolution of the 4-C like profile (unbinned -> binned)
-- Aggregate all 4C-like profiles on centromeric regions
-- Aggregate all 4C-like profiles on telomeric regions
+Full-pipeline orchestration for ssHi-C analysis.
+
+This module is intentionally thin: it delegates every analytical step to
+the appropriate domain module and is responsible only for sequencing the
+calls, resolving file paths, and logging progress.
+
+The single entry point is :func:`run_pipeline`, driven by a
+:class:`PipelineConfig` dataclass.
 """
 
-import os
-import shutil
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
 from datetime import datetime
-from os.path import join
+from pathlib import Path
 
-import sshicstuff.core.aggregate as agg
-import sshicstuff.core.filter as filt
-import sshicstuff.core.methods as methods
-import sshicstuff.core.profile as prof
-import sshicstuff.core.stats as stats
-import sshicstuff.log as log
+from sshicstuff.core import aggregation, contacts, coverage, profiles, schemas, stats
+from sshicstuff.core.io import get_bin_suffix, require_exists, safe_copy
 
-logger = log.logger
-
-SEED = 1999
-CWD = os.getcwd()
+logger = logging.getLogger(__name__)
 
 
-def full_pipeline(
-    sample_sparse_mat: str,
-    oligo_capture: str,
-    fragments_list: str,
-    chr_coordinates: str,
-    output_dir: str = None,
-    additional_groups: str = None,
-    bin_sizes: list[int] = None,
-    cen_agg_window_size: int = 15000,
-    cen_aggregated_binning: int = 10000,
-    telo_agg_window_size: int = 15000,
-    telo_agg_binning: int = 10000,
-    excluded_chr: list[str] = None,
-    cis_region_size: int = 50000,
-    n_flanking_dsdna: int = 2,
-    inter_chr_only: bool = False,
-    copy_inputs: bool = True,
-    force: bool = False,
-    normalize: bool = False,
-):
-    """ "
-    Run the full pipeline for a given sample
+# ---------------------------------------------------------------------------
+# Configuration dataclass
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PipelineConfig:
+    """All parameters required for a full ssHi-C pipeline run.
+
+    Required
+    --------
+    sample_sparse_mat:
+        Path to the raw hicstuff sparse contact matrix (TXT).
+    oligo_capture:
+        Path to the oligo capture table (CSV).
+    fragments_list:
+        Path to the hicstuff fragment list (TXT).
+    chr_coordinates:
+        Path to the chromosome coordinates file (TSV/CSV).
+
+    Optional
+    --------
+    output_dir:
+        Top-level output directory.  Defaults to a folder named after
+        the sample next to the sparse matrix.
+    additional_groups:
+        Path to a probe-groups definition table.
+    bin_sizes:
+        List of bin sizes in bp for profile rebinning.
+    cen_agg_window_size:
+        Half-window in bp for centromere aggregation.
+    cen_aggregated_binning:
+        Bin size used when building the centromere-aggregation profile.
+    telo_agg_window_size:
+        Half-window in bp for telomere aggregation.
+    telo_agg_binning:
+        Bin size used when building the telomere-aggregation profile.
+    excluded_chr:
+        Chromosomes to exclude from aggregation steps.
+    cis_region_size:
+        Window in bp around each probe for cis-contact statistics.
+    n_flanking_dsdna:
+        Flanking fragments excluded around each dsDNA probe when
+        building the dsDNA-only matrix.
+    inter_chr_only:
+        Mask intra-chromosomal contacts during aggregation.
+    copy_inputs:
+        Copy input files into the output directory.
+    force:
+        Overwrite existing output files at every step.
+    normalization:
+        Normalization strategy applied to profiles.
     """
 
-    # Files and path alias names
-    sample_name = os.path.basename(sample_sparse_mat).split(".")[0]
-    input_basedir = os.path.dirname(sample_sparse_mat)
-    if not output_dir:
-        output_dir = join(input_basedir, sample_name)
+    # Required
+    sample_sparse_mat: str
+    oligo_capture: str
+    fragments_list: str
+    chr_coordinates: str
 
-    copy_dir = join(output_dir, "inputs")
-    dsdnaonly_name = sample_name + "_dsdna_only.txt"
-    ssdnaonly_name = sample_name + "_ssdna_only.txt"
-    filtered_name = sample_name + "_filtered.tsv"
-    profile_0kb_contacts_name = sample_name + "_0kb_profile_contacts.tsv"
-    profile_0kb_frequencies_name = sample_name + "_0kb_profile_frequencies.tsv"
-
-    oligo_capture_with_frag = oligo_capture.replace(".csv", "_fragments_associated.csv")
-
-    now = datetime.now()
-    now_string = now.strftime("%Y-%m-%d %H:%M:%S")
-
-    logger.info("[START] : %s", now_string)
-    logger.info("[Pipeline] : %s ", sample_name)
-    os.makedirs(output_dir, exist_ok=True)
-
-    if copy_inputs:
-        os.makedirs(copy_dir, exist_ok=True)
-        to_copy: list[str] = [sample_sparse_mat, oligo_capture, ssdnaonly_name, filtered_name]
-        if additional_groups:
-            to_copy.append(additional_groups)
-
-        for f in to_copy:
-            shutil.copy(f, copy_dir)
-            src_basename = f.split('/')[-1]
-            logger.info("[Copy] : %s copied.", src_basename)
+    # Optional
+    output_dir: str | None = None
+    additional_groups: str | None = None
+    bin_sizes: list[int] = field(default_factory=lambda: [1_000])
+    cen_agg_window_size: int = 150_000
+    cen_aggregated_binning: int = 10_000
+    telo_agg_window_size: int = 15_000
+    telo_agg_binning: int = 1_000
+    excluded_chr: list[str] = field(default_factory=list)
+    cis_region_size: int = 50_000
+    n_flanking_dsdna: int = 2
+    inter_chr_only: bool = False
+    copy_inputs: bool = True
+    force: bool = False
+    normalization: schemas.Normalization = schemas.Normalization.NONE
 
 
+# ---------------------------------------------------------------------------
+# Pipeline entry point
+# ---------------------------------------------------------------------------
 
-    methods.associate_oligo_to_frag(
-        oligo_capture_path=oligo_capture,
-        fragments_path=fragments_list
+def run_pipeline(cfg: PipelineConfig) -> None:
+    """Execute the full ssHi-C processing pipeline.
+
+    Parameters
+    ----------
+    cfg:
+        :class:`PipelineConfig` instance with all parameters.
+    """
+    t_start = datetime.now()
+    logger.info("[Pipeline] Start: %s", t_start.strftime("%Y-%m-%d %H:%M:%S"))
+
+    # ------------------------------------------------------------------ #
+    # 0. Validate inputs and resolve output directory
+    # ------------------------------------------------------------------ #
+    for path in [cfg.sample_sparse_mat, cfg.oligo_capture,
+                 cfg.fragments_list, cfg.chr_coordinates]:
+        require_exists(path)
+
+    sample_sparse_mat = Path(cfg.sample_sparse_mat)
+    sample_name = sample_sparse_mat.stem
+
+    if cfg.output_dir is None:
+        output_dir = sample_sparse_mat.parent / sample_name
+    else:
+        output_dir = Path(cfg.output_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("[Pipeline] Sample: %s → %s", sample_name, output_dir)
+
+    # ------------------------------------------------------------------ #
+    # 1. Associate oligos to fragments
+    # ------------------------------------------------------------------ #
+    logger.info("[Pipeline] Step 1/10 — Associate probes to fragments.")
+    oligo_with_frag = Path(cfg.oligo_capture).with_name(
+        Path(cfg.oligo_capture).stem + "_fragments_associated.csv"
     )
-    if copy_inputs:
-        methods.copy(oligo_capture_with_frag, copy_dir)
-
-    # dsDNA reads only
-    logger.info(
-        "[Sparse Matrix Graal (dsdna)] : creating a new sparse matrix with only dsDNA reads"
-    )
-    dsdna_sparse_mat = join(output_dir, dsdnaonly_name)
-    methods.sparse_with_dsdna_only(
-        sample_sparse_mat=sample_sparse_mat,
-        oligo_capture_with_frag_path=oligo_capture_with_frag,
-        fragments_list_path=fragments_list,
-        n_flanking_dsdna=n_flanking_dsdna,
-        output_dir=output_dir,
-        force=force,
-    )
-
-    logger.info("[Coverage] : Calculate the coverage for dsDNA reads only")
-    methods.coverage(
-        sparse_mat_path=dsdna_sparse_mat,
-        fragments_list_path=fragments_list,
-        normalize=normalize,
-        output_dir=output_dir,
-        force=force,
-    )
-
-    # ssDNA reads only
-    logger.info(
-        "[Sparse Matrix Graal (ssdna)] : creating a new sparse matrix with only ssDNA reads"
-    )
-    ssdna_sparse_mat = join(output_dir, ssdnaonly_name)
-    methods.sparse_with_ssdna_only(
-        sample_sparse_mat=sample_sparse_mat,
-        oligo_capture_with_frag_path=oligo_capture_with_frag,
-        fragments_list_path=fragments_list,
-        output_dir=output_dir,
-        force=force,
+    contacts.associate_oligo_to_fragment(
+        oligo_capture_path=cfg.oligo_capture,
+        fragments_path=cfg.fragments_list,
+        output_path=oligo_with_frag,
     )
 
-    logger.info(
-        "[Coverage] : Calculate the coverage per ssDNA fragment and save the result to a bedgraph"
-    )
-    methods.coverage(
-        sparse_mat_path=ssdna_sparse_mat,
-        fragments_list_path=fragments_list,
-        normalize=normalize,
-        output_dir=output_dir,
-        force=force,
+    # ------------------------------------------------------------------ #
+    # 2. Copy inputs (after association, so the enriched oligo table is included)
+    # ------------------------------------------------------------------ #
+    if cfg.copy_inputs:
+        copy_dir = output_dir / "inputs"
+        copy_dir.mkdir(parents=True, exist_ok=True)
+        for src in [cfg.sample_sparse_mat, cfg.oligo_capture,
+                    str(oligo_with_frag), cfg.fragments_list, cfg.chr_coordinates]:
+            if Path(src).exists():
+                safe_copy(src, copy_dir)
+        if cfg.additional_groups and Path(cfg.additional_groups).exists():
+            safe_copy(cfg.additional_groups, copy_dir)
+
+    # ------------------------------------------------------------------ #
+    # 3. dsDNA-only matrix + Cooler
+    # ------------------------------------------------------------------ #
+    logger.info("[Pipeline] Step 2/10 — Extract dsDNA-only contacts.")
+    contacts_dir = output_dir / "contacts"
+    dsdna_sparse, _dsdna_cool = contacts.extract_dsdna_only(
+        sample_sparse_mat=cfg.sample_sparse_mat,
+        oligo_capture_with_frag_path=oligo_with_frag,
+        fragments_list_path=cfg.fragments_list,
+        output_dir=contacts_dir / "dsdna",
+        n_flanking=cfg.n_flanking_dsdna,
+        force=cfg.force,
     )
 
-    # All reads
-    logger.info(
-        "[Filter] : Only keep pairs of reads that contain at least one oligo/probe"
-    )
-    filt.filter_contacts(
-        sparse_mat_path=sample_sparse_mat,
-        oligo_capture_path=oligo_capture,
-        fragments_list_path=fragments_list,
-        output_path=join(output_dir, filtered_name),
-        force=force,
+    logger.info("[Pipeline] Step 3/10 — Compute dsDNA coverage.")
+    coverage.compute_coverage(
+        sparse_mat_path=dsdna_sparse,
+        fragments_list_path=cfg.fragments_list,
+        output_dir=output_dir / "coverage",
+        normalization=cfg.normalization,
+        force=cfg.force,
     )
 
-    logger.info(
-        "[Coverage] : Calculate the coverage per fragment and save the result to a bedgraph"
+    # ------------------------------------------------------------------ #
+    # 4. ssDNA-only matrix + Cooler
+    # ------------------------------------------------------------------ #
+    logger.info("[Pipeline] Step 4/10 — Extract ssDNA-only contacts.")
+    _ss2ss_txt, _ss2ss_cool, ssdna_sparse, _ssdna_cool = contacts.extract_ssdna_only(
+        sample_sparse_mat=cfg.sample_sparse_mat,
+        oligo_capture_with_frag_path=oligo_with_frag,
+        fragments_list_path=cfg.fragments_list,
+        output_dir=contacts_dir / "ssdna",
+        force=cfg.force,
     )
-    for bn in [0] + bin_sizes:
-        methods.coverage(
-            sparse_mat_path=sample_sparse_mat,
-            fragments_list_path=fragments_list,
-            normalize=normalize,
+
+    logger.info("[Pipeline] Step 5/10 — Compute ssDNA coverage.")
+    coverage.compute_coverage(
+        sparse_mat_path=ssdna_sparse,
+        fragments_list_path=cfg.fragments_list,
+        output_dir=output_dir / "coverage",
+        normalization=cfg.normalization,
+        force=cfg.force,
+    )
+
+    # ------------------------------------------------------------------ #
+    # 5. Filter contacts to probe-associated pairs
+    # ------------------------------------------------------------------ #
+    logger.info("[Pipeline] Step 6/10 — Filter contacts to probe-associated pairs.")
+    filtered_path = output_dir / "contacts" / "filtered" / f"{sample_name}_filtered.tsv"
+    contacts.filter_contacts(
+        sparse_mat_path=cfg.sample_sparse_mat,
+        oligo_capture_path=cfg.oligo_capture,
+        fragments_list_path=cfg.fragments_list,
+        output_path=filtered_path,
+        force=cfg.force,
+    )
+
+    # ------------------------------------------------------------------ #
+    # 6. Fragment-level probe profiles
+    # ------------------------------------------------------------------ #
+    logger.info("[Pipeline] Step 7/10 — Build fragment-level probe profiles.")
+    profiles_dir = output_dir / "profiles"
+    frag_level_dir = profiles_dir / "fragment_level"
+    frag_level_dir.mkdir(parents=True, exist_ok=True)
+
+    contacts_profile_path = frag_level_dir / f"{sample_name}_0kb_profile_contacts.tsv"
+    profiles.build_profile(
+        filtered_table_path=filtered_path,
+        oligo_capture_with_frag_path=oligo_with_frag,
+        chromosomes_coord_path=cfg.chr_coordinates,
+        output_path=contacts_profile_path,
+        additional_groups_path=cfg.additional_groups,
+        normalization=cfg.normalization,
+        force=cfg.force,
+    )
+
+    # Probe × probe matrix
+    profiles.build_probe_matrix(
+        filtered_table_path=filtered_path,
+        oligo_capture_with_frag_path=oligo_with_frag,
+        output_path=output_dir / "matrices" / "probe_probe" / f"{sample_name}_probe_matrix.tsv",
+        normalization=schemas.Normalization.NONE,
+        force=cfg.force,
+    )
+
+    # ------------------------------------------------------------------ #
+    # 7. Statistics
+    # ------------------------------------------------------------------ #
+    logger.info("[Pipeline] Step 8/10 — Compute probe-level statistics.")
+    stats.compute_stats(
+        contacts_unbinned_path=contacts_profile_path,
+        sparse_mat_path=cfg.sample_sparse_mat,
+        chr_coord_path=cfg.chr_coordinates,
+        oligo_capture_with_frag_path=oligo_with_frag,
+        output_dir=output_dir / "stats",
+        cis_range=cfg.cis_region_size,
+        force=cfg.force,
+    )
+
+    # ------------------------------------------------------------------ #
+    # 8. Rebinning
+    # ------------------------------------------------------------------ #
+    logger.info("[Pipeline] Step 9/10 — Rebin profiles.")
+    freq_profile_path = Path(str(contacts_profile_path).replace("contacts", "frequencies"))
+
+    for bin_size in cfg.bin_sizes:
+        suffix = get_bin_suffix(bin_size)
+        bin_dir = profiles_dir / suffix
+        bin_dir.mkdir(parents=True, exist_ok=True)
+
+        for src_profile in [contacts_profile_path]:
+            profiles.rebin_profile(
+                contacts_unbinned_path=src_profile,
+                chromosomes_coord_path=cfg.chr_coordinates,
+                bin_size=bin_size,
+                output_path=bin_dir / src_profile.name.replace("0kb_profile", f"{suffix}_profile"),
+                force=cfg.force,
+            )
+
+        # Rebin the frequencies profile if it exists
+        if freq_profile_path.exists():
+            profiles.rebin_profile(
+                contacts_unbinned_path=freq_profile_path,
+                chromosomes_coord_path=cfg.chr_coordinates,
+                bin_size=bin_size,
+                output_path=bin_dir / freq_profile_path.name.replace(
+                    "0kb_profile", f"{suffix}_profile"
+                ),
+                force=cfg.force,
+            )
+
+    # ------------------------------------------------------------------ #
+    # 9. Aggregation
+    # ------------------------------------------------------------------ #
+    logger.info("[Pipeline] Step 10/10 — Aggregate around centromeres and telomeres.")
+    agg_norm = (
+        schemas.Normalization.FRACTION_VIEWPOINT
+        if cfg.normalization == schemas.Normalization.FRACTION_VIEWPOINT
+        else schemas.Normalization.NONE
+    )
+
+    for landmark, bin_size, window_size in [
+        ("centromeres", cfg.cen_aggregated_binning, cfg.cen_agg_window_size),
+        ("telomeres", cfg.telo_agg_binning, cfg.telo_agg_window_size),
+    ]:
+        suffix = get_bin_suffix(bin_size)
+        # Use the frequencies profile for aggregation if available, else contacts
+        agg_profile_name = freq_profile_path.name.replace("0kb_profile", f"{suffix}_profile")
+        agg_profile = profiles_dir / suffix / agg_profile_name
+        if not agg_profile.exists():
+            agg_profile = (
+                profiles_dir / suffix /
+                contacts_profile_path.name.replace("0kb_profile", f"{suffix}_profile")
+            )
+            if not agg_profile.exists():
+                logger.warning(
+                    "[Pipeline] Profile for %s aggregation not found: %s — skipping.",
+                    landmark, agg_profile.name,
+                )
+                continue
+
+        aggregation.aggregate_around_landmark(
+            binned_profile_path=agg_profile,
+            chr_coord_path=cfg.chr_coordinates,
+            oligo_capture_with_frag_path=oligo_with_frag,
+            window_size=window_size,
+            landmark=landmark,
             output_dir=output_dir,
-            force=force,
-            bin_size=bn,
-            chromosomes_coord_path=chr_coordinates,
+            excluded_chromosomes=cfg.excluded_chr,
+            inter_only=cfg.inter_chr_only,
+            normalization=agg_norm,
+            force=cfg.force,
         )
 
-    logger.info("[Profile] : Generate a 4C-like profile for each ssDNA oligo")
-    logger.info("[Profile] : Basal résolution : 0 kb (max resolution)")
-    prof.profile_contacts(
-        filtered_table_path=join(output_dir, filtered_name),
-        oligo_capture_with_frag_path=oligo_capture_with_frag,
-        chromosomes_coord_path=chr_coordinates,
-        normalize=normalize,
-        force=force,
-        additional_groups_path=additional_groups,
-    )
-
+    t_end = datetime.now()
+    elapsed = t_end - t_start
     logger.info(
-        "[Profile] : Generate a profile conaining only contacts frequencie between oligos"
+        "[Pipeline] Done: %s (elapsed %s).",
+        t_end.strftime("%Y-%m-%d %H:%M:%S"),
+        str(elapsed).split(".")[0],
     )
-    prof.probe_to_probe_only(
-        filtered_table_path=join(output_dir, filtered_name),
-        oligo_capture_with_frag_path=oligo_capture_with_frag,
-        force=force,
-    )
-
-    logger.info(
-        "[Stats] : Make basic statistics on the contacts (inter/intra chr, cis/trans, ssdna/dsdna etc ...)"
-    )
-    stats.get_stats(
-        contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
-        sparse_mat_path=sample_sparse_mat,
-        chr_coord_path=chr_coordinates,
-        oligo_capture_with_frag_path=oligo_capture_with_frag,
-        output_dir=output_dir,
-        cis_range=cis_region_size,
-        force=force,
-    )
-
-    logger.info(
-        "[Rebin] : Change bin resolution of the 4-C like profile (unbinned -> binned)"
-    )
-    for bn in bin_sizes:
-        bin_suffix = methods.get_bin_suffix(bn)
-        logger.info("[Rebin] : %s", bin_suffix)
-
-        prof.rebin_profile(
-            contacts_unbinned_path=join(output_dir, profile_0kb_contacts_name),
-            chromosomes_coord_path=chr_coordinates,
-            bin_size=bn,
-            force=force,
-        )
-
-        prof.rebin_profile(
-            contacts_unbinned_path=join(output_dir, profile_0kb_frequencies_name),
-            chromosomes_coord_path=chr_coordinates,
-            bin_size=bn,
-            force=force,
-        )
-
-    logger.info("[Aggregate] : Aggregate all 4C-like profiles on centromeric regions")
-
-    binsize_for_cen = cen_aggregated_binning
-    correct_profile = profile_0kb_frequencies_name.replace(
-        "_0kb_profile_", f"_{binsize_for_cen // 1000}kb_profile_"
-    )
-
-    agg.run(
-        binned_contacts_path=join(output_dir, correct_profile),
-        chr_coord_path=chr_coordinates,
-        oligo_capture_with_frag_path=oligo_capture_with_frag,
-        window_size=cen_agg_window_size,
-        centromeres=True,
-        output_dir=output_dir,
-        excluded_chr_list=excluded_chr,
-        inter_only=inter_chr_only,
-        normalize=normalize,
-    )
-
-    logger.info("[Aggregate] : Aggregate all 4C-like profiles on telomeric regions")
-    binsize_for_telo = telo_agg_binning
-    correct_profile = profile_0kb_frequencies_name.replace(
-        "_0kb_profile_", f"_{binsize_for_telo // 1000}kb_profile_"
-    )
-
-    agg.run(
-        binned_contacts_path=join(output_dir, correct_profile),
-        chr_coord_path=chr_coordinates,
-        oligo_capture_with_frag_path=oligo_capture_with_frag,
-        window_size=telo_agg_window_size,
-        telomeres=True,
-        output_dir=output_dir,
-        excluded_chr_list=excluded_chr,
-        inter_only=inter_chr_only,
-        normalize=normalize
-    )
-
-    now = datetime.now()
-    now_string = now.strftime("%Y-%m-%d %H:%M:%S")
-    logger.info("[Pipeline] : %s  Done", {sample_name})
-    logger.info("[END] : %s", now_string)

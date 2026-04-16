@@ -14,10 +14,10 @@ sshicstuff pipeline \
   -o "${OUTPUTS_DIR}/pipeline_run" \
   -b 1000 \
   -b 10000 \
-  --window-size-cen 150000 \
-  --window-size-telo 15000 \
-  --binning-aggregate-cen 10000 \
-  --binning-aggregate-telo 1000 \
+  --window-cen 150000 \
+  --window-telo 15000 \
+  --bin-cen 10000 \
+  --bin-telo 1000 \
   -r 50000 \
   -F \
   -N

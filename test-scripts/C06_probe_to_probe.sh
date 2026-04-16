@@ -13,7 +13,6 @@ sshicstuff probe2probe \
   -P \
   --plot-format png \
   --colormap YlOrBr \
-  --export-to-cooler \
   -F
 
 echo "Outputs:"
