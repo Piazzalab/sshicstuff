@@ -4,7 +4,6 @@ Module containing functions to analyze the contacts and the capture efficiency o
 
 import argparse
 import base64
-import cooler
 import datetime
 import os
 import random as rd
@@ -16,6 +15,7 @@ from os.path import join, dirname
 from pathlib import Path
 from uuid import uuid4
 
+import cooler
 import numpy as np
 import pandas as pd
 import plotly.io as pio
@@ -402,7 +402,10 @@ def coverage(
 
     # Read sparse contacts matrix
     df_contacts = pd.read_csv(
-        sparse_mat_path, header=0, sep="\t", names=["frag_a", "frag_b", "contacts"]
+        sparse_mat_path,
+        header=0,
+        sep="\t",
+        names=["frag_a", "frag_b", "contacts"]
     )
 
     # Melt the contacts DataFrame so each fragment gets its share of the contact
@@ -507,32 +510,6 @@ def coverage(
         logger.info("[Coverage] Normalized coverage file saved to %s", norm_output_path)
 
     logger.info("[Coverage] Coverage calculation completed.")
-
-
-def detect_delimiter(path: str):
-    """
-    Detect the delimiter of a file.
-    The delimiter is detected by counting the number of tabs and commas in the file.
-
-    Parameters
-    ----------
-    path : str
-        Path to the file.
-
-    Returns
-    -------
-    str
-        Delimiter of the file.
-    """
-
-    with open(path, 'r', encoding='utf-8') as file:
-        contents = file.read()
-    tabs = contents.count('\t')
-    commas = contents.count(',')
-    if tabs > commas:
-        return '\t'
-    else:
-        return ','
 
 
 def edit_genome_ref(
@@ -902,27 +879,6 @@ def generate_colors(color_type: str, n: int, a: float = 0.8, seed: int = 42) -> 
         raise ValueError("type must be 'hex' or 'rgba'")
 
 
-def is_debug() -> bool:
-    """
-    Check if the script is running in debug mode.
-
-    Returns
-    -------
-    bool
-        True if the script is running in debug mode, False otherwise.
-    """
-    gettrace = getattr(sys, 'gettrace', None)
-
-    if gettrace is None:
-        return False
-    else:
-        v = gettrace()
-        if v is None:
-            return False
-        else:
-            return True
-
-
 def make_groups_of_probes(df_groups: pd.DataFrame, df: pd.DataFrame, prob2frag: dict):
     """
     Aggregate probes into groups and add new columns to the DataFrame.
@@ -1053,7 +1009,6 @@ def save_file_cache(name, content, cache_dir):
     data = content.encode("utf8").split(b";base64,")[1]
     with open(join(cache_dir, name), "wb") as fp:
         fp.write(base64.decodebytes(data))
-
 
 
 def sparse_graal_to_cooler(
@@ -1591,30 +1546,6 @@ def subsample(
         except subprocess.CalledProcessError as e:
             logger.error("Error in compressing %s: %s", output_path, e)
             raise
-
-
-def transform_data(data: np.array, y_max: float, user_y_max: float, y_min: float, re_scale: bool):
-    """
-    Transform the data using a log or square root transformation if necessary.
-    """
-    re_scale_output = ""
-    if re_scale:
-        if y_max <= 1.:
-            # squared root transformation
-            new_data = np.sqrt(data + 1e-8)
-            y_max = np.sqrt(y_max) if not user_y_max else user_y_max
-            y_min = np.sqrt(y_min) if y_min > 0 else 0
-            re_scale_output = "sqrt"
-        else:
-            # log transformation
-            new_data = np.log(data + 1)
-            y_max = np.log(y_max) if not user_y_max else user_y_max
-            y_min = 0
-            re_scale_output = "log"
-    else:
-        new_data = data
-
-    return new_data, y_max, y_min, re_scale_output
 
 
 def uploaded_files_cache(cache_dir: str):
