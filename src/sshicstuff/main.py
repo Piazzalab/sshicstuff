@@ -66,9 +66,6 @@ The available subcommands are:
     plot4c
         Generate static visualizations of 4C-like contact profiles.
 
-    plotmatrix
-        Plot probe-to-probe contact matrices as heatmaps.
-
     profile
         Generate genome-wide 4C-like contact profiles from filtered interactions.
 
