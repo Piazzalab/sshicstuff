@@ -220,8 +220,6 @@ The subcommands are:
 
     plot4c              Plot a 4C-like profile. Similar graph as those got with the 'view' interactive command (plotly).
 
-    plotmatrix          Plot a contact matrix of contacts made between all the probes. (matplotlib)
-
     profile             Generate a 4C-like profile for each ssDNA oligo.
 
     rebin               Rebin change binning resolution of a 4C-like profile
@@ -257,9 +255,46 @@ You can interact with the graph and visualize the contacts made by each probe.
 Open a graphical user interface to visualize 4-C like profile.
 
 ```
-    usage:
-        view
+   sshicstuff view
 ```
+
+## Glossary
+
+#### Sparse (GRAAL)
+List of fragment–fragment contacts stored as non-zero interactions (frag1, frag2, counts); this is the raw Hi-C output format.
+
+#### Dense (Cooler .cool)
+Matrix representation of contacts indexed by genomic bins or probes; used for visualization and downstream analysis.
+
+#### 0 kb (unbinned)
+Contacts kept at native fragment resolution, without any genomic binning.
+
+#### Contact (absolute count)
+Number of read pairs supporting an interaction between two fragments.
+
+#### Frequencies (normalized contacts)
+Contacts normalized by the total number of contacts, representing relative interaction proportions.
+
+#### Fragment
+Restriction fragment defined by genomic coordinates; basic unit of Hi-C contact matrices.
+
+#### Probe (ssDNA oligo)
+Designed ssDNA sequence mapped to a fragment, used as a viewpoint to capture interactions.
+
+#### Intra
+Contacts occurring on the same chromosome as the probes. \
+Supposing all the ssDNA probes are located on the same chromosome.
+
+#### Inter
+Contacts occurring on different chromosomes than the probe.
+
+#### Cis
+Contacts within a defined genomic window (e.g. ±50 kb) around a region of interest \
+(e.g. DSB site) on the same chromosome as the probe.
+
+#### Trans
+Contacts outside the defined cis window.
+
 
 
 ## Mandatory files structure
