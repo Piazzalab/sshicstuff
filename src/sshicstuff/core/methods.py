@@ -1290,166 +1290,177 @@ def sparse_graal_to_cooler(
 def sparse_with_dsdna_only(
     sample_sparse_mat: str,
     oligo_capture_with_frag_path: str,
+    fragments_list_path: str,
     n_flanking_dsdna: int = 2,
     output_dir: str = None,
     force: bool = False,
 ) -> None:
     """
-    Generate a sparse matrix file (with the same format as the input) that excludes single-stranded DNA (ssDNA)
-    fragments. It removes fragments with a probe and the specified number of flanking fragments (both upstream
-    and downstream) around each probe fragment.
-
-    Parameters:
-        sample_sparse_mat (str): Path to the input sparse matrix file (output from hicstuff).
-        oligo_capture_with_frag_path (str): Path to the oligo capture file (required for sshicstuff),
-            containing fragment associations from the 'associate' command.
-        n_flanking_dsdna (int): Number of flanking fragments to remove around each probe fragment. Default is 2.
-        output_dir (str): Directory to save the output file. If None, the output filename is derived from sample_sparse_mat.
-        force (bool): If False, the function will not overwrite an existing output file. Default is False.
-
-    Returns:
-        None
+    Generate a dsDNA-only sparse matrix and export the corresponding Cooler file.
     """
 
-    # Determine output path if not provided
     if not output_dir:
         raise ValueError("output_dir cannot be None")
 
-    output_path = join(output_dir, os.path.basename(sample_sparse_mat).replace(".txt", "_dsdna_only.txt"))
+    os.makedirs(output_dir, exist_ok=True)
 
-    # Do not overwrite existing file unless force is True
-    if not force and os.path.exists(output_path):
-        logger.info("[Sparse Matrix Graal (dsdna)] Output file already exists: %s", output_path)
-        logger.warning("[Sparse Matrix Graal (dsdna)] Use the --force / -F flag to overwrite the existing file.")
+    output_path = join(
+        output_dir,
+        os.path.basename(sample_sparse_mat).replace(".txt", "_dsdna_only.txt"),
+    )
+    cool_output_path = output_path.replace(".txt", ".cool")
+
+    if not force and (os.path.exists(output_path) or os.path.exists(cool_output_path)):
+        logger.info(
+            "[Sparse Matrix Graal (dsdna)] Output already exists: %s or %s",
+            output_path,
+            cool_output_path,
+        )
+        logger.warning(
+            "[Sparse Matrix Graal (dsdna)] Use the --force / -F flag to overwrite the existing files."
+        )
         return
 
-    # Check that input files exist and have correct file extensions
     check_if_exists(sample_sparse_mat)
     check_if_exists(oligo_capture_with_frag_path)
+    check_if_exists(fragments_list_path)
     check_file_extension(sample_sparse_mat, ".txt")
-    check_file_extension(oligo_capture_with_frag_path, [".csv", ".tsv"])
+    check_file_extension(fragments_list_path, ".txt")
+    check_file_extension(oligo_capture_with_frag_path, [".csv", ".tsv", ".txt"])
 
-    # Set delimiter based on file extension (.csv -> comma, .tsv -> tab)
-    oligo_capture_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    oligo_capture_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "	"
 
-    # Read the input sparse matrix and the oligo capture table
-    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep="\t", header=None)
+    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep="	", header=None)
     df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_capture_delim)
-
-    # Create a working copy of the sparse matrix
     df_contacts_dsdna_only = df_sparse_mat.copy()
 
-    # Extract ssDNA fragments
     ssdna_frag = df_oligo.loc[df_oligo["type"] == "ss", "fragment"].tolist()
-
-    # Extract dsDNA fragments
     dsdna_frag = df_oligo.loc[df_oligo["type"] == "ds", "fragment"].tolist()
 
-    # Compute flanking fragments (both upstream and downstream) using list comprehensions
     flanking_fragments = (
-        [f + i for f in dsdna_frag for i in range(1, n_flanking_dsdna + 1)] +
-        [f - i for f in dsdna_frag for i in range(1, n_flanking_dsdna + 1)]
+        [f + i for f in dsdna_frag for i in range(1, n_flanking_dsdna + 1)]
+        + [f - i for f in dsdna_frag for i in range(1, n_flanking_dsdna + 1)]
     )
-    # Get unique dsDNA fragments including their flanking fragments
     dsdna_frag_all = np.unique(dsdna_frag + flanking_fragments)
 
-    # Build a DataFrame similar to the original implementation for header count adjustment
     df_ssdna = pd.DataFrame(ssdna_frag, columns=["fragments"])
     df_dsdna = pd.DataFrame(dsdna_frag_all, columns=["fragments"])
     df_frag = pd.concat([df_ssdna, df_dsdna])
-    
-    # For fast membership testing, create a set of fragments to remove
+
     fragments_to_remove = set(df_frag["fragments"])
-
-    # Identify rows where either column 0 or 1 contains a fragment to remove
-    mask = df_contacts_dsdna_only[0].isin(fragments_to_remove) | df_contacts_dsdna_only[1].isin(fragments_to_remove)
+    mask = (
+        df_contacts_dsdna_only[0].isin(fragments_to_remove)
+        | df_contacts_dsdna_only[1].isin(fragments_to_remove)
+    )
     index_to_drop = df_contacts_dsdna_only.index[mask]
-
-    # Drop the identified rows from the matrix
     df_contacts_dsdna_only.drop(index_to_drop, inplace=True)
 
-    # Adjust header counts (first row): subtract total number of fragments removed and dropped contacts
     df_contacts_dsdna_only.iloc[0, 0] -= len(df_frag)
     df_contacts_dsdna_only.iloc[0, 1] -= len(df_frag)
     df_contacts_dsdna_only.iloc[0, 2] -= len(index_to_drop)
 
-    # Save the resulting sparse matrix to the output file
-    df_contacts_dsdna_only.to_csv(output_path, sep="\t", index=False, header=False)
+    df_contacts_dsdna_only.to_csv(output_path, sep="	", index=False, header=False)
     logger.info("[Sparse Matrix Graal (dsdna)] dsDNA only contacts saved to %s", output_path)
+
+    sparse_graal_to_cooler(
+        sparse_mat_path=output_path,
+        fragments_list_path=fragments_list_path,
+        output_path=cool_output_path,
+        force=force,
+    )
+    logger.info("[Sparse Matrix Graal (dsdna)] dsDNA only Cooler saved to %s", cool_output_path)
 
 
 def sparse_with_ssdna_only(
     sample_sparse_mat: str,
     oligo_capture_with_frag_path: str,
+    fragments_list_path: str,
     output_dir: str = None,
     force: bool = False,
 ) -> None:
     """
-    Generate a sparse matrix file (with the same format as the input) containing only ssDNA contacts.
-    This matrix is used for ssDNA vs ssDNA profiling.
+    Generate ssDNA-filtered sparse matrices and export the corresponding Cooler files.
 
-    Parameters:
-        sample_sparse_mat (str): Path to the input sparse matrix file (output from hicstuff).
-        oligo_capture_with_frag_path (str): Path to the oligo capture file (required for sshicstuff),
-            containing fragment associations from the 'associate' command.
-        output_dir (str): Directory to save the output file. If None, the output filename is derived from sample_sparse_mat.
-        force (bool): If False, the function will not overwrite an existing output file. Default is False.
+    Notes
+    -----
+    Two sparse outputs are produced:
+    - ``*_ssdna_to_ssdna_only.txt``: contacts where both mates are ssDNA fragments.
+    - ``*_ssdna_only.txt``: contacts where at least one mate is an ssDNA fragment.
 
-    Returns:
-        None
+    The main Cooler requested for the CLI is the ``*_ssdna_only.cool`` export.
+    A second Cooler is also generated for the stricter ssDNA-vs-ssDNA matrix.
     """
 
-    # Set the output file name if not provided
     if not output_dir:
-        raise  ValueError("output_dir cannot be None")
+        raise ValueError("output_dir cannot be None")
 
-    ssdna_to_ssdna_output_path  = join(
-        output_dir, os.path.basename(sample_sparse_mat).replace(".txt", "_ssdna_to_ssdna_only.txt"))
-    ssdna_to_all_output_path    = join(
-        output_dir, os.path.basename(sample_sparse_mat).replace(".txt", "_ssdna_only.txt"))
+    os.makedirs(output_dir, exist_ok=True)
 
-    # Do not overwrite an existing file if force is not enabled
-    if not force and os.path.exists(ssdna_to_ssdna_output_path):
-        logger.info("[Sparse Matrix Graal (ssdna)] Output file already exists: %s", ssdna_to_ssdna_output_path)
-        logger.warning("[Sparse Matrix Graal (ssdna)] Use the --force / -F flag to overwrite the existing file.")
+    ssdna_to_ssdna_output_path = join(
+        output_dir,
+        os.path.basename(sample_sparse_mat).replace(".txt", "_ssdna_to_ssdna_only.txt"),
+    )
+    ssdna_to_all_output_path = join(
+        output_dir,
+        os.path.basename(sample_sparse_mat).replace(".txt", "_ssdna_only.txt"),
+    )
+    ssdna_to_ssdna_cool_path = ssdna_to_ssdna_output_path.replace(".txt", ".cool")
+    ssdna_to_all_cool_path = ssdna_to_all_output_path.replace(".txt", ".cool")
+
+    if not force and (
+        os.path.exists(ssdna_to_ssdna_output_path)
+        or os.path.exists(ssdna_to_all_output_path)
+        or os.path.exists(ssdna_to_ssdna_cool_path)
+        or os.path.exists(ssdna_to_all_cool_path)
+    ):
+        logger.info(
+            "[Sparse Matrix Graal (ssdna)] Output already exists in %s",
+            output_dir,
+        )
+        logger.warning(
+            "[Sparse Matrix Graal (ssdna)] Use the --force / -F flag to overwrite the existing files."
+        )
         return
 
-    # Check input file existence and file extension
     check_if_exists(sample_sparse_mat)
     check_if_exists(oligo_capture_with_frag_path)
+    check_if_exists(fragments_list_path)
     check_file_extension(sample_sparse_mat, ".txt")
-    check_file_extension(oligo_capture_with_frag_path, [".csv", ".tsv"])
+    check_file_extension(fragments_list_path, ".txt")
+    check_file_extension(oligo_capture_with_frag_path, [".csv", ".tsv", ".txt"])
 
-    # Set delimiter based on the oligo capture file extension
-    oligo_capture_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "\t"
+    oligo_capture_delim = "," if oligo_capture_with_frag_path.endswith(".csv") else "	"
 
-    # Read the input sparse matrix and oligo capture files
-    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep="\t", header=0)
+    df_sparse_mat = pd.read_csv(sample_sparse_mat, sep="	", header=0)
     df_oligo = pd.read_csv(oligo_capture_with_frag_path, sep=oligo_capture_delim)
-
-    # Extract unique ssDNA fragments from the oligo capture file
     ssdna_frag = pd.unique(df_oligo.loc[df_oligo["type"] == "ss", "fragment"]).tolist()
 
-    # Filter the sparse matrix: keep rows where both fragment columns are ssDNA fragments
-    mask_ss2ss_only = df_sparse_mat.iloc[:, 0].isin(ssdna_frag) & df_sparse_mat.iloc[:, 1].isin(ssdna_frag)
+    mask_ss2ss_only = (
+        df_sparse_mat.iloc[:, 0].isin(ssdna_frag)
+        & df_sparse_mat.iloc[:, 1].isin(ssdna_frag)
+    )
     df_contacts_ss2ss_only = df_sparse_mat[mask_ss2ss_only].copy()
-
-    # Update the header counts:
-    # The first two columns become the count of ssDNA fragments,
-    # and the third column is set to the number of rows in the filtered matrix plus one.
     df_contacts_ss2ss_only.columns = [
         len(ssdna_frag),
         len(ssdna_frag),
         len(df_contacts_ss2ss_only) + 1,
     ]
     df_contacts_ss2ss_only.reset_index(drop=True, inplace=True)
+    df_contacts_ss2ss_only.to_csv(
+        ssdna_to_ssdna_output_path,
+        sep="	",
+        index=False,
+        header=True,
+    )
+    logger.info(
+        "[Sparse Matrix Graal (ssdna)] ssDNA-only contacts saved to %s",
+        ssdna_to_ssdna_output_path,
+    )
 
-    # Save the resulting matrix to the specified output file with headers
-    df_contacts_ss2ss_only.to_csv(ssdna_to_ssdna_output_path, sep="\t", index=False, header=True)
-    logger.info("[Sparse Matrix Graal (ssdna)] ssDNA only contacts saved to %s", ssdna_to_ssdna_output_path)
-
-    # Filter the sparse matrix for rows where at least one fragment is ssDNA (for ssDNA profiling)
-    mask_ssdna = df_sparse_mat.iloc[:, 0].isin(ssdna_frag) | df_sparse_mat.iloc[:, 1].isin(ssdna_frag)
+    mask_ssdna = (
+        df_sparse_mat.iloc[:, 0].isin(ssdna_frag)
+        | df_sparse_mat.iloc[:, 1].isin(ssdna_frag)
+    )
     df_contacts_ssdna = df_sparse_mat[mask_ssdna].copy()
     df_contacts_ssdna.columns = [
         len(ssdna_frag),
@@ -1457,10 +1468,38 @@ def sparse_with_ssdna_only(
         len(df_contacts_ssdna) + 1,
     ]
     df_contacts_ssdna.reset_index(drop=True, inplace=True)
-    df_contacts_ssdna.to_csv(ssdna_to_all_output_path, sep="\t", index=False, header=True)
+    df_contacts_ssdna.to_csv(
+        ssdna_to_all_output_path,
+        sep="	",
+        index=False,
+        header=True,
+    )
+    logger.info(
+        "[Sparse Matrix Graal (ssdna)] ssDNA profile (ssDNA vs all) saved to %s",
+        ssdna_to_all_output_path,
+    )
 
-    logger.info("[Sparse Matrix Graal (ssdna)] ssDNA profile (ssDNA vs all) saved to %s", ssdna_to_all_output_path)
+    sparse_graal_to_cooler(
+        sparse_mat_path=ssdna_to_ssdna_output_path,
+        fragments_list_path=fragments_list_path,
+        output_path=ssdna_to_ssdna_cool_path,
+        force=force,
+    )
+    logger.info(
+        "[Sparse Matrix Graal (ssdna)] ssDNA-vs-ssDNA Cooler saved to %s",
+        ssdna_to_ssdna_cool_path,
+    )
 
+    sparse_graal_to_cooler(
+        sparse_mat_path=ssdna_to_all_output_path,
+        fragments_list_path=fragments_list_path,
+        output_path=ssdna_to_all_cool_path,
+        force=force,
+    )
+    logger.info(
+        "[Sparse Matrix Graal (ssdna)] ssDNA-vs-all Cooler saved to %s",
+        ssdna_to_all_cool_path,
+    )
 
 def subsample(
     input_path: str,

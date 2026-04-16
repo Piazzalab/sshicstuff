@@ -414,12 +414,15 @@ class Dsdnaonly(AbstractCommand):
     Retain only the contacts between non-ss DNA fragments.
 
     usage:
-        dsdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX -o OUTPUT [-n FLANKING_NUMBER] [-F]
+        dsdnaonly -c OLIGOS_CAPTURE -f FRAGMENTS -m SPARSE_MATRIX -o OUTPUT [-n FLANKING_NUMBER] [-F]
 
     Arguments:
         -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
                                                                 Must be the file with the fragments associated
                                                                 Made with the 'associate' command
+
+        -f FRAGMENTS, --fragments FRAGMENTS                     Path to the fragments digested list (.txt)
+                                                                [necessary for sparse to cooler]
 
         -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
 
@@ -440,10 +443,12 @@ class Dsdnaonly(AbstractCommand):
         methods.sparse_with_dsdna_only(
             sample_sparse_mat=self.args["--sparse-matrix"],
             oligo_capture_with_frag_path=self.args["--oligos-capture"],
+            fragments_list_path=self.args["--fragments"],
             output_dir=self.args["--output-dir"],
             n_flanking_dsdna=int(self.args["--flanking-number"]),
             force=self.args["--force"],
         )
+
 
 
 class Filter(AbstractCommand):
@@ -906,26 +911,34 @@ class Ssdnaonly(AbstractCommand):
     Retain only the contacts between ss DNA fragments.
 
     usage:
-        ssdnaonly -c OLIGOS_CAPTURE -m SPARSE_MATRIX [-o OUTPUT] [-F] [-N]
+        ssdnaonly -c OLIGOS_CAPTURE -f FRAGMENTS  -m SPARSE_MATRIX -o OUTPUT [-F]
 
     Arguments:
         -c OLIGOS_CAPTURE, --oligos-capture OLIGOS_CAPTURE      Path to the oligos capture file
                                                                 Must be the file with the fragments associated
                                                                 Made with the 'associate' command
 
+        -f FRAGMENTS, --fragments FRAGMENTS                     Path to the fragments digested list (.txt)
+                                                                [necessary for sparse to cooler]
+
         -m SPARSE_MATRIX, --sparse-matrix SPARSE_MATRIX         Path to the sparse matrix file
 
-    Options:
         -o OUTPUT, --output-dir OUTPUT                          Path to the output directory
 
+    Options:
         -F, --force                                             Force the overwriting of the file if it exists [default: False]
     """
 
     def execute(self):
-        check_exists(self.args["--sparse-matrix"], self.args["--oligos-capture"])
+        check_exists(
+            self.args["--sparse-matrix"],
+            self.args["--oligos-capture"],
+            self.args["--fragments"],
+        )
         methods.sparse_with_ssdna_only(
             sample_sparse_mat=self.args["--sparse-matrix"],
             oligo_capture_with_frag_path=self.args["--oligos-capture"],
+            fragments_list_path=self.args["--fragments"],
             output_dir=self.args["--output-dir"],
             force=self.args["--force"],
         )
