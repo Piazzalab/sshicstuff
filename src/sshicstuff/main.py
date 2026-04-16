@@ -4,71 +4,91 @@
 
 
 """
-Single Stranded DNA Hi-C pipeline for generating oligo 4-C profiles and aggregated contact matrices.
+Single-stranded DNA Hi-C (ssHi-C) analysis toolkit for generating probe-centered contact profiles,
+probe-to-probe interaction matrices, and genome-wide contact summaries.
 
 usage:
     sshicstuff [-hv] <command> [<args>...]
 
 options:
-    -h, --help                  shows the help
-    -v, --version               shows the version
+    -h, --help                  Show this help message
+    -v, --version               Show version
 
-The subcommands are:
-    aggregate           Aggregate all 4C-like profiles on centromeric or telomeric regions.
+The available subcommands are:
 
-    associate           Associate oligo/probe name to fragment/read ID that contains it.
-                        This will copy the oligo_capture.csv file and add a new columns with the fragment ID, start and end.
+    aggregate
+        Aggregate 4C-like profiles around centromeric or telomeric regions to
+        produce meta-contact profiles reflecting large-scale chromosomal organization.
 
-    compare             Compare the capture efficiency of a sample with that of a wild type
-                        It may be another sample.
+    associate
+        Map each oligo/probe to its corresponding restriction fragment.
+        Adds fragment ID and genomic coordinates to the oligo capture table.
 
-    coverage            Calculate the coverage per fragment and save the result to a bedgraph.
-                        Coverage can be normalized and binned at different resolutions.
+    compare
+        Compare probe capture efficiency between a sample and a reference.
+        Outputs probe-wise efficiency ratios.
 
-    dsdnaconly          Keep only Hi-C (dsdna sites) reads from a sparse matrix file (i.e., remove all ssDNA reads).
-                        Generate a new sparse matrix file with only dsDNA reads.
+    coverage
+        Compute contact coverage per fragment or genomic bin from a sparse matrix.
+        Supports normalization and multi-resolution binning.
 
-    filter              Filter reads from a sparse matrix and keep only pairs of reads that contain at least one
-                        oligo/probe (ssdna reads vs whole genome).
+    dsdnaonly
+        Extract dsDNA–dsDNA contacts from a sparse matrix.
+        Removes all interactions involving ssDNA-associated fragments.
 
-    merge               Merge multiple sparse matrix files into a single one.
+    ssdnaonly
+        Extract ssDNA–ssDNA contacts from a sparse matrix.
+        Retains only interactions between probe-associated fragments.
 
-    pipeline            Run the entire pipeline.
-                        It contains the following steps: 
-                            - associate
-                            - dsdnaconly
-                            - ssdnaconly
-                            - coverage of dsdna and ssdna reads separately
-                            - filter
-                            - coverage of all reads at multiple resolutions
-                            - profile (4C-like)
-                            - stats
-                            - rebin
-                            - aggregate on centromeric and telomeric regions
+    filter
+        Retain only contacts involving at least one probe-associated fragment.
+        Enriches capture signal over genome-wide background.
 
-    design              generate oligonucleotides for single-strand Hi-C experiments and edit reference genome.
-                        It also generates a two table, one with annealing oligo positions and the other with capture oligo
-                        positions.
+    merge
+        Merge multiple sparse matrices by summing contact counts.
+        Requires consistent fragment definitions across inputs.
 
-    plot4c              Plot a 4C-like profile. Similar graph as those got with the 'view' interactive command (plotly).
+    pipeline
+        Run the full ssHi-C processing workflow, including:
+            - probe-to-fragment association
+            - separation of dsDNA and ssDNA contacts
+            - coverage computation
+            - probe-based filtering
+            - 4C-like profile generation
+            - statistical analysis and normalization
+            - rebinning
+            - aggregation on centromeres and telomeres
 
-    plotmatrix          Plot a contact matrix of contacts made between all the probes. (matplotlib)
+    design
+        Design oligonucleotides for ssHi-C experiments and generate modified
+        reference genomes, including annealing and capture probe tables.
 
-    profile             Generate a 4C-like profile for each ssDNA oligo.
+    plot4c
+        Generate static visualizations of 4C-like contact profiles.
 
-    rebin               Rebin change binning resolution of a 4C-like profile
+    plotmatrix
+        Plot probe-to-probe contact matrices as heatmaps.
 
-    ssdnaconly          Keep only ssDNA reads from a sparse matrix file (i.e., remove all dsdna reads).
-                        Generate a new sparse matrix file with only ssDNA reads.
+    profile
+        Generate genome-wide 4C-like contact profiles from filtered interactions.
 
-    stats               Generate statistics and normalization for contacts made by each probe.
+    probe2probe
+        Build a probe-by-probe interaction matrix from filtered contacts.
+        Optionally export to Cooler format.
 
-    subsample           Subsample and compress FASTQ file using seqtk.
+    rebin
+        Change the resolution of 4C-like profiles by aggregating contacts into
+        larger genomic bins.
 
-    view                Open a graphical user interface to visualize 4-C like profile (flask + dash + plotly).
-                        This will open a web browser with the 4C-like profile u created with the 'profile' command.
+    stats
+        Compute probe-level statistics, including capture efficiency and
+        cis/trans contact distributions.
 
+    subsample
+        Subsample FASTQ reads using seqtk for dataset size reduction.
 
+    view
+        Launch an interactive web interface for exploring 4C-like profiles.
 """
 
 import importlib.metadata
