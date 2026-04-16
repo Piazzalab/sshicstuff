@@ -15,7 +15,7 @@ set -Eeuo pipefail
 # ------------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_ROOT="$(cd "${SCRIPT_DIR}/../tests-data" && pwd)"
+TEST_ROOT="$(cd "${SCRIPT_DIR}/../test-data" && pwd)"
 INPUTS_DIR="${TEST_ROOT}/inputs"
 OUTPUT_ROOT="${TEST_ROOT}/B-output-hicstuff"
 

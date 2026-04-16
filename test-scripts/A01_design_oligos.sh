@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Project test layout
-TEST_ROOT="$(cd "${SCRIPT_DIR}/../tests-data" && pwd)"
+TEST_ROOT="$(cd "${SCRIPT_DIR}/../test-data" && pwd)"
 INPUTS_DIR="${TEST_ROOT}/inputs"
 OUTDIR="${TEST_ROOT}/A-output-design"
 

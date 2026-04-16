@@ -6,8 +6,9 @@ source "$(dirname "$0")/C00_set_variables.sh"
 echo "[2/11] Extracting dsDNA-only sparse matrix..."
 
 sshicstuff dsdnaonly \
-  -m "${GRAAL_MATRIX}" \
   -c "${CAPTURE_ASSOCIATED}" \
+  -f "${FRAGMENTS_LIST}" \
+  -m "${GRAAL_MATRIX}" \
   -o "${OUTPUTS_DIR}" \
   -F
 
