@@ -3,15 +3,16 @@ set -euo pipefail
 
 source "$(dirname "$0")/C00_set_variables.sh"
 
-echo "[8/11] Rebinning the normalized profile at 1 kb..."
+echo "[8/12] Rebinning the normalized profile at 1 kb..."
 
 sshicstuff rebin \
   -p "${PROFILE_0KB_FREQ}" \
   -C "${CHROM_COORDS}" \
   -b 1000 \
+  -o "${PROFILE_1KB_FREQ}" \
   -F
 
-echo "[8/11] Plotting the 1 kb profile..."
+echo "[8/12] Plotting the 1 kb profile..."
 
 sshicstuff plot4c \
   -p "${PROFILE_1KB_FREQ}" \
@@ -25,15 +26,16 @@ sshicstuff plot4c \
   -y 0 \
   -Y 0.01
 
-echo "[8/11] Rebinning the normalized profile at 10 kb..."
+echo "[8/12] Rebinning the normalized profile at 10 kb..."
 
 sshicstuff rebin \
   -p "${PROFILE_0KB_FREQ}" \
   -C "${CHROM_COORDS}" \
   -b 10000 \
+  -o "${PROFILE_10KB_FREQ}" \
   -F
 
-echo "[8/11] Plotting the 10 kb profile..."
+echo "[8/12] Plotting the 10 kb profile..."
 
 sshicstuff plot4c \
   -p "${PROFILE_10KB_FREQ}" \
@@ -50,4 +52,3 @@ sshicstuff plot4c \
 echo "Outputs:"
 echo "  ${PROFILE_1KB_FREQ}"
 echo "  ${PROFILE_10KB_FREQ}"
-echo "  ${OUTPUTS_DIR}/plots/"

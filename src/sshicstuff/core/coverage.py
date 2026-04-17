@@ -1,10 +1,14 @@
 """
-Coverage computation from sparse fragment-level contact matrices.
+Coverage computation from fragment-level coolers.
 
-A *coverage* track represents the total number of Hi-C contacts attributed
-to each genomic locus (fragment or bin).  The module produces BedGraph
-files at fragment resolution or at any fixed bin size, with optional
-normalization by the total contact count.
+A *coverage* track represents the total number of Hi-C contacts
+attributed to each genomic locus (fragment or fixed-size bin). The
+module produces BedGraph files at fragment resolution or at any fixed
+bin size, with optional global normalization or ICE-balanced values.
+
+Per-bin coverage is the Hi-C matrix marginal: for bin *i*, the sum of
+all pixels where *i* appears as either end (``bin1_id == i`` or
+``bin2_id == i``).
 """
 
 from __future__ import annotations
@@ -16,11 +20,11 @@ import numpy as np
 import pandas as pd
 
 from sshicstuff.core import schemas
+from sshicstuff.core.cool import bins_df, load_cool, pixels_df
 from sshicstuff.core.io import (
     detect_delimiter,
     get_bin_suffix,
     guard_overwrite,
-    read_sparse_contacts,
     require_exists,
 )
 
@@ -30,34 +34,30 @@ pd.options.mode.chained_assignment = None
 
 
 def compute_coverage(
-    sparse_mat_path: str | Path,
-    fragments_list_path: str | Path,
+    cool_path: str | Path,
     output_dir: str | Path | None = None,
     normalization: schemas.Normalization = schemas.Normalization.NONE,
     bin_size: int = 0,
     chromosomes_coord_path: str | Path | None = None,
     force: bool = False,
 ) -> Path | None:
-    """Compute fragment or binned coverage from a sparse contact matrix.
+    """Compute fragment or binned coverage from a fragment-level cooler.
 
     Parameters
     ----------
-    sparse_mat_path:
-        Path to the sparse contact matrix.
-    fragments_list_path:
-        Path to the hicstuff fragment list.
+    cool_path:
+        Path to a fragment-level ``.cool`` file.
     output_dir:
-        Destination directory.  Defaults to the directory of
-        *sparse_mat_path*.
+        Destination directory. Defaults to *cool_path*'s parent.
     normalization:
-        ``NONE``             → raw contact counts (BedGraph unit: reads).
-        ``FRACTION_GLOBAL``  → each value divided by the total sum.
+        ``NONE``            → raw contact counts (BedGraph unit: reads).
+        ``FRACTION_GLOBAL`` → each value divided by the total sum.
+        ``ICE_BALANCED``    → use ICE-balanced pixel values (requires
+        that :func:`cool.balance_cool` has been run beforehand).
     bin_size:
-        Bin width in bp.  Use ``0`` for fragment-level resolution
-        (no binning).
+        Bin width in bp. Use ``0`` for fragment-level resolution.
     chromosomes_coord_path:
-        Path to the chromosome coordinate file.  Required when
-        ``bin_size > 0``.
+        Chromosome coordinate file. Required when ``bin_size > 0``.
     force:
         Overwrite existing output files.
 
@@ -65,16 +65,9 @@ def compute_coverage(
     -------
     Path | None
         Path to the BedGraph (or None if skipped).
-
-    Raises
-    ------
-    ValueError
-        If *bin_size > 0* and *chromosomes_coord_path* is not provided.
     """
-    sparse_mat_path = Path(sparse_mat_path)
-    fragments_list_path = Path(fragments_list_path)
-    require_exists(sparse_mat_path)
-    require_exists(fragments_list_path)
+    cool_path = Path(cool_path)
+    require_exists(cool_path)
 
     if bin_size > 0 and chromosomes_coord_path is None:
         raise ValueError(
@@ -82,14 +75,18 @@ def compute_coverage(
         )
 
     if output_dir is None:
-        output_dir = sparse_mat_path.parent
+        output_dir = cool_path.parent
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    base = sparse_mat_path.stem
-    measure_tag = (
-        "counts" if normalization == schemas.Normalization.NONE else "fraction_global"
-    )
+    # Tag files with the measure (counts / fraction_global / ice) and
+    # resolution (fragment-level or <bin>kb) for unambiguous filenames.
+    base = cool_path.stem
+    measure_tag = {
+        schemas.Normalization.NONE: "counts",
+        schemas.Normalization.FRACTION_GLOBAL: "fraction_global",
+        schemas.Normalization.ICE_BALANCED: "ice_balanced",
+    }[normalization]
     res_tag = get_bin_suffix(bin_size) if bin_size > 0 else "fragment_level"
     output_path = output_dir / f"{base}_coverage.{measure_tag}.{res_tag}.bedgraph"
 
@@ -97,40 +94,44 @@ def compute_coverage(
         return None
 
     # ------------------------------------------------------------------ #
-    # 1. Load fragments and compute per-fragment coverage
+    # 1. Read pixels (raw or balanced) and compute per-fragment marginals.
     # ------------------------------------------------------------------ #
-    df_frag = pd.read_csv(str(fragments_list_path), sep="\t")
-    df_frag.rename(columns={
-        "chrom": schemas.COL_CHR,
-        "start_pos": schemas.COL_START,
-        "end_pos": schemas.COL_END,
-    }, inplace=True)
-    df_frag["_frag_id"] = np.arange(len(df_frag))
-    chrom_order = df_frag[schemas.COL_CHR].unique().tolist()
+    clr = load_cool(cool_path, require_fragment_level=True)
 
-    df_contacts = read_sparse_contacts(sparse_mat_path)
+    balance = normalization == schemas.Normalization.ICE_BALANCED
+    df_pixels = pixels_df(clr, balance=balance)
+    df_bins = bins_df(clr)
 
-    # Melt so that every contact is attributed to both fragments
+    # Hi-C marginal: each pixel (bin1, bin2, count) contributes 'count'
+    # to bin1 AND to bin2 (the matrix is symmetric upper-triangular on
+    # disk, so both sides must be accumulated).
     df_long = pd.concat([
-        df_contacts[[schemas.COL_FRAG_A, schemas.COL_COUNT]].rename(
-            columns={schemas.COL_FRAG_A: "_frag_id"}
+        df_pixels[[schemas.COL_BIN1_ID, schemas.COL_COOL_COUNT]].rename(
+            columns={schemas.COL_BIN1_ID: schemas.COL_BIN_ID}
         ),
-        df_contacts[[schemas.COL_FRAG_B, schemas.COL_COUNT]].rename(
-            columns={schemas.COL_FRAG_B: "_frag_id"}
+        df_pixels[[schemas.COL_BIN2_ID, schemas.COL_COOL_COUNT]].rename(
+            columns={schemas.COL_BIN2_ID: schemas.COL_BIN_ID}
         ),
     ], ignore_index=True)
 
     df_cov = (
         df_long
-        .merge(df_frag[["_frag_id", schemas.COL_CHR, schemas.COL_START, schemas.COL_END]],
-               on="_frag_id")
+        .merge(
+            df_bins[[schemas.COL_BIN_ID, schemas.COL_CHR,
+                     schemas.COL_START, schemas.COL_END]],
+            on=schemas.COL_BIN_ID,
+        )
         .groupby(
             [schemas.COL_CHR, schemas.COL_START, schemas.COL_END], as_index=False
-        )[schemas.COL_COUNT].sum()
+        )[schemas.COL_COOL_COUNT]
+        .sum()
+        .rename(columns={schemas.COL_COOL_COUNT: schemas.COL_COUNT})
     )
 
+    chrom_order = df_bins[schemas.COL_CHR].drop_duplicates().tolist()
+
     # ------------------------------------------------------------------ #
-    # 2. Optional binning
+    # 2. Optional binning.
     # ------------------------------------------------------------------ #
     if bin_size > 0:
         chromosomes_coord_path = Path(chromosomes_coord_path)
@@ -145,7 +146,7 @@ def compute_coverage(
         ).reset_index(drop=True)
 
     # ------------------------------------------------------------------ #
-    # 3. Normalization
+    # 3. Global-fraction normalization.
     # ------------------------------------------------------------------ #
     if normalization == schemas.Normalization.FRACTION_GLOBAL:
         total = df_cov[schemas.COL_COUNT].sum()
@@ -175,9 +176,9 @@ def _bin_coverage(
     sep = detect_delimiter(chromosomes_coord_path)
     df_chrom = pd.read_csv(str(chromosomes_coord_path), sep=sep)
     df_chrom.columns = [c.lower() for c in df_chrom.columns]
-    chrom_sizes = dict(zip(df_chrom["chr"], df_chrom["length"]))
+    chrom_sizes = dict(zip(df_chrom[schemas.COL_CHR], df_chrom[schemas.COL_LENGTH]))
 
-    # Build a complete bins template (all chromosomes, all bins)
+    # Build a complete bins template (all chromosomes, all bins).
     parts = []
     for chr_, length in chrom_sizes.items():
         starts = np.arange(0, length, bin_size)
@@ -189,7 +190,6 @@ def _bin_coverage(
         }))
     df_bins = pd.concat(parts, ignore_index=True)
 
-    # Assign fragments to bins
     df = df_cov.copy()
     df["start_bin"] = (df[schemas.COL_START] // bin_size) * bin_size
     df["end_bin"] = (df[schemas.COL_END] // bin_size) * bin_size
@@ -220,8 +220,8 @@ def _bin_coverage(
         )
 
     df_all = pd.concat(
-        [df_single[["chr", "bin", schemas.COL_COUNT]],
-         df_cross_combined[["chr", "bin", schemas.COL_COUNT]]],
+        [df_single[[schemas.COL_CHR, "bin", schemas.COL_COUNT]],
+         df_cross_combined[[schemas.COL_CHR, "bin", schemas.COL_COUNT]]],
         ignore_index=True,
     )
     df_binned = df_all.groupby(
@@ -229,9 +229,11 @@ def _bin_coverage(
     )[schemas.COL_COUNT].sum()
     df_binned[schemas.COL_START] = df_binned["bin"]
     df_binned[schemas.COL_END] = df_binned["bin"] + bin_size
-    df_binned = df_binned[[schemas.COL_CHR, schemas.COL_START, schemas.COL_END, schemas.COL_COUNT]]
+    df_binned = df_binned[
+        [schemas.COL_CHR, schemas.COL_START, schemas.COL_END, schemas.COL_COUNT]
+    ]
 
-    # Merge with the template to fill missing bins with 0
+    # Merge with the template so empty bins get a 0 value.
     df_final = (
         pd.concat([df_bins, df_binned], ignore_index=True)
         .groupby(

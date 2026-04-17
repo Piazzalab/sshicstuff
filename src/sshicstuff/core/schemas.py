@@ -2,16 +2,19 @@
 Canonical column names, type vocabulary, and schema validation for sshicstuff.
 
 Every column name, object-type identifier, and normalization strategy used
-across the pipeline is declared here.  Business-logic modules must import
+across the pipeline is declared here. Business-logic modules must import
 from this module rather than hard-coding string literals — this is the
 single source of truth for the data model.
 
 Object families
 ---------------
-A. Genome contacts 2D  : raw / dsdna / ssdna sparse matrices, .cool files
+A. Genome contacts 2D  : fragment-level ``.cool`` files (raw / dsDNA / ssDNA
+                          / probe-filtered / merged).
 B. Probe profiles 1D   : fragment-level and binned viewpoint-vs-genome tables
-C. Probe matrix 2D     : probe × probe contact matrix
-D. Summaries           : per-probe stats, centromere / telomere aggregates
+                          (TSV).
+C. Probe matrix 2D     : probe × probe contact matrix (TSV + probe-space
+                          ``.cool``).
+D. Summaries           : per-probe stats, centromere / telomere aggregates.
 """
 
 from __future__ import annotations
@@ -49,35 +52,60 @@ class Normalization(str, Enum):
     FRACTION_VIEWPOINT
         Divide each probe column by its own total.
         Valid only for 1-D probe profiles.
+    ICE_BALANCED
+        Use the ICE-balanced pixel values stored in the cooler.
+        Applied at the 2-D level before any 1-D reduction. This is the
+        recommended option for quantitative cross-sample comparisons
+        (see reviewer comment on matrix balancing).
     """
 
     NONE = "none"
     FRACTION_GLOBAL = "fraction_global"
     FRACTION_VIEWPOINT = "fraction_viewpoint"
+    ICE_BALANCED = "ice_balanced"
 
 
 # ---------------------------------------------------------------------------
-# Column name constants
+# Column name constants — legacy graal sparse format
 # ---------------------------------------------------------------------------
 
-# Sparse contacts (graal / hicstuff format)
 COL_FRAG_A = "frag_a"
 COL_FRAG_B = "frag_b"
 COL_COUNT = "count"
 
+# ---------------------------------------------------------------------------
+# Column name constants — cooler conventions
+# ---------------------------------------------------------------------------
+
+# cooler stores contacts as (bin1_id, bin2_id, count) triples.
+COL_BIN1_ID = "bin1_id"
+COL_BIN2_ID = "bin2_id"
+COL_COOL_COUNT = "count"   # cooler-side count column (same string, distinct meaning)
+COL_BIN_ID = "bin_id"      # synthesised row index over the bin table
+COL_WEIGHT = "weight"      # ICE balancing weights, stored per-bin by cooler
+
+# ---------------------------------------------------------------------------
 # Fragment list (hicstuff output)
+# ---------------------------------------------------------------------------
+
 COL_CHROM = "chrom"
 COL_START_POS = "start_pos"
 COL_END_POS = "end_pos"
 COL_SIZE = "size"
 COL_GC_CONTENT = "gc_content"
 
+# ---------------------------------------------------------------------------
 # Shared genomic coordinates
+# ---------------------------------------------------------------------------
+
 COL_CHR = "chr"
 COL_START = "start"
 COL_END = "end"
 
+# ---------------------------------------------------------------------------
 # Oligo capture table
+# ---------------------------------------------------------------------------
+
 COL_NAME = "name"
 COL_TYPE = "type"
 COL_SEQUENCE = "sequence"
@@ -88,22 +116,44 @@ COL_CHR_ORI = "chr_ori"
 COL_START_ORI = "start_ori"
 COL_STOP_ORI = "stop_ori"
 
+# ---------------------------------------------------------------------------
 # Chromosome coordinates
+# ---------------------------------------------------------------------------
+
 COL_LENGTH = "length"
 COL_LEFT_ARM_LENGTH = "left_arm_length"
 COL_RIGHT_ARM_LENGTH = "right_arm_length"
 
+# ---------------------------------------------------------------------------
 # Profile (viewpoint vs genome)
+# ---------------------------------------------------------------------------
+
 COL_SIZES = "sizes"
 COL_GENOME_START = "genome_start"
 COL_CHR_BINS = "chr_bins"
 COL_GENOME_BINS = "genome_bins"
 
+# ---------------------------------------------------------------------------
+# Filtered probe-contact intermediate (pre-profile)
+# ---------------------------------------------------------------------------
+
+# Columns written by contacts.filter_contacts to the intermediate TSV:
+# ``frag_a``, ``frag_b``, ``contacts``, ``chr_a``, ``start_a``, ``end_a``,
+# ``size_a``, ``gc_content_a``, ``name_a``, ``type_a``, ``sequence_a``
+# (and the same set with the ``_b`` suffix).
+COL_PROBE_CONTACTS = "contacts"
+
+# ---------------------------------------------------------------------------
 # Aggregation
+# ---------------------------------------------------------------------------
+
 COL_TELO_L = "telo_l"
 COL_TELO_R = "telo_r"
 
+# ---------------------------------------------------------------------------
 # Per-probe statistics
+# ---------------------------------------------------------------------------
+
 COL_PROBE = "probe"
 COL_CONTACTS = "contacts"
 COL_COVERAGE_OVER_HIC = "coverage_over_hic_contacts"
@@ -121,6 +171,8 @@ COL_DSDNA_NORM_CAPTURE_EFF = "dsdna_norm_capture_efficiency"
 # ---------------------------------------------------------------------------
 
 SCHEMA_SPARSE_CONTACTS: set[str] = {COL_FRAG_A, COL_FRAG_B, COL_COUNT}
+
+SCHEMA_COOLER_PIXELS: set[str] = {COL_BIN1_ID, COL_BIN2_ID, COL_COOL_COUNT}
 
 SCHEMA_FRAGMENTS: set[str] = {
     COL_CHROM, COL_START_POS, COL_END_POS, COL_SIZE, COL_GC_CONTENT

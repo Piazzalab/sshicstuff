@@ -3,10 +3,10 @@ set -euo pipefail
 
 source "$(dirname "$0")/C00_set_variables.sh"
 
-echo "[9/11] Computing probe-level contact statistics..."
+echo "[9/12] Computing probe-level contact statistics..."
 
 sshicstuff stats \
-  -m "${GRAAL_MATRIX}" \
+  -m "${COOL_INPUT}" \
   -p "${PROFILE_0KB_CONTACTS}" \
   -c "${CAPTURE_ASSOCIATED}" \
   -C "${CHROM_COORDS}" \
@@ -14,5 +14,7 @@ sshicstuff stats \
   -r 50000 \
   -F
 
-echo "Output:"
-echo "  ${OUTPUTS_DIR}/Graal_sample_for_pipeline_statistics.tsv"
+echo "Outputs:"
+echo "  ${STATS_TABLE}"
+echo "  ${CHR_FREQ_TABLE}"
+echo "  ${INTER_CHR_FREQ_TABLE}"

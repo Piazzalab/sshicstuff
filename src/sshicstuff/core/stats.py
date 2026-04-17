@@ -6,6 +6,12 @@ Produces three output TSV files:
 * ``*_statistics.tsv``          – contact counts, cis/trans, capture efficiency.
 * ``*_norm_chr_freq.tsv``       – normalized contact frequency per chromosome.
 * ``*_norm_inter_chr_freq.tsv`` – same, restricted to inter-chromosomal contacts.
+
+Since the switch to a cool-first architecture, the total sample-wide
+contact count (used as the denominator of ``coverage_over_hic_contacts``)
+is read directly from the input cooler — optionally using ICE-balanced
+pixel values for cross-sample quantitative comparisons (addresses the
+reviewer's comment on matrix balancing).
 """
 
 from __future__ import annotations
@@ -16,11 +22,11 @@ from pathlib import Path
 import pandas as pd
 
 from sshicstuff.core import schemas
+from sshicstuff.core.cool import load_cool, total_counts, has_balancing
 from sshicstuff.core.io import (
     detect_delimiter,
     guard_overwrite,
     read_oligo_capture,
-    read_sparse_contacts,
     require_exists,
     write_tsv,
 )
@@ -30,11 +36,12 @@ logger = logging.getLogger(__name__)
 
 def compute_stats(
     contacts_unbinned_path: str | Path,
-    sparse_mat_path: str | Path,
+    cool_path: str | Path,
     chr_coord_path: str | Path,
     oligo_capture_with_frag_path: str | Path,
     output_dir: str | Path | None = None,
     cis_range: int = 50_000,
+    use_balanced: bool = False,
     force: bool = False,
 ) -> tuple[Path, Path, Path] | None:
     """Compute per-probe contact statistics.
@@ -44,17 +51,24 @@ def compute_stats(
     contacts_unbinned_path:
         Fragment-level contacts profile (output of
         :func:`profiles.build_profile`).
-    sparse_mat_path:
-        Raw hicstuff sparse matrix (used for total contact count).
+    cool_path:
+        Fragment-level ``.cool`` file for the sample. Used to obtain
+        the sample-wide total contact count that normalises
+        ``coverage_over_hic_contacts``.
     chr_coord_path:
         Chromosome coordinate file.
     oligo_capture_with_frag_path:
         Oligo capture table with fragment IDs.
     output_dir:
-        Destination directory.  Defaults to *contacts_unbinned_path*'s
+        Destination directory. Defaults to *contacts_unbinned_path*'s
         parent.
     cis_range:
         Window in bp around each probe used to define *cis* contacts.
+    use_balanced:
+        When True, compute the total contact count from ICE-balanced
+        pixel values (requires that the cooler has a ``weight`` column).
+        The per-probe profile values themselves are unchanged; only the
+        denominator of ``coverage_over_hic_contacts`` differs.
     force:
         Overwrite existing output files.
 
@@ -63,12 +77,12 @@ def compute_stats(
     (stats_path, chr_freq_path, inter_chr_freq_path) | None
     """
     contacts_unbinned_path = Path(contacts_unbinned_path)
-    sparse_mat_path = Path(sparse_mat_path)
+    cool_path = Path(cool_path)
     chr_coord_path = Path(chr_coord_path)
     oligo_capture_with_frag_path = Path(oligo_capture_with_frag_path)
 
     require_exists(contacts_unbinned_path)
-    require_exists(sparse_mat_path)
+    require_exists(cool_path)
     require_exists(chr_coord_path)
     require_exists(oligo_capture_with_frag_path)
 
@@ -77,7 +91,7 @@ def compute_stats(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    sample = sparse_mat_path.stem
+    sample = cool_path.stem
     stats_path = output_dir / f"{sample}_statistics.tsv"
     chr_freq_path = output_dir / f"{sample}_norm_chr_freq.tsv"
     inter_chr_freq_path = output_dir / f"{sample}_norm_inter_chr_freq.tsv"
@@ -107,9 +121,32 @@ def compute_stats(
     df_no_art = df_contacts[~artificial_mask].copy()
     df_art = df_contacts[artificial_mask].copy()
 
-    df_sparse = read_sparse_contacts(sparse_mat_path)
-    total_contacts = df_sparse[schemas.COL_COUNT].sum()
+    # Sample-wide total contacts read from the cool (raw or balanced).
+    # This replaces the previous read of the graal sparse matrix.
+    clr = load_cool(cool_path, require_fragment_level=True)
 
+    effective_use_balanced = bool(use_balanced)
+
+    if effective_use_balanced:
+        if has_balancing(clr):
+            logger.info(
+                "[Stats] ICE weights detected in %s — using balanced total contacts.",
+                cool_path.name,
+            )
+        else:
+            logger.warning(
+                "[Stats] Balanced stats were requested but no ICE weights were found "
+                "in %s. Falling back to raw total contacts.",
+                cool_path.name,
+            )
+            effective_use_balanced = False
+
+    total_contacts = total_counts(clr, balance=effective_use_balanced)
+    logger.info(
+        "[Stats] Total contacts (%s): %.3g",
+        "ICE-balanced" if effective_use_balanced else "raw",
+        total_contacts,
+    )
     # ------------------------------------------------------------------ #
     # 2. Per-probe statistics
     # ------------------------------------------------------------------ #
@@ -118,7 +155,7 @@ def compute_stats(
 
     norm_per_chr: dict[str, list] = {c: [] for c in chromosomes}
     norm_inter_per_chr: dict[str, list] = {c: [] for c in chromosomes}
-    stats_records = []
+    stats_records: list[dict] = []
 
     for idx, (probe, frag_id) in enumerate(zip(probes, frag_ids)):
         probe_type = df_oligo.loc[idx, schemas.COL_TYPE]
@@ -134,7 +171,9 @@ def compute_stats(
             schemas.COL_CHR: probe_chr_ori,
         }
 
-        col_data = df_contacts[[schemas.COL_CHR, schemas.COL_START, schemas.COL_SIZES, frag_id]]
+        col_data = df_contacts[[
+            schemas.COL_CHR, schemas.COL_START, schemas.COL_SIZES, frag_id
+        ]]
         probe_total = col_data[frag_id].sum()
 
         if probe_total > 0:
@@ -147,11 +186,13 @@ def compute_stats(
             record[schemas.COL_INTER_CHR] = inter_sum / probe_total
             record[schemas.COL_INTRA_CHR] = 1.0 - record[schemas.COL_INTER_CHR]
 
-            # Cis contacts: within cis_range of the probe, excluding artificial chrs
+            # Cis contacts: within cis_range of the probe, excluding artificial chrs.
             df_no_art_col = df_no_art[[
                 schemas.COL_CHR, schemas.COL_START, schemas.COL_SIZES, frag_id
             ]].copy()
-            df_no_art_col["_end"] = df_no_art_col[schemas.COL_START] + df_no_art_col[schemas.COL_SIZES]
+            df_no_art_col["_end"] = (
+                df_no_art_col[schemas.COL_START] + df_no_art_col[schemas.COL_SIZES]
+            )
 
             cis_start = probe_start - cis_range
             cis_end = probe_end + cis_range
@@ -176,7 +217,7 @@ def compute_stats(
                 record[key] = 0
             inter_sum = 0.0
 
-        # Per-chromosome normalized frequencies
+        # Per-chromosome normalized frequencies.
         genome_size_ex_probe_chr = sum(
             s for c, s in chr_sizes.items() if c != probe_chr_ori
         )
@@ -191,7 +232,10 @@ def compute_stats(
                 frag_id,
             ].sum()
 
-            chrom_weight = chrom_size / genome_size_ex_probe_chr if genome_size_ex_probe_chr else 0
+            chrom_weight = (
+                chrom_size / genome_size_ex_probe_chr
+                if genome_size_ex_probe_chr else 0
+            )
             norm_per_chr[chrom].append(
                 (contacts_on_chrom / probe_total / chrom_weight)
                 if (probe_total and chrom_weight) else 0
@@ -245,21 +289,8 @@ def compare_capture_efficiency(
 ) -> Path:
     """Compare dsDNA-normalised capture efficiency between a sample and a reference.
 
-    Parameters
-    ----------
-    stats_path:
-        Statistics TSV for the sample of interest.
-    reference_stats_path:
-        Statistics TSV for the reference condition.
-    reference_name:
-        Short label for the reference (used in column names).
-    output_dir:
-        Destination directory.
-
-    Returns
-    -------
-    Path
-        Path to the written comparison TSV.
+    Unchanged from the pre-cool version: this function operates on
+    already-computed statistics tables and is therefore format-agnostic.
     """
     stats_path = Path(stats_path)
     reference_stats_path = Path(reference_stats_path)

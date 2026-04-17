@@ -3,14 +3,15 @@ set -euo pipefail
 
 source "$(dirname "$0")/C00_set_variables.sh"
 
-echo "[5/11] Filtering contacts to retain pairs involving at least one probe-associated fragment..."
+echo "[5/12] Filtering probe-associated contacts..."
 
 sshicstuff filter \
-  -m "${GRAAL_MATRIX}" \
+  -m "${COOL_INPUT}" \
   -c "${CAPTURE_ASSOCIATED}" \
-  -f "${FRAGMENTS_LIST}" \
-  -o "${FILTERED_CONTACTS}" \
+  -o "${FILTERED_COOL}" \
+  -t "${FILTERED_TSV}" \
   -F
 
-echo "Output:"
-echo "  ${FILTERED_CONTACTS}"
+echo "Outputs:"
+echo "  ${FILTERED_COOL}"
+echo "  ${FILTERED_TSV}"

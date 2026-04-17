@@ -3,24 +3,22 @@ set -euo pipefail
 
 source "$(dirname "$0")/C00_set_variables.sh"
 
-echo "[4/11] Computing fragment-level coverage..."
+echo "[4/12] Computing fragment-level coverage..."
 
 sshicstuff coverage \
-  -m "${GRAAL_MATRIX}" \
-  -f "${FRAGMENTS_LIST}" \
-  --outdir "${OUTPUTS_DIR}" \
+  -m "${COOL_INPUT}" \
+  -o "${OUTPUTS_DIR}" \
   -F
 
-echo "[4/11] Computing binned coverage at 5 kb..."
+echo "[4/12] Computing binned coverage at 5 kb..."
 
 sshicstuff coverage \
-  -m "${GRAAL_MATRIX}" \
-  -f "${FRAGMENTS_LIST}" \
+  -m "${COOL_INPUT}" \
   -c "${CHROM_COORDS}" \
   -b 5000 \
-  --outdir "${OUTPUTS_DIR}" \
+  -o "${OUTPUTS_DIR}" \
   -F
 
 echo "Outputs:"
-echo "  ${OUTPUTS_DIR}/Graal_sample_for_pipeline_contacts_coverage.bedgraph"
-echo "  ${OUTPUTS_DIR}/Graal_sample_for_pipeline_contacts_coverage_5kb.bedgraph"
+echo "  ${COVERAGE_FRAGMENT}"
+echo "  ${COVERAGE_5KB}"

@@ -1,17 +1,19 @@
 """
-Genome-contact operations on sparse fragment-level matrices.
+Genome-contact operations on fragment-level coolers.
 
-This module owns every transformation that produces or consumes a **2-D
-fragment × fragment contact object** (graal sparse format, .cool).
+This module owns every transformation that produces or consumes a
+**2-D fragment × fragment contact object**. Since the switch to a
+cool-first architecture, the inputs and outputs of every function here
+are ``.cool`` files (except where a joined tabular intermediate is
+needed for the 1-D profile builder).
 
 Responsibilities
 ----------------
-- Associate oligo probes to restriction fragments
-- Filter raw sparse matrix to probe-associated contacts only
-- Derive dsDNA-only and ssDNA-only sub-matrices
-- Merge multiple sparse matrices
-- Convert sparse matrices to Cooler format
-- Export a probe × probe matrix to Cooler
+- Associate oligo probes to restriction fragments (via the cool's bins).
+- Filter the full cool to probe-associated contacts only.
+- Derive dsDNA-only and ssDNA-only sub-coolers.
+- Export a probe × probe matrix as a synthetic cool.
+- Merging multiple coolers lives in :mod:`sshicstuff.core.cool`.
 """
 
 from __future__ import annotations
@@ -24,11 +26,16 @@ import numpy as np
 import pandas as pd
 
 from sshicstuff.core import schemas
+from sshicstuff.core.cool import (
+    bins_df,
+    load_cool,
+    pixels_df,
+    write_subset_cool,
+)
 from sshicstuff.core.io import (
     detect_delimiter,
     guard_overwrite,
     read_oligo_capture,
-    read_sparse_contacts,
     require_exists,
     write_tsv,
 )
@@ -44,10 +51,14 @@ pd.options.mode.chained_assignment = None
 
 def associate_oligo_to_fragment(
     oligo_capture_path: str | Path,
-    fragments_path: str | Path,
+    cool_path: str | Path,
     output_path: str | Path | None = None,
 ) -> Path:
     """Map each oligo/probe to the restriction fragment that contains it.
+
+    The fragment map is read directly from the cooler's ``bins`` table
+    — the cool IS the canonical source of fragment definitions once we
+    have converted from graal.
 
     Adds three columns to the oligo capture table:
     ``fragment``, ``fragment_start``, ``fragment_end``.
@@ -57,10 +68,10 @@ def associate_oligo_to_fragment(
     oligo_capture_path:
         Path to the oligo capture CSV/TSV (columns must include
         ``chr``, ``start``, ``end``).
-    fragments_path:
-        Path to the hicstuff fragment list (TXT).
+    cool_path:
+        Path to a fragment-level ``.cool`` file.
     output_path:
-        Destination path for the enriched table.  Defaults to a
+        Destination path for the enriched table. Defaults to a
         ``_fragments_associated.csv`` file next to *oligo_capture_path*.
 
     Returns
@@ -69,10 +80,10 @@ def associate_oligo_to_fragment(
         Path to the written output file.
     """
     oligo_capture_path = Path(oligo_capture_path)
-    fragments_path = Path(fragments_path)
+    cool_path = Path(cool_path)
 
     require_exists(oligo_capture_path)
-    require_exists(fragments_path)
+    require_exists(cool_path)
 
     if output_path is None:
         output_path = oligo_capture_path.with_name(
@@ -81,28 +92,43 @@ def associate_oligo_to_fragment(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    logger.info("[Associate] Mapping probes to restriction fragments.")
+    logger.info("[Associate] Mapping probes to restriction fragments (cool).")
 
     df_oligo = read_oligo_capture(oligo_capture_path)
-    df_frag = pd.read_csv(fragments_path, sep="\t")
-    df_frag["frag"] = range(len(df_frag))
 
-    frag_ids, frag_starts, frag_ends = [], [], []
+    # Reconstruct a fragment-list-like table straight from the cooler's
+    # bins. We use "bin_id" as the fragment identifier — this is the same
+    # integer that appears in pixels as (bin1_id, bin2_id).
+    clr = load_cool(cool_path, require_fragment_level=True)
+    df_bins = bins_df(clr)  # columns: bin_id, chr, start, end [, weight]
+
+    frag_ids: list[int] = []
+    frag_starts: list[int] = []
+    frag_ends: list[int] = []
 
     for _, row in df_oligo.iterrows():
         chr_ = row[schemas.COL_CHR]
-        probe_mid = int(row[schemas.COL_START] + (row[schemas.COL_END] - row[schemas.COL_START]) / 2)
+        probe_mid = int(
+            row[schemas.COL_START]
+            + (row[schemas.COL_END] - row[schemas.COL_START]) / 2
+        )
 
-        sub = df_frag[df_frag["chrom"] == chr_]
-        sorted_starts = np.sort(sub["start_pos"].to_numpy())
+        sub = df_bins[df_bins[schemas.COL_CHR] == chr_]
+        if sub.empty:
+            raise ValueError(
+                f"[Associate] Chromosome '{chr_}' not found in cooler bins."
+            )
+
+        sorted_starts = sub[schemas.COL_START].to_numpy()
+        # np.searchsorted with side='left' returns the insertion index;
+        # the enclosing fragment is the one whose start_pos is just before.
         idx = np.searchsorted(sorted_starts, probe_mid, side="left") - 1
         idx = max(idx, 0)
-        nearest_start = sorted_starts[idx]
+        match = sub.iloc[idx]
 
-        match = sub[sub["start_pos"] == nearest_start].iloc[0]
-        frag_ids.append(match["frag"])
-        frag_starts.append(match["start_pos"])
-        frag_ends.append(match["end_pos"])
+        frag_ids.append(int(match[schemas.COL_BIN_ID]))
+        frag_starts.append(int(match[schemas.COL_START]))
+        frag_ends.append(int(match[schemas.COL_END]))
 
     df_oligo[schemas.COL_FRAGMENT] = frag_ids
     df_oligo[schemas.COL_FRAGMENT_START] = frag_starts
@@ -118,183 +144,221 @@ def associate_oligo_to_fragment(
 # ---------------------------------------------------------------------------
 
 def filter_contacts(
-    sparse_mat_path: str | Path,
+    cool_path: str | Path,
     oligo_capture_path: str | Path,
-    fragments_list_path: str | Path,
-    output_path: str | Path | None = None,
+    output_cool_path: str | Path | None = None,
+    output_tsv_path: str | Path | None = None,
     force: bool = False,
-) -> Path | None:
-    """Filter a sparse matrix to retain only probe-associated contacts.
+) -> tuple[Path, Path] | None:
+    """Filter a cooler to retain only probe-associated contacts.
 
-    A contact pair is kept when at least one of the two fragment IDs
-    corresponds to a probe-associated fragment.
+    A pixel is kept when at least one of its two bins corresponds to a
+    probe-associated fragment.
+
+    Two outputs are produced:
+
+    * A **filtered ``.cool``** with the same bin table as the input,
+      holding only probe-related pixels. This is useful for any
+      downstream 2-D analysis using cooler/cooltools.
+    * A **joined TSV** (``*_filtered.tsv``) containing one row per
+      kept pixel, with both fragments' genomic metadata and the
+      probe's ``name``/``type``/``sequence`` on the probe side. This
+      is the table consumed by :func:`profiles.build_profile` and
+      :func:`profiles.build_probe_matrix`.
 
     Parameters
     ----------
-    sparse_mat_path:
-        Path to the raw hicstuff sparse matrix (TXT).
+    cool_path:
+        Input fragment-level cooler (the raw sample matrix).
     oligo_capture_path:
-        Path to the oligo capture table (CSV/TSV).
-    fragments_list_path:
-        Path to the hicstuff fragment list (TXT).
-    output_path:
-        Destination TSV.  Defaults to the sparse matrix path with
-        ``".txt"`` replaced by ``"_filtered.tsv"``.
+        Oligo capture table (must already be probe→fragment associated).
+    output_cool_path, output_tsv_path:
+        Destination paths. Default names are derived from *cool_path*.
     force:
-        Overwrite an existing output file.
+        Overwrite existing outputs.
 
     Returns
     -------
-    Path | None
-        Path to the written file, or None if skipped.
+    (cool_path, tsv_path) | None
     """
-    sparse_mat_path = Path(sparse_mat_path)
+    cool_path = Path(cool_path)
     oligo_capture_path = Path(oligo_capture_path)
-    fragments_list_path = Path(fragments_list_path)
-
-    if output_path is None:
-        output_path = sparse_mat_path.with_suffix("").parent / (
-            sparse_mat_path.stem + "_filtered.tsv"
-        )
-    output_path = Path(output_path)
-
-    require_exists(sparse_mat_path)
+    require_exists(cool_path)
     require_exists(oligo_capture_path)
-    require_exists(fragments_list_path)
 
-    if not guard_overwrite(output_path, force, "Filter"):
+    if output_cool_path is None:
+        output_cool_path = cool_path.with_name(cool_path.stem + "_filtered.cool")
+    if output_tsv_path is None:
+        output_tsv_path = cool_path.with_name(cool_path.stem + "_filtered.tsv")
+    output_cool_path = Path(output_cool_path)
+    output_tsv_path = Path(output_tsv_path)
+
+    # Single sentinel: if the TSV already exists, both are assumed done.
+    if not guard_overwrite(output_tsv_path, force, "Filter"):
         return None
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_cool_path.parent.mkdir(parents=True, exist_ok=True)
+    output_tsv_path.parent.mkdir(parents=True, exist_ok=True)
 
-    df_fragments = _load_fragments(fragments_list_path)
+    clr = load_cool(cool_path, require_fragment_level=True)
+    df_bins = bins_df(clr)
+
+    # Load oligos and resolve (or derive) each oligo's enclosing fragment.
     df_oligos = _load_oligos_for_filter(oligo_capture_path)
-    df_contacts = read_sparse_contacts(sparse_mat_path).rename(
-        columns={schemas.COL_COUNT: "contacts"}
+    df_oligo_fragments = _associate_oligos_to_fragments(df_bins, df_oligos)
+
+    # Probe fragment IDs — these are the bin IDs we keep.
+    probe_frag_ids = set(df_oligo_fragments[schemas.COL_BIN_ID].astype(int).tolist())
+
+    # Pull pixels from the cool and filter to probe-related pairs.
+    df_pixels = pixels_df(clr, balance=False)
+
+    mask = (
+        df_pixels[schemas.COL_BIN1_ID].isin(probe_frag_ids)
+        | df_pixels[schemas.COL_BIN2_ID].isin(probe_frag_ids)
     )
-    df_contacts.columns = ["frag_a", "frag_b", "contacts"]
-
-    df_oligo_fragments = _associate_oligos_to_fragments(df_fragments, df_oligos)
-
-    df_joined = pd.concat([
-        _join_side("a", df_contacts, df_fragments, df_oligo_fragments),
-        _join_side("b", df_contacts, df_fragments, df_oligo_fragments),
-    ], ignore_index=True)
-
-    df_joined.drop(columns=["frag"], inplace=True)
-    df_joined.sort_values(
-        by=["frag_a", "frag_b", "start_a", "start_b"], inplace=True
+    df_filtered = df_pixels.loc[mask].copy()
+    logger.info(
+        "[Filter] Keeping %d / %d pixels touching a probe fragment.",
+        len(df_filtered), len(df_pixels),
     )
-    df_joined.reset_index(drop=True).to_csv(str(output_path), sep="\t", index=False)
 
-    logger.info("[Filter] Filtered contacts → %s", output_path.name)
-    return output_path
+    # -- Write the filtered cool ---------------------------------------------
+    # Rename to the cool convention (bin1_id / bin2_id / count).
+    write_subset_cool(
+        src_clr=clr,
+        pixels=df_filtered,
+        output_path=output_cool_path,
+        force=force,
+    )
 
+    # -- Build and write the joined TSV for profile construction ------------
+    # Columns: frag_a, frag_b, contacts + per-side (chr, start, end, size,
+    # name, type, sequence). The 'a'/'b' suffixes are kept for continuity
+    # with the previous graal-based output format.
+    meta_cols = [schemas.COL_CHR, schemas.COL_START, schemas.COL_END]
+    df_bins_meta = df_bins[[schemas.COL_BIN_ID] + meta_cols].copy()
+    df_bins_meta["size"] = df_bins_meta[schemas.COL_END] - df_bins_meta[schemas.COL_START]
 
-def _load_fragments(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(str(path), sep="\t")
-    return pd.DataFrame({
-        "frag": range(len(df)),
-        schemas.COL_CHR: df["chrom"],
-        schemas.COL_START: df["start_pos"],
-        schemas.COL_END: df["end_pos"],
-        "size": df["size"],
-        "gc_content": df["gc_content"],
+    df_probe_meta = df_oligo_fragments[[
+        schemas.COL_BIN_ID, schemas.COL_NAME, schemas.COL_TYPE, schemas.COL_SEQUENCE,
+    ]].copy()
+
+    # Left-joins so non-probe fragments get NaN in name/type/sequence.
+    df_filtered = df_filtered.rename(columns={
+        schemas.COL_BIN1_ID: schemas.COL_FRAG_A,
+        schemas.COL_BIN2_ID: schemas.COL_FRAG_B,
+        schemas.COL_COOL_COUNT: schemas.COL_PROBE_CONTACTS,
     })
+    for side in ("a", "b"):
+        frag_col = schemas.COL_FRAG_A if side == "a" else schemas.COL_FRAG_B
+        bins_side = df_bins_meta.rename(columns={
+            schemas.COL_BIN_ID: frag_col,
+            schemas.COL_CHR: f"chr_{side}",
+            schemas.COL_START: f"start_{side}",
+            schemas.COL_END: f"end_{side}",
+            "size": f"size_{side}",
+        })
+        df_filtered = df_filtered.merge(bins_side, on=frag_col, how="left")
 
+        probe_side = df_probe_meta.rename(columns={
+            schemas.COL_BIN_ID: frag_col,
+            schemas.COL_NAME: f"name_{side}",
+            schemas.COL_TYPE: f"type_{side}",
+            schemas.COL_SEQUENCE: f"sequence_{side}",
+        })
+        df_filtered = df_filtered.merge(probe_side, on=frag_col, how="left")
+
+    df_filtered.sort_values(
+        by=[schemas.COL_FRAG_A, schemas.COL_FRAG_B, "start_a", "start_b"], inplace=True
+    )
+    df_filtered.reset_index(drop=True).to_csv(
+        str(output_tsv_path), sep="\t", index=False
+    )
+
+    logger.info("[Filter] Filtered cool → %s", output_cool_path.name)
+    logger.info("[Filter] Joined TSV  → %s", output_tsv_path.name)
+    return output_cool_path, output_tsv_path
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers for filter_contacts
+# ---------------------------------------------------------------------------
 
 def _load_oligos_for_filter(path: Path) -> pd.DataFrame:
     sep = detect_delimiter(path)
     df = pd.read_csv(str(path), sep=sep)
     df.columns = [c.lower() for c in df.columns]
-    df = df[["chr", "start", "end", "name", "type", "sequence"]]
-    return df.sort_values(by=["chr", "start"]).reset_index(drop=True)
+    wanted = [
+        schemas.COL_CHR, schemas.COL_START, schemas.COL_END,
+        schemas.COL_NAME, schemas.COL_TYPE, schemas.COL_SEQUENCE,
+    ]
+    df = df[wanted]
+    return df.sort_values(by=[schemas.COL_CHR, schemas.COL_START]).reset_index(drop=True)
 
 
 def _associate_oligos_to_fragments(
-    fragments: pd.DataFrame,
+    df_bins: pd.DataFrame,
     oligos: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Assign each oligo to its enclosing fragment."""
+    """Assign each oligo to the bin (fragment) whose interval contains it.
+
+    The bin table plays the same role as hicstuff's ``fragments_list``:
+    (chr, start, end). Each probe is mapped to the bin whose interval
+    strictly encloses the probe midpoint.
+    """
     oligo_mid = (
-        (oligos["end"] - oligos["start"] - 1) // 2 + oligos["start"] - 1
+        (oligos[schemas.COL_END] - oligos[schemas.COL_START] - 1) // 2
+        + oligos[schemas.COL_START] - 1
     ).astype(int)
 
     new_starts = []
     for i, row in oligos.iterrows():
-        matches = fragments[
-            (fragments["chr"] == row["chr"])
-            & (fragments["start"] <= oligo_mid[i])
-            & (fragments["end"] >= oligo_mid[i])
+        matches = df_bins[
+            (df_bins[schemas.COL_CHR] == row[schemas.COL_CHR])
+            & (df_bins[schemas.COL_START] <= oligo_mid[i])
+            & (df_bins[schemas.COL_END] >= oligo_mid[i])
         ]
-        if row["chr"] == schemas.CHR_ARTIFICIAL_SSDNA:
-            start = matches.iloc[-1]["start"]
+        if row[schemas.COL_CHR] == schemas.CHR_ARTIFICIAL_SSDNA:
+            start = matches.iloc[-1][schemas.COL_START]
         else:
-            start = matches.iloc[0]["start"]
+            start = matches.iloc[0][schemas.COL_START]
         new_starts.append(start)
 
     oligos = oligos.copy()
-    oligos["start"] = new_starts
-    return fragments.merge(oligos.drop(columns=["end"]), on=["chr", "start"])
-
-
-def _other_side(x: str) -> str:
-    return "b" if x == "a" else "a"
-
-
-def _join_side(
-    which: str,
-    contacts: pd.DataFrame,
-    fragments: pd.DataFrame,
-    oligo_frags: pd.DataFrame,
-) -> pd.DataFrame:
-    y = _other_side(which)
-    joined = contacts.merge(oligo_frags, left_on=f"frag_{which}", right_on="frag")
-
-    frags_y = fragments.rename(columns={"frag": f"frag_{y}_meta"})
-    joined = joined.merge(
-        frags_y,
-        left_on=f"frag_{y}",
-        right_on=f"frag_{y}_meta",
-        suffixes=(f"_{which}", f"_{y}"),
+    oligos[schemas.COL_START] = new_starts
+    return df_bins.merge(
+        oligos.drop(columns=[schemas.COL_END]),
+        on=[schemas.COL_CHR, schemas.COL_START],
     )
-    joined.drop(columns=[f"frag_{y}_meta"], inplace=True)
-
-    for col in ["type", "name", "sequence"]:
-        if col in joined.columns:
-            joined.rename(columns={col: f"{col}_{which}"}, inplace=True)
-
-    return joined
 
 
 # ---------------------------------------------------------------------------
-# dsDNA-only sub-matrix
+# dsDNA-only sub-cooler
 # ---------------------------------------------------------------------------
 
 def extract_dsdna_only(
-    sample_sparse_mat: str | Path,
+    cool_path: str | Path,
     oligo_capture_with_frag_path: str | Path,
-    fragments_list_path: str | Path,
     output_dir: str | Path,
     n_flanking: int = 2,
     force: bool = False,
-) -> tuple[Path, Path]:
-    """Produce a dsDNA-only sparse matrix and its Cooler representation.
+) -> Path | None:
+    """Produce a dsDNA-only cool by removing every probe-adjacent fragment.
 
-    Removes all contact pairs where at least one fragment belongs to
-    the ssDNA or dsDNA probe set (including *n_flanking* neighbours of
-    each dsDNA-probe fragment).
+    All pixels touching an ssDNA probe, a dsDNA probe, or one of the
+    *n_flanking* neighbours of a dsDNA-probe fragment are discarded.
+    The resulting cool is suitable for un-biased dsDNA contact analysis
+    (reviewer point: allows cooler balance / cooltools downstream).
 
     Parameters
     ----------
-    sample_sparse_mat:
-        Input sparse matrix (TXT).
+    cool_path:
+        Input fragment-level cooler (the raw sample matrix).
     oligo_capture_with_frag_path:
         Oligo capture table with associated fragment IDs.
-    fragments_list_path:
-        hicstuff fragment list.
     output_dir:
-        Destination directory for the TXT and COOL outputs.
+        Destination directory.
     n_flanking:
         Number of flanking fragments to exclude on each side of every
         dsDNA-probe fragment.
@@ -303,32 +367,31 @@ def extract_dsdna_only(
 
     Returns
     -------
-    (sparse_path, cool_path)
+    Path | None
+        Path to the dsDNA-only cool.
     """
-    sample_sparse_mat = Path(sample_sparse_mat)
+    cool_path = Path(cool_path)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    require_exists(sample_sparse_mat)
+    require_exists(cool_path)
     require_exists(oligo_capture_with_frag_path)
-    require_exists(fragments_list_path)
 
-    sparse_out = output_dir / sample_sparse_mat.name.replace(".txt", "_dsdna_only.txt")
-    cool_out = sparse_out.with_suffix(".cool")
+    cool_out = output_dir / (cool_path.stem + "_dsdna_only.cool")
+    if not guard_overwrite(cool_out, force, "dsDNA-only"):
+        return cool_out
 
-    if not guard_overwrite(sparse_out, force, "dsDNA-only"):
-        return sparse_out, cool_out
-
-    df_sparse = pd.read_csv(str(sample_sparse_mat), sep="\t", header=None)
+    clr = load_cool(cool_path, require_fragment_level=True)
     df_oligo = read_oligo_capture(oligo_capture_with_frag_path)
 
     ssdna_frags = df_oligo.loc[
         df_oligo[schemas.COL_TYPE] == schemas.PROBE_TYPE_SSDNA, schemas.COL_FRAGMENT
-    ].tolist()
+    ].astype(int).tolist()
     dsdna_frags = df_oligo.loc[
         df_oligo[schemas.COL_TYPE] == schemas.PROBE_TYPE_DSDNA, schemas.COL_FRAGMENT
-    ].tolist()
+    ].astype(int).tolist()
 
+    # Flanking fragments around every dsDNA probe (both sides, up to n_flanking).
     flanking = [
         f + sign * k
         for f in dsdna_frags
@@ -337,286 +400,98 @@ def extract_dsdna_only(
     ]
     exclude_set = set(ssdna_frags + dsdna_frags + flanking)
 
-    mask = df_sparse[0].isin(exclude_set) | df_sparse[1].isin(exclude_set)
-    n_removed = mask.sum()
-    df_out = df_sparse[~mask].copy()
+    df_pixels = pixels_df(clr, balance=False)
+    mask = (
+        df_pixels[schemas.COL_BIN1_ID].isin(exclude_set)
+        | df_pixels[schemas.COL_BIN2_ID].isin(exclude_set)
+    )
+    kept = df_pixels.loc[~mask].copy()
+    logger.info(
+        "[dsDNA-only] Excluded %d / %d pixels touching a probe fragment (±%d).",
+        int(mask.sum()), len(df_pixels), n_flanking,
+    )
 
-    # Update graal metadata row
-    df_out.iloc[0, 0] -= len(exclude_set)
-    df_out.iloc[0, 1] -= len(exclude_set)
-    df_out.iloc[0, 2] -= n_removed
-
-    df_out.to_csv(str(sparse_out), sep="\t", index=False, header=False)
-    logger.info("[dsDNA-only] Sparse matrix → %s", sparse_out.name)
-
-    sparse_to_cooler(
-        sparse_mat_path=sparse_out,
-        fragments_list_path=fragments_list_path,
+    return write_subset_cool(
+        src_clr=clr,
+        pixels=kept,
         output_path=cool_out,
         force=force,
     )
-    return sparse_out, cool_out
 
 
 # ---------------------------------------------------------------------------
-# ssDNA-only sub-matrix
+# ssDNA-only sub-coolers
 # ---------------------------------------------------------------------------
 
 def extract_ssdna_only(
-    sample_sparse_mat: str | Path,
+    cool_path: str | Path,
     oligo_capture_with_frag_path: str | Path,
-    fragments_list_path: str | Path,
     output_dir: str | Path,
     force: bool = False,
-) -> tuple[Path, Path, Path, Path]:
-    """Produce ssDNA-filtered sparse matrices and their Cooler files.
+) -> tuple[Path, Path]:
+    """Produce ssDNA-filtered cool files (ssDNA↔ssDNA and ssDNA↔any).
 
-    Two output pairs are produced:
+    Two outputs are written:
 
-    * ``*_ssdna_to_ssdna_only`` – both mates must be ssDNA fragments.
-    * ``*_ssdna_only`` – at least one mate is an ssDNA fragment.
+    * ``*_ssdna_to_ssdna_only.cool`` — both bins must be ssDNA probes.
+    * ``*_ssdna_only.cool`` — at least one bin must be an ssDNA probe.
 
     Returns
     -------
-    (ss2ss_txt, ss2ss_cool, ss2all_txt, ss2all_cool)
+    (ss2ss_cool, ss2all_cool)
     """
-    sample_sparse_mat = Path(sample_sparse_mat)
+    cool_path = Path(cool_path)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    require_exists(sample_sparse_mat)
+    require_exists(cool_path)
     require_exists(oligo_capture_with_frag_path)
-    require_exists(fragments_list_path)
 
-    stem = sample_sparse_mat.stem
-    ss2ss_txt = output_dir / f"{stem}_ssdna_to_ssdna_only.txt"
-    ss2all_txt = output_dir / f"{stem}_ssdna_only.txt"
-    ss2ss_cool = ss2ss_txt.with_suffix(".cool")
-    ss2all_cool = ss2all_txt.with_suffix(".cool")
+    stem = cool_path.stem
+    ss2ss_cool = output_dir / f"{stem}_ssdna_to_ssdna_only.cool"
+    ss2all_cool = output_dir / f"{stem}_ssdna_only.cool"
 
-    if not guard_overwrite(ss2ss_txt, force, "ssDNA-only"):
-        return ss2ss_txt, ss2ss_cool, ss2all_txt, ss2all_cool
+    if not guard_overwrite(ss2ss_cool, force, "ssDNA-only"):
+        return ss2ss_cool, ss2all_cool
 
-    df_sparse = pd.read_csv(str(sample_sparse_mat), sep="\t", header=0)
+    clr = load_cool(cool_path, require_fragment_level=True)
     df_oligo = read_oligo_capture(oligo_capture_with_frag_path)
 
-    ssdna_frags = pd.unique(
-        df_oligo.loc[
-            df_oligo[schemas.COL_TYPE] == schemas.PROBE_TYPE_SSDNA,
-            schemas.COL_FRAGMENT,
-        ]
-    ).tolist()
-
-    col_a, col_b = df_sparse.columns[0], df_sparse.columns[1]
-    ss_a = df_sparse[col_a].isin(ssdna_frags)
-    ss_b = df_sparse[col_b].isin(ssdna_frags)
-
-    n_ss = len(ssdna_frags)
-
-    def _write_sub(mask: pd.Series, out_path: Path) -> None:
-        sub = df_sparse[mask].copy()
-        sub.columns = [n_ss, n_ss, len(sub) + 1]
-        sub.reset_index(drop=True).to_csv(
-            str(out_path), sep="\t", index=False, header=True
-        )
-        logger.info("[ssDNA-only] Sparse matrix → %s", out_path.name)
-
-    _write_sub(ss_a & ss_b, ss2ss_txt)
-    _write_sub(ss_a | ss_b, ss2all_txt)
-
-    sparse_to_cooler(ss2ss_txt, fragments_list_path, ss2ss_cool, force=force)
-    sparse_to_cooler(ss2all_txt, fragments_list_path, ss2all_cool, force=force)
-
-    return ss2ss_txt, ss2ss_cool, ss2all_txt, ss2all_cool
-
-
-# ---------------------------------------------------------------------------
-# Sparse matrix merge
-# ---------------------------------------------------------------------------
-
-def merge_sparse_matrices(
-    matrices: list[str | Path],
-    output_path: str | Path | None = None,
-    force: bool = False,
-) -> Path | None:
-    """Merge multiple sparse matrices by summing contact counts.
-
-    All matrices must have been built from the same fragment list
-    (same number of fragments).
-
-    Parameters
-    ----------
-    matrices:
-        Input sparse matrix paths.
-    output_path:
-        Destination path for the merged matrix.
-    force:
-        Overwrite an existing output.
-
-    Returns
-    -------
-    Path | None
-    """
-    if not matrices:
-        logger.error("[Merge] No input matrices provided.")
-        return None
-
-    matrices = [Path(m) for m in matrices]
-    for m in matrices:
-        require_exists(m)
-
-    if output_path is None:
-        import datetime
-        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = matrices[0].parent / f"{ts}_merged_sparse_contacts.tsv"
-    output_path = Path(output_path)
-
-    if not guard_overwrite(output_path, force, "Merge"):
-        return None
-
-    frames = [read_sparse_contacts(m) for m in matrices]
-
-    # Verify fragment counts are consistent
-    first_len = int(frames[0][schemas.COL_FRAG_A].max())
-    for i, df in enumerate(frames[1:], start=2):
-        if int(df[schemas.COL_FRAG_A].max()) != first_len:
-            logger.warning(
-                "[Merge] Matrix %d may have a different fragment count; proceeding anyway.", i
-            )
-
-    combined = pd.concat(frames, ignore_index=True)
-    merged = (
-        combined
-        .groupby([schemas.COL_FRAG_A, schemas.COL_FRAG_B], as_index=False)[schemas.COL_COUNT]
-        .sum()
-    )
-    write_tsv(merged, output_path)
-    logger.info("[Merge] Merged %d matrices → %s", len(matrices), output_path.name)
-    return output_path
-
-
-# ---------------------------------------------------------------------------
-# Sparse → Cooler conversion
-# ---------------------------------------------------------------------------
-
-def sparse_to_cooler(
-    sparse_mat_path: str | Path,
-    fragments_list_path: str | Path,
-    output_path: str | Path,
-    force: bool = False,
-    symmetric_upper: bool = True,
-) -> Path | None:
-    """Convert a hicstuff/graal sparse matrix to Cooler format (.cool).
-
-    Compatible with the raw matrix, the dsDNA-only sub-matrix, and the
-    ssDNA-only sub-matrix produced by this module.
-
-    Parameters
-    ----------
-    sparse_mat_path:
-        Input sparse matrix (TXT or TSV).
-    fragments_list_path:
-        hicstuff fragment list used to build the bins table.
-    output_path:
-        Destination ``.cool`` file.
-    force:
-        Overwrite an existing Cooler file.
-    symmetric_upper:
-        Store only the upper triangle (standard for Hi-C matrices).
-
-    Returns
-    -------
-    Path | None
-    """
-    sparse_mat_path = Path(sparse_mat_path)
-    fragments_list_path = Path(fragments_list_path)
-    output_path = Path(output_path)
-
-    require_exists(sparse_mat_path)
-    require_exists(fragments_list_path)
-
-    if not guard_overwrite(output_path, force, "Sparse2Cooler"):
-        return None
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Build bins table from fragment list
-    df_frag = pd.read_csv(str(fragments_list_path), sep="\t")
-    required = {"chrom", "start_pos", "end_pos"}
-    if missing := required - set(df_frag.columns):
-        raise ValueError(f"[Sparse2Cooler] Fragment list missing columns: {sorted(missing)}")
-
-    bins = df_frag[["chrom", "start_pos", "end_pos"]].copy()
-    bins.columns = ["chrom", "start", "end"]
-    bins["chrom"] = bins["chrom"].astype(str)
-    bins["start"] = bins["start"].astype(np.int64)
-    bins["end"] = bins["end"].astype(np.int64)
-    n_bins = len(bins)
-
-    # Read and clean contacts
-    df_contacts = read_sparse_contacts(sparse_mat_path)
-    in_bounds = (
-        df_contacts[schemas.COL_FRAG_A].between(0, n_bins - 1)
-        & df_contacts[schemas.COL_FRAG_B].between(0, n_bins - 1)
-    )
-    n_oob = (~in_bounds).sum()
-    if n_oob:
-        logger.warning("[Sparse2Cooler] Dropping %d out-of-bounds rows.", n_oob)
-    df_contacts = df_contacts[in_bounds & (df_contacts[schemas.COL_COUNT] > 0)].copy()
-
-    if df_contacts.empty:
-        logger.error("[Sparse2Cooler] No valid contacts after cleaning.")
-        return None
-
-    # Enforce upper-triangle ordering
-    swap = df_contacts[schemas.COL_FRAG_A] > df_contacts[schemas.COL_FRAG_B]
-    if swap.any():
-        df_contacts.loc[swap, [schemas.COL_FRAG_A, schemas.COL_FRAG_B]] = (
-            df_contacts.loc[swap, [schemas.COL_FRAG_B, schemas.COL_FRAG_A]].values
-        )
-
-    # Determine integer vs float storage
-    counts_arr = df_contacts[schemas.COL_COUNT].to_numpy()
-    integer_counts = np.allclose(counts_arr, np.round(counts_arr), equal_nan=True)
-    if integer_counts:
-        df_contacts[schemas.COL_COUNT] = counts_arr.round().astype(np.int64)
-        count_dtype = "int64"
-    else:
-        df_contacts[schemas.COL_COUNT] = counts_arr.astype(np.float64)
-        count_dtype = "float64"
-
-    pixels = (
-        df_contacts
-        .groupby([schemas.COL_FRAG_A, schemas.COL_FRAG_B], as_index=False)[schemas.COL_COUNT]
-        .sum()
-        .rename(columns={
-            schemas.COL_FRAG_A: "bin1_id",
-            schemas.COL_FRAG_B: "bin2_id",
-            schemas.COL_COUNT: "count",
-        })
-        .sort_values(["bin1_id", "bin2_id"])
-        .reset_index(drop=True)
+    ssdna_frags = set(
+        pd.unique(
+            df_oligo.loc[
+                df_oligo[schemas.COL_TYPE] == schemas.PROBE_TYPE_SSDNA,
+                schemas.COL_FRAGMENT,
+            ].astype(int)
+        ).tolist()
     )
 
-    if str(output_path).endswith(".cool") and output_path.exists():
-        output_path.unlink()
+    df_pixels = pixels_df(clr, balance=False)
+    in_a = df_pixels[schemas.COL_BIN1_ID].isin(ssdna_frags)
+    in_b = df_pixels[schemas.COL_BIN2_ID].isin(ssdna_frags)
 
-    cooler.create_cooler(
-        cool_uri=str(output_path),
-        bins=bins,
-        pixels=pixels,
-        ordered=True,
-        symmetric_upper=symmetric_upper,
-        dtypes={"count": count_dtype},
-    )
+    # ss↔ss: both bins are ssDNA probes.
+    kept_ss2ss = df_pixels.loc[in_a & in_b].copy()
     logger.info(
-        "[Sparse2Cooler] %d bins, %d pixels → %s", n_bins, len(pixels), output_path.name
+        "[ssDNA-only] : Keeping %d / %d pixels where both bins are ssDNA probes.",
+        len(kept_ss2ss), len(df_pixels)
     )
-    return output_path
+
+    # ss↔any: at least one side is an ssDNA probe.
+    kept_ss2all = df_pixels.loc[in_a | in_b].copy()
+    logger.info(
+        "[ssDNA-only] : Keeping %d / %d pixels where at least one bin is an ssDNA probe.",
+        len(kept_ss2all), len(df_pixels)
+    )
+
+    write_subset_cool(clr, kept_ss2ss, ss2ss_cool, force=force)
+    write_subset_cool(clr, kept_ss2all, ss2all_cool, force=force)
+
+    return ss2ss_cool, ss2all_cool
 
 
 # ---------------------------------------------------------------------------
-# Probe matrix → Cooler
+# Probe matrix → cooler
 # ---------------------------------------------------------------------------
 
 def export_probe_matrix_to_cooler(
@@ -627,24 +502,11 @@ def export_probe_matrix_to_cooler(
 ) -> Path | None:
     """Export a probe × probe contact matrix to a synthetic .cool file.
 
-    Because the matrix is defined in probe space rather than genomic-bin
-    space, a synthetic bins table is created (one artificial bin per probe).
-    A sidecar TSV mapping ``bin_id → probe → fragment`` is also written.
-
-    Parameters
-    ----------
-    matrix:
-        Square probe × probe DataFrame (identical index and columns).
-    oligo_capture_with_frag_path:
-        Path to the oligo capture table (to retrieve fragment IDs).
-    output_path:
-        Destination ``.cool`` path.
-    force:
-        Overwrite an existing file.
-
-    Returns
-    -------
-    Path | None
+    The matrix lives in probe-space rather than genomic-bin space, so a
+    synthetic bins table is created (one artificial bin per probe, on a
+    single pseudo-chromosome ``probes``). A sidecar TSV mapping
+    ``bin_id → probe → fragment`` is also written so the user can map
+    back to biological coordinates.
     """
     output_path = Path(output_path)
     require_exists(oligo_capture_with_frag_path)
@@ -659,6 +521,10 @@ def export_probe_matrix_to_cooler(
     df_oligo = df_oligo.set_index(schemas.COL_NAME).loc[probe_order].reset_index()
 
     n = len(probe_order)
+    # Synthetic bins: one per probe, on a virtual chromosome. This is
+    # the standard trick used when exporting probe-space matrices to
+    # cool format so that cooler-aware viewers (HiGlass, etc.) can load
+    # them.
     bins = pd.DataFrame({
         "chrom": ["probes"] * n,
         "start": np.arange(n, dtype=np.int64),
@@ -672,7 +538,10 @@ def export_probe_matrix_to_cooler(
         for j in range(i, n)
         if values[i, j] != 0
     ]
-    pixels = pd.DataFrame(records, columns=["bin1_id", "bin2_id", "count"])
+    pixels = pd.DataFrame(
+        records,
+        columns=[schemas.COL_BIN1_ID, schemas.COL_BIN2_ID, schemas.COL_COOL_COUNT],
+    )
 
     if output_path.exists():
         output_path.unlink()
@@ -683,14 +552,14 @@ def export_probe_matrix_to_cooler(
         pixels=pixels,
         ordered=True,
         symmetric_upper=True,
-        dtypes={"count": "float64"},
+        dtypes={schemas.COL_COOL_COUNT: "float64"},
     )
 
     mapping_path = output_path.with_name(output_path.stem + "_bins.tsv")
     pd.DataFrame({
-        "bin_id": np.arange(n, dtype=int),
+        schemas.COL_BIN_ID: np.arange(n, dtype=int),
         "probe": probe_order,
-        "fragment": df_oligo[schemas.COL_FRAGMENT].tolist(),
+        schemas.COL_FRAGMENT: df_oligo[schemas.COL_FRAGMENT].tolist(),
     }).to_csv(str(mapping_path), sep="\t", index=False)
 
     logger.info("[ProbeMatrix2Cooler] → %s", output_path.name)

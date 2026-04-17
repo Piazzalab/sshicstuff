@@ -3,7 +3,7 @@ set -euo pipefail
 
 source "$(dirname "$0")/C00_set_variables.sh"
 
-echo "[11/11] Aggregating normalized 1 kb profiles around telomeres..."
+echo "[11/12] Aggregating normalized 1 kb profiles around telomeres..."
 
 sshicstuff aggregate \
   -p "${PROFILE_1KB_FREQ}" \
@@ -12,7 +12,8 @@ sshicstuff aggregate \
   -o "${OUTPUTS_DIR}" \
   -N \
   --tel \
-  -w 15000
+  -w 15000 \
+  -F
 
-echo "Output directory:"
-echo "  ${OUTPUTS_DIR}/aggregated/telomeres/"
+echo "Aggregation written in:"
+echo "  ${OUTPUTS_DIR}"

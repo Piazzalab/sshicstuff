@@ -3,28 +3,28 @@ set -euo pipefail
 
 source "$(dirname "$0")/C00_set_variables.sh"
 
-echo "[7/11] Building the raw 4C-like profile in absolute contacts..."
+echo "[7/12] Building the raw 4C-like profile in absolute contacts..."
 
 sshicstuff profile \
   -c "${CAPTURE_ASSOCIATED}" \
   -C "${CHROM_COORDS}" \
-  -f "${FILTERED_CONTACTS}" \
+  -f "${FILTERED_TSV}" \
   -a "${GROUPS_TABLE}" \
   -o "${PROFILE_0KB_CONTACTS}" \
   -F
 
-echo "[7/11] Building the raw 4C-like profile in normalized frequencies..."
+echo "[7/12] Building the raw 4C-like profile in normalized frequencies..."
 
 sshicstuff profile \
   -c "${CAPTURE_ASSOCIATED}" \
   -C "${CHROM_COORDS}" \
-  -f "${FILTERED_CONTACTS}" \
+  -f "${FILTERED_TSV}" \
   -a "${GROUPS_TABLE}" \
   -o "${PROFILE_0KB_FREQ}" \
   -N \
   -F
 
-echo "[7/11] Plotting the normalized 0 kb 4C-like profiles..."
+echo "[7/12] Plotting the normalized 0 kb 4C-like profiles..."
 
 sshicstuff plot4c \
   -p "${PROFILE_0KB_FREQ}" \
@@ -41,4 +41,3 @@ sshicstuff plot4c \
 echo "Outputs:"
 echo "  ${PROFILE_0KB_CONTACTS}"
 echo "  ${PROFILE_0KB_FREQ}"
-echo "  ${OUTPUTS_DIR}/plots/"

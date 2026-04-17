@@ -3,15 +3,14 @@ set -euo pipefail
 
 source "$(dirname "$0")/C00_set_variables.sh"
 
-echo "[3/11] Extracting ssDNA-only sparse matrix..."
+echo "[3/12] Extracting ssDNA-only cools..."
 
 sshicstuff ssdnaonly \
+  -m "${COOL_INPUT}" \
   -c "${CAPTURE_ASSOCIATED}" \
-  -f "${FRAGMENTS_LIST}" \
-  -m "${GRAAL_MATRIX}" \
   -o "${OUTPUTS_DIR}" \
   -F
 
-echo "Output:"
-echo "  ${OUTPUTS_DIR}/AD433_sub4M_abs_graal_fragments_weighted_ssdna_to_ssdna_only.txt"
-echo "  ${OUTPUTS_DIR}/AD433_sub4M_abs_graal_fragments_weighted_ssdna_only"
+echo "Outputs:"
+echo "  ${SSDNA_COOL}"
+echo "  ${SSDNA_TO_SSDNA_COOL}"

@@ -96,7 +96,7 @@ def aggregate_around_landmark(
     short_land = "telo" if landmark == "telomeres" else "cen"
 
     # Derive sample short name from profile filename (first token before '_')
-    sample_name = binned_profile_path.stem.split("_")[0]
+    sample_name = binned_profile_path.stem.split(".")[0]
 
     if output_dir is None:
         output_dir = binned_profile_path.parent

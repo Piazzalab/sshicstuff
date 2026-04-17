@@ -2,8 +2,9 @@
 """
 Single-stranded DNA Hi-C (ssHi-C) analysis toolkit.
 
-Generates probe-centered contact profiles, probe-to-probe interaction
-matrices, and genome-wide contact summaries from ssHi-C sparse matrices.
+The toolkit is now cool-first: it consumes fragment-level ``.cool``
+files for all 2-D matrix operations, while still accepting the legacy
+GRAAL triplet in the ``pipeline`` command for backward compatibility.
 
 usage:
     sshicstuff [-hv] <command> [<args>...]
@@ -16,19 +17,21 @@ Available sub-commands
 ----------------------
     aggregate    Aggregate 4C-like profiles around centromeres or telomeres.
     associate    Map each oligo/probe to its restriction fragment.
+    balance      ICE-balance a fragment-level cool file.
     compare      Compare probe capture efficiency against a reference.
-    coverage     Compute fragment or bin-level contact coverage.
+    coverage     Compute fragment or bin-level contact coverage from a cool.
     design       Design oligos and produce the modified reference genome.
-    dsdnaonly    Extract dsDNA-only contacts from a sparse matrix.
-    filter       Retain only probe-associated contacts from a sparse matrix.
-    merge        Merge multiple sparse matrices by summing contacts.
+    dsdnaonly    Extract dsDNA-only contacts from a cool.
+    filter       Retain only probe-associated contacts from a cool.
+    graal2cool   Convert a legacy graal sparse matrix to fragment-level cool.
+    merge        Merge multiple fragment-aligned cool files.
     pipeline     Run the complete ssHi-C processing workflow.
     plot4c       Generate static 4C-like profile visualizations.
     probe2probe  Build a probe × probe contact matrix.
     profile      Build genome-wide 4C-like probe profiles.
     rebin        Aggregate a 4C-like profile to a larger bin size.
     stats        Compute per-probe contact statistics.
-    ssdnaonly    Extract ssDNA-only contacts from a sparse matrix.
+    ssdnaonly    Extract ssDNA-only contacts from a cool.
     subsample    Subsample a FASTQ file with seqtk.
     view         Launch the interactive profile viewer.
 """

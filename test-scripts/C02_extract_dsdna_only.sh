@@ -3,14 +3,13 @@ set -euo pipefail
 
 source "$(dirname "$0")/C00_set_variables.sh"
 
-echo "[2/11] Extracting dsDNA-only sparse matrix..."
+echo "[2/12] Extracting dsDNA-only cool..."
 
 sshicstuff dsdnaonly \
+  -m "${COOL_INPUT}" \
   -c "${CAPTURE_ASSOCIATED}" \
-  -f "${FRAGMENTS_LIST}" \
-  -m "${GRAAL_MATRIX}" \
   -o "${OUTPUTS_DIR}" \
   -F
 
 echo "Output:"
-echo "  ${OUTPUTS_DIR}/Graal_sample_for_pipeline_dsdna_only.tsv"
+echo "  ${DSDNA_COOL}"
