@@ -12,10 +12,10 @@ OUTPUTS_DIR="${TEST_ROOT}/C-output-sshicstuff"
 mkdir -p "${OUTPUTS_DIR}"
 
 # Shared sample name
-SAMPLE="AD433"
+SAMPLE="AD433_sub4M"
 
 # Input files
-GRAAL_MATRIX="${INPUTS_DIR}/${SAMPLE}_abs_graal_fragments_weighted.txt"
+GRAAL_MATRIX="${INPUTS_DIR}/${SAMPLE}_abs_graal_fragments_weighted_balanced.txt"
 CAPTURE_OLIGOS="${INPUTS_DIR}/capture_oligo_positions.csv"
 FRAGMENTS_LIST="${INPUTS_DIR}/${SAMPLE}_digested_fragments_list.txt"
 INFO_CONTIGS="${INPUTS_DIR}/${SAMPLE}_info_contigs.txt"

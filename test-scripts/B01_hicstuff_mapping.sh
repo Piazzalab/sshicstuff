@@ -18,13 +18,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_ROOT="$(cd "${SCRIPT_DIR}/../test-data" && pwd)"
 INPUTS_DIR="${TEST_ROOT}/inputs"
 OUTPUT_ROOT="${TEST_ROOT}/B-output-hicstuff"
+COOL_TO_SPARSE_PY="${SCRIPT_DIR}/cool_to_sparse_matrix.py"
 
 # ------------------------------------------------------------------------------
 # User parameters
 # ------------------------------------------------------------------------------
 
-thread=4
-mode="normal"                  # parasplit | cutsite | normal
+thread=16
+mode="parasplit"                  # parasplit | cutsite | normal
 enzymes="DpnII,HinfI"
 quality=20
 
@@ -64,6 +65,8 @@ check_dependency() {
 # Dependency checks
 # ------------------------------------------------------------------------------
 
+check_dependency python3
+[[ -f "${COOL_TO_SPARSE_PY}" ]] || die "Python export script not found: ${COOL_TO_SPARSE_PY}"
 check_dependency hicstuff
 check_dependency cooler
 check_dependency parasplit
@@ -163,6 +166,7 @@ for sample in "${SAMP[@]}"; do
             --list_enzyme="${enzymes}" \
             --mode="all" \
             --num_threads="${thread}" \
+            --borderless \
             > "${logdir}/parasplit.stdout.log" \
             2> "${logdir}/parasplit.stderr.log"
 
@@ -213,6 +217,55 @@ for sample in "${SAMP[@]}"; do
     mv -f "${raw_frag_contacts}" "${frag_contacts}"
     mv -f "${raw_frag_list}" "${frag_list}"
     mv -f "${raw_contigs}" "${contigs}"
+
+        # --------------------------------------------------------------------------
+    # Convert fragment-level graal matrix to cooler
+    # --------------------------------------------------------------------------
+    log "  Converting fragment-level matrix to cooler"
+
+    cool_frag_prefix="${scdir}/${out_px}_fragments"
+
+    hicstuff convert \
+        --force \
+        --frags="${frag_list}" \
+        --chroms="${contigs}" \
+        "${frag_contacts}" \
+        "${cool_frag_prefix}" \
+        > "${logdir}/hicstuff_convert_frag.stdout.log" \
+        2> "${logdir}/hicstuff_convert_frag.stderr.log"
+
+    cool_frag="${cool_frag_prefix}.cool"
+    [[ -f "${cool_frag}" ]] || die "Missing fragment-level cooler file: ${cool_frag}"
+
+
+    # --------------------------------------------------------------------------
+    # Balance fragment-level cooler
+    # --------------------------------------------------------------------------
+    log "  ICE-balancing fragment-level matrix"
+
+    cooler balance \
+        --nproc "${thread}" \
+        "${cool_frag}" \
+        > "${logdir}/cooler_balance_frag.stdout.log" \
+        2> "${logdir}/cooler_balance_frag.stderr.log"
+
+
+    # --------------------------------------------------------------------------
+    # Export balanced fragment-level cooler back to sparse 3-column format
+    # --------------------------------------------------------------------------
+    log "  Exporting balanced fragment-level cooler to sparse matrix"
+
+    frag_balanced_sparse="${sdir}/${sample}_abs_fragments_contacts_weighted_ice.txt"
+
+    python3 "${COOL_TO_SPARSE_PY}" \
+        "${cool_frag}" \
+        "${frag_balanced_sparse}" \
+        > "${logdir}/cool_to_sparse.stdout.log" \
+        2> "${logdir}/cool_to_sparse.stderr.log"
+
+    [[ -f "${frag_balanced_sparse}" ]] || die "Missing balanced sparse file: ${frag_balanced_sparse}"
+
+
     # --------------------------------------------------------------------------
     # Rebin at 1 kb
     # --------------------------------------------------------------------------
@@ -252,7 +305,7 @@ for sample in "${SAMP[@]}"; do
     [[ -f "${cool_1kb}" ]] || die "Missing cooler file: ${cool_1kb}"
 
     # --------------------------------------------------------------------------
-    # Balance
+    # Balance 1kb cool
     # --------------------------------------------------------------------------
     log "  ICE-balancing matrix"
 
