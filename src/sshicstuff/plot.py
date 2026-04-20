@@ -22,6 +22,7 @@ from plotly.subplots import make_subplots
 
 from sshicstuff.core import schemas
 from sshicstuff.core.io import detect_delimiter, require_exists
+from sshicstuff.core.profiles import rebin_profile_df
 
 logger = logging.getLogger(__name__)
 
@@ -482,7 +483,20 @@ def build_interactive_figure(
         df = df[df[schemas.COL_CHR] == chr_region]
         x_col = schemas.COL_START if schemas.COL_START in df.columns else schemas.COL_CHR_BINS
 
-    if binsize > 0 and rolling_window > 1:
+
+    if binsize > 0:
+        df = df.copy()
+        df = rebin_profile_df(
+            df=df,
+            df_coords=df_coords,
+            bin_size=binsize,
+        )
+        for probe in probes:
+            df.loc[df[probe] == 0, probe] = np.nan
+
+        x_col = schemas.COL_CHR_BINS if chr_region else schemas.COL_GENOME_BINS
+
+    if rolling_window > 1:
         for chrom in df[schemas.COL_CHR].unique():
             mask = df[schemas.COL_CHR] == chrom
             df.loc[mask, probes] = (

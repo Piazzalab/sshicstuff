@@ -338,66 +338,41 @@ def _split_fragment_to_bins(
     return pd.DataFrame(parts, columns=df.columns)
 
 
-def rebin_profile(
-    contacts_unbinned_path: str | Path,
-    chromosomes_coord_path: str | Path,
+def rebin_profile_df(
+    df: pd.DataFrame,
+    df_coords: pd.DataFrame,
     bin_size: int,
-    output_path: str | Path | None = None,
-    force: bool = False,
-) -> Path | None:
-    """Aggregate a fragment-level profile into fixed-width genomic bins.
-
-    Each fragment's contact values are distributed proportionally across
-    every bin it overlaps, including fragments that span three or more bins.
+) -> pd.DataFrame:
+    """
+    Aggregate a fragment-level profile DataFrame into fixed-width genomic bins.
 
     Parameters
     ----------
-    contacts_unbinned_path:
-        Fragment-level profile TSV (output of :func:`build_profile`).
-    chromosomes_coord_path:
-        Chromosome coordinates file.
+    df:
+        Fragment-level profile DataFrame.
+    df_coords:
+        Chromosome coordinates DataFrame.
     bin_size:
         Target bin width in bp.
-    output_path:
-        Destination path.  Inferred from the input path when not given.
-    force:
-        Overwrite an existing output.
 
     Returns
     -------
-    Path | None
+    pd.DataFrame
+        Rebinned profile DataFrame.
     """
-    contacts_unbinned_path = Path(contacts_unbinned_path)
-    chromosomes_coord_path = Path(chromosomes_coord_path)
+    if bin_size <= 0:
+        return df.copy()
 
-    require_exists(contacts_unbinned_path)
-    require_exists(chromosomes_coord_path)
-
-    bin_suffix = get_bin_suffix(bin_size)
-    if output_path is None:
-        name = contacts_unbinned_path.name.replace("0kb_profile", f"{bin_suffix}_profile")
-        output_path = contacts_unbinned_path.parent / name
-    output_path = Path(output_path)
-
-    if not guard_overwrite(output_path, force, "Rebin"):
-        return None
-
-    df = read_profile(contacts_unbinned_path)
-    df_coords = pd.read_csv(
-        str(chromosomes_coord_path), sep=detect_delimiter(chromosomes_coord_path)
-    )
+    df = df.copy()
+    df_coords = df_coords.copy()
     df_coords.columns = [c.lower() for c in df_coords.columns]
+
     chrom_order = df_coords[schemas.COL_CHR].unique().tolist()
+    chr_sizes = dict(zip(df_coords[schemas.COL_CHR], df_coords[schemas.COL_LENGTH]))
 
     # ------------------------------------------------------------------ #
     # 1. Build complete bin template
     # ------------------------------------------------------------------ #
-    chr_sizes = dict(zip(df_coords[schemas.COL_CHR], df_coords[schemas.COL_LENGTH]))
-
-    # Cumulative chromosome starts from actual chromosome lengths — mirrors
-    # the logic in build_profile so that COL_GENOME_BINS matches the
-    # COL_GENOME_START values in the fragment-level profile and both can be
-    # plotted on the same genome axis.
     cum_start = 0
     chr_genome_starts: dict[str, int] = {}
     for chrom, length in chr_sizes.items():
@@ -407,6 +382,7 @@ def rebin_profile(
     chr_parts: list[np.ndarray] = []
     bin_parts: list[np.ndarray] = []
     genome_parts: list[np.ndarray] = []
+
     for chrom, length in chr_sizes.items():
         n_bins = (length // bin_size) + 1
         chr_bin_arr = np.arange(0, n_bins * bin_size, bin_size, dtype=np.int64)
@@ -425,23 +401,25 @@ def rebin_profile(
     # ------------------------------------------------------------------ #
     frag_cols = [c for c in df.columns if _FRAG_COL_PATTERN.match(str(c))]
 
-    df = df.copy()
+    required_cols = [schemas.COL_CHR, schemas.COL_START, schemas.COL_SIZES]
+    missing_cols = [c for c in required_cols if c not in df.columns]
+    if missing_cols:
+        raise ValueError(
+            f"[Rebin] Missing required columns in input DataFrame: {missing_cols}"
+        )
+
     df["_end"] = df[schemas.COL_START] + df[schemas.COL_SIZES]
     df["start_bin"] = (df[schemas.COL_START] // bin_size) * bin_size
-    df["end_bin"] = (df["_end"] // bin_size) * bin_size
+    df["end_bin"] = ((df["_end"] - 1) // bin_size) * bin_size
 
-    # Drop genome_start — it will be re-added from template
     if schemas.COL_GENOME_START in df.columns:
         df.drop(columns=[schemas.COL_GENOME_START], inplace=True)
 
-    # Fragments entirely inside one bin: assign directly.
     in_bin_mask = df["start_bin"] == df["end_bin"]
+
     df_in = df[in_bin_mask].copy()
     df_in[schemas.COL_CHR_BINS] = df_in["start_bin"]
 
-    # Fragments crossing one or more bin boundaries: use the general helper
-    # that handles 2-bin and n-bin cases by iterating over every overlapping
-    # bin interval and scaling contact values by the overlap fraction.
     df_cross = df[~in_bin_mask].copy()
     df_exploded = _split_fragment_to_bins(df_cross, frag_cols, bin_size)
 
@@ -449,25 +427,73 @@ def rebin_profile(
     df_combined.drop(columns=["start_bin", "end_bin", "_end"], inplace=True)
 
     df_binned = df_combined.groupby(
-        [schemas.COL_CHR, schemas.COL_CHR_BINS], as_index=False
+        [schemas.COL_CHR, schemas.COL_CHR_BINS],
+        as_index=False,
     ).sum(numeric_only=True)
 
-    # Sort and merge with template to fill empty bins
     df_binned[schemas.COL_CHR] = pd.Categorical(
-        df_binned[schemas.COL_CHR], categories=chrom_order, ordered=True
+        df_binned[schemas.COL_CHR],
+        categories=chrom_order,
+        ordered=True,
     )
     df_binned = df_binned.sort_values(
         [schemas.COL_CHR, schemas.COL_CHR_BINS]
     ).reset_index(drop=True)
 
-    df_result = pd.merge(df_template, df_binned, on=[schemas.COL_CHR, schemas.COL_CHR_BINS], how="left")
+    df_result = pd.merge(
+        df_template,
+        df_binned,
+        on=[schemas.COL_CHR, schemas.COL_CHR_BINS],
+        how="left",
+    )
 
-    # Drop fragment-level columns that should not appear in binned output
     for col in [schemas.COL_START, schemas.COL_SIZES, "_end"]:
         if col in df_result.columns:
             df_result.drop(columns=[col], inplace=True)
 
     df_result.fillna(0, inplace=True)
+    return df_result
+
+
+def rebin_profile(
+    contacts_unbinned_path: str | Path,
+    chromosomes_coord_path: str | Path,
+    bin_size: int,
+    output_path: str | Path | None = None,
+    force: bool = False,
+) -> Path | None:
+    """
+    Aggregate a fragment-level profile file into fixed-width genomic bins.
+    """
+    contacts_unbinned_path = Path(contacts_unbinned_path)
+    chromosomes_coord_path = Path(chromosomes_coord_path)
+
+    require_exists(contacts_unbinned_path)
+    require_exists(chromosomes_coord_path)
+
+    bin_suffix = get_bin_suffix(bin_size)
+    if output_path is None:
+        name = contacts_unbinned_path.name.replace(
+            "0kb_profile",
+            f"{bin_suffix}_profile",
+        )
+        output_path = contacts_unbinned_path.parent / name
+    output_path = Path(output_path)
+
+    if not guard_overwrite(output_path, force, "Rebin"):
+        return None
+
+    df = read_profile(contacts_unbinned_path)
+    df_coords = pd.read_csv(
+        str(chromosomes_coord_path),
+        sep=detect_delimiter(chromosomes_coord_path),
+    )
+
+    df_result = rebin_profile_df(
+        df=df,
+        df_coords=df_coords,
+        bin_size=bin_size,
+    )
 
     write_tsv(df_result, output_path)
     logger.info("[Rebin] Binned profile (%s) → %s", bin_suffix, output_path.name)
