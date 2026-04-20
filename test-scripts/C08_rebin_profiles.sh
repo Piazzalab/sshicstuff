@@ -46,8 +46,7 @@ sshicstuff plot4c \
   -H 600 \
   -W 1200 \
   -r 4 \
-  -y 0 \
-  -Y 0.03
+  -L
 
 echo "Outputs:"
 echo "  ${PROFILE_1KB_FREQ}"
