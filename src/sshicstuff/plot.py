@@ -261,6 +261,10 @@ def plot_profiles(
             if log_scale:
                 y[y == 0] = np.nan
                 y = np.log10(y)
+                if user_y_min is None:
+                    y_min = float(np.nanmin(y))
+                if user_y_max is None:
+                    y_max = float(np.nanmax(y))
 
             fig = go.Figure(go.Scattergl(
                 x=df[x_col], y=y, mode="lines",
@@ -289,6 +293,10 @@ def plot_profiles(
             if log_scale:
                 y[y == 0] = np.nan
                 y = np.log10(y)
+                if user_y_min is None:
+                    y_min = float(np.nanmin(y))
+                if user_y_max is None:
+                    y_max = float(np.nanmax(y))
 
             fig = make_subplots(
                 rows=2, cols=1, row_heights=[0.94, 0.06], vertical_spacing=0.06,
