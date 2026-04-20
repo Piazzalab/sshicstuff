@@ -1,5 +1,7 @@
 """
+Sub-sampling code using seqtk to randomly smaple fastq files.
 
+This is used in the test suite to create smaller test files from the original large fastq files.
 """
 import logging
 import os

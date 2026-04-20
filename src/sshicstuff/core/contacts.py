@@ -307,9 +307,11 @@ def _associate_oligos_to_fragments(
     (chr, start, end). Each probe is mapped to the bin whose interval
     strictly encloses the probe midpoint.
     """
+    # Use the same midpoint formula as associate_oligo_to_fragment:
+    # start + (end - start) / 2  →  integer-safe floor division.
     oligo_mid = (
-        (oligos[schemas.COL_END] - oligos[schemas.COL_START] - 1) // 2
-        + oligos[schemas.COL_START] - 1
+        oligos[schemas.COL_START]
+        + (oligos[schemas.COL_END] - oligos[schemas.COL_START]) // 2
     ).astype(int)
 
     new_starts = []

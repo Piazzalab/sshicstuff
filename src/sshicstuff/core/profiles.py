@@ -200,7 +200,7 @@ def build_profile(
                     schemas.COL_CHR: rows[f"chr_{other}"].values,
                     schemas.COL_START: rows[f"start_{other}"].values,
                     schemas.COL_SIZES: rows[f"size_{other}"].values,
-                    probe: rows["contacts"].values,
+                    probe: rows[schemas.COL_PROBE_CONTACTS].values,
                 })
             df_contacts = pd.concat([df_contacts, chunk], ignore_index=True)
 
@@ -257,7 +257,13 @@ def build_profile(
             total = df_freq[col].sum()
             if total > 0:
                 df_freq[col] /= total
-        freq_path = Path(str(output_path).replace("contacts", "frequencies"))
+        # Replace "contacts" in the file name when present; fall back to
+        # appending "_frequencies" so the path is always distinct from the
+        # counts file even when the user supplies a custom output_path.
+        _freq_name = output_path.name.replace("contacts", "frequencies")
+        if _freq_name == output_path.name:
+            _freq_name = output_path.stem + "_frequencies" + output_path.suffix
+        freq_path = output_path.with_name(_freq_name)
         write_tsv(df_freq, freq_path)
         logger.info("[Profile] Frequency profile → %s", freq_path.name)
 
@@ -268,6 +274,70 @@ def build_profile(
 # Profile rebinning
 # ---------------------------------------------------------------------------
 
+def _split_fragment_to_bins(
+    df: pd.DataFrame,
+    frag_cols: list[str],
+    bin_size: int,
+) -> pd.DataFrame:
+    """Distribute a fragment's contacts proportionally across every bin it overlaps.
+
+    The previous implementation handled only the two-bin case (a fragment
+    crossing exactly one bin boundary).  This helper handles the general
+    case: a fragment spanning *n* bins produces *n* rows, each with contact
+    values scaled by the fraction of the fragment that falls inside that bin.
+
+    The overlap fraction for bin *b* is::
+
+        overlap = min(frag_end, b + bin_size) - max(frag_start, b)
+        fraction = overlap / fragment_size
+
+    Fractions sum to 1.0 across all bins for a given fragment, preserving
+    the total contact count.
+
+    Parameters
+    ----------
+    df:
+        Rows of the fragment-level profile that cross at least one bin
+        boundary.  Must contain ``COL_START``, ``_end`` (fragment end
+        position, exclusive), and the columns listed in *frag_cols*.
+    frag_cols:
+        Names of the contact-count columns to scale.
+    bin_size:
+        Fixed bin width in bp.
+
+    Returns
+    -------
+    pd.DataFrame
+        Expanded frame with ``COL_CHR_BINS`` set and contact columns
+        scaled by the per-bin overlap fraction.  The number of rows is
+        ≥ ``len(df)`` (one row per overlapping bin per input fragment).
+    """
+    if df.empty:
+        return df.iloc[0:0].copy()
+
+    parts: list[pd.Series] = []
+    for _, row in df.iterrows():
+        frag_start = int(row[schemas.COL_START])
+        frag_end = int(row["_end"])
+        frag_size = frag_end - frag_start
+
+        # First and last bin whose interval overlaps [frag_start, frag_end).
+        first_bin = (frag_start // bin_size) * bin_size
+        last_bin = ((frag_end - 1) // bin_size) * bin_size
+
+        for b in range(first_bin, last_bin + bin_size, bin_size):
+            overlap = min(frag_end, b + bin_size) - max(frag_start, b)
+            frac = overlap / frag_size
+            new_row = row.copy()
+            new_row[schemas.COL_CHR_BINS] = b
+            for col in frag_cols:
+                val = row[col]
+                new_row[col] = (val * frac) if pd.notna(val) else 0.0
+            parts.append(new_row)
+
+    return pd.DataFrame(parts, columns=df.columns)
+
+
 def rebin_profile(
     contacts_unbinned_path: str | Path,
     chromosomes_coord_path: str | Path,
@@ -277,8 +347,8 @@ def rebin_profile(
 ) -> Path | None:
     """Aggregate a fragment-level profile into fixed-width genomic bins.
 
-    Fragments that straddle a bin boundary have their contact values split
-    proportionally between the two bins.
+    Each fragment's contact values are distributed proportionally across
+    every bin it overlaps, including fragments that span three or more bins.
 
     Parameters
     ----------
@@ -323,18 +393,31 @@ def rebin_profile(
     # 1. Build complete bin template
     # ------------------------------------------------------------------ #
     chr_sizes = dict(zip(df_coords[schemas.COL_CHR], df_coords[schemas.COL_LENGTH]))
-    chr_parts, bin_parts = [], []
+
+    # Cumulative chromosome starts from actual chromosome lengths — mirrors
+    # the logic in build_profile so that COL_GENOME_BINS matches the
+    # COL_GENOME_START values in the fragment-level profile and both can be
+    # plotted on the same genome axis.
+    cum_start = 0
+    chr_genome_starts: dict[str, int] = {}
+    for chrom, length in chr_sizes.items():
+        chr_genome_starts[chrom] = cum_start
+        cum_start += length
+
+    chr_parts: list[np.ndarray] = []
+    bin_parts: list[np.ndarray] = []
+    genome_parts: list[np.ndarray] = []
     for chrom, length in chr_sizes.items():
         n_bins = (length // bin_size) + 1
+        chr_bin_arr = np.arange(0, n_bins * bin_size, bin_size, dtype=np.int64)
         chr_parts.append(np.full(n_bins, chrom))
-        bin_parts.append(np.arange(0, n_bins * bin_size, bin_size))
+        bin_parts.append(chr_bin_arr)
+        genome_parts.append(chr_genome_starts[chrom] + chr_bin_arr)
 
     df_template = pd.DataFrame({
         schemas.COL_CHR: np.concatenate(chr_parts),
         schemas.COL_CHR_BINS: np.concatenate(bin_parts),
-        schemas.COL_GENOME_BINS: np.arange(
-            0, sum(len(b) for b in bin_parts) * bin_size, bin_size
-        ),
+        schemas.COL_GENOME_BINS: np.concatenate(genome_parts),
     })
 
     # ------------------------------------------------------------------ #
@@ -351,30 +434,18 @@ def rebin_profile(
     if schemas.COL_GENOME_START in df.columns:
         df.drop(columns=[schemas.COL_GENOME_START], inplace=True)
 
+    # Fragments entirely inside one bin: assign directly.
     in_bin_mask = df["start_bin"] == df["end_bin"]
     df_in = df[in_bin_mask].copy()
     df_in[schemas.COL_CHR_BINS] = df_in["start_bin"]
 
+    # Fragments crossing one or more bin boundaries: use the general helper
+    # that handles 2-bin and n-bin cases by iterating over every overlapping
+    # bin interval and scaling contact values by the overlap fraction.
     df_cross = df[~in_bin_mask].copy()
-    if not df_cross.empty:
-        frac_second = (
-            (df_cross["_end"] - df_cross["end_bin"]) / df_cross[schemas.COL_SIZES]
-        ).values
-        frac_first = 1 - frac_second
+    df_exploded = _split_fragment_to_bins(df_cross, frag_cols, bin_size)
 
-        df_cross_a = df_cross.copy()
-        df_cross_a[schemas.COL_CHR_BINS] = df_cross_a["start_bin"]
-        df_cross_a[frag_cols] = df_cross_a[frag_cols].multiply(frac_first, axis=0)
-
-        df_cross_b = df_cross.copy()
-        df_cross_b[schemas.COL_CHR_BINS] = df_cross_b["end_bin"]
-        df_cross_b[frag_cols] = df_cross_b[frag_cols].multiply(frac_second, axis=0)
-    else:
-        df_cross_a = df_cross_b = pd.DataFrame(columns=df.columns)
-
-    df_combined = pd.concat(
-        [df_in, df_cross_a, df_cross_b], ignore_index=True
-    )
+    df_combined = pd.concat([df_in, df_exploded], ignore_index=True)
     df_combined.drop(columns=["start_bin", "end_bin", "_end"], inplace=True)
 
     df_binned = df_combined.groupby(

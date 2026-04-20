@@ -7,11 +7,12 @@ Produces three output TSV files:
 * ``*_norm_chr_freq.tsv``       – normalized contact frequency per chromosome.
 * ``*_norm_inter_chr_freq.tsv`` – same, restricted to inter-chromosomal contacts.
 
-Since the switch to a cool-first architecture, the total sample-wide
-contact count (used as the denominator of ``coverage_over_hic_contacts``)
-is read directly from the input cooler — optionally using ICE-balanced
-pixel values for cross-sample quantitative comparisons (addresses the
-reviewer's comment on matrix balancing).
+Since the switch to a cool-first architecture, both the per-probe contact
+total (numerator) and the sample-wide total (denominator) of
+``coverage_over_hic_contacts`` are read directly from the input cooler,
+optionally using ICE-balanced pixel values. This ensures the two sides of
+the ratio are always in the same pixel space (raw or balanced) for
+rigorous cross-sample comparisons.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 from sshicstuff.core import schemas
-from sshicstuff.core.cool import load_cool, total_counts, has_balancing
+from sshicstuff.core.cool import load_cool, pixels_df, total_counts, has_balancing
 from sshicstuff.core.io import (
     detect_delimiter,
     guard_overwrite,
@@ -65,10 +66,12 @@ def compute_stats(
     cis_range:
         Window in bp around each probe used to define *cis* contacts.
     use_balanced:
-        When True, compute the total contact count from ICE-balanced
-        pixel values (requires that the cooler has a ``weight`` column).
-        The per-probe profile values themselves are unchanged; only the
-        denominator of ``coverage_over_hic_contacts`` differs.
+        When True, both the per-probe contact total (numerator) and the
+        sample-wide total (denominator) of ``coverage_over_hic_contacts``
+        are computed from ICE-balanced pixel values read directly from the
+        cooler (requires a ``weight`` column). All other metrics (cis,
+        trans, intra/inter, norm_per_chr) continue to use raw counts from
+        the profile TSV as they are internal probe ratios.
     force:
         Overwrite existing output files.
 
@@ -153,6 +156,30 @@ def compute_stats(
     probes = df_oligo[schemas.COL_NAME].tolist()
     frag_ids = df_oligo[schemas.COL_FRAGMENT].astype(str).tolist()
 
+    # Precompute per-probe contact totals directly from the cooler so that
+    # coverage_over_hic_contacts uses the same pixel space (raw or balanced)
+    # as total_contacts. This keeps numerator and denominator consistent:
+    #   - use_balanced=False → both raw pixel sums
+    #   - use_balanced=True  → both ICE-balanced pixel sums
+    # All other ratios (cis, trans, intra, inter, norm_per_chr) use raw counts
+    # from the profile TSV because they are internal probe ratios where the
+    # bias correction cancels out and cross-sample comparability is not needed.
+    df_pixels_cov = pixels_df(clr, balance=effective_use_balanced)
+    probe_cov_totals: dict[str, float] = {}
+    for frag_str in frag_ids:
+        frag_int = int(frag_str)
+        mask = (
+            (df_pixels_cov[schemas.COL_BIN1_ID] == frag_int)
+            | (df_pixels_cov[schemas.COL_BIN2_ID] == frag_int)
+        )
+        probe_cov_totals[frag_str] = float(
+            df_pixels_cov.loc[mask, schemas.COL_COOL_COUNT].sum(skipna=True)
+        )
+    logger.info(
+        "[Stats] Per-probe contact totals computed from cooler (%s).",
+        "ICE-balanced" if effective_use_balanced else "raw",
+    )
+
     norm_per_chr: dict[str, list] = {c: [] for c in chromosomes}
     norm_inter_per_chr: dict[str, list] = {c: [] for c in chromosomes}
     stats_records: list[dict] = []
@@ -178,13 +205,27 @@ def compute_stats(
 
         if probe_total > 0:
             record[schemas.COL_CONTACTS] = probe_total
-            record[schemas.COL_COVERAGE_OVER_HIC] = probe_total / total_contacts
+            # Use the cooler-derived total (raw or balanced) for coverage so
+            # that numerator and denominator are in the same pixel space.
+            record[schemas.COL_COVERAGE_OVER_HIC] = (
+                probe_cov_totals.get(frag_id, 0.0) / total_contacts
+            )
 
+            # For inter-contacts we remove contacts made by the probe
+            # from its original chromosome, and the artificial chromosome it
+            # may be assigned to in the Design part (in general probe_chr is chr_artifial_ssdna)
+            # we also remove the chr_artificial_dsdna.
             inter_sum = col_data.query(
-                "chr != @probe_chr_ori and chr != @probe_chr"
+                "chr != @probe_chr_ori and "
+                "chr != @probe_chr and "
+                "chr != 'chr_artificial_dsDNA' and "
+                "chr != 'chr_artificial_ssDNA'"
+            )[frag_id].sum()
+            intra_sum = col_data.query(
+                "chr == @probe_chr_ori"
             )[frag_id].sum()
             record[schemas.COL_INTER_CHR] = inter_sum / probe_total
-            record[schemas.COL_INTRA_CHR] = 1.0 - record[schemas.COL_INTER_CHR]
+            record[schemas.COL_INTRA_CHR] = intra_sum / probe_total
 
             # Cis contacts: within cis_range of the probe, excluding artificial chrs.
             df_no_art_col = df_no_art[[
@@ -226,9 +267,14 @@ def compute_stats(
             contacts_on_chrom = col_data.loc[
                 col_data[schemas.COL_CHR] == chrom, frag_id
             ].sum()
+            # Mirror the inter_sum definition: exclude both probe_chr_ori and
+            # probe_chr so that inter_on_chrom / inter_sum stays in [0, 1].
+            # For chrom == probe_chr_ori or chrom == probe_chr the result is
+            # 0 by construction, consistent with how inter_sum is computed.
             inter_on_chrom = col_data.loc[
                 (col_data[schemas.COL_CHR] == chrom)
-                & (col_data[schemas.COL_CHR] != probe_chr_ori),
+                & (col_data[schemas.COL_CHR] != probe_chr_ori)
+                & (col_data[schemas.COL_CHR] != probe_chr),
                 frag_id,
             ].sum()
 
@@ -251,6 +297,11 @@ def compute_stats(
     # 3. Assemble output tables
     # ------------------------------------------------------------------ #
     df_stats = pd.DataFrame(stats_records)
+    # dsDNA-normalised capture efficiency is a probe-to-probe relative metric:
+    # each probe's raw contact count divided by the mean raw count of dsDNA
+    # probes. Using raw counts on both sides is intentional — the library-size
+    # bias cancels in the ratio, so applying use_balanced here would not
+    # change the result and would only add confusion.
     mean_ds = df_stats.loc[
         df_stats[schemas.COL_TYPE] == schemas.PROBE_TYPE_DSDNA, schemas.COL_CONTACTS
     ].mean()

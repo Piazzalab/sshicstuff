@@ -536,7 +536,14 @@ def write_subset_cool(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Re-use the source bins table verbatim so that bin_ids stay valid.
-    bins = src_clr.bins()[:][["chrom", "start", "end"]].copy()
+    # Include the weight column when the source cooler has been ICE-balanced,
+    # so that derived coolers (dsDNA-only, ssDNA-only, filtered) inherit the
+    # existing bias correction and downstream balance=True calls still work.
+    src_bins = src_clr.bins()[:]
+    bin_cols = ["chrom", "start", "end"]
+    if schemas.COL_WEIGHT in src_bins.columns:
+        bin_cols.append(schemas.COL_WEIGHT)
+    bins = src_bins[bin_cols].copy()
 
     if pixels.empty:
         logger.warning(
