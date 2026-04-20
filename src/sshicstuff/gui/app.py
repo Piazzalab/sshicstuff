@@ -52,7 +52,7 @@ app.config.suppress_callback_exceptions = True
 
 def _get_version() -> str:
     """Read the package version from pyproject.toml, if present."""
-    base = Path(__file__).resolve().parent.parent.parent
+    base = Path(__file__).resolve().parent.parent.parent.parent
     pyproject = base / "pyproject.toml"
     if pyproject.exists():
         for line in pyproject.read_text().splitlines():
