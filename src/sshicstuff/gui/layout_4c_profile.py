@@ -130,7 +130,7 @@ layout = html.Div(id="browser-page", children=[
                             id='start-pos',
                             placeholder="Start",
                             value=None,
-                            type='text',
+                            type='number',
                             className="custom-input"
                         ),
                     ], width=3),
@@ -140,6 +140,7 @@ layout = html.Div(id="browser-page", children=[
                             id='end-pos',
                             placeholder="End",
                             value=None,
+                            type='number',
                             className="custom-input"
                         ),
                     ], width=3),

@@ -468,33 +468,33 @@ def build_interactive_figure(
     width / height:
         Figure dimensions in pixels.
     """
-    n_chr = len(df_coords)
     full_genome_size = int(df_coords[schemas.COL_LENGTH].sum())
-    x_min = float(user_x_min) if user_x_min else 0
-    x_max = float(user_x_max) if user_x_max else full_genome_size
-    x_col = schemas.COL_GENOME_START if schemas.COL_GENOME_START in df.columns else schemas.COL_CHR_BINS
 
+    # --- 1. Rebin on the full DataFrame (must happen before any chr filter) ---
+    if binsize > 0:
+        df = rebin_profile_df(df=df, df_coords=df_coords, bin_size=binsize)
+        for probe in probes:
+            df.loc[df[probe] == 0, probe] = np.nan
+
+    # --- 2. Restrict to a single chromosome (after rebinning so bins are correct) ---
     if chr_region:
         max_len = int(
             df_coords.loc[df_coords[schemas.COL_CHR] == chr_region, schemas.COL_LENGTH].values[0]
         )
-        x_min = float(user_x_min) if user_x_min else 0
-        x_max = float(user_x_max) if user_x_max else max_len
-        df = df[df[schemas.COL_CHR] == chr_region]
-        x_col = schemas.COL_START if schemas.COL_START in df.columns else schemas.COL_CHR_BINS
+        x_min = float(user_x_min) if user_x_min else 0.0
+        x_max = float(user_x_max) if user_x_max else float(max_len)
+        df = df[df[schemas.COL_CHR] == chr_region].copy()
+    else:
+        x_min = float(user_x_min) if user_x_min else 0.0
+        x_max = float(user_x_max) if user_x_max else float(full_genome_size)
 
-
+    # --- 3. Determine x_col once (binsize drives column name; region drives chr vs genome) ---
     if binsize > 0:
-        df = df.copy()
-        df = rebin_profile_df(
-            df=df,
-            df_coords=df_coords,
-            bin_size=binsize,
-        )
-        for probe in probes:
-            df.loc[df[probe] == 0, probe] = np.nan
-
         x_col = schemas.COL_CHR_BINS if chr_region else schemas.COL_GENOME_BINS
+    elif chr_region:
+        x_col = schemas.COL_START if schemas.COL_START in df.columns else schemas.COL_CHR_BINS
+    else:
+        x_col = schemas.COL_GENOME_START if schemas.COL_GENOME_START in df.columns else schemas.COL_CHR_BINS
 
     if rolling_window > 1:
         for chrom in df[schemas.COL_CHR].unique():
