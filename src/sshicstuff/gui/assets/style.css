@@ -1,230 +1,319 @@
+/* =========================================================
+   sshicstuff GUI — global stylesheet
+   ========================================================= */
+
+/* ── Variables ──────────────────────────────────────────── */
+:root {
+    --accent:        #2245b7;
+    --accent-dark:   #1a3490;
+    --green:         #28a745;
+    --green-dark:    #1e7e34;
+    --red:           #dc3545;
+    --plot-blue:     #199cce;
+    --plot-blue-dark:#127ba3;
+    --card-shadow:   0 1px 4px rgba(0,0,0,0.10);
+    --card-radius:   10px;
+    --border-light:  #e0e4ef;
+    --text-muted:    #6c757d;
+    --font-sm:       13px;
+    --font-md:       14px;
+    --transition:    0.18s ease;
+}
+
+/* ── Base ───────────────────────────────────────────────── */
 body {
-    font-family: sans-serif;
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    font-size: var(--font-md);
+    background: #f5f7fb;
+    color: #1a1a2e;
 }
 
-h1, h2, h3 {
-    color: #2245b7;
+h1, h2, h3 { color: var(--accent); }
+h4, h5, h6 { color: #1a1a2e; margin-bottom: .35rem; }
+
+/* ── Header ─────────────────────────────────────────────── */
+.app-title {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.3px;
 }
 
-h4, h5, h6 {
-    color: #000000;
+/* ── Tabs ───────────────────────────────────────────────── */
+.dash-tab {
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 22px;
+    font-size: var(--font-md);
+    font-weight: 500;
+    transition: color var(--transition), border-color var(--transition);
+}
+.dash-tab:hover { color: var(--accent); }
+.dash-tab--selected {
+    color: var(--accent) !important;
+    border-bottom: 3px solid var(--accent) !important;
+    background: transparent !important;
+    font-weight: 600;
 }
 
-.app-header {
-    height: 60px;
-    line-height: 60px;
-    border-bottom: thin lightgrey solid;
+/* ── Cards ──────────────────────────────────────────────── */
+.section-card {
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    padding: 16px 20px 14px;
+    margin-bottom: 14px;
 }
 
-.app-header .app-header--title {
-    font-size: 22px;
-    padding-left: 5px;
+.section-card-title {
+    font-size: var(--font-sm);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-light);
 }
 
-/* ===== Layout général ===== */
-.custom-container {
-    max-width: 1500px;
-}
-
-.custom-tabs-container {
-    width: 85%;
-}
-
-.custom-tabs {
-    border-top-left-radius: 3px;
-    background-color: #f9f9f9;
-    padding: 0px 24px;
-    border-bottom: 1px solid #d6d6d6;
-}
-
-.custom-tab {
-    color:#586069;
-    border-top-left-radius: 3px;
-    border-top-right-radius: 3px;
-    border-top: 3px solid transparent;
-    border-left: 0px;
-    border-right: 0px;
-    border-bottom: 0px;
-    background-color: #fafbfc;
-    padding: 12px;
-    font-family: "system-ui";
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.custom-tab-selected {
-    color: black;
-    box-shadow: 1px 1px 0px white;
-    border-left: 1px solid lightgrey;
-    border-right: 1px solid lightgrey;
-    border-top: 3px solid #e36209;
-}
-
-/* ===== Sliders ===== */
-.rc-slider {
+/* ── Upload zone ────────────────────────────────────────── */
+.upload-zone {
     width: 100%;
-    margin: 20px 0;
+    min-height: 72px;
+    line-height: 72px;
+    border: 2px dashed #b0bce8;
+    border-radius: 10px;
+    text-align: center;
+    font-size: var(--font-md);
+    color: var(--text-muted);
+    background: #f8f9ff;
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition);
+}
+.upload-zone:hover {
+    border-color: var(--accent);
+    background: #eef1fb;
+    color: var(--accent);
 }
 
-.rc-slider-track {
-    background-color: #4CAF50;
-    height: 8px;
-    border-radius: 4px;
-}
-
-.rc-slider-rail {
-    background-color: #ddd;
-    height: 8px;
-    border-radius: 4px;
-}
-
+/* ── Sliders ────────────────────────────────────────────── */
+.rc-slider { width: 100%; margin: 16px 0 6px; }
+.rc-slider-rail   { background: #dde2f0; height: 6px; border-radius: 3px; }
+.rc-slider-track  { background: var(--accent); height: 6px; border-radius: 3px; }
 .rc-slider-handle {
-    border-color: #4CAF50;
-    height: 20px;
-    width: 20px;
+    border: 2px solid var(--accent);
+    background: #fff;
+    width: 18px; height: 18px;
     margin-top: -6px;
-    background-color: #FFFFFF;
-    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 4px rgba(34,69,183,.25);
+    transition: border-color var(--transition), box-shadow var(--transition);
 }
-
 .rc-slider-handle:hover,
-.rc-slider-handle-active:active,
+.rc-slider-handle:active,
 .rc-slider-handle:focus {
-    border-color: #45a049;
-    box-shadow: 0 0 8px rgba(76, 175, 80, 0.7);
+    border-color: var(--accent-dark);
+    box-shadow: 0 0 0 4px rgba(34,69,183,.18);
 }
-
 .rc-slider-mark-text {
-    color: #2245b7;
-    font-size: 14px;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+.rc-slider-dot       { border-color: #c5ccde; bottom: -2px; }
+.rc-slider-dot-active { border-color: var(--accent); }
+
+.slider-label {
+    font-size: var(--font-md);
+    color: #1a1a2e;
+    margin-bottom: 4px;
+}
+.slider-label span {
+    font-weight: 700;
+    color: var(--accent);
 }
 
-.rc-slider-dot {
-    border-color: #888;
-    bottom: -2px;
-}
-
-.rc-slider-dot-active {
-    border-color: #4CAF50;
-}
-
-/* ===== Inputs et boutons ===== */
+/* ── Inputs ─────────────────────────────────────────────── */
 .custom-input {
     width: 100%;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px;
-    font-size: 16px;
-    background-color: #fff;
-    color: #333;
+    border: 1px solid #c8d0e7;
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: var(--font-md);
+    background: #fff;
+    color: #1a1a2e;
+    transition: border-color var(--transition), box-shadow var(--transition);
 }
-
-.custom-input::placeholder {
-    color: #999;
-    opacity: 1;
+.custom-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(34,69,183,.12);
+    outline: none;
 }
+.custom-input::placeholder { color: #aab3cc; }
 
+/* ── Buttons ────────────────────────────────────────────── */
 .plot-button {
-    background-color: #199cce;
-    color: white;
+    background: var(--plot-blue);
+    color: #fff;
     border: none;
-    border-radius: 40px;
-    padding: 14px 14px;
-    font-size: 20px;
+    border-radius: 8px;
+    padding: 10px 28px;
+    font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
-    width: 120px;
+    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    box-shadow: 0 2px 6px rgba(25,156,206,.30);
 }
+.plot-button:hover {
+    background: var(--plot-blue-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(25,156,206,.35);
+}
+.plot-button:active { transform: translateY(0); }
 
 .export-button {
-    background-color: #ffffff;
-    color: black;
-    border: 2px solid black;
-    border-radius: 11px;
-    padding: 10px 14px;
-    font-size: 16px;
+    background: #fff;
+    color: #1a1a2e;
+    border: 1.5px solid #c8d0e7;
+    border-radius: 7px;
+    padding: 7px 18px;
+    font-size: var(--font-md);
+    font-weight: 500;
     cursor: pointer;
-    text-align: center;
+    transition: background var(--transition), border-color var(--transition);
+}
+.export-button:hover {
+    background: #f0f3fb;
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 .custom-submit-btn {
-    width: 120px;
-    height: 45px;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 8px;
-    background-color: #007bff;
+    background: var(--accent);
+    color: #fff;
     border: none;
-    color: white;
+    border-radius: 8px;
+    padding: 10px 28px;
+    font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.3s ease-in-out;
+    transition: background var(--transition), transform var(--transition);
+    box-shadow: 0 2px 6px rgba(34,69,183,.25);
 }
-
 .custom-submit-btn:hover {
-    background-color: #0056b3;
+    background: var(--accent-dark);
+    transform: translateY(-1px);
 }
+.custom-submit-btn:active { transform: translateY(0); }
 
 .custom-download-btn {
-    width: 180px;
-    height: 40px;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 8px;
-    background-color: #28a745;
+    background: var(--green);
+    color: #fff;
     border: none;
-    color: white;
+    border-radius: 8px;
+    padding: 9px 22px;
+    font-size: var(--font-md);
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.3s ease-in-out;
+    transition: background var(--transition), transform var(--transition);
 }
-
-
+.custom-download-btn:hover {
+    background: var(--green-dark);
+    transform: translateY(-1px);
+}
 
 .btn-success {
-    background-color: #28a745;
-    border-color: #28a745;
-    padding: 5px 10px;
-    font-size: 14px;
+    background: var(--green);
+    border-color: var(--green);
+    font-size: var(--font-sm);
+    padding: 4px 12px;
+    border-radius: 6px;
+    transition: background var(--transition);
 }
+.btn-success:hover { background: var(--green-dark); border-color: var(--green-dark); }
 
 .btn-danger {
-    background-color: #dc3545;
-    border-color: #dc3545;
-    padding: 5px 10px;
-    font-size: 14px;
+    background: var(--red);
+    border-color: var(--red);
+    font-size: var(--font-sm);
+    padding: 4px 12px;
+    border-radius: 6px;
 }
 
 .custom-delete-button {
-    background-color: rgba(200, 200, 200, 0.5);
-    color: #333;
-    border: none;
-    border-radius: 6px;
-    padding: 6px 12px;
+    background: rgba(220,53,69,.08);
+    color: var(--red);
+    border: 1px solid rgba(220,53,69,.25);
+    border-radius: 5px;
+    padding: 3px 9px;
     font-size: 12px;
     cursor: pointer;
-    transition: background-color 0.3s, transform 0.3s;
+    transition: background var(--transition);
+}
+.custom-delete-button:hover { background: rgba(220,53,69,.18); }
+
+/* ── Loading overlay ────────────────────────────────────── */
+._dash-loading-callback ._dash-loading {
+    border-top-color: var(--accent) !important;
 }
 
-.custom-delete-button:hover {
-    background-color: rgba(180, 180, 180, 0.7);
-    transform: scale(1.05);
+/* ── Dropdowns (DCC) ─────────────────────────────────────── */
+.Select-control {
+    border-color: #c8d0e7 !important;
+    border-radius: 6px !important;
+    font-size: var(--font-md) !important;
 }
+.Select-control:hover { border-color: var(--accent) !important; }
+.is-focused .Select-control { border-color: var(--accent) !important; }
 
-/* ===== Divers ===== */
-.custom-tooltip {
-    left: 10px !important;
-    width: 600px !important;
-}
-
-.custom-checkbox-label {
+/* ── Collapse toggle link ────────────────────────────────── */
+.collapse-toggle {
+    font-size: var(--font-sm);
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
     align-items: center;
-    margin: 10px;
-    font-size: 16px;
+    gap: 4px;
+    user-select: none;
 }
+.collapse-toggle:hover { color: var(--accent-dark); text-decoration: underline; }
 
-.custom-checkbox-label input[type="checkbox"] {
-    margin-right: 5px;
+/* ── Output table ────────────────────────────────────────── */
+.output-table {
+    font-size: 12px;
+    width: 100%;
+    border-collapse: collapse;
 }
+.output-table th {
+    background: #eef1fb;
+    color: var(--accent);
+    font-weight: 600;
+    padding: 7px 10px;
+    border-bottom: 2px solid var(--border-light);
+    white-space: nowrap;
+}
+.output-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid #f0f2f8;
+    font-size: 12px;
+    color: #333;
+}
+.output-table tr:hover td { background: #f8f9ff; }
 
-#secondary-sites-container .row {
-    margin-bottom: 10px;
+/* ── Misc ────────────────────────────────────────────────── */
+.custom-tooltip { left: 10px !important; width: 600px !important; }
+.custom-checkbox-label { align-items: center; margin: 8px 0; font-size: var(--font-md); }
+.custom-checkbox-label input[type="checkbox"] { margin-right: 6px; }
+
+.file-loaded-badge {
+    display: inline-block;
+    font-size: 11px;
+    color: var(--green);
+    background: rgba(40,167,69,.10);
+    border: 1px solid rgba(40,167,69,.25);
+    border-radius: 10px;
+    padding: 1px 8px;
+    margin-top: 3px;
 }
