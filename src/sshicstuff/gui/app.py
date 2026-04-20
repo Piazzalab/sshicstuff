@@ -68,22 +68,46 @@ _version = _get_version()
 # Layout
 # ---------------------------------------------------------------------------
 
+_PRIVACY_NOTICE = dbc.Alert(
+    [
+        html.B("Data & privacy: "),
+        "Uploaded files are written to a temporary directory on this server "
+        "and are scoped to your browser session. They are deleted when you "
+        "click 'Clear cache' or when the server restarts. "
+        "No data is transmitted to third parties or retained between sessions. "
+        "For sensitive unpublished data we recommend running ",
+        html.A("sshicstuff locally", href="https://github.com/Piazzalab/sshicstuff",
+               target="_blank"),
+        " instead.",
+    ],
+    id="privacy-notice",
+    color="light",
+    dismissable=True,
+    is_open=True,
+    style={
+        "fontSize": "13px",
+        "borderLeft": "4px solid #2245b7",
+        "borderRadius": "6px",
+        "margin": "0 16px 4px",
+    },
+)
+
 app.layout = html.Div([
-    dbc.Row(
-        dbc.Col(
-            html.H1(f"ssDNA specific Hi-C graphical suite v{_version}"),
-            width=12,
-            style={"textAlign": "center", "margin": "20px"},
-        )
+    html.Div(
+        html.H1(f"ssDNA specific Hi-C graphical suite v{_version}",
+                className="app-title text-center py-3"),
     ),
+    _PRIVACY_NOTICE,
     dcc.Tabs(
         id="tabs",
         value="oligo-tab",
         children=[
-            dcc.Tab(label="Oligo Designer", value="oligo-tab"),
-            dcc.Tab(label="ssHiC Browser",  value="browser-tab"),
+            dcc.Tab(label="Oligo Designer", value="oligo-tab",
+                    className="dash-tab", selected_className="dash-tab--selected"),
+            dcc.Tab(label="ssHiC Browser",  value="browser-tab",
+                    className="dash-tab", selected_className="dash-tab--selected"),
         ],
-        style={"bottom": "50px", "margin": "20px"},
+        style={"margin": "0 0 4px 0"},
     ),
     html.Div(id="tabs-content"),
 ])
@@ -95,6 +119,6 @@ app.layout = html.Div([
 )
 def render_tab(tab: str):
     return html.Div([
-        html.Div(lo.layout, style={"display": "block" if tab == "oligo-tab"    else "none"}),
-        html.Div(lb.layout, style={"display": "block" if tab == "browser-tab"  else "none"}),
+        html.Div(lo.layout, style={"display": "block" if tab == "oligo-tab"   else "none"}),
+        html.Div(lb.layout, style={"display": "block" if tab == "browser-tab" else "none"}),
     ])
