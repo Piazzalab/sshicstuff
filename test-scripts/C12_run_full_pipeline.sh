@@ -18,6 +18,7 @@ sshicstuff pipeline \
   --bin-cen 10000 \
   --bin-telo 1000 \
   --balanced-stats \
+  --copy-inputs \
   -r 50000 \
   -F \
   -N
