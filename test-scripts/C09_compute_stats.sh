@@ -12,7 +12,13 @@ sshicstuff stats \
   -C "${CHROM_COORDS}" \
   -o "${OUTPUTS_DIR}" \
   -r 50000 \
+  --balanced \
   -F
+
+# Remove --balanced if ICE weights have not been computed yet (cooler balance).
+# When --balanced is set, the denominator for capture-efficiency and
+# ssDNA/dsDNA coverage ratios is derived from ICE-balanced pixel sums
+# instead of raw counts, correcting for fragment-density and GC biases.
 
 echo "Outputs:"
 echo "  ${STATS_TABLE}"
