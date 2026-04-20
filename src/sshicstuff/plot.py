@@ -471,7 +471,7 @@ def build_interactive_figure(
     full_genome_size = int(df_coords[schemas.COL_LENGTH].sum())
     x_min = float(user_x_min) if user_x_min else 0
     x_max = float(user_x_max) if user_x_max else full_genome_size
-    x_col = schemas.COL_GENOME_START if binsize == 0 else schemas.COL_GENOME_BINS
+    x_col = schemas.COL_GENOME_START if schemas.COL_GENOME_START in df.columns else schemas.COL_CHR_BINS
 
     if chr_region:
         max_len = int(
@@ -480,7 +480,7 @@ def build_interactive_figure(
         x_min = float(user_x_min) if user_x_min else 0
         x_max = float(user_x_max) if user_x_max else max_len
         df = df[df[schemas.COL_CHR] == chr_region]
-        x_col = schemas.COL_START if binsize == 0 else schemas.COL_CHR_BINS
+        x_col = schemas.COL_START if schemas.COL_START in df.columns else schemas.COL_CHR_BINS
 
     if binsize > 0 and rolling_window > 1:
         for chrom in df[schemas.COL_CHR].unique():
