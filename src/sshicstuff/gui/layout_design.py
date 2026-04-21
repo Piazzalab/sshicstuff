@@ -48,22 +48,36 @@ layout = html.Div(id="oligo-page", children=[
         ]),
 
         dbc.Row([
-            # ── Chromosome regions ───────────────────────────────────────
-            dbc.Col(width=6, children=_card("2 — Chromosome regions (optional)", [
+            # ── Forward intervals ────────────────────────────────────────
+            dbc.Col(width=4, children=_card("2 — Forward intervals (optional)", [
                 html.P(
-                    "Leave empty to design oligos on the whole genome.",
+                    "Regions designed in forward orientation — e.g. chr1:10000-500000",
                     className="text-muted mb-2",
                     style={"fontSize": "12px"},
                 ),
-                dcc.Store(id="region-count-store", data=1),
-                html.Div(id="chromosome-region-container"),
-                html.Button("+ Add region", id="add-chromosome-region",
+                dcc.Store(id="forward-region-count-store", data=1),
+                html.Div(id="forward-region-container"),
+                html.Button("+ Add", id="add-forward-region",
+                            className="btn btn-success btn-sm mt-2",
+                            n_clicks=0),
+            ])),
+
+            # ── Reverse intervals ────────────────────────────────────────
+            dbc.Col(width=4, children=_card("3 — Reverse intervals (optional)", [
+                html.P(
+                    "Regions designed in reverse orientation — e.g. chr1:10000-500000",
+                    className="text-muted mb-2",
+                    style={"fontSize": "12px"},
+                ),
+                dcc.Store(id="reverse-region-count-store", data=1),
+                html.Div(id="reverse-region-container"),
+                html.Button("+ Add", id="add-reverse-region",
                             className="btn btn-success btn-sm mt-2",
                             n_clicks=0),
             ])),
 
             # ── Enzyme sites ─────────────────────────────────────────────
-            dbc.Col(width=6, children=_card("3 — Enzyme sites", [
+            dbc.Col(width=4, children=_card("4 — Enzyme sites", [
                 dbc.Row([
                     dbc.Col([
                         dbc.Label("Primary site", style={"fontSize": "13px"}),
@@ -83,7 +97,7 @@ layout = html.Div(id="oligo-page", children=[
         ], className="g-3"),
 
         # ── Parameters ───────────────────────────────────────────────────
-        _card("4 — Parameters", [
+        _card("5 — Parameters", [
             dbc.Row([
                 # Left: sliders
                 dbc.Col(width=8, children=[
@@ -148,7 +162,7 @@ layout = html.Div(id="oligo-page", children=[
                 className="section-card",
                 style={"display": "none"},
                 children=[
-                    html.Div("5 — Output preview", className="section-card-title"),
+                    html.Div("6 — Output preview", className="section-card-title"),
                     html.Div(id="output-table-inner"),
                     html.Button("Download TSV", id="download-button",
                                 className="custom-download-btn mt-3"),

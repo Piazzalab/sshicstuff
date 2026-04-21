@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-import tempfile
+import tempfile  # still used for outdir
 from uuid import uuid4
 
 import pandas as pd
@@ -129,16 +129,16 @@ def update_file_list(filenames, contents, n_clicks):
 
 
 # ---------------------------------------------------------------------------
-# Dynamic chromosome regions
+# Dynamic forward / reverse interval regions
 # ---------------------------------------------------------------------------
 
-def _region_row(index: int) -> html.Div:
+def _region_row(direction: str, index: int) -> html.Div:
     return html.Div([
         dbc.Row([
             dbc.Col([
                 dcc.Input(
-                    id={"type": "region-input", "index": index},
-                    placeholder=f"Region {index + 1}  e.g. chr1:10000-500000",
+                    id={"type": f"{direction}-region-input", "index": index},
+                    placeholder=f"e.g. chr1:10000-500000",
                     type="text",
                     className="custom-input",
                     style={"width": "100%"},
@@ -146,61 +146,58 @@ def _region_row(index: int) -> html.Div:
             ], width=10),
             dbc.Col([
                 html.Button(
-                    "✕", id={"type": "delete-region", "index": index},
+                    "✕", id={"type": f"delete-{direction}-region", "index": index},
                     className="custom-delete-button",
                     n_clicks=0,
                 ),
             ], width=2, className="d-flex align-items-center"),
         ], className="mb-2 align-items-center"),
-    ], id={"type": "region-row-container", "index": index})
+    ], id={"type": f"{direction}-region-row-container", "index": index})
 
 
-@callback(
-    [
-        Output("chromosome-region-container", "children"),
-        Output("region-count-store", "data"),
-    ],
-    [
-        Input("add-chromosome-region", "n_clicks"),
-        Input({"type": "delete-region", "index": ALL}, "n_clicks"),
-    ],
-    [
-        State("region-count-store", "data"),
-        State("chromosome-region-container", "children"),
-    ],
-    prevent_initial_call=True,
-)
-def manage_regions(add_clicks, delete_clicks, count, current_children):
-    from dash import ctx
-    triggered = ctx.triggered_id
+def _make_region_callbacks(direction: str):
+    container_id = f"{direction}-region-container"
+    count_store_id = f"{direction}-region-count-store"
+    add_btn_id = f"add-{direction}-region"
+    delete_type = f"delete-{direction}-region"
 
-    children = current_children or []
+    @callback(
+        [Output(container_id, "children"), Output(count_store_id, "data")],
+        [Input(add_btn_id, "n_clicks"),
+         Input({"type": delete_type, "index": ALL}, "n_clicks")],
+        [State(count_store_id, "data"), State(container_id, "children")],
+        prevent_initial_call=True,
+    )
+    def _manage(add_clicks, delete_clicks, count, current_children):
+        from dash import ctx
+        triggered = ctx.triggered_id
+        children = current_children or []
 
-    if triggered == "add-chromosome-region":
-        children = children + [_region_row(count)]
-        return children, count + 1
+        if triggered == add_btn_id:
+            return children + [_region_row(direction, count)], count + 1
 
-    # A delete button was clicked — remove the matching row
-    if isinstance(triggered, dict) and triggered.get("type") == "delete-region":
-        idx = triggered["index"]
-        children = [
-            c for c in children
-            if not (isinstance(c, dict)
-                    and c.get("props", {}).get("id", {}).get("index") == idx)
-        ]
-        return children, count
+        if isinstance(triggered, dict) and triggered.get("type") == delete_type:
+            idx = triggered["index"]
+            children = [
+                c for c in children
+                if not (isinstance(c, dict)
+                        and c.get("props", {}).get("id", {}).get("index") == idx)
+            ]
+            return children, count
 
-    return no_update, no_update
+        return no_update, no_update
+
+    @callback(
+        Output(container_id, "children", allow_duplicate=True),
+        Input("url", "pathname"),
+        prevent_initial_call=True,
+    )
+    def _init(_):
+        return [_region_row(direction, 0)]
 
 
-# Populate the container on page load with one empty row
-@callback(
-    Output("chromosome-region-container", "children", allow_duplicate=True),
-    Input("url", "pathname"),
-    prevent_initial_call=True,
-)
-def init_regions(_):
-    return [_region_row(0)]
+_make_region_callbacks("forward")
+_make_region_callbacks("reverse")
 
 
 # ---------------------------------------------------------------------------
@@ -298,7 +295,8 @@ def init_secondary_sites(_):
         State("complementary-size",    "value"),
         State("n-snps",                "value"),
         State("trials",                "value"),
-        State({"type": "region-input", "index": ALL}, "value"),
+        State({"type": "forward-region-input", "index": ALL}, "value"),
+        State({"type": "reverse-region-input", "index": ALL}, "value"),
     ],
     prevent_initial_call=True,
 )
@@ -313,7 +311,8 @@ def run_design(
     comp_size,
     n_snps,
     trials,
-    region_inputs,
+    forward_region_inputs,
+    reverse_region_inputs,
 ):
     if not n_clicks:
         return no_update, no_update, no_update
@@ -335,11 +334,9 @@ def run_design(
         s.strip() for s in (secondary_site_inputs or []) if s and s.strip()
     ) or "CAATTG,AATATT,GANTC"
 
-    # Parse regions into BED-format interval files if provided
-    fwd_intervals_path = rev_intervals_path = None
-    regions = [r.strip() for r in (region_inputs or []) if r and r.strip()]
-    if regions:
-        fwd_intervals_path, rev_intervals_path = _write_interval_files(regions)
+    # Collect forward and reverse intervals as "chr:start-end" strings
+    fwd_intervals = [r.strip() for r in (forward_region_inputs or []) if r and r.strip()]
+    rev_intervals = [r.strip() for r in (reverse_region_inputs or []) if r and r.strip()]
 
     outdir = tempfile.mkdtemp(prefix="o4s_")
 
@@ -357,10 +354,10 @@ def run_design(
         "--output-raw",       os.path.join(outdir, "raw.fa"),
         "--output-snp",       os.path.join(outdir, "snp.fa"),
     ]
-    if fwd_intervals_path:
-        cmd += ["--forward-intervals", fwd_intervals_path]
-    if rev_intervals_path:
-        cmd += ["--reverse-intervals", rev_intervals_path]
+    for interval in fwd_intervals:
+        cmd += ["--forward-intervals", interval]
+    for interval in rev_intervals:
+        cmd += ["--reverse-intervals", interval]
 
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -392,29 +389,6 @@ def run_design(
         f"Done — {len(df_anneal)} oligo(s) designed.", color="success", dismissable=True
     )
     return {"display": "block"}, table, alert
-
-
-def _write_interval_files(regions: list[str]) -> tuple[str, str]:
-    """Convert 'chr:start-end' strings to two temporary BED files (fwd / rev)."""
-    rows = []
-    for r in regions:
-        r = r.replace(",", "")
-        if ":" in r:
-            chrom, rest = r.split(":", 1)
-            start_s, end_s = rest.split("-")
-            rows.append((chrom.strip(), int(start_s.strip()), int(end_s.strip())))
-        else:
-            rows.append((r, None, None))
-
-    fwd = tempfile.NamedTemporaryFile(mode="w", suffix=".bed", delete=False)
-    rev = tempfile.NamedTemporaryFile(mode="w", suffix=".bed", delete=False)
-    for chrom, start, end in rows:
-        line = f"{chrom}\t{start or 0}\t{end or ''}\n"
-        fwd.write(line)
-        rev.write(line)
-    fwd.close()
-    rev.close()
-    return fwd.name, rev.name
 
 
 # Module-level result store (single-user assumption for local GUI)
