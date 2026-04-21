@@ -96,7 +96,7 @@ cp target/release/oligo4sshic $(conda info --base)/envs/sshicstuff/bin/
 
 ### Reproducible environment (conda-lock)
 
-A fully locked environment specification is provided in `conda-lock.yml`. This pins every package — including transitive dependencies — to exact versions and checksums, guaranteeing identical environments across machines regardless of solver behaviour:
+A fully locked environment specification is provided in `conda-lock.yml`. This pins every package, including transitive dependencies, to exact versions and checksums, guaranteeing identical environments across machines regardless of solver behaviour:
 
 ```bash
 conda-lock install --name sshicstuff conda-lock.yml
@@ -195,14 +195,14 @@ bash C09_compute_stats.sh
 
 ## Input files
 
-### 1. Contact matrix (required — choose one route)
+### 1. Contact matrix (required, choose one route)
 
 | Route | Files | Notes |
 |-------|-------|-------|
 | **Preferred** | Fragment-level `.cool` | Produced by hicstuff or cooler |
 | **Legacy** | Sparse matrix `.txt` + `fragments_list.txt` | GRAAL/hicstuff format, auto-converted |
 
-The input cooler **must be fragment-level** (`binsize = None`). Fixed-resolution coolers are not accepted — rebinning happens downstream on the 1-D profiles.
+The input cooler **must be fragment-level** (`binsize = None`). Fixed-resolution coolers are not accepted, rebinning happens downstream on the 1-D profiles.
 
 ### 2. Oligo capture table (required)
 
@@ -230,7 +230,7 @@ TSV with one row per chromosome:
 |--------|-------------|
 | `chr` | Chromosome name |
 | `length` | Chromosome length (bp) |
-| `left_arm_length` | Left arm length — centromere position (bp) |
+| `left_arm_length` | Left arm length, centromere position (bp) |
 
 ---
 
@@ -315,7 +315,7 @@ sshicstuff stats \
 
 ### ICE balancing
 
-Fragment-level `.cool` files can accumulate systematic biases — restriction fragment length, GC content, mappability — that distort contact frequencies independently of biological signal. sshicstuff supports ICE balancing via the `balance` subcommand, which calls `cooler balance` internally and writes ICE weights directly into the `.cool` file:
+Fragment-level `.cool` files can accumulate systematic biases, restriction fragment length, GC content, mappability, that distort contact frequencies independently of biological signal. sshicstuff supports ICE balancing via the `balance` subcommand, which calls `cooler balance` internally and writes ICE weights directly into the `.cool` file:
 
 ```bash
 sshicstuff balance -m sample.cool
@@ -427,7 +427,7 @@ The `probe2probe` output (`*_probe_matrix.cool`) is itself a valid cooler where 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SSHICSTUFF_CACHE_DIR` | `/tmp/sshicstuff_cache` | Root directory for GUI session file cache |
-| `FLASK_SECRET_KEY` | `dev-sshicstuff-secret` | Flask session secret — **set this in production** |
+| `FLASK_SECRET_KEY` | `dev-sshicstuff-secret` | Flask session secret, **set this in production** |
 | `SHINYPROXY_PUBLIC_PATH` | `/` | URL prefix when deployed behind a reverse proxy |
 
 ---
@@ -478,4 +478,4 @@ If you use sshicstuff in your research, please cite:
 
 ## License
 
-GPL-3.0 — see [LICENSE](LICENSE).
+GPL-3.0, see [LICENSE](LICENSE).
