@@ -11,8 +11,8 @@ sshicstuff pipeline \
   -C "${CHROM_COORDS}" \
   -a "${GROUPS_TABLE}" \
   -o "${OUTPUTS_DIR}/full_pipeline" \
-  -b 1000 \
-  -b 10000 \
+  -b 1000 2000 5000 10000 \
+  -E "mitochondrion" "2_micron" \
   --window-cen 150000 \
   --window-telo 15000 \
   --bin-cen 10000 \
