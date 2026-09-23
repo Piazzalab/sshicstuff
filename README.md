@@ -470,10 +470,29 @@ The session cache root can be redirected by setting `SSHICSTUFF_CACHE_DIR` to a 
 
 ## Citation
 
-If you use sshicstuff in your research, please cite:
+If you use ssHiCstuff in your research, please cite:
 
-> Mendiboure N., Piazza A. *ssHiCstuff: a package for the design and analysis of ssDNA-specific Hi-C experiments* (2025).
+Mendiboure N, Modolo L, Janczarski S, Piazza A. \
+ssHiCstuff: a package for the design and analysis of ssDNA-specific Hi-C experiments.
+Bioinformatics. 2026;42(6). \
+https://doi.org/10.1093/bioinformatics/btag417
 
+bibtex entry : 
+
+```
+@article{Mendiboure2026,
+	author = {Mendiboure, Nicolas and Modolo, Laurent and Janczarski, Stéphane and Piazza, Aurèle},
+	title = {{ssHiCstuff: a package for the design and analysis of ssDNA-specific Hi-C experiments}},
+	journal = {Bioinformatics},
+	volume = {42},
+	number = {6},
+	year = {2026},
+	month = jun,
+	issn = {1367-4811},
+	publisher = {Oxford Academic},
+	doi = {10.1093/bioinformatics/btag417}
+}
+```
 ---
 
 ## License
